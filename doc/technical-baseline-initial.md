@@ -3,7 +3,8 @@
 > 文档状态：开工前规划副本，不代表当前项目实现  
 > 原始基线日期：2026-08-16  
 > 副本整理日期：2026-08-17  
-> 对应产品文档：[常旅客体验优化 Agent 产品基线（规划初始态）](../product/product-baseline-initial.md)  
+> 信息源方向调整：2026-08-18（第三方聚合源优先）
+> 对应产品文档：[常旅客体验优化 Agent 产品基线（规划初始态）](./product-baseline-initial.md)
 > 实施状态：尚未开始；本文中的组件、接口、数据模型和验收项均为目标设计
 
 ## 1. 技术目标
@@ -69,6 +70,9 @@ Agent 追踪与评测：LangSmith
 - LangChain 只在确有必要时作为模型适配器使用，不使用其预制 Agent 作为第二套运行时；
 - LLM 负责语义理解、研究策略、证据判断、策略设计和解释；
 - 普通程序负责金额、日期、资格、约束、状态转换、发布和通知；
+- 机会发现以精选第三方聚合站、行业媒体、博客和社区为主，不建设官方域名扫描、官方邮箱或地区矩阵穷举能力；
+- 第三方内容先由模型完成相关性筛选、结构化抽取、语义聚类和冲突识别，确定性代码只承担最小 Schema、日期、金额、状态和硬资格校验；
+- 官方或活动落地页只在第三方来源提供链接且风险需要时按需读取，不是机会入库的强制前置条件；
 - PostgreSQL 是业务事实源，LangGraph Checkpoint 是运行状态，不相互替代；
 - 客户端与服务端使用独立代码仓库和独立部署边界；
 - Web 与移动端共享生成的 API Client，但不包含服务端业务判断；
@@ -102,7 +106,7 @@ flowchart LR
     end
 
     Trace["LangSmith"]
-    Sources["公开 API / RSS / 网页"]
+    Sources["精选第三方站点 / RSS / Feed / 网页"]
     Push["APNs / FCM"]
 
     ClientSDK -->|"HTTPS / SSE / WebSocket"| API
@@ -199,7 +203,7 @@ evaluation     数据集、评测器和实验
 |---|---|---|
 | 个人旅行资产 | 结构化业务数据和状态维护 | 主要使用普通 CRUD、规则和校验；仅在导入、解释或冲突识别时辅助使用模型 |
 | 动态旅行规划 | 核心决策和约束优化 | 使用完整 LangGraph 编排、OR-Tools、校验器和计划版本系统 |
-| 常旅客机会情报 | 采集、标准化、验证、匹配和聚合 | 采集与去重主要确定性处理，Verification Agent 负责语义验证，影响分析连接旅行规划 |
+| 常旅客机会情报 | 第三方采集、AI 筛选、轻量校验、匹配和聚合 | 模型负责语义抽取、聚类和冲突识别；确定性模块只校验关键字段、状态和硬约束，影响分析连接旅行规划 |
 
 行动、监控、通知和计划版本是三个板块共用的横向能力，不构成第四套独立业务系统。
 
@@ -276,10 +280,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Ingest["采集到原始信息"] --> Normalize["标准化与内容哈希"]
-    Normalize --> Dedup["确定性去重"]
-    Dedup --> Verify["Verification Agent"]
-    Verify --> Match["匹配用户资产和旅行目标"]
+    Ingest["采集到第三方原始信息"] --> Snapshot["保存来源、时间与轻量快照"]
+    Snapshot --> Extract["AI：相关性筛选与结构化抽取"]
+    Extract --> Cluster["AI + URL/哈希：机会聚类与冲突识别"]
+    Cluster --> Validate["确定性：Schema、日期、金额与硬资格校验"]
+    Validate --> Match["匹配用户资产和旅行目标"]
     Match --> Materiality["计算决策影响"]
     Materiality -->|无实质影响| Archive["归档并更新证据"]
     Materiality -->|有实质影响| Replan["触发增量重规划"]
@@ -442,7 +447,8 @@ Critic 无权无限循环。最多两次修复，超过上限则标记需要人�
 - 航班、酒店和活动时间冲突；
 - 权益重复使用；
 - 资格布尔规则；
-- 信息内容哈希和去重；
+- URL、内容哈希和重复任务的精确去重；
+- 模型聚类结果的边界与冲突校验；
 - 证据过期判断；
 - 状态转换；
 - 事件幂等；
@@ -565,7 +571,9 @@ Critic 复查：最多 2 轮
 #### Source
 
 - 稳定 `source_id`、主体、来源名称和 URL；
-- 来源类型、角色和可信等级；
+- 来源类型、角色、主题覆盖和可信等级；
+- 更新频率、最近有效内容时间、历史时效表现和错误记录；
+- 是否提供原始链接、是否适合作为发现源或交叉印证源；
 - 访问类别、权限状态和自动化模式；
 - 地区、语言和生命周期；
 - Robots/条款检查状态和允许访问频率；
@@ -612,7 +620,7 @@ Critic 复查：最多 2 轮
 - 去重键；
 - 首次和最后观察时间。
 
-模型只生成 `OpportunityCandidate`。确定性发布器校验 Schema、日期、生命周期、证据支持、访问边界和去重后，才创建或更新正式 `Opportunity`。
+模型只生成 `OpportunityCandidate`。轻量发布器校验 Schema、日期、生命周期、至少一个可回溯第三方来源、访问边界和精确重复后，才创建或更新正式 `Opportunity`。缺少官方来源本身不构成拒绝条件；来源冲突、关键资格缺失或置信度不足时进入人工复核或带不确定性发布。
 
 #### OpportunityVersion
 
@@ -970,35 +978,37 @@ LLM 负责解释三者差异，不负责凭空修改求解结果。
 ### 11.1 适配器分层
 
 ```text
-API Adapter
 RSS/Feed Adapter
 Static HTML Adapter
-Dynamic Browser Adapter
 Manual Import Adapter
+API Adapter
+Dynamic Browser Adapter（仅后备）
 ```
 
-优先使用结构化来源，Playwright 仅用于允许访问但必须执行 JavaScript 的公开页面。
+首版只为经过筛选的第三方来源实现少量通用适配器，优先使用 RSS/Feed、栏目页、文章页和人工导入。Playwright 仅用于允许访问但必须执行 JavaScript 的公开第三方页面，不为每个官方站点编写专用跟踪器。
 
 ### 11.2 采集流水线
 
 ```text
-Fetch
-→ 写入成功或失败 SourceObservation
-→ Normalize / Hash / Version
-→ 若内容未变则停止业务处理
-→ Extract EvidenceClaim + OpportunityCandidate
-→ Deterministic Validate
-→ Publish OpportunityVersion 或记录拒绝
+Collect third-party item
+→ 保存 URL、来源、观察时间、正文/摘要和内容哈希
+→ 精确 URL、来源 item ID 或内容哈希已处理则停止
+→ AI 判断是否属于会籍匹配、挑战或互通，并抽取 OpportunityCandidate
+→ AI 与现有候选做语义聚类，标出字段冲突和缺失项
+→ 最小确定性校验 Schema、日期、金额/币种、枚举、硬资格和来源引用
+→ 自动发布、带不确定性发布，或进入人工复核
 → 后续阶段再 Match / Materiality Check / Emit Event
 ```
 
-抽取和正式发布是两个不同权限层。LLM 不能直接写正式 `Opportunity`；失败访问、无支持字段、无效日期和重复事件不得污染正式表。
+抽取和正式发布仍是两个权限层，但首版不为每个来源开发规则化字段解析器。LLM 不能直接写正式 `Opportunity`；发布器只拦截结构错误、明显无效日期、缺少来源、硬资格矛盾和精确重复。语义字段缺失或冲突应保留为 `UNKNOWN`、降低置信度或进入人工复核，而不是通过复杂规则猜补。
 
 ### 11.3 来源注册表
 
 每个来源保存：
 
-- 稳定来源 ID、主体、角色和可信等级；
+- 稳定来源 ID、主体、角色、主题覆盖和可信等级；
+- 预期更新节奏、最近有效内容时间和连续无更新时长；
+- 历史命中率、明显错误记录、是否提供原始链接；
 - 访问类别、权限状态、自动化模式和只读范围；
 - 访问频率；
 - 解析器版本；
@@ -1010,24 +1020,15 @@ Fetch
 
 ### 11.4 去重
 
-组合使用：
+去重采用“精确去重 + AI 语义聚类”的两层方式：
 
-- 规范化 URL；
-- 内容哈希；
-- 受治理活动 ID、来源内 item ID 或 canonical item identity，经版本化确定性 resolver 生成的
-  source-scoped 正式业务键；
-- 标题、日期、资格、等级、挑战阈值和费用组成的规则相似度或版本指纹，但这些可变字段不得进入
-  稳定正式业务键；
-- 第二阶段可加入向量相似度。
+- 规范化 URL、来源内 item ID 和内容哈希只解决同一条内容的重复处理；
+- AI 根据计划主体、机会类型、目标等级、地区、时间窗口和挑战要求判断多篇文章是否描述同一机会；
+- 确定性边界只阻止明显错误合并，例如不同会员计划、不同机会类型或互不相容的活动时间；
+- 无法确认时保留为独立候选或进入人工复核，不为首版设计复杂的全局 `business_key` 和版本化 resolver；
+- `Opportunity` 使用内部 UUID。已聚类机会的关键字段发生变化时创建新 `OpportunityVersion`，不覆盖旧版本。
 
-模型建议的 `business_key` 只保留在原始抽取输出中供审计，不能用于查询、创建或合并正式
-Opportunity。identity basis 不唯一时必须拒绝正式发布并进入人工复核，不能回退到标题模糊匹配。
-identity basis 与 resolver 版本在 observation 创建时冻结；Publisher 和最终 Repository 都只接受
-由该快照确定性生成的 formal identity，不能从后续变化的 Source 配置或模型候选重新取键。
-
-规则指纹只用于比较锁定后的当前 Version，不做全历史唯一约束。相同历史状态再次出现时仍形成
-新的时间版本；乱序旧 observation 不能回退 current state 或 `last_observed_at`。产生或复用正式
-版本的 extraction run 在同一事务中绑定精确 Opportunity/Version/created_version，重放只读绑定。
+第二阶段只有在真实数据证明误合并或漏合并是主要问题时，才增加向量召回、来源专用规则或更严格的身份解析。
 
 ### 11.5 证据快照
 
@@ -1039,7 +1040,6 @@ identity basis 与 resolver 版本在 observation 创建时冻结；Publisher �
 - 内容哈希；
 - 解析器版本；
 - 提取字段；
-- 受治理 identity basis 与 resolver 版本；
 - 对应来源 URL。
 
 如果来源条款不允许保存全文，则只保存必要字段、哈希、摘要和链接。
@@ -1051,12 +1051,14 @@ identity basis 与 resolver 版本在 observation 创建时冻结；Publisher �
 频率由信息时效与成本决定：
 
 ```text
-高价值库存或价格：15～60 分钟
-重点活动页：1～6 小时
-普通促销源：每日
-规则与会籍说明：每周或按变更检测
+高时效会籍聚合源或 Feed：1～3 小时
+活跃常旅客媒体和专业博客：3～12 小时
+普通博客、论坛和地区来源：每日
+长期汇总页或低频来源：每周
 临近截止的机会：自动提高频率
 ```
+
+调度以第三方来源的实际更新节奏和历史延迟为依据；连续停更、明显变慢或错误率上升时降低来源权重并提示人工复核。
 
 ## 12. 事件、任务与幂等
 
@@ -1568,7 +1570,7 @@ travel-agent-server/
 实现：
 
 - TravelerProfile、资产、TripGoal 和手工候选行程；
-- 少量人工审核的公开机会及其来源、观察时间和证据；
+- 少量精选第三方来源，以及经 AI 筛选和人工抽查的会籍匹配/挑战机会；
 - 单 Agent + 工具的结构化规划；
 - 预算、日期、资格和权益占用验证器；
 - 不依赖 Graph 的 PlanVersion 发布；
@@ -1597,12 +1599,13 @@ travel-agent-server/
 - 编排相对单 Agent 基线达到预设质量或严重错误收益；
 - 不能证明收益的节点被合并或删除。
 
-### 阶段 2：持续采集与增量重规划
+### 阶段 2：第三方来源采集与增量重规划
 
 实现：
 
 - APScheduler 和 Domain Events / Outbox；
-- StatusMatch/GetStatus 邮箱、重点地区矩阵和新 URL 发现适配器；
+- 精选第三方站点、栏目、RSS/Feed 和公开页面适配器；
+- AI 相关性筛选、结构化抽取、语义聚类、跨来源冲突识别和来源时效评分；
 - 机会匹配、过期、重要性判断和监控升级；
 - `AssetAllocation`、`PlanDecision`、`ActionItem`；
 - 增量重规划、计划 Diff 和通知。
