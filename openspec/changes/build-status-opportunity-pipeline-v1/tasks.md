@@ -18,7 +18,7 @@
 - [ ] 3.1 实现通用 Feed 适配器，并接入 Frequent Flyer Bonuses Elite Status、AwardWallet Elite Status、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的各自正文策略
 - [ ] 3.2 实现 Frequent Flyer Bonuses 会籍汇总页适配器及顶层记录稳定指纹和增量变化测试
 - [ ] 3.3 实现 StatusMatcher 目录与公开报告页适配器，并验证目录项到正文的两阶段发现
-- [ ] 3.4 实现只读邮件适配器契约；在邮箱授权与发件人白名单确定后接入 StatusMatch 和 GetStatus
+- [ ] 3.4 使用 Gmail API `gmail.readonly` 实现邮件适配器，只查询 `kirikoomiku@gmail.com` 中同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，并在取得真实样本后分别配置 StatusMatch/GetStatus 发件人白名单
 - [ ] 3.5 按 `source-registry.md` 为每组来源建立固定解析样本、URL 规范化、合规保存策略和互不阻塞的适配器测试
 
 ## 4. AI 相关性与事件去重

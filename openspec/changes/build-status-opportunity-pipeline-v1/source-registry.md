@@ -84,14 +84,20 @@ content_type
 ### 3.4 `statusmatch_mail` 与 `getstatus_mail`
 
 - 来源身份：[StatusMatch](https://www.statusmatch.com/) 与 [GetStatus](https://www.getstatus.com/)
-- 发现入口：用户后续授权邮箱中来自允许发件人的邮件；没有公开 Feed URL。
-- 适配器：只读 OAuth 邮箱接口或只读 IMAP，具体方式待邮箱类型确定。
+- Gmail 账户：`kirikoomiku@gmail.com`
+- 专用收件别名：`kirikoomiku+statusmatch@gmail.com`
+- 现有 Gmail 过滤器：匹配 `to:(kirikoomiku+statusmatch@gmail.com)`，应用标签 `statusmatch`；StatusMatch 与 GetStatus 均使用这条过滤路径。
+- 发现入口：Gmail 标签 `statusmatch` 与上述收件别名的交集；没有公开 Feed URL，也不扫描其他标签或普通收件箱。
+- 适配器：Gmail API + OAuth 2.0，仅申请 `https://www.googleapis.com/auth/gmail.readonly`，不得申请 `gmail.modify`、`gmail.settings.*` 或完整 `https://mail.google.com/` 权限。
+- 查询方式：先用 `users.labels.list` 将标签名 `statusmatch` 解析为标签 ID，再用 `users.messages.list(userId="me", labelIds=[statusmatch_label_id], q="to:(kirikoomiku+statusmatch@gmail.com)")` 发现消息；逐条通过 `users.messages.get` 读取必要内容。
 - 来源记录：StatusMatch 邮件使用 `statusmatch_mail`，GetStatus 邮件使用 `getstatus_mail`；两者不能合并成同一个来源事实。
-- 条目稳定 ID：`source_id + mail_provider + mailbox_id + Message-ID`，缺少 `Message-ID` 时使用提供商内部消息 ID。
+- 来源路由：在上述 Gmail 查询边界内，再按真实 `From` 地址/域名白名单映射到 `statusmatch_mail` 或 `getstatus_mail`；无法识别的邮件进入人工复核，不能按显示名称猜测来源。
+- 条目稳定 ID：`source_id + gmail_message_id`；同时保存 RFC `Message-ID` 用于跨导入核对。
 - 获取方式：读取允许邮件的必要头部、纯文本/HTML 正文和正文链接；第一版不自动处理附件中的未知文件类型。
 - 发件人白名单：`TBD`。必须基于用户提供的真实样本邮件头建立，不能只按显示名称或正文品牌词猜测。
-- 安全边界：不得发送、回复、移动、删除、标记或修改邮件；不得扫描与这两个来源无关的邮箱内容。
-- 启用条件：邮箱只读授权方式和发件人白名单均配置完成。
+- 安全边界：不得发送、回复、移动、删除、标记、修改邮件或更改现有 Gmail 过滤器；Access Token、Refresh Token 和邮件正文不得进入日志。`gmail.readonly` 在 OAuth 层面可读取整个邮箱，因此“标签 + 收件别名”是应用必须强制执行并测试的访问边界。
+- 启用条件：Google OAuth 客户端、只读授权和两类真实发件人白名单均配置完成。
+- Gmail API 依据：[列出邮件](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list)、[OAuth 权限范围](https://developers.google.com/workspace/gmail/api/auth/scopes)。
 - `collection_cadence: null`
 
 ### 3.5 `statusmatcher_reports`

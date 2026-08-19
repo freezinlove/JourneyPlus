@@ -30,6 +30,14 @@
 - **WHEN** 邮件适配器读取 StatusMatch 或 GetStatus 的允许邮件
 - **THEN** 系统以邮件消息 ID 建立来源条目，不修改、移动或删除用户邮件
 
+#### Scenario: Gmail 发现范围受到双重限制
+- **WHEN** 邮件适配器从 `kirikoomiku@gmail.com` 发现消息
+- **THEN** 它只使用 `gmail.readonly` 权限读取同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，不读取其他邮件或更改现有过滤器
+
+#### Scenario: 两个邮件来源独立归属
+- **WHEN** 一封处于允许 Gmail 查询范围内的邮件通过真实发件人白名单验证
+- **THEN** 系统将其归入 `statusmatch_mail` 或 `getstatus_mail` 之一；无法识别的发件人进入人工复核而不自动归属
+
 #### Scenario: Feed 内有正文时不重复抓文章页
 - **WHEN** LoyaltyLobby、Frequent Miler 或很旅行的 Feed 条目已提供允许使用的正文
 - **THEN** 适配器直接使用 Feed 正文，并遵守注册表中禁止或无需继续请求文章页的策略
