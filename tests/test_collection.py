@@ -56,3 +56,13 @@ def test_new_collection_run_skips_unchanged_item_before_body_fetch(db_session) -
 def test_manual_collection_cli_has_no_scheduler_command() -> None:
     args = build_parser().parse_args(["collect", "ffb_elite_status_feed"])
     assert args.command == "collect"
+
+
+def test_gmail_authorization_has_a_dedicated_cli_command() -> None:
+    args = build_parser().parse_args(["gmail-authorize"])
+    assert args.command == "gmail-authorize"
+
+
+def test_ai_smoke_has_a_dedicated_cli_command() -> None:
+    args = build_parser().parse_args(["ai-smoke"])
+    assert args.command == "ai-smoke"

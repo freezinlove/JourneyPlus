@@ -12,23 +12,56 @@ uv run alembic upgrade head
 uv run pytest
 uv run journeyplus seed-sources
 uv run journeyplus collect ffb_elite_status_feed
+uv run journeyplus ai-smoke
+uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-本地与测试可以使用 SQLite；生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。`statusmatcher_reports` 须在人工访问合规确认后显式增加 `--allow-statusmatcher`；邮件来源须配置只读 Access Token。
+本地与测试可以使用 SQLite；生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。`statusmatcher_reports` 须在人工访问合规确认后显式增加 `--allow-statusmatcher`。
 
 ## 配置
 
-复制 `.env.example` 中的变量到服务端运行环境。不要把 API Key、Gmail Access Token 或 Refresh Token 写入仓库。
+复制 `.env.example` 为 `.env` 后填写服务端配置；程序会自动读取该文件。不要把 API Key、Gmail Access Token、Refresh Token 或 Google OAuth 客户端 JSON 写入仓库。
+
+### 千问 AI 平台
+
+第一版默认使用北京按量付费 OpenAI-compatible 地址 `https://dashscope.aliyuncs.com/compatible-mode/v1` 和 `deepseek-v4-flash`。只需在 `.env` 填写北京地域创建的 `JOURNEYPLUS_AI_API_KEY`，然后执行：
+
+```bash
+uv run journeyplus ai-smoke
+```
+
+该命令只发送一次很小的结构化请求。`deepseek-v4-flash` 当前官方能力表不保证原生 Structured Outputs，因此实现不发送 `response_format`，而是把 JSON Schema 放进提示词并在本地严格校验。
+
+### Gmail 只读授权
+
+1. 在 Google Cloud Console 创建或选择一个项目，并启用 Gmail API。
+2. 在 Google Auth Platform 配置 Branding。个人 Gmail 账户应把 Audience 设为 External；初次测试时把 `kirikoomiku@gmail.com` 加为 Test user。
+3. 在 Data Access 中只添加 `https://www.googleapis.com/auth/gmail.readonly`。
+4. 在 Clients 中创建 `Desktop app` 类型的 OAuth 2.0 Client，下载客户端 JSON。
+5. 将下载文件保存为 `.secrets/google-oauth-client.json`。这个文件包含客户端密钥，不要发送给别人或提交 Git。
+6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 `kirikoomiku@gmail.com` 并同意只读授权。
+7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
+8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。
+
+OAuth 应用处于 Testing 状态时，External 测试用户授权通常会在 7 天后失效；第一轮验证可先保持 Testing，长期后台运行前再决定发布状态与 Google 验证方式。
+
+### 公开来源只读冒烟
+
+```bash
+uv run python scripts/smoke_public_sources.py
+```
+
+该命令只验证六个无需账号的公开来源是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail 或 StatusMatcher。
 
 OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-v1/`。
 
 ## 第一版已知限制
 
 - 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
-- Gmail 尚需用户完成 Google OAuth 只读授权并注入 Access Token；适配器不会刷新或保存令牌。
+- Gmail 尚需用户下载 Desktop OAuth 客户端 JSON并完成首次浏览器授权；实现会安全保存并自动刷新令牌。
 - StatusMatcher 正式采集仍需人工完成访问与保存范围确认，未显式确认时适配器会拒绝运行。
-- 阿里云百炼真实调用需要北京业务空间 Base URL 与同地域 API Key；仓库测试只使用结构化模拟响应。
+- 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 生产目标是 PostgreSQL；本机没有 PostgreSQL 服务，因此当前自动化测试使用 SQLite 兼容路径，并由迁移测试验证完整表结构。
 - 首批人工金标要等用户提供文章后共同建立；离线评测刻意不预设上线阈值。
 - 内部复核 API 默认只监听 `127.0.0.1`，第一版没有公开 UI、账号体系或远程部署配置。

@@ -2,6 +2,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+from dotenv import load_dotenv
+
+
+BEIJING_DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -10,12 +16,15 @@ class Settings:
     ai_provider: str = "aliyun-model-studio"
     ai_region: str = "cn-beijing"
     ai_model: str = "deepseek-v4-flash"
-    ai_base_url: str | None = None
+    ai_base_url: str | None = BEIJING_DASHSCOPE_BASE_URL
     ai_api_key: str | None = None
     gmail_access_token: str | None = None
+    gmail_client_secret_file: str = ".secrets/google-oauth-client.json"
+    gmail_token_file: str = ".secrets/gmail-token.json"
 
     @classmethod
     def from_env(cls) -> "Settings":
+        load_dotenv()
         return cls(
             database_url=os.getenv(
                 "JOURNEYPLUS_DATABASE_URL", "sqlite+pysqlite:///./journeyplus.db"
@@ -23,9 +32,18 @@ class Settings:
             ai_provider=os.getenv("JOURNEYPLUS_AI_PROVIDER", "aliyun-model-studio"),
             ai_region=os.getenv("JOURNEYPLUS_AI_REGION", "cn-beijing"),
             ai_model=os.getenv("JOURNEYPLUS_AI_MODEL", "deepseek-v4-flash"),
-            ai_base_url=os.getenv("JOURNEYPLUS_AI_BASE_URL"),
+            ai_base_url=os.getenv(
+                "JOURNEYPLUS_AI_BASE_URL", BEIJING_DASHSCOPE_BASE_URL
+            ),
             ai_api_key=os.getenv("JOURNEYPLUS_AI_API_KEY"),
             gmail_access_token=os.getenv("JOURNEYPLUS_GMAIL_ACCESS_TOKEN"),
+            gmail_client_secret_file=os.getenv(
+                "JOURNEYPLUS_GMAIL_CLIENT_SECRET_FILE",
+                ".secrets/google-oauth-client.json",
+            ),
+            gmail_token_file=os.getenv(
+                "JOURNEYPLUS_GMAIL_TOKEN_FILE", ".secrets/gmail-token.json"
+            ),
         )
 
     def require_ai(self) -> "Settings":
@@ -33,9 +51,22 @@ class Settings:
             raise ValueError("V1 requires the Aliyun Model Studio cn-beijing region")
         if self.ai_model != "deepseek-v4-flash":
             raise ValueError("V1 requires the deepseek-v4-flash model")
-        if not self.ai_base_url or ".cn-beijing.maas.aliyuncs.com" not in self.ai_base_url:
-            raise ValueError("A cn-beijing Model Studio workspace base URL is required")
+        if not self.ai_base_url:
+            raise ValueError("A Beijing Model Studio base URL is required")
+        parsed = urlsplit(self.ai_base_url)
+        host = (parsed.hostname or "").casefold()
+        is_beijing_host = host == "dashscope.aliyuncs.com" or host.endswith(
+            ".cn-beijing.maas.aliyuncs.com"
+        )
+        if (
+            parsed.scheme != "https"
+            or not is_beijing_host
+            or not parsed.path.rstrip("/").endswith("/compatible-mode/v1")
+        ):
+            raise ValueError(
+                "V1 requires a Beijing DashScope or cn-beijing workspace "
+                "OpenAI-compatible base URL"
+            )
         if not self.ai_api_key:
             raise ValueError("JOURNEYPLUS_AI_API_KEY is required for live model calls")
         return self
-

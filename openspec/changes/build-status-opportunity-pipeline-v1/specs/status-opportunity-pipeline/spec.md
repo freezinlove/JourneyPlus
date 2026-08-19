@@ -141,9 +141,9 @@
 ### Requirement: AI 使用指定的北京地域配置
 第一版 `AIProvider` MUST 使用阿里云百炼的 OpenAI-compatible 接口、北京地域 `cn-beijing` 和模型 `deepseek-v4-flash`。模型、Base URL、推理参数和凭证 MUST 由服务端配置提供，凭证不得进入源码、客户端或业务对象。
 
-#### Scenario: 模型调用使用北京业务空间
+#### Scenario: 模型调用使用北京按量付费或业务空间地址
 - **WHEN** 系统发起第一版 AI 请求
-- **THEN** 请求使用已配置的北京业务空间兼容地址、同地域 API Key 和 `deepseek-v4-flash` 模型 ID
+- **THEN** 请求使用已配置的北京 DashScope 按量付费地址或北京业务空间兼容地址、与地址匹配的同地域 API Key 和 `deepseek-v4-flash` 模型 ID
 
 #### Scenario: 业务代码不依赖供应商实现
 - **WHEN** `AIProvider` 的底层实现或地址发生变化

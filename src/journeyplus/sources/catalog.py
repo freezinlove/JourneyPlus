@@ -90,9 +90,23 @@ def parse_catalog_records(html: str, base_url: str) -> list[CatalogRecord]:
 
     records: list[CatalogRecord] = []
     for table in tree.css("table"):
-        section = table.attributes.get("data-section", "unspecified")
+        section = _section_from_table(table)
         for row in table.css("tr"):
+            program_cell = row.css_first("th[scope='row']")
             cells = row.css("td")
+            if program_cell is not None and cells:
+                program = program_cell.text(separator=" ", strip=True)
+                offer_text = cells[0].text(separator="\n", strip=True)
+                if program and offer_text:
+                    records.append(
+                        CatalogRecord(
+                            section=section,
+                            program=program,
+                            text=f"{program}\n{offer_text}",
+                            action_url=_first_link(cells[0], base_url),
+                        )
+                    )
+                continue
             if len(cells) < 2:
                 continue
             text = "\n".join(cell.text(separator=" ", strip=True) for cell in cells)
@@ -106,6 +120,21 @@ def parse_catalog_records(html: str, base_url: str) -> list[CatalogRecord]:
                 )
             )
     return [record for record in records if record.program and record.text]
+
+
+def _section_from_table(table: Node) -> str:
+    configured = table.attributes.get("data-section")
+    if configured:
+        return configured
+    heading = table.css_first("thead h1, thead h2, thead h3, thead th")
+    label = heading.text(separator=" ", strip=True).casefold() if heading else ""
+    if "airline" in label:
+        return "airline"
+    if "hotel" in label:
+        return "hotel"
+    if "car" in label or "rental" in label:
+        return "car"
+    return "unspecified"
 
 
 def _record_from_node(node: Node, base_url: str) -> CatalogRecord:
@@ -135,4 +164,3 @@ def _normalized(value: str) -> str:
 def _page_updated(html: str) -> str | None:
     match = re.search(r"(?:last\s+updated|updated)\s*:?\s*([^<\n]{4,80})", html, re.I)
     return match.group(1).strip() if match else None
-

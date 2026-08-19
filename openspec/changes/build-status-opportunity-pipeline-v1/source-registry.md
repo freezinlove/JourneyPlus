@@ -95,6 +95,7 @@ content_type
 - 获取方式：读取允许邮件的必要头部、纯文本/HTML 正文和正文链接；第一版不自动处理附件中的未知文件类型。
 - 安全边界：不得发送、回复、移动、删除、标记、修改邮件或更改现有 Gmail 过滤器；Access Token、Refresh Token 和邮件正文不得进入日志。`gmail.readonly` 在 OAuth 层面可读取整个邮箱，因此“标签 + 收件别名”是应用必须强制执行并测试的访问边界。
 - 准入规则：凡同时满足 `statusmatch` 标签和专用收件别名条件的邮件均可进入后续流程，不再设置真实发件人白名单。
+- 授权实现：使用 Desktop OAuth 客户端和本机回调命令 `journeyplus gmail-authorize` 完成首次授权；客户端 JSON 与可刷新的授权令牌默认保存在 Git 忽略的 `.secrets/`，令牌文件权限为 `0600`，每次采集前核对授权账号必须为 `kirikoomiku@gmail.com`。
 - 启用条件：Google OAuth 客户端和只读授权配置完成。
 - Gmail API 依据：[列出邮件](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list)、[OAuth 权限范围](https://developers.google.com/workspace/gmail/api/auth/scopes)。
 - `collection_cadence: null`

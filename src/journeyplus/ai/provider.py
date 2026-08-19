@@ -55,7 +55,10 @@ class OpenAICompatibleProvider:
             provider=settings.ai_provider,
             model=settings.ai_model,
             region=settings.ai_region,
-            config_version=f"cn-beijing:{settings.ai_model}:temp-{temperature:g}:v1",
+            config_version=(
+                f"cn-beijing:{settings.ai_model}:temp-{temperature:g}:"
+                "schema-prompt-v2"
+            ),
         )
 
     def generate_structured(
@@ -71,10 +74,19 @@ class OpenAICompatibleProvider:
                 "model": self.metadata.model,
                 "temperature": self._temperature,
                 "messages": [
-                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "system",
+                        "content": (
+                            f"{system_prompt}\n\n"
+                            "目标模型不保证原生 Structured Outputs。必须只返回一个 JSON "
+                            "对象，不要使用 Markdown 代码块，并严格符合以下 JSON Schema：\n"
+                            + json.dumps(
+                                output_model.model_json_schema(), ensure_ascii=False
+                            )
+                        ),
+                    },
                     {"role": "user", "content": user_prompt},
                 ],
-                "response_format": {"type": "json_object"},
             },
         )
         response.raise_for_status()
@@ -128,4 +140,3 @@ class SequenceAIProvider:
         if isinstance(response, Exception):
             raise response
         return output_model.model_validate(response)
-

@@ -83,6 +83,9 @@ def test_catalog_top_level_fingerprint_is_stable_but_content_change_is_visible()
     second = changed_adapter.discover()
 
     assert len(first) == 2
+    assert first[0].title == "Example Air"
+    assert first[0].raw_metadata["section"] == "airline"
+    assert first[1].raw_metadata["section"] == "hotel"
     assert first[0].external_id == second[0].external_id
     assert first[0].discovery_fingerprint != second[0].discovery_fingerprint
     assert "One match per account" in adapter.fetch(first[0]).body
@@ -173,4 +176,3 @@ def test_gmail_adapter_enforces_label_and_alias_but_no_sender_allowlist() -> Non
     assert [item.external_id for item in items] == ["allowed"]
     assert items[0].raw_metadata["origin_provider"] == "STATUSMATCH"
     assert "direct status match" in adapter.fetch(items[0]).body
-

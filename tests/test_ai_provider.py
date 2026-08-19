@@ -35,14 +35,14 @@ def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema()
         )
 
     client = httpx.Client(
-        base_url="https://workspace.cn-beijing.maas.aliyuncs.com/api/v1/",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1/",
         transport=httpx.MockTransport(handler),
     )
     provider = OpenAICompatibleProvider(
         Settings(
             ai_region="cn-beijing",
             ai_model="deepseek-v4-flash",
-            ai_base_url="https://workspace.cn-beijing.maas.aliyuncs.com/api/v1/",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             ai_api_key="test-only",
         ),
         client=client,
@@ -54,5 +54,20 @@ def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema()
     assert result.label == RelevanceLabel.NO
     assert provider.metadata.region == "cn-beijing"
     assert captured["model"] == "deepseek-v4-flash"
-    assert captured["response_format"] == {"type": "json_object"}
+    assert "response_format" not in captured
+    assert "JSON Schema" in captured["messages"][0]["content"]
 
+
+def test_ai_configuration_rejects_non_beijing_base_url() -> None:
+    settings = Settings(
+        ai_region="cn-beijing",
+        ai_model="deepseek-v4-flash",
+        ai_base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        ai_api_key="test-only",
+    )
+    try:
+        settings.require_ai()
+    except ValueError as exc:
+        assert "Beijing" in str(exc)
+    else:
+        raise AssertionError("A non-Beijing endpoint must be rejected")
