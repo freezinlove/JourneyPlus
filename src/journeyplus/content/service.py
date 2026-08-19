@@ -22,6 +22,17 @@ class IngestionService:
     def __init__(self, session: Session) -> None:
         self._session = session
 
+    def should_fetch(self, item: DiscoveredItem) -> bool:
+        source_item = self._find_item(item)
+        if source_item is None:
+            return True
+        source_item.observed_at = item.observed_at
+        source_item.raw_metadata = item.raw_metadata
+        source_item.title = item.title or source_item.title
+        if item.discovery_fingerprint is None:
+            return False
+        return source_item.discovery_fingerprint != item.discovery_fingerprint
+
     def ingest(self, item: DiscoveredItem, raw: RawDocument) -> IngestionResult:
         source_item = self._find_item(item)
         new_item = source_item is None
@@ -43,6 +54,7 @@ class IngestionService:
             source_item.title = item.title or source_item.title
             source_item.observed_at = item.observed_at
             source_item.raw_metadata = item.raw_metadata
+            source_item.discovery_fingerprint = item.discovery_fingerprint
 
         cleaned = lightly_clean(raw)
         existing = self._session.scalar(
@@ -92,4 +104,3 @@ class IngestionService:
                 SourceItem.canonical_url == item.canonical_url,
             )
         )
-

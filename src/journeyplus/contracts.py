@@ -140,6 +140,8 @@ class FactField(StrictModel):
     def known_values_need_evidence(self) -> FactField:
         if self.value is not None and not self.evidence:
             raise ValueError("Known facts require at least one evidence reference")
+        if self.conflict and (len(self.alternatives) < 2 or not self.evidence):
+            raise ValueError("Conflicting facts require alternatives and evidence")
         return self
 
 
@@ -174,7 +176,9 @@ class Brief(StrictModel):
     schema_version: str = "1"
     fact_set_id: UUID
     title: str = Field(min_length=1, max_length=120)
+    title_fact_keys: list[str] = Field(min_length=1, max_length=3)
     summary: str = Field(min_length=1, max_length=600)
+    summary_fact_keys: list[str] = Field(min_length=1, max_length=10)
     key_points: list[BriefPoint] = Field(default_factory=list, max_length=10)
-    caveats: list[str] = Field(default_factory=list, max_length=10)
+    caveats: list[BriefPoint] = Field(default_factory=list, max_length=10)
     source_links: list[HttpUrl] = Field(default_factory=list, max_length=30)

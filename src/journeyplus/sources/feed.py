@@ -39,6 +39,15 @@ class FeedAdapter:
             canonical = canonicalize_url(link, extra_drop=self._extra_drop_params)
             external_id = str(entry.get("id") or entry.get("guid") or canonical)
             feed_body = self._feed_body(entry)
+            discovery_signature = "\n".join(
+                (
+                    external_id,
+                    canonical,
+                    str(entry.get("title") or ""),
+                    str(entry.get("published") or entry.get("updated") or ""),
+                    feed_body,
+                )
+            )
             results.append(
                 DiscoveredItem(
                     source_id=self.source_id,
@@ -48,7 +57,7 @@ class FeedAdapter:
                     title=str(entry.get("title") or ""),
                     published_at=_published_at(entry),
                     discovery_fingerprint=hashlib.sha256(
-                        f"{external_id}\n{canonical}".encode()
+                        discovery_signature.encode()
                     ).hexdigest(),
                     raw_metadata={
                         "feed_url": self.feed_url,
@@ -103,4 +112,3 @@ def _published_at(entry: Any) -> datetime | None:
         return result
     except (TypeError, ValueError, OverflowError):
         return None
-

@@ -53,6 +53,8 @@ def collect_manual(
         ingestion = IngestionService(session)
         new_versions = 0
         for item in items:
+            if not ingestion.should_fetch(item):
+                continue
             result = ingestion.ingest(item, adapter.fetch(item))
             new_versions += int(result.new_version)
         run.status = RunStatus.SUCCEEDED
@@ -79,4 +81,3 @@ def automatically_scheduled_source_ids(session: Session) -> list[str]:
             )
         )
     )
-

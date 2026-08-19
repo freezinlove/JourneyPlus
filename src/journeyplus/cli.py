@@ -7,6 +7,8 @@ from dataclasses import asdict
 
 from journeyplus.config import Settings
 from journeyplus.db import create_session_factory, engine_from_settings, session_scope
+from journeyplus.ai.provider import OpenAICompatibleProvider
+from journeyplus.review.api import create_review_app
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.factory import build_adapter
 from journeyplus.sources.gmail import HttpGmailClient
@@ -17,6 +19,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("seed-sources", help="Import or refresh the eight V1 sources")
+    review = subparsers.add_parser("review-api", help="Run the local internal review API")
+    review.add_argument("--host", default="127.0.0.1")
+    review.add_argument("--port", default=8001, type=int)
     collect = subparsers.add_parser("collect", help="Manually collect one source")
     collect.add_argument("source_id", choices=[item.source_id for item in SOURCE_REGISTRY])
     collect.add_argument("--idempotency-key")
@@ -32,6 +37,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     settings = Settings.from_env()
     factory = create_session_factory(engine_from_settings(settings))
+    if args.command == "review-api":
+        import uvicorn
+
+        provider = None
+        if settings.ai_base_url and settings.ai_api_key:
+            provider = OpenAICompatibleProvider(settings)
+        uvicorn.run(
+            create_review_app(factory, ai_provider=provider),
+            host=args.host,
+            port=args.port,
+        )
+        return 0
     with session_scope(factory) as session:
         if args.command == "seed-sources":
             sources = seed_sources(session)
