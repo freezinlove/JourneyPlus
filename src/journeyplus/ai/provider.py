@@ -57,7 +57,7 @@ class OpenAICompatibleProvider:
             region=settings.ai_region,
             config_version=(
                 f"cn-beijing:{settings.ai_model}:temp-{temperature:g}:"
-                "schema-prompt-v2"
+                "json-mode-pydantic-v1"
             ),
         )
 
@@ -73,13 +73,15 @@ class OpenAICompatibleProvider:
             json={
                 "model": self.metadata.model,
                 "temperature": self._temperature,
+                "response_format": {"type": "json_object"},
                 "messages": [
                     {
                         "role": "system",
                         "content": (
                             f"{system_prompt}\n\n"
-                            "目标模型不保证原生 Structured Outputs。必须只返回一个 JSON "
-                            "对象，不要使用 Markdown 代码块，并严格符合以下 JSON Schema：\n"
+                            "必须只返回一个 JSON 对象，不要使用 Markdown 代码块，并严格符合"
+                            "以下 JSON Schema；服务端 JSON Mode 只保证合法 JSON，字段仍由"
+                            "本地 Schema 校验：\n"
                             + json.dumps(
                                 output_model.model_json_schema(), ensure_ascii=False
                             )

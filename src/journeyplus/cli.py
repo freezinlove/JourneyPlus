@@ -50,19 +50,6 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     settings = Settings.from_env()
-    factory = create_session_factory(engine_from_settings(settings))
-    if args.command == "review-api":
-        import uvicorn
-
-        provider = None
-        if settings.ai_base_url and settings.ai_api_key:
-            provider = OpenAICompatibleProvider(settings)
-        uvicorn.run(
-            create_review_app(factory, ai_provider=provider),
-            host=args.host,
-            port=args.port,
-        )
-        return 0
     if args.command == "gmail-authorize":
         account = authorize_gmail(settings)
         print(
@@ -78,6 +65,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "ai-smoke":
         result = run_ai_smoke(settings)
         print(result.model_dump_json())
+        return 0
+    factory = create_session_factory(engine_from_settings(settings))
+    if args.command == "review-api":
+        import uvicorn
+
+        provider = None
+        if settings.ai_base_url and settings.ai_api_key:
+            provider = OpenAICompatibleProvider(settings)
+        uvicorn.run(
+            create_review_app(factory, ai_provider=provider),
+            host=args.host,
+            port=args.port,
+        )
         return 0
     with session_scope(factory) as session:
         if args.command == "seed-sources":

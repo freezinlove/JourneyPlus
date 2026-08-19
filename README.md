@@ -31,7 +31,7 @@ uv run journeyplus review-api
 uv run journeyplus ai-smoke
 ```
 
-该命令只发送一次很小的结构化请求。`deepseek-v4-flash` 当前官方能力表不保证原生 Structured Outputs，因此实现不发送 `response_format`，而是把 JSON Schema 放进提示词并在本地严格校验。
+该命令只发送一次很小的结构化请求。实现按百炼的 JSON Mode 发送 `response_format={"type":"json_object"}`，并把具体 JSON Schema 放进提示词后使用本地 Pydantic 严格校验字段。JSON Mode 保证返回合法 JSON，本地校验负责固定业务字段与类型。
 
 ### Gmail 只读授权
 
@@ -39,7 +39,7 @@ uv run journeyplus ai-smoke
 2. 在 Google Auth Platform 配置 Branding。个人 Gmail 账户应把 Audience 设为 External；初次测试时把 `kirikoomiku@gmail.com` 加为 Test user。
 3. 在 Data Access 中只添加 `https://www.googleapis.com/auth/gmail.readonly`。
 4. 在 Clients 中创建 `Desktop app` 类型的 OAuth 2.0 Client，下载客户端 JSON。
-5. 将下载文件保存为 `.secrets/google-oauth-client.json`。这个文件包含客户端密钥，不要发送给别人或提交 Git。
+5. 将下载文件保存为 `.secrets/google-oauth-client.json`（下载后的原始文件名需要改成这个名称）。这个文件包含客户端密钥，不要发送给别人或提交 Git。
 6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 `kirikoomiku@gmail.com` 并同意只读授权。
 7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
 8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。
@@ -59,7 +59,7 @@ OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-
 ## 第一版已知限制
 
 - 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
-- Gmail 尚需用户下载 Desktop OAuth 客户端 JSON并完成首次浏览器授权；实现会安全保存并自动刷新令牌。
+- Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - StatusMatcher 正式采集仍需人工完成访问与保存范围确认，未显式确认时适配器会拒绝运行。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 生产目标是 PostgreSQL；本机没有 PostgreSQL 服务，因此当前自动化测试使用 SQLite 兼容路径，并由迁移测试验证完整表结构。

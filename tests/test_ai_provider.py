@@ -54,7 +54,7 @@ def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema()
     assert result.label == RelevanceLabel.NO
     assert provider.metadata.region == "cn-beijing"
     assert captured["model"] == "deepseek-v4-flash"
-    assert "response_format" not in captured
+    assert captured["response_format"] == {"type": "json_object"}
     assert "JSON Schema" in captured["messages"][0]["content"]
 
 

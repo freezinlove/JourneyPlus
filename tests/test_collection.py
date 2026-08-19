@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import journeyplus.cli as cli
+
+from journeyplus.config import Settings
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.cli import build_parser
 from journeyplus.sources.collection import collect_manual
@@ -66,3 +69,43 @@ def test_gmail_authorization_has_a_dedicated_cli_command() -> None:
 def test_ai_smoke_has_a_dedicated_cli_command() -> None:
     args = build_parser().parse_args(["ai-smoke"])
     assert args.command == "ai-smoke"
+
+
+def test_gmail_authorization_does_not_initialize_database(
+    monkeypatch, capsys
+) -> None:
+    settings = Settings()
+
+    def fail_if_database_is_initialized(_settings):
+        raise AssertionError("This command must not initialize the database")
+
+    monkeypatch.setattr(
+        cli.Settings, "from_env", classmethod(lambda cls: settings)
+    )
+    monkeypatch.setattr(cli, "engine_from_settings", fail_if_database_is_initialized)
+    monkeypatch.setattr(
+        cli, "authorize_gmail", lambda _settings: "kirikoomiku@gmail.com"
+    )
+
+    assert cli.main(["gmail-authorize"]) == 0
+    assert "kirikoomiku@gmail.com" in capsys.readouterr().out
+
+
+def test_ai_smoke_does_not_initialize_database(monkeypatch, capsys) -> None:
+    class SmokeResult:
+        @staticmethod
+        def model_dump_json() -> str:
+            return '{"ok":true,"message":"connected"}'
+
+    def fail_if_database_is_initialized(_settings):
+        raise AssertionError("This command must not initialize the database")
+
+    settings = Settings()
+    monkeypatch.setattr(
+        cli.Settings, "from_env", classmethod(lambda cls: settings)
+    )
+    monkeypatch.setattr(cli, "engine_from_settings", fail_if_database_is_initialized)
+    monkeypatch.setattr(cli, "run_ai_smoke", lambda _settings: SmokeResult())
+
+    assert cli.main(["ai-smoke"]) == 0
+    assert '"ok":true' in capsys.readouterr().out

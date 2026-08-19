@@ -120,9 +120,9 @@ model: deepseek-v4-flash
 base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
-第一版实际使用用户选择的北京地域按量付费地址 `https://dashscope.aliyuncs.com/compatible-mode/v1`；上面的业务空间专属地址仍是未来生产环境可直接替换的同地域选项。模型名称、地域、兼容接口地址和推理参数属于版本化服务端配置；API Key 只存在于服务端环境变量或密钥服务。业务模块依赖内部 `AIProvider`，不依赖阿里云 SDK 类型。由于 `deepseek-v4-flash` 当前不支持原生 Structured Outputs，JSON Schema 作为提示词约束并由本地 Pydantic 严格校验，失败使用有上限的重试并保留运行记录，模型不得直接写正式事件或简报。
+第一版实际使用用户选择的北京地域按量付费地址 `https://dashscope.aliyuncs.com/compatible-mode/v1`；上面的业务空间专属地址仍是未来生产环境可直接替换的同地域选项。模型名称、地域、兼容接口地址和推理参数属于版本化服务端配置；API Key 只存在于服务端环境变量或密钥服务。业务模块依赖内部 `AIProvider`，不依赖阿里云 SDK 类型。`deepseek-v4-flash` 使用百炼结构化输出的 JSON Mode（`response_format={"type":"json_object"}`）保证返回合法 JSON；由于该模型不属于百炼当前提供 JSON Schema 模式的模型，具体业务 Schema 同时放入提示词并由本地 Pydantic 严格校验。校验失败使用有上限的重试并保留运行记录，模型不得直接写正式事件或简报。
 
-模型 ID 与北京按量付费/业务空间地址已按阿里云百炼当前官方文档核对；部署时须使用与地址匹配的北京地域 API Key。参考：[deepseek-v4-flash](https://help.aliyun.com/en/model-studio/deepseek-v4-flash)、[Base URL 总览](https://help.aliyun.com/zh/model-studio/base-url)。
+模型 ID、结构化输出能力与北京按量付费/业务空间地址已按阿里云百炼当前官方文档核对；部署时须使用与地址匹配的北京地域 API Key。参考：[deepseek-v4-flash](https://help.aliyun.com/zh/model-studio/deepseek-v4-flash)、[结构化输出](https://help.aliyun.com/zh/model-studio/qwen-structured-output)、[Base URL 总览](https://help.aliyun.com/zh/model-studio/base-url)。
 
 ### 7. 数据围绕“材料—事件—事实—简报”组织
 
@@ -175,6 +175,5 @@ base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 ## Open Questions
 
 - 八组来源各自的采集频率与正式启用顺序。
-- Gmail OAuth 客户端下载与 `kirikoomiku@gmail.com` 首次浏览器授权。
 - 各来源允许保存全文、摘要或仅元数据的最终合规记录。
 - 用户提供首批文章后，金标样本规模、复核规范和可接受指标。
