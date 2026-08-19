@@ -12,7 +12,11 @@
 - **THEN** 系统将其判为不属于第一版机会，且不为其创建其他主题类别
 
 ### Requirement: 八组精选来源通过统一适配契约接入
-系统 MUST 支持 Frequent Flyer Bonuses 博客、Frequent Flyer Bonuses 会籍汇总页、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、StatusMatcher、LoyaltyLobby、Frequent Miler Elite Status 和很旅行八组来源。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。
+系统 MUST 支持 Frequent Flyer Bonuses 博客、Frequent Flyer Bonuses 会籍汇总页、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、StatusMatcher、LoyaltyLobby、Frequent Miler Elite Status 和很旅行八组来源。实施使用的稳定 `source_id`、完整 URL、正文策略、访问限制和默认状态 MUST 来自同一变更中的 `source-registry.md`，不得在业务模块另行猜测或散落配置。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。
+
+#### Scenario: 注册表成为唯一来源配置输入
+- **WHEN** 系统初始化第一版来源配置
+- **THEN** 它按 `source-registry.md` 导入八个来源组对应的九条来源记录及其入口、策略和空采集频率，其中 StatusMatch 与 GetStatus 邮件具有独立 `source_id`，且不自动新增其他来源
 
 #### Scenario: 目录或 Feed 条目继续获取正文
 - **WHEN** Feed、栏目页或目录页只提供文章或报告入口
@@ -25,6 +29,10 @@
 #### Scenario: 邮件保持只读和幂等
 - **WHEN** 邮件适配器读取 StatusMatch 或 GetStatus 的允许邮件
 - **THEN** 系统以邮件消息 ID 建立来源条目，不修改、移动或删除用户邮件
+
+#### Scenario: Feed 内有正文时不重复抓文章页
+- **WHEN** LoyaltyLobby、Frequent Miler 或很旅行的 Feed 条目已提供允许使用的正文
+- **THEN** 适配器直接使用 Feed 正文，并遵守注册表中禁止或无需继续请求文章页的策略
 
 ### Requirement: 采集频率保持待定
 每个来源 MUST 具有可选的采集频率配置，且第一版规划中的频率 MUST 保持未设置。系统 MUST 不自行推断或启用任何采集周期。
@@ -60,7 +68,7 @@
 - **THEN** 它同时记录允许保存的原始载荷或快照、原始/规范化哈希、解析器版本、来源和抓取时间
 
 ### Requirement: AI 只做会籍获取相关性判断
-`StatusRelevanceAnalyzer` MUST 对每个新文档版本输出 `YES`、`NO` 或 `UNCERTAIN`，以及置信信息、简短理由和仅供候选召回使用的最小事件提示。它 MUST 不直接创建或修改正式事件。
+`StatusRelevanceAnalyzer` MUST 对每个新文档版本输出 `YES`、`NO` 或 `UNCERTAIN`，以及置信信息、简短理由和仅供候选召回使用的零个、一个或多个最小 `event_hints`。它 MUST 不直接创建或修改正式事件。
 
 #### Scenario: 明确相关材料进入事件去重
 - **WHEN** 分析结果为 `YES` 且结构化输出通过 Schema 校验
@@ -73,6 +81,10 @@
 #### Scenario: 含义不清的材料等待人工复核
 - **WHEN** 分析结果为 `UNCERTAIN` 或输出无法在有上限重试后通过 Schema 校验
 - **THEN** 系统保留材料并建立人工复核项，不静默当作确定相关或不相关
+
+#### Scenario: 一篇材料包含多个会籍机会
+- **WHEN** 一篇材料并列描述多个彼此独立的会籍获取机会
+- **THEN** 分析器在同一文档结果中输出多个最小 `event_hints`，并让每个提示分别进入事件关系判断
 
 ### Requirement: 跨材料语义去重形成现实事件
 系统 MUST 将来源内容重复与现实事件重复作为两个不同问题处理。候选召回后，`EventRelationshipAnalyzer` MUST 返回 `SAME_EVENT`、`UPDATE_OF`、`DIFFERENT_EVENT` 或 `UNCERTAIN`，并由确定性聚合器更新事件关系。第一版候选召回 MUST 不依赖向量数据库。

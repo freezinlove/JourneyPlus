@@ -60,18 +60,18 @@ ai            模型供应商适配
 
 ### 2. 来源适配与主题逻辑分离
 
-所有适配器统一输出 `DiscoveredItem` 和 `RawDocument`，不直接创建会籍事件。第一版使用四类适配器：
+所有适配器统一输出 `DiscoveredItem` 和 `RawDocument`，不直接创建会籍事件。完整 URL、稳定 ID、正文策略、访问限制和核验记录以同目录的[第一版来源注册表](./source-registry.md)为准。第一版使用四类适配器：
 
 | 来源组 | 首选入口 | 适配方式 |
 |---|---|---|
-| Frequent Flyer Bonuses 博客 | `.../category/elite-status/feed/` | Feed 发现条目，再获取文章正文 |
-| Frequent Flyer Bonuses 会籍汇总页 | `/statusmatchoffers.html` | 静态目录解析；按顶层记录建立稳定指纹 |
-| AwardWallet Elite Status | `/blog/tag/elite-status/feed/` | Feed 发现条目，再获取文章正文 |
+| Frequent Flyer Bonuses 博客 | `https://blog.frequentflyerbonuses.com/category/elite-status/feed` | Feed 发现条目，再获取文章正文 |
+| Frequent Flyer Bonuses 会籍汇总页 | `https://www.frequentflyerbonuses.com/statusmatchoffers.html` | 静态目录解析；按顶层记录建立稳定指纹 |
+| AwardWallet Elite Status | `https://awardwallet.com/blog/tag/elite-status/feed/` | Feed 发现条目，再获取文章正文 |
 | StatusMatch 与 GetStatus | 用户邮箱中的官方来信 | 只读邮件适配器；按邮件消息 ID 幂等 |
-| StatusMatcher | 首页与公开报告页 | 目录发现报告 ID，再获取服务端渲染正文 |
-| LoyaltyLobby | `/feed/` | 优先使用 Feed 提供的正文，不绕过站点访问限制 |
-| Frequent Miler Elite Status | `/category/travel/elite-status/feed/` | 优先使用 Feed 提供的正文 |
-| 很旅行 | `/feed/` | Feed 正文；允许一篇材料产生多个候选事件 |
+| StatusMatcher | `https://statusmatcher.com/` 与 `/report/{report_id}` | 目录发现报告 ID，再获取服务端渲染正文 |
+| LoyaltyLobby | `https://loyaltylobby.com/feed/` | 仅使用 Feed 正文，不请求文章页 |
+| Frequent Miler Elite Status | `https://frequentmiler.com/category/travel/elite-status/feed/` | 使用 Feed 正文 |
+| 很旅行 | `https://www.verylvke.com/feed/` | Feed 正文；允许一篇材料产生多个候选事件 |
 
 来源注册表保存入口、适配器类型、启停状态、访问策略和可选的 `collection_cadence`。第一版所有 `collection_cadence` 保持未设置；未配置调度的来源只能被手工触发或测试调用，调度器不得自行推断频率。
 
@@ -102,7 +102,7 @@ ai            模型供应商适配
 
 AI 分为彼此独立的契约：
 
-- `StatusRelevanceAnalyzer`：输出 `YES | NO | UNCERTAIN`、置信信息、简短理由和最小 `event_hint`；
+- `StatusRelevanceAnalyzer`：输出 `YES | NO | UNCERTAIN`、置信信息、简短理由和零个、一个或多个最小 `event_hints`；
 - `EventRelationshipAnalyzer`：仅比较候选材料与已有事件的关系；
 - `FactConsolidator`：从已关联材料整理事实，并把每项事实绑定到证据；
 - `BriefGenerator`：只读取 `FactSet`，生成标题、摘要、要点、限制和来源链接。
