@@ -7,7 +7,7 @@
 
 ## 2. 来源发现、正文和精确去重
 
-- [ ] 2.1 将 `source-registry.md` 的八个来源组、九条稳定来源记录、完整入口和访问策略实现为可重复导入的来源种子，并让所有 `collection_cadence` 默认保持为空
+- [ ] 2.1 将 `source-registry.md` 的八条稳定来源记录、完整入口和访问策略实现为可重复导入的来源种子，并让所有 `collection_cadence` 默认保持为空
 - [ ] 2.2 实现 URL/来源条目 ID/邮件消息 ID 的发现级去重和可重复执行测试
 - [ ] 2.3 实现保留正文结构的 HTML/Feed/邮件轻量清洗、原始与规范化哈希及解析器版本记录
 - [ ] 2.4 实现内容级去重与同 URL 内容变化时创建新文档版本的测试
@@ -18,7 +18,7 @@
 - [ ] 3.1 实现通用 Feed 适配器，并接入 Frequent Flyer Bonuses Elite Status、AwardWallet Elite Status、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的各自正文策略
 - [ ] 3.2 实现 Frequent Flyer Bonuses 会籍汇总页适配器及顶层记录稳定指纹和增量变化测试
 - [ ] 3.3 实现 StatusMatcher 目录与公开报告页适配器，并验证目录项到正文的两阶段发现
-- [ ] 3.4 使用 Gmail API `gmail.readonly` 实现邮件适配器，只查询 `kirikoomiku@gmail.com` 中同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，并在取得真实样本后分别配置 StatusMatch/GetStatus 发件人白名单
+- [ ] 3.4 使用 Gmail API `gmail.readonly` 实现 `status_services_mail` 适配器，只查询 `kirikoomiku@gmail.com` 中同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，不增加发件人白名单
 - [ ] 3.5 按 `source-registry.md` 为每组来源建立固定解析样本、URL 规范化、合规保存策略和互不阻塞的适配器测试
 
 ## 4. AI 相关性与事件去重

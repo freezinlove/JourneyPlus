@@ -16,7 +16,7 @@
 
 #### Scenario: 注册表成为唯一来源配置输入
 - **WHEN** 系统初始化第一版来源配置
-- **THEN** 它按 `source-registry.md` 导入八个来源组对应的九条来源记录及其入口、策略和空采集频率，其中 StatusMatch 与 GetStatus 邮件具有独立 `source_id`，且不自动新增其他来源
+- **THEN** 它按 `source-registry.md` 导入八条来源记录及其入口、策略和空采集频率，其中 StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不自动新增其他来源
 
 #### Scenario: 目录或 Feed 条目继续获取正文
 - **WHEN** Feed、栏目页或目录页只提供文章或报告入口
@@ -34,9 +34,9 @@
 - **WHEN** 邮件适配器从 `kirikoomiku@gmail.com` 发现消息
 - **THEN** 它只使用 `gmail.readonly` 权限读取同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，不读取其他邮件或更改现有过滤器
 
-#### Scenario: 两个邮件来源独立归属
-- **WHEN** 一封处于允许 Gmail 查询范围内的邮件通过真实发件人白名单验证
-- **THEN** 系统将其归入 `statusmatch_mail` 或 `getstatus_mail` 之一；无法识别的发件人进入人工复核而不自动归属
+#### Scenario: 专用别名替代发件人白名单
+- **WHEN** 一封邮件同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com`
+- **THEN** 系统将其作为 `status_services_mail` 来源材料继续处理，不要求真实发件人白名单；可识别时只额外记录 StatusMatch 或 GetStatus 品牌归属
 
 #### Scenario: Feed 内有正文时不重复抓文章页
 - **WHEN** LoyaltyLobby、Frequent Miler 或很旅行的 Feed 条目已提供允许使用的正文

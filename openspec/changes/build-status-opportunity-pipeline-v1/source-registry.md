@@ -34,14 +34,14 @@ content_type
 
 ## 2. 八组来源总览
 
-这里保留用户确定的八组接入范围。StatusMatch 与 GetStatus 共用一套邮件适配方式，但为了来源追溯、独立停用和故障隔离，在数据库中注册为两个 `source_id`；因此最终是八个来源组、九条来源记录，不代表增加了第九组业务来源。
+这里保留用户确定的八组接入范围。StatusMatch 与 GetStatus 共用专用收件别名、Gmail 标签和邮件适配器，因此在数据库中注册为一条邮件来源；可选的 `origin_provider` 只用于区分品牌归属，不参与邮件准入。
 
 | 序号 | `source_id` | 来源 | 发现入口 | 适配器 | 正文策略 |
 |---|---|---|---|---|---|
 | 1 | `ffb_elite_status_feed` | Frequent Flyer Bonuses 博客 | [Elite Status RSS](https://blog.frequentflyerbonuses.com/category/elite-status/feed) | `FeedAdapter` | Feed 摘要发现，再读取文章页 |
 | 2 | `ffb_status_match_catalog` | Frequent Flyer Bonuses 会籍汇总页 | [Status Match & Fast Track Offers](https://www.frequentflyerbonuses.com/statusmatchoffers.html) | `StaticCatalogAdapter` | 将每条顶层活动记录作为独立材料 |
 | 3 | `awardwallet_elite_status_feed` | AwardWallet Elite Status | [Elite Status RSS](https://awardwallet.com/blog/tag/elite-status/feed/) | `FeedAdapter` | Feed 摘要发现，再读取文章页 |
-| 4 | `statusmatch_mail`、`getstatus_mail` | StatusMatch 与 GetStatus 邮件 | 用户邮箱中的允许邮件 | `MailAdapter` | 两条独立来源记录，共用只读邮件适配器；不以网站抓取替代邮件 |
+| 4 | `status_services_mail` | StatusMatch 与 GetStatus 邮件 | Gmail `statusmatch` 标签与专用收件别名 | `MailAdapter` | 一条只读邮件来源；不以网站抓取替代邮件 |
 | 5 | `statusmatcher_reports` | StatusMatcher | [最新报告目录](https://statusmatcher.com/) | `StatusMatcherAdapter` | 目录发现数字报告 ID，再读取公开报告页 |
 | 6 | `loyaltylobby_feed` | LoyaltyLobby | [全站 RSS](https://loyaltylobby.com/feed/) | `FeedAdapter` | 仅使用 Feed 正文，不抓文章页 |
 | 7 | `frequentmiler_elite_status_feed` | Frequent Miler Elite Status | [Elite Status RSS](https://frequentmiler.com/category/travel/elite-status/feed/) | `FeedAdapter` | 使用 Feed 正文，不需要文章页 |
@@ -81,7 +81,7 @@ content_type
 - 业务注意：该标签同时包含会籍权益、常规定级攻略等大量非机会内容，适配器不得以标题关键词过滤，统一交给 `StatusRelevanceAnalyzer`。
 - `collection_cadence: null`
 
-### 3.4 `statusmatch_mail` 与 `getstatus_mail`
+### 3.4 `status_services_mail`
 
 - 来源身份：[StatusMatch](https://www.statusmatch.com/) 与 [GetStatus](https://www.getstatus.com/)
 - Gmail 账户：`kirikoomiku@gmail.com`
@@ -90,13 +90,12 @@ content_type
 - 发现入口：Gmail 标签 `statusmatch` 与上述收件别名的交集；没有公开 Feed URL，也不扫描其他标签或普通收件箱。
 - 适配器：Gmail API + OAuth 2.0，仅申请 `https://www.googleapis.com/auth/gmail.readonly`，不得申请 `gmail.modify`、`gmail.settings.*` 或完整 `https://mail.google.com/` 权限。
 - 查询方式：先用 `users.labels.list` 将标签名 `statusmatch` 解析为标签 ID，再用 `users.messages.list(userId="me", labelIds=[statusmatch_label_id], q="to:(kirikoomiku+statusmatch@gmail.com)")` 发现消息；逐条通过 `users.messages.get` 读取必要内容。
-- 来源记录：StatusMatch 邮件使用 `statusmatch_mail`，GetStatus 邮件使用 `getstatus_mail`；两者不能合并成同一个来源事实。
-- 来源路由：在上述 Gmail 查询边界内，再按真实 `From` 地址/域名白名单映射到 `statusmatch_mail` 或 `getstatus_mail`；无法识别的邮件进入人工复核，不能按显示名称猜测来源。
-- 条目稳定 ID：`source_id + gmail_message_id`；同时保存 RFC `Message-ID` 用于跨导入核对。
+- 来源记录：两类邮件统一使用 `status_services_mail`；系统可以根据主题、可见品牌和主要链接记录可选的 `origin_provider = STATUSMATCH | GETSTATUS | UNKNOWN`，但该字段不影响是否接收或继续处理。
+- 条目稳定 ID：`status_services_mail + gmail_message_id`；同时保存 RFC `Message-ID` 用于跨导入核对。
 - 获取方式：读取允许邮件的必要头部、纯文本/HTML 正文和正文链接；第一版不自动处理附件中的未知文件类型。
-- 发件人白名单：`TBD`。必须基于用户提供的真实样本邮件头建立，不能只按显示名称或正文品牌词猜测。
 - 安全边界：不得发送、回复、移动、删除、标记、修改邮件或更改现有 Gmail 过滤器；Access Token、Refresh Token 和邮件正文不得进入日志。`gmail.readonly` 在 OAuth 层面可读取整个邮箱，因此“标签 + 收件别名”是应用必须强制执行并测试的访问边界。
-- 启用条件：Google OAuth 客户端、只读授权和两类真实发件人白名单均配置完成。
+- 准入规则：凡同时满足 `statusmatch` 标签和专用收件别名条件的邮件均可进入后续流程，不再设置真实发件人白名单。
+- 启用条件：Google OAuth 客户端和只读授权配置完成。
 - Gmail API 依据：[列出邮件](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list)、[OAuth 权限范围](https://developers.google.com/workspace/gmail/api/auth/scopes)。
 - `collection_cadence: null`
 
@@ -145,7 +144,7 @@ content_type
 
 ## 4. 实施约束
 
-1. 实现时 MUST 以本注册表的 `source_id` 作为稳定配置键，不以网站显示名称作为外键；八个来源组共导入九条来源记录。
+1. 实现时 MUST 以本注册表的 `source_id` 作为稳定配置键，不以网站显示名称作为外键；八个来源组共导入八条来源记录。
 2. URL 变化、Feed 失效或访问策略变化时，先更新本注册表和解析夹具，再修改适配器；不得在业务模块散落替代 URL。
 3. `collection_cadence` 在用户明确决定前保持 `null`，注册表核验日期不代表调度频率。
 4. 来源注册与正式启用是两个状态；入口已核验不代表已完成法律、版权或生产访问审批。

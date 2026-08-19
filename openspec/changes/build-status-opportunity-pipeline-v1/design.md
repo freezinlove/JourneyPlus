@@ -67,7 +67,7 @@ ai            模型供应商适配
 | Frequent Flyer Bonuses 博客 | `https://blog.frequentflyerbonuses.com/category/elite-status/feed` | Feed 发现条目，再获取文章正文 |
 | Frequent Flyer Bonuses 会籍汇总页 | `https://www.frequentflyerbonuses.com/statusmatchoffers.html` | 静态目录解析；按顶层记录建立稳定指纹 |
 | AwardWallet Elite Status | `https://awardwallet.com/blog/tag/elite-status/feed/` | Feed 发现条目，再获取文章正文 |
-| StatusMatch 与 GetStatus | Gmail `statusmatch` 标签 + `kirikoomiku+statusmatch@gmail.com` | Gmail API 只读适配器；两个独立来源 ID |
+| StatusMatch 与 GetStatus | Gmail `statusmatch` 标签 + `kirikoomiku+statusmatch@gmail.com` | Gmail API 只读适配器；共用 `status_services_mail` 来源 ID |
 | StatusMatcher | `https://statusmatcher.com/` 与 `/report/{report_id}` | 目录发现报告 ID，再获取服务端渲染正文 |
 | LoyaltyLobby | `https://loyaltylobby.com/feed/` | 仅使用 Feed 正文，不请求文章页 |
 | Frequent Miler Elite Status | `https://frequentmiler.com/category/travel/elite-status/feed/` | 使用 Feed 正文 |
@@ -175,6 +175,6 @@ base_url: https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1
 ## Open Questions
 
 - 八组来源各自的采集频率与正式启用顺序。
-- StatusMatch 与 GetStatus 真实样本邮件的 `From` 地址/域名白名单，以及 Gmail OAuth 客户端配置。
+- Gmail OAuth 客户端配置。
 - 各来源允许保存全文、摘要或仅元数据的最终合规记录。
 - 用户提供首批文章后，金标样本规模、复核规范和可接受指标。
