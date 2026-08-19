@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: journeyplus
+      POSTGRES_USER: journeyplus
+      POSTGRES_PASSWORD: ${JOURNEYPLUS_POSTGRES_PASSWORD:?请在 .env 配置 JOURNEYPLUS_POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${JOURNEYPLUS_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - journeyplus_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journeyplus -d journeyplus"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+volumes:
+  journeyplus_postgres_data:

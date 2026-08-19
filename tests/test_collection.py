@@ -43,7 +43,12 @@ def test_manual_collection_is_idempotent_with_explicit_key(db_session) -> None:
     first = collect_manual(db_session, adapter, idempotency_key="manual:test")
     second = collect_manual(db_session, adapter, idempotency_key="manual:test")
     assert first.run_id == second.run_id
-    assert first.new_versions == second.new_versions == 1
+    assert first.new_versions == 1
+    assert second.new_versions == 0
+    assert first.reused_run is False
+    assert second.reused_run is True
+    assert len(first.document_version_ids) == 1
+    assert second.document_version_ids == ()
 
 
 def test_new_collection_run_skips_unchanged_item_before_body_fetch(db_session) -> None:
@@ -54,6 +59,31 @@ def test_new_collection_run_skips_unchanged_item_before_body_fetch(db_session) -
     assert adapter.fetch_count == 1
     assert second.discovered == 1
     assert second.new_versions == 0
+
+
+def test_manual_collection_can_limit_fetched_items(db_session) -> None:
+    class ThreeItemAdapter(OneItemAdapter):
+        def discover(self):
+            return [
+                DiscoveredItem(
+                    source_id=self.source_id,
+                    external_id=str(index),
+                    discovered_url=f"https://example.com/{index}",
+                    canonical_url=f"https://example.com/{index}",
+                    title=str(index),
+                    discovery_fingerprint="unchanged",
+                )
+                for index in range(3)
+            ]
+
+    seed_sources(db_session)
+    adapter = ThreeItemAdapter()
+    summary = collect_manual(db_session, adapter, max_items=1)
+
+    assert summary.discovered == 3
+    assert summary.considered == 1
+    assert summary.new_versions == 1
+    assert adapter.fetch_count == 1
 
 
 def test_manual_collection_cli_has_no_scheduler_command() -> None:
@@ -69,6 +99,22 @@ def test_gmail_authorization_has_a_dedicated_cli_command() -> None:
 def test_ai_smoke_has_a_dedicated_cli_command() -> None:
     args = build_parser().parse_args(["ai-smoke"])
     assert args.command == "ai-smoke"
+
+
+def test_runtime_cli_keeps_collection_and_processing_separate() -> None:
+    collect = build_parser().parse_args(
+        ["collect", "ffb_status_match_catalog", "--limit", "1"]
+    )
+    process = build_parser().parse_args(
+        ["process-pending", "--source-id", "ffb_status_match_catalog", "--limit", "1"]
+    )
+    run_source = build_parser().parse_args(
+        ["run-source", "ffb_status_match_catalog", "--limit", "1"]
+    )
+
+    assert collect.command == "collect"
+    assert process.command == "process-pending"
+    assert run_source.command == "run-source"
 
 
 def test_gmail_authorization_does_not_initialize_database(

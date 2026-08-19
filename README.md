@@ -11,13 +11,25 @@ uv sync --extra dev
 uv run alembic upgrade head
 uv run pytest
 uv run journeyplus seed-sources
-uv run journeyplus collect ffb_elite_status_feed
+uv run journeyplus collect ffb_elite_status_feed --limit 1
+uv run journeyplus process-pending --source-id ffb_elite_status_feed --limit 1
+uv run journeyplus run-source ffb_elite_status_feed --limit 1
 uv run journeyplus ai-smoke
 uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-本地与测试可以使用 SQLite；生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。`statusmatcher_reports` 须在人工访问合规确认后显式增加 `--allow-statusmatcher`。
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。`statusmatcher_reports` 须在人工访问合规确认后显式增加 `--allow-statusmatcher`。
+
+本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
+
+```bash
+docker compose up -d --wait postgres
+uv run alembic upgrade head
+uv run journeyplus seed-sources
+```
+
+`collect` 只负责采集与精确去重，`process-pending` 只处理数据库中的待分析文档，`run-source` 是依次调用两者的薄编排。首次真实运行应使用 `--limit 1` 控制抓取量和模型费用。
 
 ## 配置
 
@@ -62,6 +74,6 @@ OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - StatusMatcher 正式采集仍需人工完成访问与保存范围确认，未显式确认时适配器会拒绝运行。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
-- 生产目标是 PostgreSQL；本机没有 PostgreSQL 服务，因此当前自动化测试使用 SQLite 兼容路径，并由迁移测试验证完整表结构。
+- 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 首批人工金标要等用户提供文章后共同建立；离线评测刻意不预设上线阈值。
 - 内部复核 API 默认只监听 `127.0.0.1`，第一版没有公开 UI、账号体系或远程部署配置。

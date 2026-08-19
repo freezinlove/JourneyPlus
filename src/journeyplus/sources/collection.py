@@ -18,7 +18,10 @@ class CollectionSummary:
     run_id: str
     source_id: str
     discovered: int
+    considered: int
     new_versions: int
+    document_version_ids: tuple[str, ...] = ()
+    reused_run: bool = False
 
 
 def collect_manual(
@@ -26,7 +29,10 @@ def collect_manual(
     adapter: SourceAdapter,
     *,
     idempotency_key: str | None = None,
+    max_items: int | None = None,
 ) -> CollectionSummary:
+    if max_items is not None and max_items < 1:
+        raise ValueError("max_items must be positive")
     key = idempotency_key or f"manual:{adapter.source_id}:{uuid4()}"
     existing = session.scalar(
         select(CollectionRun).where(CollectionRun.idempotency_key == key)
@@ -36,7 +42,10 @@ def collect_manual(
             str(existing.id),
             existing.source_id,
             existing.discovered_count,
-            existing.document_count,
+            min(existing.discovered_count, max_items or existing.discovered_count),
+            0,
+            (),
+            True,
         )
     run = existing or CollectionRun(
         source_id=adapter.source_id,
@@ -49,20 +58,33 @@ def collect_manual(
     run.started_at = datetime.now(UTC)
     session.flush()
     try:
-        items = adapter.discover()
+        discovered_items = adapter.discover()
+        items = (
+            discovered_items[:max_items]
+            if max_items is not None
+            else discovered_items
+        )
         ingestion = IngestionService(session)
-        new_versions = 0
+        document_version_ids: list[str] = []
         for item in items:
             if not ingestion.should_fetch(item):
                 continue
             result = ingestion.ingest(item, adapter.fetch(item))
-            new_versions += int(result.new_version)
+            if result.new_version:
+                document_version_ids.append(str(result.document_version.id))
         run.status = RunStatus.SUCCEEDED
-        run.discovered_count = len(items)
-        run.document_count = new_versions
+        run.discovered_count = len(discovered_items)
+        run.document_count = len(document_version_ids)
         run.finished_at = datetime.now(UTC)
         session.flush()
-        return CollectionSummary(str(run.id), adapter.source_id, len(items), new_versions)
+        return CollectionSummary(
+            str(run.id),
+            adapter.source_id,
+            len(discovered_items),
+            len(items),
+            len(document_version_ids),
+            tuple(document_version_ids),
+        )
     except Exception as exc:
         run.status = RunStatus.FAILED
         run.error = f"{type(exc).__name__}: {exc}"[:2000]
