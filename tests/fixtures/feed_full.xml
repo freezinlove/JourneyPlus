@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Elite</title><item>
+  <title>Full feed item</title>
+  <link>https://example.com/full?omhide=true</link>
+  <guid>full-guid-1</guid>
+  <description><![CDATA[<p>Summary only.</p>]]></description>
+  <content:encoded><![CDATA[<article><h1>Full item</h1><p>Apply for the status match.</p></article>]]></content:encoded>
+</item></channel></rss>

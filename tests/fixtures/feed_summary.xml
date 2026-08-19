@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Elite</title><item>
+  <title>Example match</title>
+  <link>https://example.com/match?utm_source=rss&amp;pubDate=123</link>
+  <guid>feed-guid-1</guid>
+  <pubDate>Tue, 18 Aug 2026 08:00:00 +0000</pubDate>
+  <description><![CDATA[<p>Short discovery summary.</p>]]></description>
+</item></channel></rss>

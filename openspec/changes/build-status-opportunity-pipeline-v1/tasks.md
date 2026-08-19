@@ -1,25 +1,25 @@
 ## 1. 项目与领域骨架
 
-- [ ] 1.1 建立模块化单体目录和 `sources/content/status_topic/clustering/facts/briefs/review/evaluation/ai` 依赖边界测试
-- [ ] 1.2 定义 `DiscoveredItem`、`RawDocument`、相关性、事件关系、`FactSet` 和 `Brief` 的版本化 Schema
-- [ ] 1.3 建立第一版 PostgreSQL 模型与迁移，覆盖来源、采集运行、来源条目、文档版本、分析运行、事件、证据、事实、简报、复核和金标
-- [ ] 1.4 建立后台任务状态、幂等键、失败重试上限和单来源隔离机制
+- [x] 1.1 建立模块化单体目录和 `sources/content/status_topic/clustering/facts/briefs/review/evaluation/ai` 依赖边界测试
+- [x] 1.2 定义 `DiscoveredItem`、`RawDocument`、相关性、事件关系、`FactSet` 和 `Brief` 的版本化 Schema
+- [x] 1.3 建立第一版 PostgreSQL 模型与迁移，覆盖来源、采集运行、来源条目、文档版本、分析运行、事件、证据、事实、简报、复核和金标
+- [x] 1.4 建立后台任务状态、幂等键、失败重试上限和单来源隔离机制
 
 ## 2. 来源发现、正文和精确去重
 
-- [ ] 2.1 将 `source-registry.md` 的八条稳定来源记录、完整入口和访问策略实现为可重复导入的来源种子，并让所有 `collection_cadence` 默认保持为空
-- [ ] 2.2 实现 URL/来源条目 ID/邮件消息 ID 的发现级去重和可重复执行测试
-- [ ] 2.3 实现保留正文结构的 HTML/Feed/邮件轻量清洗、原始与规范化哈希及解析器版本记录
-- [ ] 2.4 实现内容级去重与同 URL 内容变化时创建新文档版本的测试
-- [ ] 2.5 实现手工触发采集入口，并验证未配置频率时调度器不会自动执行
+- [x] 2.1 将 `source-registry.md` 的八条稳定来源记录、完整入口和访问策略实现为可重复导入的来源种子，并让所有 `collection_cadence` 默认保持为空
+- [x] 2.2 实现 URL/来源条目 ID/邮件消息 ID 的发现级去重和可重复执行测试
+- [x] 2.3 实现保留正文结构的 HTML/Feed/邮件轻量清洗、原始与规范化哈希及解析器版本记录
+- [x] 2.4 实现内容级去重与同 URL 内容变化时创建新文档版本的测试
+- [x] 2.5 实现手工触发采集入口，并验证未配置频率时调度器不会自动执行
 
 ## 3. 八组来源适配器
 
-- [ ] 3.1 实现通用 Feed 适配器，并接入 Frequent Flyer Bonuses Elite Status、AwardWallet Elite Status、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的各自正文策略
-- [ ] 3.2 实现 Frequent Flyer Bonuses 会籍汇总页适配器及顶层记录稳定指纹和增量变化测试
-- [ ] 3.3 实现 StatusMatcher 目录与公开报告页适配器，并验证目录项到正文的两阶段发现
-- [ ] 3.4 使用 Gmail API `gmail.readonly` 实现 `status_services_mail` 适配器，只查询 `kirikoomiku@gmail.com` 中同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，不增加发件人白名单
-- [ ] 3.5 按 `source-registry.md` 为每组来源建立固定解析样本、URL 规范化、合规保存策略和互不阻塞的适配器测试
+- [x] 3.1 实现通用 Feed 适配器，并接入 Frequent Flyer Bonuses Elite Status、AwardWallet Elite Status、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的各自正文策略
+- [x] 3.2 实现 Frequent Flyer Bonuses 会籍汇总页适配器及顶层记录稳定指纹和增量变化测试
+- [x] 3.3 实现 StatusMatcher 目录与公开报告页适配器，并验证目录项到正文的两阶段发现
+- [x] 3.4 使用 Gmail API `gmail.readonly` 实现 `status_services_mail` 适配器，只查询 `kirikoomiku@gmail.com` 中同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com` 的消息，不增加发件人白名单
+- [x] 3.5 按 `source-registry.md` 为每组来源建立固定解析样本、URL 规范化、合规保存策略和互不阻塞的适配器测试
 
 ## 4. AI 相关性与事件去重
 

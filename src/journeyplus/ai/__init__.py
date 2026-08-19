@@ -1,0 +1,2 @@
+"""Replaceable AI provider boundary."""
+
