@@ -15,7 +15,7 @@ from journeyplus.contracts import (
 from journeyplus.models import AnalysisRun, DocumentVersion
 
 
-STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v2"
+STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v3"
 STATUS_RELEVANCE_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档只能选择以下一个 label：
@@ -23,7 +23,9 @@ SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档�
 - NONE：不包含上述直接会籍机会。
 - UNCERTAIN：材料证据不足，无法可靠选择前两者，需要人工复核。
 
-信用卡或购买可以是会籍机会的资格条件；但普通信用卡资讯、买分/转分促销、常规定级积累攻略、积分票、积分房晚、单纯权益介绍本身不是会籍机会。一篇材料同时包含会籍机会和无关促销时，仍只标为 STATUS_OPPORTUNITY，并忽略无关部分。
+信用卡或购买可以是会籍机会的资格条件；但普通信用卡资讯、买分/转分促销、积分票、积分房晚、单纯权益介绍本身不是会籍机会。
+
+按文档的主要目的判断。以长期教学、方法总结、系统性玩法指导为主要目的的攻略文档，即使提及可以获得会籍的路径，第一版也标为 NONE 且不输出 event_hint。主要报道某个具体会籍活动的开始、变化、截止或当前实测结果的文档，才可标为 STATUS_OPPORTUNITY；具体活动报道可以包含申请步骤，但不能因此被误判为攻略。一篇时效性材料同时包含会籍机会和无关促销时，仍只标为 STATUS_OPPORTUNITY，并忽略无关部分。
 
 STATUS_OPPORTUNITY 必须为每个彼此独立的会籍机会输出一个最小 event_hint；同一文档可以有多个 event_hints。NONE 不得输出 event_hints。不要创建正式事件，不要生成其他主题标签，不要补猜材料没有的信息。只输出符合给定 JSON Schema 的 JSON。"""
 

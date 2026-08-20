@@ -22,7 +22,7 @@ from journeyplus.models import (
     StatusEvent,
 )
 from journeyplus.sources.registry import seed_sources
-from journeyplus.status_topic.analyzer import StatusRelevanceAnalyzer
+from journeyplus.status_topic.analyzer import SYSTEM_PROMPT, StatusRelevanceAnalyzer
 from journeyplus.status_topic.pipeline import StatusOpportunityPipeline
 
 
@@ -71,6 +71,12 @@ def _status_opportunity(program="Example Air", summary="Match to Gold"):
             }
         ],
     }
+
+
+def test_first_version_prompt_explicitly_excludes_guide_articles() -> None:
+    assert "攻略文档" in SYSTEM_PROMPT
+    assert "第一版也标为 NONE" in SYSTEM_PROMPT
+    assert "主要报道某个具体会籍活动" in SYSTEM_PROMPT
 
 
 def test_none_and_invalid_classification_do_not_create_events(db_session) -> None:

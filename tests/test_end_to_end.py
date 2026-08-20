@@ -58,7 +58,7 @@ class AdaptiveProvider:
                 "locator": "opening paragraph and application list",
             }
             payload = {
-                "event_id": request["event_id"],
+                "event_id": request["event"]["id"],
                 "what_happened": {
                     "value": "Example Air 向符合条件的会员开放金卡匹配",
                     "evidence": [evidence],

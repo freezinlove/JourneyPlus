@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -14,6 +15,7 @@ from journeyplus.models import (
     BriefRecord,
     DocumentVersion,
     EventEvidence,
+    FactSetRecord,
     SourceItem,
     StatusEvent,
 )
@@ -81,6 +83,53 @@ def _evidence(document, locator="paragraph 2"):
     }
 
 
+def _add_document_evidence(
+    db_session,
+    event,
+    body: str,
+    *,
+    locator: str,
+    hint_index: int = 0,
+):
+    token = uuid4().hex
+    item = SourceItem(
+        source_id="ffb_elite_status_feed",
+        external_id=f"added-{token}",
+        discovered_url=f"https://example.com/added/{token}",
+        canonical_url=f"https://example.com/added/{token}",
+        title="Added facts",
+        observed_at=datetime.now(UTC),
+        raw_metadata={},
+    )
+    db_session.add(item)
+    db_session.flush()
+    document = DocumentVersion(
+        source_item_id=item.id,
+        canonical_url=item.canonical_url,
+        raw_body=body,
+        normalized_body=body,
+        content_type="text/plain",
+        storage_mode="test",
+        raw_hash=(token * 2)[:64],
+        normalized_hash=(token[::-1] * 2)[:64],
+        parser_version="test",
+        fetched_at=datetime.now(UTC),
+    )
+    db_session.add(document)
+    db_session.flush()
+    db_session.add(
+        EventEvidence(
+            event_id=event.id,
+            document_version_id=document.id,
+            hint_index=hint_index,
+            source_url=document.canonical_url,
+            locator=locator,
+        )
+    )
+    db_session.flush()
+    return document
+
+
 def _fact_response(event, document, *, what="Example Air offers a match to Gold"):
     return {
         "schema_version": "1",
@@ -93,6 +142,91 @@ def _fact_response(event, document, *, what="Example Air offers a match to Gold"
             "evidence": [_evidence(document)],
         },
     }
+
+
+def _brief_response(fact_record, source_url):
+    return {
+        "schema_version": "1",
+        "fact_set_id": str(fact_record.id),
+        "title": "Example Air 开放金卡匹配",
+        "title_fact_keys": ["what_happened", "target_status"],
+        "summary": "符合条件的会员可申请匹配至金卡。",
+        "summary_fact_keys": ["what_happened", "target_status"],
+        "key_points": [],
+        "caveats": [],
+        "source_links": [source_url],
+    }
+
+
+def test_same_full_document_is_scoped_to_each_linked_event(db_session) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["Flying Blue costs EUR 199. SAS for India residents costs EUR 99."],
+    )
+    event.program = "Flying Blue"
+    event.target_status = "Gold"
+    event.summary = "Flying Blue paid status match"
+    first_evidence = db_session.scalar(
+        select(EventEvidence).where(EventEvidence.event_id == event.id)
+    )
+    assert first_evidence is not None
+    first_evidence.locator = "Flying Blue paid status match"
+
+    sas_event = StatusEvent(
+        created_from_key=f"event-{uuid4()}",
+        program="SAS EuroBonus",
+        opportunity_type="STATUS_MATCH",
+        target_status="Gold",
+        summary="SAS paid match for India residents",
+        search_text="SAS EuroBonus paid match India Gold",
+    )
+    db_session.add(sas_event)
+    db_session.flush()
+    db_session.add(
+        EventEvidence(
+            event_id=sas_event.id,
+            document_version_id=documents[0].id,
+            hint_index=1,
+            source_url=documents[0].canonical_url,
+            locator="SAS paid match for India residents",
+        )
+    )
+    db_session.flush()
+
+    flying_blue = _fact_response(
+        event, documents[0], what="Flying Blue offers a paid match"
+    )
+    flying_blue["cost"] = {
+        "value": "EUR 199",
+        "evidence": [_evidence(documents[0], "Flying Blue sentence")],
+    }
+    sas = _fact_response(
+        sas_event, documents[0], what="SAS offers India residents a paid match"
+    )
+    sas["cost"] = {
+        "value": "EUR 99",
+        "evidence": [_evidence(documents[0], "SAS sentence")],
+    }
+    provider = SequenceAIProvider([flying_blue, sas])
+
+    flying_blue_result = FactConsolidator(db_session, provider).consolidate(event)
+    sas_result = FactConsolidator(db_session, provider).consolidate(sas_event)
+
+    first_request = json.loads(provider.calls[0]["user_prompt"])
+    second_request = json.loads(provider.calls[1]["user_prompt"])
+    assert first_request["event"]["program"] == "Flying Blue"
+    assert second_request["event"]["program"] == "SAS EuroBonus"
+    assert first_request["materials"][0]["body"] == second_request["materials"][0][
+        "body"
+    ]
+    assert first_request["materials"][0]["linked_event_hint"]["summary"] == (
+        "Flying Blue paid status match"
+    )
+    assert second_request["materials"][0]["linked_event_hint"]["summary"] == (
+        "SAS paid match for India residents"
+    )
+    assert flying_blue_result.fact_set.cost.value == "EUR 199"
+    assert sas_result.fact_set.cost.value == "EUR 99"
 
 
 def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
@@ -119,6 +253,144 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
         FactConsolidator(
             db_session, bad_provider, prompt_version="fact-invalid-test"
         ).consolidate(event)
+
+
+def test_weaker_new_source_reuses_current_facts_and_brief(db_session) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Match to Gold by December 31 with an application link."]
+    )
+    first_facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([_fact_response(event, documents[0])]),
+    ).consolidate(event)
+    brief_provider = SequenceAIProvider(
+        [_brief_response(first_facts.record, documents[0].canonical_url)]
+    )
+    first_brief = BriefGenerator(db_session, brief_provider).generate(
+        first_facts.record
+    )
+
+    weaker_document = _add_document_evidence(
+        db_session,
+        event,
+        "A short article only says the match exists.",
+        locator="short match mention",
+    )
+    weaker_response = {
+        "schema_version": "1",
+        "event_id": str(event.id),
+        "what_happened": {
+            "value": "Example Air offers a match to Gold",
+            "evidence": [_evidence(weaker_document, "short mention")],
+        },
+    }
+    weaker_provider = SequenceAIProvider([weaker_response])
+    second_facts = FactConsolidator(db_session, weaker_provider).consolidate(event)
+    second_brief = BriefGenerator(db_session, brief_provider).generate(
+        second_facts.record
+    )
+
+    request = json.loads(weaker_provider.calls[0]["user_prompt"])
+    assert request["current_fact_set"]["deadline"]["value"] == "2026-12-31"
+    assert second_facts.reused
+    assert second_facts.record.id == first_facts.record.id
+    assert second_facts.fact_set.deadline.value == "2026-12-31"
+    assert second_brief.reused
+    assert second_brief.record.id == first_brief.record.id
+    assert len(brief_provider.calls) == 1
+    assert db_session.scalar(select(func.count()).select_from(FactSetRecord)) == 1
+    assert db_session.scalar(select(func.count()).select_from(BriefRecord)) == 1
+    assert db_session.scalar(select(func.count()).select_from(EventEvidence)) == 2
+
+
+def test_new_supported_fact_creates_new_fact_set_and_brief(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Match to Gold."])
+    first_facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([_fact_response(event, documents[0])]),
+    ).consolidate(event)
+    BriefGenerator(
+        db_session,
+        SequenceAIProvider(
+            [_brief_response(first_facts.record, documents[0].canonical_url)]
+        ),
+    ).generate(first_facts.record)
+
+    added_document = _add_document_evidence(
+        db_session,
+        event,
+        "The offer is limited to India residents.",
+        locator="India eligibility paragraph",
+    )
+    supplemented = {
+        "schema_version": "1",
+        "event_id": str(event.id),
+        "what_happened": {
+            "value": "Example Air offers a match to Gold",
+            "evidence": [_evidence(documents[0])],
+        },
+        "region": {
+            "value": "India residents",
+            "evidence": [_evidence(added_document, "eligibility paragraph")],
+        },
+    }
+    second_facts = FactConsolidator(
+        db_session, SequenceAIProvider([supplemented])
+    ).consolidate(event)
+    second_brief = BriefGenerator(
+        db_session,
+        SequenceAIProvider(
+            [_brief_response(second_facts.record, added_document.canonical_url)]
+        ),
+    ).generate(second_facts.record)
+
+    assert not second_facts.reused
+    assert second_facts.record.id != first_facts.record.id
+    assert second_facts.record.version == 2
+    assert second_facts.fact_set.region.value == "India residents"
+    assert event.current_fact_set_id == second_facts.record.id
+    assert event.current_brief_id == second_brief.record.id
+    assert db_session.scalar(select(func.count()).select_from(FactSetRecord)) == 2
+    assert db_session.scalar(select(func.count()).select_from(BriefRecord)) == 2
+
+
+def test_different_known_value_becomes_conflict_instead_of_overwrite(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["The fee is USD 99."])
+    first_response = _fact_response(event, documents[0])
+    first_response["cost"] = {
+        "value": "USD 99",
+        "evidence": [_evidence(documents[0], "fee paragraph")],
+    }
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+
+    changed_document = _add_document_evidence(
+        db_session,
+        event,
+        "The fee is USD 149.",
+        locator="changed fee paragraph",
+    )
+    changed_response = _fact_response(event, changed_document)
+    changed_response["cost"] = {
+        "value": "USD 149",
+        "evidence": [_evidence(changed_document, "changed fee paragraph")],
+    }
+    changed = FactConsolidator(
+        db_session, SequenceAIProvider([changed_response])
+    ).consolidate(event)
+
+    assert changed.record.id != first.record.id
+    assert changed.fact_set.cost.value is None
+    assert changed.fact_set.cost.conflict
+    assert changed.fact_set.cost.alternatives == ["USD 99", "USD 149"]
+    assert {
+        evidence.document_version_id for evidence in changed.fact_set.cost.evidence
+    } == {documents[0].id, changed_document.id}
+    assert changed.record.has_conflicts
+    assert event.status == "NEEDS_REVIEW"
 
 
 def test_conflicting_facts_stay_explicit_and_enter_review(db_session) -> None:
