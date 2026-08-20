@@ -90,7 +90,11 @@ class FeedAdapter:
             canonical_url=canonical_url,
             body=body,
             content_type=content_type,
-            metadata={"feed_url": self.feed_url},
+            metadata={
+                "feed_url": self.feed_url,
+                "content_strategy": self.content_strategy,
+                "title": item.title,
+            },
         )
 
     @staticmethod

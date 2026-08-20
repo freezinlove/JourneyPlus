@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from journeyplus.sources.base import FetchResponse
-from journeyplus.sources.catalog import StaticCatalogAdapter
+from journeyplus.sources.catalog import StaticCatalogAdapter, parse_catalog_records
 from journeyplus.sources.factory import build_adapter
 from journeyplus.sources.gmail import (
     GMAIL_READONLY_SCOPE,
@@ -65,6 +65,8 @@ def test_each_registered_feed_uses_its_fixed_body_strategy(
 
     assert ("Article body" in raw.body) is expects_article
     assert (len(fetcher.calls) == 2) is expects_article
+    assert raw.metadata["content_strategy"] == definition.content_strategy
+    assert raw.metadata["title"] == item.title
     if source_id == "awardwallet_elite_status_feed":
         assert "pubDate" not in item.canonical_url
     if source_id == "loyaltylobby_feed":
@@ -90,6 +92,55 @@ def test_catalog_top_level_fingerprint_is_stable_but_content_change_is_visible()
     assert first[0].discovery_fingerprint != second[0].discovery_fingerprint
     assert "One match per account" in adapter.fetch(first[0]).body
     assert "Current tier" in adapter.fetch(first[0]).body
+    assert adapter.fetch(first[0]).content_type == "text/markdown"
+    assert "[Apply](https://example-air.test/match?utm_source=ffb)" in adapter.fetch(
+        first[0]
+    ).body
+
+
+def test_catalog_keeps_distinct_action_links_and_discards_known_noise() -> None:
+    html = """
+        <table data-section="hotel"><tbody>
+          <tr><th scope="row">Best Western Rewards</th><td>
+            Join <a href="/aarp">AARP</a> and
+            <a href="https://bestwestern.test/register">register with Best Western</a>.
+          </td></tr>
+          <tr><th scope="row">Vietnam Airlines</th><td>
+            Use the <a href="https://vietnam.test/match">paid match</a>.
+            <a href="https://vietnam.test/match">Full details</a>
+          </td></tr>
+          <tr><th scope="row">Choice Privileges</th><td>
+            <a href="https://choice.test/match">Match details</a>
+            <a href="https://wrong.test/marriott"><br></a>
+          </td></tr>
+          <tr><th scope="row">Enterprise Plus</th><td>
+            <a href="https://enterprise.test/match">Full details</a>
+            <p><a href="https://enterprise.test/book">Book all your Enterprise rentals here.</a></p>
+          </td></tr>
+        </tbody></table>
+    """
+    records = parse_catalog_records(html, "https://catalog.test/status")
+
+    assert records[0].action_urls == (
+        "https://catalog.test/aarp",
+        "https://bestwestern.test/register",
+    )
+    assert "[AARP](https://catalog.test/aarp)" in records[0].text
+    assert "[register with Best Western](https://bestwestern.test/register)" in records[
+        0
+    ].text
+
+    assert records[1].action_urls == ("https://vietnam.test/match",)
+    assert records[1].text.count("https://vietnam.test/match") == 1
+    assert "Full details" in records[1].text
+
+    assert records[2].action_urls == ("https://choice.test/match",)
+    assert "wrong.test" not in records[2].text
+    assert records[2].discarded_urls == ("https://wrong.test/marriott",)
+
+    assert records[3].action_urls == ("https://enterprise.test/match",)
+    assert "enterprise.test/book" not in records[3].text
+    assert "Book all your Enterprise rentals" not in records[3].text
 
 
 def test_statusmatcher_follows_actual_next_link_then_fetches_report_without_identity() -> None:

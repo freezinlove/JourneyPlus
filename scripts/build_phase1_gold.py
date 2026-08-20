@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,16 +14,30 @@ import feedparser
 import httpx
 
 from journeyplus.content.cleaner import lightly_clean
+from journeyplus.content.extractors import extract_source_html, html_links
 from journeyplus.content.urls import canonicalize_url
 from journeyplus.contracts import DocumentLabel, RawDocument
 from journeyplus.evaluation.schema import GoldDataset
 from journeyplus.sources.catalog import parse_catalog_records
+from journeyplus.sources.registry import get_source_definition
 
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD_PATH = ROOT / "gold" / "status_opportunity_phase1_v1.json"
 REVIEW_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_review.md"
+AUDIT_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_extraction_audit.md"
+BODY_REVIEW_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_bodies.md"
 FFB_CATALOG_URL = "https://www.frequentflyerbonuses.com/statusmatchoffers.html"
+
+# Character totals from the first contaminated draft, kept as a fixed audit baseline.
+PRE_CLEANUP_NORMALIZED_CHARS = {
+    "ffb_elite_status_feed": 41045,
+    "awardwallet_elite_status_feed": 226136,
+    "loyaltylobby_feed": 32309,
+    "frequentmiler_elite_status_feed": 52231,
+    "verylvke_feed": 26817,
+    "ffb_status_match_catalog": 11818,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -406,10 +422,16 @@ def _fetch_feed_bodies(client: httpx.Client) -> dict[tuple[str, str], str]:
 
 
 def _get_with_rate_limit_retry(
-    client: httpx.Client, url: str, *, attempts: int = 3
+    client: httpx.Client, url: str, *, attempts: int = 5
 ) -> httpx.Response:
     for attempt in range(attempts):
-        response = client.get(url)
+        try:
+            response = client.get(url)
+        except httpx.TransportError:
+            if attempt + 1 >= attempts:
+                raise
+            time.sleep(min(2 ** attempt, 10))
+            continue
         if response.status_code != 429:
             response.raise_for_status()
             return response
@@ -425,13 +447,13 @@ def _normalized_articles(client: httpx.Client) -> list[dict[str, object]]:
     feed_bodies = _fetch_feed_bodies(client)
     documents: list[dict[str, object]] = []
     for spec in ARTICLES:
+        strategy = get_source_definition(spec.source_id).content_strategy
         canonical = canonicalize_url(spec.url)
         if spec.source_id in FEED_PAGES:
             body = feed_bodies[(spec.source_id, canonical)]
             content_type = "text/html"
         else:
-            response = client.get(spec.url)
-            response.raise_for_status()
+            response = _get_with_rate_limit_retry(client, spec.url)
             canonical = canonicalize_url(str(response.url))
             body = response.text
             content_type = response.headers.get("content-type", "text/html")
@@ -441,8 +463,19 @@ def _normalized_articles(client: httpx.Client) -> list[dict[str, object]]:
             canonical_url=canonical,
             body=body,
             content_type=content_type,
+            metadata={"content_strategy": strategy, "title": spec.title},
+        )
+        extracted_html = extract_source_html(
+            source_id=spec.source_id,
+            content_strategy=strategy,
+            html=body,
+            canonical_url=canonical,
+            title=spec.title,
         )
         normalized = lightly_clean(raw).normalized_body
+        raw_links = html_links(body, canonical)
+        retained_links = _markdown_links(normalized)
+        removed_links = _removed_links(raw_links, retained_links)
         documents.append(
             {
                 "spec": spec,
@@ -456,14 +489,22 @@ def _normalized_articles(client: httpx.Client) -> list[dict[str, object]]:
                     "label": spec.label.value,
                     "event_keys": list(spec.event_keys),
                 },
+                "audit": {
+                    "raw_chars": len(body),
+                    "extracted_chars": len(extracted_html),
+                    "normalized_chars": len(normalized),
+                    "raw_links": raw_links,
+                    "retained_links": retained_links,
+                    "removed_links": removed_links,
+                    "anomalies": _body_anomalies(normalized),
+                },
             }
         )
     return documents
 
 
 def _normalized_catalog(client: httpx.Client) -> tuple[list[dict[str, object]], str]:
-    response = client.get(FFB_CATALOG_URL)
-    response.raise_for_status()
+    response = _get_with_rate_limit_retry(client, FFB_CATALOG_URL)
     records = parse_catalog_records(response.text, str(response.url))
     if len(records) != len(CATALOG):
         raise RuntimeError(
@@ -482,9 +523,10 @@ def _normalized_catalog(client: httpx.Client) -> tuple[list[dict[str, object]], 
             external_id=document_key,
             canonical_url=FFB_CATALOG_URL,
             body=record.text,
-            content_type="text/plain",
+            content_type="text/markdown",
         )
         normalized = lightly_clean(raw).normalized_body
+        retained_links = _markdown_links(normalized)
         documents.append(
             {
                 "spec": spec,
@@ -497,6 +539,17 @@ def _normalized_catalog(client: httpx.Client) -> tuple[list[dict[str, object]], 
                     "document_key": document_key,
                     "label": DocumentLabel.STATUS_OPPORTUNITY.value,
                     "event_keys": [spec.event_key],
+                },
+                "audit": {
+                    "raw_chars": len(record.raw_html),
+                    "extracted_chars": len(record.text),
+                    "normalized_chars": len(normalized),
+                    "raw_links": html_links(record.raw_html, str(response.url)),
+                    "retained_links": retained_links,
+                    "removed_links": [
+                        ("规则丢弃", url) for url in record.discarded_urls
+                    ],
+                    "anomalies": _body_anomalies(normalized),
                 },
             }
         )
@@ -518,6 +571,55 @@ def _case(case_id: str, notes: str, items: list[dict[str, object]]) -> dict[str,
 
 def _markdown_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ")
+
+
+_MARKDOWN_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
+_BARE_URL = re.compile(r"https?://[^\s<>\]|]+")
+_CONTAMINATION_MARKERS = (
+    "Top Offers for August",
+    "Leave a comment",
+    "Please follow and like us",
+    "The post ",
+    " first appeared on ",
+    " appeared first on ",
+    "ADVERTISER DISCLOSURE",
+    "Book all your Enterprise rentals here",
+    "<!––",
+)
+
+
+def _markdown_links(markdown: str) -> list[tuple[str, str]]:
+    links = [
+        (" ".join(label.split()), url)
+        for label, url in _MARKDOWN_LINK.findall(markdown)
+    ]
+    linked_spans = [match.span() for match in _MARKDOWN_LINK.finditer(markdown)]
+    for match in _BARE_URL.finditer(markdown):
+        if any(start <= match.start() < end for start, end in linked_spans):
+            continue
+        url = match.group(0).rstrip(".,;:")
+        links.append(("裸URL", url))
+    return links
+
+
+def _removed_links(
+    raw_links: list[tuple[str, str]], retained_links: list[tuple[str, str]]
+) -> list[tuple[str, str]]:
+    retained_counts = Counter(url for _, url in retained_links)
+    removed: list[tuple[str, str]] = []
+    for label, url in raw_links:
+        if retained_counts[url]:
+            retained_counts[url] -= 1
+        else:
+            removed.append((label, url))
+    return removed
+
+
+def _body_anomalies(body: str) -> list[str]:
+    anomalies = [marker for marker in _CONTAMINATION_MARKERS if marker in body]
+    if re.search(r"!\[[^\]]*\]\(", body):
+        anomalies.append("Markdown图片URL")
+    return anomalies
 
 
 def _review_markdown(
@@ -625,6 +727,216 @@ def _review_markdown(
     return "\n".join(lines)
 
 
+def _source_summary(
+    items: list[dict[str, object]],
+) -> dict[str, Counter[str]]:
+    summary: dict[str, Counter[str]] = defaultdict(Counter)
+    for item in items:
+        spec = item["spec"]
+        audit = item["audit"]
+        assert isinstance(audit, dict)
+        source_id = (
+            spec.source_id if isinstance(spec, ArticleSpec) else "ffb_status_match_catalog"
+        )
+        values = summary[source_id]
+        values["documents"] += 1
+        values["raw_chars"] += int(audit["raw_chars"])
+        values["extracted_chars"] += int(audit["extracted_chars"])
+        values["normalized_chars"] += int(audit["normalized_chars"])
+        values["raw_links"] += len(audit["raw_links"])
+        values["retained_links"] += len(audit["retained_links"])
+        values["removed_links"] += len(audit["removed_links"])
+        values["anomalies"] += len(audit["anomalies"])
+    return summary
+
+
+def _extraction_audit_markdown(
+    article_items: list[dict[str, object]],
+    catalog_items: list[dict[str, object]],
+    snapshot_time: str,
+) -> str:
+    all_items = article_items + catalog_items
+    lines = [
+        "# 第一阶段正文提取审计",
+        "",
+        f"生成时间：`{snapshot_time}`",
+        "",
+        "口径：文章页来源的“原始”是完整网页HTML，“提取”是正文容器HTML；Feed来源的原始输入本来就是Feed正文；FFB列表按顶层条目计算。最终正文不保留图片URL，只在图片没有图注且alt有实际信息时保留`[图片：说明]`。",
+        "",
+        "## 来源汇总",
+        "",
+        "| 来源 | 文档 | 原始字符 | 正文容器字符 | 最终正文字符 | 原始链接 | 保留链接 | 丢弃链接 | 异常标记 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for source_id, values in _source_summary(all_items).items():
+        lines.append(
+            f"| `{source_id}` | {values['documents']} | {values['raw_chars']} | "
+            f"{values['extracted_chars']} | {values['normalized_chars']} | "
+            f"{values['raw_links']} | {values['retained_links']} | "
+            f"{values['removed_links']} | {values['anomalies']} |"
+        )
+
+    lines.extend(
+        (
+            "",
+            "## 与修复前草稿对比",
+            "",
+            "修复前的文章正文包含整页导航、页脚、图片URL或Feed分发尾注；FFB列表则相反，因纯文本化丢失了链接。下表的基线固定为首次草稿，不随后续重新抓取改变。",
+            "",
+            "| 来源 | 修复前正文字符 | 当前正文字符 | 变化 |",
+            "|---|---:|---:|---:|",
+        )
+    )
+    source_summary = _source_summary(all_items)
+    for source_id, before in PRE_CLEANUP_NORMALIZED_CHARS.items():
+        after = source_summary[source_id]["normalized_chars"]
+        change = (after - before) / before
+        lines.append(
+            f"| `{source_id}` | {before} | {after} | {change:+.1%} |"
+        )
+
+    lines.extend(
+        (
+            "",
+            "## 30篇指定文章",
+            "",
+            "| # | 文档 | 来源 | 原始字符 | 正文容器字符 | 最终字符 | 保留链接 | 丢弃链接 | 异常 |",
+            "|---:|---|---|---:|---:|---:|---:|---:|---|",
+        )
+    )
+    for index, item in enumerate(article_items, 1):
+        spec = item["spec"]
+        audit = item["audit"]
+        assert isinstance(spec, ArticleSpec)
+        assert isinstance(audit, dict)
+        anomalies = "、".join(str(value) for value in audit["anomalies"]) or "—"
+        lines.append(
+            f"| {index} | [{_markdown_cell(spec.title)}]({spec.url}) | "
+            f"`{spec.source_id}` | {audit['raw_chars']} | {audit['extracted_chars']} | "
+            f"{audit['normalized_chars']} | {len(audit['retained_links'])} | "
+            f"{len(audit['removed_links'])} | {_markdown_cell(anomalies)} |"
+        )
+
+    lines.extend(("", "## 文章最终保留链接", ""))
+    for index, item in enumerate(article_items, 1):
+        spec = item["spec"]
+        audit = item["audit"]
+        assert isinstance(spec, ArticleSpec)
+        assert isinstance(audit, dict)
+        links = audit["retained_links"]
+        lines.append(f"### A{index:02d} {_markdown_cell(spec.title)}")
+        lines.append("")
+        if links:
+            for label, url in links:
+                lines.append(f"- [{_markdown_cell(label) or '无文本链接'}]({url})")
+        else:
+            lines.append("— 无保留链接")
+        removed = audit["removed_links"]
+        if removed:
+            lines.extend(("", f"丢弃链接共{len(removed)}个；前8个样例："))
+            for label, url in removed[:8]:
+                lines.append(f"- `{_markdown_cell(label) or '空链接'}` — `{url}`")
+        lines.append("")
+
+    lines.extend(
+        (
+            "## FFB列表35个顶层条目",
+            "",
+            "| # | 条目 | 原始条目HTML字符 | 最终正文字符 | 保留链接 | 规则丢弃链接 | 异常 |",
+            "|---:|---|---:|---:|---:|---:|---|",
+        )
+    )
+    for index, item in enumerate(catalog_items, 1):
+        spec = item["spec"]
+        audit = item["audit"]
+        assert isinstance(spec, CatalogSpec)
+        assert isinstance(audit, dict)
+        anomalies = "、".join(str(value) for value in audit["anomalies"]) or "—"
+        lines.append(
+            f"| {index} | {_markdown_cell(spec.title)} | {audit['raw_chars']} | "
+            f"{audit['normalized_chars']} | {len(audit['retained_links'])} | "
+            f"{len(audit['removed_links'])} | {_markdown_cell(anomalies)} |"
+        )
+    lines.extend(("", "## FFB最终保留链接", ""))
+    for index, item in enumerate(catalog_items, 1):
+        spec = item["spec"]
+        audit = item["audit"]
+        assert isinstance(spec, CatalogSpec)
+        assert isinstance(audit, dict)
+        lines.append(f"### F{index:02d} {_markdown_cell(spec.title)}")
+        lines.append("")
+        links = audit["retained_links"]
+        if links:
+            for label, url in links:
+                lines.append(f"- [{_markdown_cell(label) or '无文本链接'}]({url})")
+        else:
+            lines.append("— 无保留链接")
+        removed = audit["removed_links"]
+        if removed:
+            lines.extend(("", "规则丢弃："))
+            for label, url in removed:
+                lines.append(f"- `{_markdown_cell(label)}` — `{url}`")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _body_review_markdown(
+    article_items: list[dict[str, object]],
+    catalog_items: list[dict[str, object]],
+    snapshot_time: str,
+) -> str:
+    lines = [
+        "# 第一阶段金标正文逐篇审核稿",
+        "",
+        f"生成时间：`{snapshot_time}`",
+        "",
+        "请对每篇依次检查：开头和结尾是否属于正文、正文中活动资格/期限/费用是否完整、可操作或条款链接是否仍可点击、图片只剩必要的文字说明。发现问题时按`A编号`或`F编号`反馈即可。",
+        "",
+        "## 30篇指定文章",
+        "",
+    ]
+    for index, item in enumerate(article_items, 1):
+        spec = item["spec"]
+        document = item["document"]
+        audit = item["audit"]
+        assert isinstance(spec, ArticleSpec)
+        assert isinstance(document, dict)
+        assert isinstance(audit, dict)
+        lines.extend(
+            (
+                f"### A{index:02d} [{spec.title}]({spec.url})",
+                "",
+                f"来源：`{spec.source_id}`；标签：`{spec.label.value}`；最终正文字符：{audit['normalized_chars']}；保留链接：{len(audit['retained_links'])}。",
+                "",
+                str(document["normalized_body"]),
+                "",
+                "---",
+                "",
+            )
+        )
+    lines.extend(("## FFB列表35个顶层条目", ""))
+    for index, item in enumerate(catalog_items, 1):
+        spec = item["spec"]
+        document = item["document"]
+        audit = item["audit"]
+        assert isinstance(spec, CatalogSpec)
+        assert isinstance(document, dict)
+        assert isinstance(audit, dict)
+        lines.extend(
+            (
+                f"### F{index:02d} {spec.title}",
+                "",
+                f"标签：`STATUS_OPPORTUNITY`；最终正文字符：{audit['normalized_chars']}；保留链接：{len(audit['retained_links'])}。",
+                "",
+                str(document["normalized_body"]),
+                "",
+                "---",
+                "",
+            )
+        )
+    return "\n".join(lines)
+
+
 def main() -> None:
     snapshot_time = datetime.now(UTC).replace(microsecond=0).isoformat()
     headers = {"User-Agent": "JourneyPlus/1.0 gold-build"}
@@ -656,9 +968,19 @@ def main() -> None:
         ),
         encoding="utf-8",
     )
+    AUDIT_PATH.write_text(
+        _extraction_audit_markdown(article_items, catalog_items, snapshot_time),
+        encoding="utf-8",
+    )
+    BODY_REVIEW_PATH.write_text(
+        _body_review_markdown(article_items, catalog_items, snapshot_time),
+        encoding="utf-8",
+    )
     summary = {
         "gold_path": str(GOLD_PATH),
         "review_path": str(REVIEW_PATH),
+        "audit_path": str(AUDIT_PATH),
+        "body_review_path": str(BODY_REVIEW_PATH),
         "documents": len(article_items) + len(catalog_items),
         "articles": len(article_items),
         "ffb_catalog_records": len(catalog_items),

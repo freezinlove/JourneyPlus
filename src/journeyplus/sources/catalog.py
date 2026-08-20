@@ -3,7 +3,9 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
+from urllib.parse import urljoin
 
+from markdownify import markdownify
 from selectolax.parser import HTMLParser, Node
 
 from journeyplus.content.urls import canonicalize_url
@@ -16,7 +18,13 @@ class CatalogRecord:
     section: str
     program: str
     text: str
-    action_url: str | None
+    action_urls: tuple[str, ...] = ()
+    discarded_urls: tuple[str, ...] = ()
+    raw_html: str = ""
+
+    @property
+    def action_url(self) -> str | None:
+        return self.action_urls[0] if self.action_urls else None
 
     @property
     def record_hash(self) -> str:
@@ -60,6 +68,8 @@ class StaticCatalogAdapter:
                         "program": record.program,
                         "record_text": record.text,
                         "action_url": record.action_url,
+                        "action_urls": list(record.action_urls),
+                        "discarded_urls": list(record.discarded_urls),
                         "record_hash": record.record_hash,
                         "page_updated": page_updated,
                         "catalog_url": canonicalize_url(response.final_url),
@@ -74,10 +84,17 @@ class StaticCatalogAdapter:
             external_id=item.external_id,
             canonical_url=item.canonical_url,
             body=str(item.raw_metadata["record_text"]),
-            content_type="text/plain",
+            content_type="text/markdown",
             metadata={
                 key: item.raw_metadata.get(key)
-                for key in ("section", "program", "action_url", "page_updated")
+                for key in (
+                    "section",
+                    "program",
+                    "action_url",
+                    "action_urls",
+                    "discarded_urls",
+                    "page_updated",
+                )
             },
         )
 
@@ -98,27 +115,36 @@ def parse_catalog_records(html: str, base_url: str) -> list[CatalogRecord]:
             cells = row.css("td")
             if program_cell is not None and cells:
                 program = program_cell.text(separator=" ", strip=True)
-                offer_text = cells[0].text(separator="\n", strip=True)
+                offer_text, action_urls, discarded_urls = _catalog_markdown(
+                    cells[0].html, base_url=base_url, program=program
+                )
                 if program and offer_text:
                     records.append(
                         CatalogRecord(
                             section=section,
                             program=program,
-                            text=f"{program}\n{offer_text}",
-                            action_url=_first_link(cells[0], base_url),
+                            text=offer_text,
+                            action_urls=action_urls,
+                            discarded_urls=discarded_urls,
+                            raw_html=cells[0].html,
                         )
                     )
                 continue
             if len(cells) < 2:
                 continue
-            text = "\n".join(cell.text(separator=" ", strip=True) for cell in cells)
-            action = _first_link(row, base_url)
+            program = cells[0].text(separator=" ", strip=True)
+            html_content = "<div>" + "".join(cell.html for cell in cells[1:]) + "</div>"
+            text, action_urls, discarded_urls = _catalog_markdown(
+                html_content, base_url=base_url, program=program
+            )
             records.append(
                 CatalogRecord(
                     section=section,
-                    program=cells[0].text(separator=" ", strip=True),
+                    program=program,
                     text=text,
-                    action_url=action,
+                    action_urls=action_urls,
+                    discarded_urls=discarded_urls,
+                    raw_html=html_content,
                 )
             )
     return [record for record in records if record.program and record.text]
@@ -171,19 +197,71 @@ def _record_from_node(node: Node, base_url: str) -> CatalogRecord:
     if not program:
         heading = node.css_first("h2, h3, h4, strong")
         program = heading.text(separator=" ", strip=True) if heading else "Unknown program"
+    text, action_urls, discarded_urls = _catalog_markdown(
+        node.html, base_url=base_url, program=program
+    )
     return CatalogRecord(
         section=node.attributes.get("data-section", "unspecified"),
         program=program,
-        text=node.text(separator="\n", strip=True),
-        action_url=_first_link(node, base_url),
+        text=text,
+        action_urls=action_urls,
+        discarded_urls=discarded_urls,
+        raw_html=node.html,
     )
 
 
-def _first_link(node: Node, base_url: str) -> str | None:
-    from urllib.parse import urljoin
+def _catalog_markdown(
+    html: str, *, base_url: str, program: str
+) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+    """Keep the semantic record and its actionable links, not catalog page chrome."""
 
-    link = node.css_first("a[href]")
-    return urljoin(base_url, link.attributes["href"]) if link else None
+    tree = HTMLParser(html)
+    root = tree.body or tree.root
+    if root is None:
+        return program, (), ()
+    for image in root.css("img"):
+        image.decompose()
+
+    kept: list[str] = []
+    discarded: list[str] = []
+    seen: set[str] = set()
+    for link in list(root.css("a[href]")):
+        raw_href = str(link.attributes.get("href") or "").strip()
+        label = " ".join(link.text(separator=" ", strip=True).split())
+        if not raw_href:
+            link.unwrap()
+            continue
+        absolute = urljoin(base_url, raw_href)
+        normalized_label = label.casefold()
+        if not label:
+            discarded.append(absolute)
+            link.unwrap()
+            continue
+        if (
+            _normalized(program) == "enterprise plus"
+            and "book all your enterprise rentals" in normalized_label
+        ):
+            discarded.append(absolute)
+            parent = link.parent
+            if parent is not None and parent.tag == "p":
+                parent.decompose()
+            else:
+                link.decompose()
+            continue
+        dedupe_key = canonicalize_url(absolute)
+        if dedupe_key in seen:
+            discarded.append(absolute)
+            link.unwrap()
+            continue
+        seen.add(dedupe_key)
+        kept.append(absolute)
+        link.attrs["href"] = absolute
+
+    markdown = markdownify(root.html, heading_style="ATX").strip()
+    markdown = re.sub(r"[ \t]+", " ", markdown)
+    markdown = re.sub(r"\n{3,}", "\n\n", markdown).strip()
+    text = f"{program}\n\n{markdown}" if markdown else program
+    return text, tuple(kept), tuple(discarded)
 
 
 def _normalized(value: str) -> str:
