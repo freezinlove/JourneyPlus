@@ -89,6 +89,7 @@ def test_catalog_top_level_fingerprint_is_stable_but_content_change_is_visible()
     assert first[0].external_id == second[0].external_id
     assert first[0].discovery_fingerprint != second[0].discovery_fingerprint
     assert "One match per account" in adapter.fetch(first[0]).body
+    assert "Current tier" in adapter.fetch(first[0]).body
 
 
 def test_statusmatcher_follows_actual_next_link_then_fetches_report_without_identity() -> None:

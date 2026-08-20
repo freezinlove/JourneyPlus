@@ -90,8 +90,10 @@ def parse_catalog_records(html: str, base_url: str) -> list[CatalogRecord]:
 
     records: list[CatalogRecord] = []
     for table in tree.css("table"):
+        if _is_nested_table(table):
+            continue
         section = _section_from_table(table)
-        for row in table.css("tr"):
+        for row in _direct_table_rows(table):
             program_cell = row.css_first("th[scope='row']")
             cells = row.css("td")
             if program_cell is not None and cells:
@@ -120,6 +122,33 @@ def parse_catalog_records(html: str, base_url: str) -> list[CatalogRecord]:
                 )
             )
     return [record for record in records if record.program and record.text]
+
+
+def _direct_table_rows(table: Node) -> list[Node]:
+    """Return only rows owned by this table, excluding rows in nested tables."""
+
+    rows: list[Node] = []
+    child = table.child
+    while child is not None:
+        if child.tag == "tr":
+            rows.append(child)
+        elif child.tag in {"thead", "tbody", "tfoot"}:
+            row = child.child
+            while row is not None:
+                if row.tag == "tr":
+                    rows.append(row)
+                row = row.next
+        child = child.next
+    return rows
+
+
+def _is_nested_table(table: Node) -> bool:
+    parent = table.parent
+    while parent is not None:
+        if parent.tag == "table":
+            return True
+        parent = parent.parent
+    return False
 
 
 def _section_from_table(table: Node) -> str:
