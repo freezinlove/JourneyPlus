@@ -16,9 +16,9 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class RelevanceLabel(StrEnum):
-    YES = "YES"
-    NO = "NO"
+class DocumentLabel(StrEnum):
+    STATUS_OPPORTUNITY = "STATUS_OPPORTUNITY"
+    NONE = "NONE"
     UNCERTAIN = "UNCERTAIN"
 
 
@@ -103,17 +103,19 @@ class EventHint(StrictModel):
 
 
 class RelevanceResult(StrictModel):
-    label: RelevanceLabel
+    label: DocumentLabel
     confidence: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1, max_length=1000)
     event_hints: list[EventHint] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
-    def relevant_results_need_hints(self) -> RelevanceResult:
-        if self.label == RelevanceLabel.YES and not self.event_hints:
-            raise ValueError("YES relevance requires at least one event hint")
-        if self.label == RelevanceLabel.NO and self.event_hints:
-            raise ValueError("NO relevance cannot contain event hints")
+    def classification_matches_event_hints(self) -> RelevanceResult:
+        if self.label == DocumentLabel.STATUS_OPPORTUNITY and not self.event_hints:
+            raise ValueError(
+                "STATUS_OPPORTUNITY classification requires at least one event hint"
+            )
+        if self.label == DocumentLabel.NONE and self.event_hints:
+            raise ValueError("NONE classification cannot contain event hints")
         return self
 
 

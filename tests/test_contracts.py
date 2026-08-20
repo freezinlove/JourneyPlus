@@ -6,21 +6,25 @@ import pytest
 from pydantic import ValidationError
 
 from journeyplus.contracts import (
+    DocumentLabel,
     EventHint,
     EvidenceRef,
     FactField,
     OpportunityType,
-    RelevanceLabel,
     RelevanceResult,
 )
 
 
-def test_yes_relevance_requires_event_hint() -> None:
+def test_status_opportunity_classification_requires_event_hint() -> None:
     with pytest.raises(ValidationError):
-        RelevanceResult(label=RelevanceLabel.YES, confidence=0.9, reason="direct match")
+        RelevanceResult(
+            label=DocumentLabel.STATUS_OPPORTUNITY,
+            confidence=0.9,
+            reason="direct match",
+        )
 
 
-def test_no_relevance_rejects_event_hints() -> None:
+def test_none_classification_rejects_event_hints() -> None:
     hint = EventHint(
         program="Example",
         opportunity_type=OpportunityType.STATUS_MATCH,
@@ -28,10 +32,26 @@ def test_no_relevance_rejects_event_hints() -> None:
     )
     with pytest.raises(ValidationError):
         RelevanceResult(
-            label=RelevanceLabel.NO,
+            label=DocumentLabel.NONE,
             confidence=0.9,
             reason="not relevant",
             event_hints=[hint],
+        )
+
+
+def test_legacy_yes_no_labels_are_rejected() -> None:
+    with pytest.raises(ValidationError):
+        RelevanceResult.model_validate(
+            {"label": "YES", "confidence": 0.9, "reason": "legacy result"}
+        )
+
+    with pytest.raises(ValidationError):
+        RelevanceResult.model_validate(
+            {
+                "label": ["STATUS_OPPORTUNITY", "NONE"],
+                "confidence": 0.9,
+                "reason": "stacked labels",
+            }
         )
 
 
@@ -50,4 +70,3 @@ def test_known_fact_requires_evidence() -> None:
         ],
     )
     assert field.value == "2026-12-31"
-

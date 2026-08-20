@@ -8,7 +8,7 @@ from journeyplus.ai.provider import AIProvider
 from journeyplus.clustering.aggregator import AggregationResult, EventAggregator
 from journeyplus.clustering.relationship import EventRelationshipAnalyzer
 from journeyplus.clustering.retrieval import CandidateRetriever
-from journeyplus.contracts import RelevanceLabel
+from journeyplus.contracts import DocumentLabel
 from journeyplus.models import DocumentVersion
 from journeyplus.status_topic.analyzer import RelevanceAnalysis, StatusRelevanceAnalyzer
 
@@ -28,7 +28,7 @@ class StatusOpportunityPipeline:
 
     def process(self, document: DocumentVersion) -> DocumentPipelineResult:
         relevance = self._relevance.analyze(document)
-        if relevance.result.label != RelevanceLabel.YES:
+        if relevance.result.label != DocumentLabel.STATUS_OPPORTUNITY:
             return DocumentPipelineResult(relevance, [])
         events: list[AggregationResult] = []
         for index, hint in enumerate(relevance.result.event_hints):

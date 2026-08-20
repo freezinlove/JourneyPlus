@@ -34,9 +34,9 @@ class TwoDocumentAdapter:
         )
 
 
-def _not_relevant(reason: str) -> dict:
+def _not_a_status_opportunity(reason: str) -> dict:
     return {
-        "label": "NO",
+        "label": "NONE",
         "confidence": 0.99,
         "reason": reason,
         "event_hints": [],
@@ -49,7 +49,10 @@ def test_pending_processing_is_limited_and_idempotent(session_factory) -> None:
         collect_manual(session, TwoDocumentAdapter())
 
     provider = SequenceAIProvider(
-        [_not_relevant("first"), _not_relevant("second")]
+        [
+            _not_a_status_opportunity("first"),
+            _not_a_status_opportunity("second"),
+        ]
     )
     first = process_pending_documents(
         session_factory,
@@ -90,7 +93,7 @@ class FailureIsolationProvider:
         if output_model.__name__ == "RelevanceResult":
             if "Document 0" in user_prompt:
                 payload = {
-                    "label": "YES",
+                    "label": "STATUS_OPPORTUNITY",
                     "confidence": 0.99,
                     "reason": "direct status match",
                     "event_hints": [
@@ -102,7 +105,7 @@ class FailureIsolationProvider:
                     ],
                 }
             else:
-                payload = _not_relevant("not a status opportunity")
+                payload = _not_a_status_opportunity("not a status opportunity")
             return output_model.model_validate(payload)
         raise RuntimeError("simulated downstream failure")
 

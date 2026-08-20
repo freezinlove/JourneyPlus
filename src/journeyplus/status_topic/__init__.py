@@ -1,2 +1,1 @@
-"""Status acquisition relevance analysis."""
-
+"""Status opportunity document classification."""

@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     process = subparsers.add_parser(
         "process-pending",
-        help="Process already collected documents that lack current AI analysis",
+        help="Process collected documents that lack the current AI classification",
     )
     process.add_argument("--source-id", choices=SOURCE_IDS)
     process.add_argument("--limit", type=_positive_int, default=10)

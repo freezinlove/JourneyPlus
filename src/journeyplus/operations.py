@@ -7,7 +7,7 @@ from sqlalchemy import exists, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
-from journeyplus.contracts import AnalysisStage, RelevanceLabel
+from journeyplus.contracts import AnalysisStage, DocumentLabel
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import AnalysisRun, DocumentVersion, SourceItem
 from journeyplus.status_topic.analyzer import STATUS_RELEVANCE_PROMPT_VERSION
@@ -18,10 +18,10 @@ from journeyplus.workflow import V1Workflow
 class DocumentProcessingResult:
     document_version_id: str
     source_id: str
-    relevance: str | None
+    document_label: str | None
     event_ids: tuple[str, ...] = ()
     brief_ids: tuple[str, ...] = ()
-    reused_relevance: bool = False
+    reused_classification: bool = False
     error: str | None = None
 
 
@@ -30,7 +30,7 @@ class ProcessingSummary:
     selected: int
     succeeded: int
     failed: int
-    relevant: int
+    status_opportunities: int
     events: int
     briefs: int
     documents: tuple[DocumentProcessingResult, ...]
@@ -99,14 +99,14 @@ def process_pending_documents(
                 return DocumentProcessingResult(
                     document_version_id=str(current_document_id),
                     source_id=current_source_id,
-                    relevance=workflow_result.document.relevance.result.label,
+                    document_label=workflow_result.document.relevance.result.label,
                     event_ids=tuple(
                         str(item.event.id) for item in workflow_result.document.events
                     ),
                     brief_ids=tuple(
                         str(item.brief.record.id) for item in workflow_result.outputs
                     ),
-                    reused_relevance=workflow_result.document.relevance.reused,
+                    reused_classification=workflow_result.document.relevance.reused,
                 )
 
         try:
@@ -128,7 +128,7 @@ def process_pending_documents(
                 DocumentProcessingResult(
                     document_version_id=str(document_id),
                     source_id=item_source_id,
-                    relevance=None,
+                    document_label=None,
                     error=f"{type(exc).__name__}: {exc}"[:1000],
                 )
             )
@@ -137,7 +137,10 @@ def process_pending_documents(
         selected=len(selected),
         succeeded=sum(item.error is None for item in results),
         failed=sum(item.error is not None for item in results),
-        relevant=sum(item.relevance == RelevanceLabel.YES for item in results),
+        status_opportunities=sum(
+            item.document_label == DocumentLabel.STATUS_OPPORTUNITY
+            for item in results
+        ),
         events=sum(len(item.event_ids) for item in results),
         briefs=sum(len(item.brief_ids) for item in results),
         documents=tuple(results),

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
-from journeyplus.contracts import RelevanceLabel, RelationshipType
+from journeyplus.contracts import DocumentLabel, RelationshipType
 
 
 class GoldModel(BaseModel):
@@ -15,10 +17,22 @@ class GoldDocument(GoldModel):
     normalized_body: str = Field(min_length=1)
 
 
-class GoldRelevance(GoldModel):
+class GoldClassification(GoldModel):
     document_key: str
-    label: RelevanceLabel
+    label: DocumentLabel
     event_keys: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def status_labels_match_event_membership(self) -> GoldClassification:
+        if self.label == DocumentLabel.STATUS_OPPORTUNITY and not self.event_keys:
+            raise ValueError(
+                "STATUS_OPPORTUNITY gold labels require at least one event key"
+            )
+        if self.label != DocumentLabel.STATUS_OPPORTUNITY and self.event_keys:
+            raise ValueError(
+                "Only STATUS_OPPORTUNITY gold labels can reference event keys"
+            )
+        return self
 
 
 class GoldRelationship(GoldModel):
@@ -53,15 +67,15 @@ class GoldCase(GoldModel):
     version: int = Field(ge=1)
     notes: str | None = None
     documents: list[GoldDocument] = Field(min_length=1)
-    relevance: list[GoldRelevance] = Field(min_length=1)
+    classifications: list[GoldClassification] = Field(min_length=1)
     relationships: list[GoldRelationship] = Field(default_factory=list)
     facts: list[GoldFact] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def references_known_keys(self) -> GoldCase:
         document_keys = {item.document_key for item in self.documents}
-        if any(item.document_key not in document_keys for item in self.relevance):
-            raise ValueError("Relevance label references an unknown document")
+        if any(item.document_key not in document_keys for item in self.classifications):
+            raise ValueError("Classification references an unknown document")
         if any(item.document_key not in document_keys for item in self.relationships):
             raise ValueError("Relationship references an unknown document")
         if any(
@@ -74,7 +88,6 @@ class GoldCase(GoldModel):
 
 
 class GoldDataset(GoldModel):
-    schema_version: str = "1"
+    schema_version: Literal["2"] = "2"
     dataset_version: int = Field(ge=1)
     cases: list[GoldCase] = Field(default_factory=list)
-

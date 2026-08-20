@@ -6,7 +6,7 @@ import httpx
 
 from journeyplus.ai.provider import OpenAICompatibleProvider
 from journeyplus.config import Settings
-from journeyplus.contracts import RelevanceLabel, RelevanceResult
+from journeyplus.contracts import DocumentLabel, RelevanceResult
 
 
 def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema() -> None:
@@ -22,7 +22,7 @@ def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema()
                         "message": {
                             "content": json.dumps(
                                 {
-                                    "label": "NO",
+                                    "label": "NONE",
                                     "confidence": 0.99,
                                     "reason": "ordinary points sale",
                                     "event_hints": [],
@@ -51,7 +51,7 @@ def test_beijing_openai_compatible_provider_uses_deepseek_and_validates_schema()
         system_prompt="system", user_prompt="user", output_model=RelevanceResult
     )
 
-    assert result.label == RelevanceLabel.NO
+    assert result.label == DocumentLabel.NONE
     assert provider.metadata.region == "cn-beijing"
     assert captured["model"] == "deepseek-v4-flash"
     assert captured["response_format"] == {"type": "json_object"}

@@ -30,14 +30,14 @@ class AdaptiveProvider:
         if output_model.__name__ == "RelevanceResult":
             if "ordinary credit card bonus" in user_prompt:
                 payload: dict[str, Any] = {
-                    "label": "NO",
+                    "label": "NONE",
                     "confidence": 1,
                     "reason": "no direct status acquisition result",
                     "event_hints": [],
                 }
             else:
                 payload = {
-                    "label": "YES",
+                    "label": "STATUS_OPPORTUNITY",
                     "confidence": 0.98,
                     "reason": "direct public status match",
                     "event_hints": [
@@ -170,4 +170,3 @@ def test_fixed_material_runs_from_discovery_to_original_brief_and_stays_in_scope
     excluded = V1Workflow(db_session, provider).process(out_of_scope)
     assert excluded.outputs == []
     assert db_session.scalar(select(func.count()).select_from(StatusEvent)) == 1
-

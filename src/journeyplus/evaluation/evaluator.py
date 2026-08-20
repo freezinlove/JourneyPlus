@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from journeyplus.contracts import DocumentLabel
 from journeyplus.evaluation.schema import GoldDataset
 
 
@@ -18,14 +19,21 @@ class Metric:
 @dataclass(frozen=True, slots=True)
 class EvaluationReport:
     label: str
-    relevance: Metric
+    document_labels: Metric
+    event_memberships: Metric
     relationships: Metric
     fact_values: Metric
     fact_evidence: Metric
 
     def as_dict(self):
         data = asdict(self)
-        for name in ("relevance", "relationships", "fact_values", "fact_evidence"):
+        for name in (
+            "document_labels",
+            "event_memberships",
+            "relationships",
+            "fact_values",
+            "fact_evidence",
+        ):
             metric = getattr(self, name)
             data[name]["score"] = metric.score
         data["thresholds"] = None
@@ -36,24 +44,31 @@ def evaluate(
     gold: GoldDataset, prediction: GoldDataset, *, label: str
 ) -> EvaluationReport:
     predicted_cases = {case.case_id: case for case in prediction.cases}
-    relevance_correct = relevance_total = 0
+    labels_correct = labels_total = 0
+    memberships_correct = memberships_total = 0
     relationships_correct = relationships_total = 0
     values_correct = values_total = 0
     evidence_correct = evidence_total = 0
 
     for case in gold.cases:
         predicted = predicted_cases.get(case.case_id)
-        predicted_relevance = (
-            {item.document_key: item for item in predicted.relevance} if predicted else {}
+        predicted_classifications = (
+            {item.document_key: item for item in predicted.classifications}
+            if predicted
+            else {}
         )
-        for expected in case.relevance:
-            relevance_total += 1
-            actual = predicted_relevance.get(expected.document_key)
-            relevance_correct += int(
-                actual is not None
-                and actual.label == expected.label
-                and set(actual.event_keys) == set(expected.event_keys)
+        for expected in case.classifications:
+            labels_total += 1
+            actual = predicted_classifications.get(expected.document_key)
+            labels_correct += int(
+                actual is not None and actual.label == expected.label
             )
+            if expected.label == DocumentLabel.STATUS_OPPORTUNITY:
+                memberships_total += 1
+                memberships_correct += int(
+                    actual is not None
+                    and set(actual.event_keys) == set(expected.event_keys)
+                )
 
         predicted_relationships = (
             {
@@ -101,9 +116,9 @@ def evaluate(
 
     return EvaluationReport(
         label=label,
-        relevance=Metric(relevance_correct, relevance_total),
+        document_labels=Metric(labels_correct, labels_total),
+        event_memberships=Metric(memberships_correct, memberships_total),
         relationships=Metric(relationships_correct, relationships_total),
         fact_values=Metric(values_correct, values_total),
         fact_evidence=Metric(evidence_correct, evidence_total),
     )
-

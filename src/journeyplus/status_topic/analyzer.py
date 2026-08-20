@@ -8,19 +8,24 @@ from sqlalchemy.orm import Session
 from journeyplus.ai.provider import AIProvider
 from journeyplus.contracts import (
     AnalysisStage,
-    RelevanceLabel,
+    DocumentLabel,
     RelevanceResult,
     RunStatus,
 )
 from journeyplus.models import AnalysisRun, DocumentVersion
 
 
-STATUS_RELEVANCE_PROMPT_VERSION = "status-relevance-v1"
-STATUS_RELEVANCE_SCHEMA_VERSION = "1"
+STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v2"
+STATUS_RELEVANCE_SCHEMA_VERSION = "2"
 
-SYSTEM_PROMPT = """你是会籍获取机会的严格分类器。第一版只包括可直接获得、升级或延长航空、酒店或其他旅行忠诚度会籍的公开或群体公开路径，例如会籍匹配、会籍挑战、快速通道、会籍互通、付费直升、合作直接授予或延期。
-信用卡或购买可以是获得会籍的资格条件；但普通信用卡资讯、买分/转分促销、常规定级积累攻略、积分票、积分房晚、单纯权益介绍都必须判为 NO。
-一篇材料可包含多个独立机会，为每个机会给一个最小 event_hint。不要创建正式事件，不要补猜材料没有的信息。只输出符合给定 JSON Schema 的 JSON。"""
+SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档只能选择以下一个 label：
+- STATUS_OPPORTUNITY：包含至少一个可直接获得、升级或延长航空、酒店或其他旅行忠诚度会籍的公开或群体公开机会，例如会籍匹配、会籍挑战、快速通道、会籍互通、付费直升、合作直接授予或延期。
+- NONE：不包含上述直接会籍机会。
+- UNCERTAIN：材料证据不足，无法可靠选择前两者，需要人工复核。
+
+信用卡或购买可以是会籍机会的资格条件；但普通信用卡资讯、买分/转分促销、常规定级积累攻略、积分票、积分房晚、单纯权益介绍本身不是会籍机会。一篇材料同时包含会籍机会和无关促销时，仍只标为 STATUS_OPPORTUNITY，并忽略无关部分。
+
+STATUS_OPPORTUNITY 必须为每个彼此独立的会籍机会输出一个最小 event_hint；同一文档可以有多个 event_hints。NONE 不得输出 event_hints。不要创建正式事件，不要生成其他主题标签，不要补猜材料没有的信息。只输出符合给定 JSON Schema 的 JSON。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +124,7 @@ class StatusRelevanceAnalyzer:
                 last_error = exc
         if result is None:
             result = RelevanceResult(
-                label=RelevanceLabel.UNCERTAIN,
+                label=DocumentLabel.UNCERTAIN,
                 confidence=0,
                 reason="模型输出在有限重试后仍无法通过结构校验，等待人工复核。",
             )

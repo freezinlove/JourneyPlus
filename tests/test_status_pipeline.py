@@ -8,9 +8,9 @@ from journeyplus.ai.provider import SequenceAIProvider
 from journeyplus.clustering.relationship import EventRelationshipAnalyzer
 from journeyplus.clustering.retrieval import CandidateRetriever
 from journeyplus.contracts import (
+    DocumentLabel,
     EventHint,
     OpportunityType,
-    RelevanceLabel,
     RelationshipType,
 )
 from journeyplus.models import (
@@ -57,9 +57,9 @@ def _document(db_session, *, suffix: str, body: str, duplicate_of=None):
     return document
 
 
-def _yes(program="Example Air", summary="Match to Gold"):
+def _status_opportunity(program="Example Air", summary="Match to Gold"):
     return {
-        "label": "YES",
+        "label": "STATUS_OPPORTUNITY",
         "confidence": 0.95,
         "reason": "direct status acquisition path",
         "event_hints": [
@@ -73,12 +73,12 @@ def _yes(program="Example Air", summary="Match to Gold"):
     }
 
 
-def test_no_and_invalid_relevance_do_not_create_events(db_session) -> None:
+def test_none_and_invalid_classification_do_not_create_events(db_session) -> None:
     no_document = _document(db_session, suffix="n", body="Buy points with a bonus")
     no_provider = SequenceAIProvider(
         [
             {
-                "label": "NO",
+                "label": "NONE",
                 "confidence": 1,
                 "reason": "no direct status result",
                 "event_hints": [],
@@ -86,7 +86,7 @@ def test_no_and_invalid_relevance_do_not_create_events(db_session) -> None:
         ]
     )
     no_result = StatusOpportunityPipeline(db_session, no_provider).process(no_document)
-    assert no_result.relevance.result.label == RelevanceLabel.NO
+    assert no_result.relevance.result.label == DocumentLabel.NONE
     assert no_result.events == []
 
     invalid_document = _document(db_session, suffix="i", body="Ambiguous benefit")
@@ -94,7 +94,7 @@ def test_no_and_invalid_relevance_do_not_create_events(db_session) -> None:
     invalid_result = StatusOpportunityPipeline(db_session, invalid_provider).process(
         invalid_document
     )
-    assert invalid_result.relevance.result.label == RelevanceLabel.UNCERTAIN
+    assert invalid_result.relevance.result.label == DocumentLabel.UNCERTAIN
     assert invalid_result.relevance.run.status == "FAILED"
     assert invalid_result.events == []
 
@@ -103,7 +103,7 @@ def test_one_document_can_create_multiple_minimal_events_and_rerun_is_idempotent
     db_session,
 ) -> None:
     document = _document(db_session, suffix="m", body="Two independent matches")
-    response = _yes()
+    response = _status_opportunity()
     response["event_hints"].append(
         {
             "program": "Example Hotel",
@@ -129,7 +129,7 @@ def test_one_document_can_create_multiple_minimal_events_and_rerun_is_idempotent
 
 def test_content_duplicate_reuses_relevance_analysis_without_model_call(db_session) -> None:
     first = _document(db_session, suffix="a", body="Same normalized content")
-    first_provider = SequenceAIProvider([_yes()])
+    first_provider = SequenceAIProvider([_status_opportunity()])
     first_analysis = StatusRelevanceAnalyzer(db_session, first_provider).analyze(first)
     second = _document(
         db_session,
@@ -149,7 +149,7 @@ def test_content_duplicate_reuses_relevance_analysis_without_model_call(db_sessi
 def test_sql_candidate_retrieval_and_relationship_update_are_separate(db_session) -> None:
     existing_document = _document(db_session, suffix="c", body="Initial match")
     existing_event = StatusOpportunityPipeline(
-        db_session, SequenceAIProvider([_yes()])
+        db_session, SequenceAIProvider([_status_opportunity()])
     ).process(existing_document).events[0].event
 
     hint = EventHint(
@@ -188,13 +188,13 @@ def test_relationship_aggregation_handles_update_and_uncertain_without_duplicate
 ) -> None:
     original_document = _document(db_session, suffix="f", body="Initial direct match")
     original_event = StatusOpportunityPipeline(
-        db_session, SequenceAIProvider([_yes()])
+        db_session, SequenceAIProvider([_status_opportunity()])
     ).process(original_document).events[0].event
 
     update_document = _document(db_session, suffix="g", body="Match deadline extended")
     update_provider = SequenceAIProvider(
         [
-            _yes(summary="Match deadline extended"),
+            _status_opportunity(summary="Match deadline extended"),
             {
                 "relationship": "UPDATE_OF",
                 "confidence": 0.95,
@@ -217,7 +217,7 @@ def test_relationship_aggregation_handles_update_and_uncertain_without_duplicate
     uncertain_document = _document(db_session, suffix="h", body="Possibly a new match")
     uncertain_provider = SequenceAIProvider(
         [
-            _yes(summary="Possibly a separate match"),
+            _status_opportunity(summary="Possibly a separate match"),
             {
                 "relationship": "UNCERTAIN",
                 "confidence": 0.4,
@@ -236,7 +236,9 @@ def test_relationship_aggregation_handles_update_and_uncertain_without_duplicate
 
 def test_relevance_can_rerun_with_new_prompt_without_relationship_contract(db_session) -> None:
     document = _document(db_session, suffix="e", body="Direct match")
-    provider = SequenceAIProvider([_yes(), _yes()])
+    provider = SequenceAIProvider(
+        [_status_opportunity(), _status_opportunity()]
+    )
     first = StatusRelevanceAnalyzer(
         db_session, provider, prompt_version="status-v1"
     ).analyze(document)
