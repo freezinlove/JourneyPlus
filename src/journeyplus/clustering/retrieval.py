@@ -53,7 +53,11 @@ class CandidateRetriever:
             )
         ).limit(self._limit)
         candidates = list(self._session.scalars(query_stmt))
-        return sorted(candidates, key=lambda event: _candidate_score(event, hint), reverse=True)
+        return sorted(
+            candidates,
+            key=lambda event: _candidate_score(event, hint),
+            reverse=True,
+        )
 
 
 def _candidate_score(event: StatusEvent, hint: EventHint) -> tuple[int, datetime]:
@@ -64,5 +68,9 @@ def _candidate_score(event: StatusEvent, hint: EventHint) -> tuple[int, datetime
         bool(event.target_status and hint.target_status)
         and event.target_status.casefold() == (hint.target_status or "").casefold()
     )
-    return score, event.updated_at
-
+    updated_at = event.updated_at
+    if updated_at.tzinfo is None:
+        updated_at = updated_at.replace(tzinfo=UTC)
+    else:
+        updated_at = updated_at.astimezone(UTC)
+    return score, updated_at

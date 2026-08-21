@@ -189,6 +189,47 @@ def test_sql_candidate_retrieval_and_relationship_update_are_separate(db_session
     assert relationship.run.stage == "EVENT_RELATIONSHIP"
 
 
+def test_sqlite_candidate_sort_handles_loaded_and_new_event_timestamps(
+    db_session,
+) -> None:
+    first = StatusEvent(
+        created_from_key="first",
+        program="Example Air",
+        opportunity_type="STATUS_MATCH",
+        target_status="Gold",
+        summary="First match",
+        search_text="Example Air STATUS_MATCH Gold",
+    )
+    db_session.add(first)
+    db_session.flush()
+    first_id = first.id
+    db_session.expunge_all()
+    assert db_session.get(StatusEvent, first_id).updated_at.tzinfo is None
+
+    second = StatusEvent(
+        created_from_key="second",
+        program="Example Air",
+        opportunity_type="STATUS_MATCH",
+        target_status="Gold",
+        summary="Second match",
+        search_text="Example Air STATUS_MATCH Gold",
+    )
+    db_session.add(second)
+    db_session.flush()
+    assert second.updated_at.tzinfo is not None
+
+    candidates = CandidateRetriever(db_session).retrieve(
+        EventHint(
+            program="Example Air",
+            opportunity_type=OpportunityType.STATUS_MATCH,
+            summary="Another match",
+            target_status="Gold",
+        )
+    )
+
+    assert {item.id for item in candidates} == {first_id, second.id}
+
+
 def test_relationship_aggregation_handles_update_and_uncertain_without_duplicates(
     db_session,
 ) -> None:

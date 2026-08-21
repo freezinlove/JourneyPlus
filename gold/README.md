@@ -36,4 +36,14 @@ uv run journeyplus-eval gold.json \
   --prediction candidate=candidate-output.json
 ```
 
+运行当前真实模型的冻结基线：
+
+```bash
+uv run journeyplus ai-smoke
+uv run journeyplus-gold-run gold/status_opportunity_phase1_v1.json \
+  --output-dir evaluation/runs/status_opportunity_phase1_v1-current
+```
+
+运行器先校验冻结清单，再在输出目录内使用隔离 SQLite 数据库处理文档；不会写入正式数据库。输出包括 `current-output.json`、`report.json`、`cache.json`、`run.json` 和本地状态库 `state.sqlite`。同一模型、提示词和金标身份可直接重跑或中断续跑；身份变化时必须使用另一个输出目录，以保留旧基线用于比较。`--max-documents N` 可用于有限文档测试。第一期报告只评测分类和事件分组，不评测时效。
+
 每次修订案例时递增案例 `version`，整套集合发布时递增 `dataset_version`。

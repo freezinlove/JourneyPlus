@@ -29,6 +29,7 @@ dev = [
 [project.scripts]
 journeyplus = "journeyplus.cli:main"
 journeyplus-eval = "journeyplus.evaluation.cli:main"
+journeyplus-gold-run = "journeyplus.evaluation.runtime_cli:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]
