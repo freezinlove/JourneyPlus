@@ -21,7 +21,7 @@
 
 **Goals:**
 
-- 接入已选的八组来源，并让每个来源故障可以单独处理和停用。
+- 接入已选的七组来源，并让每个来源故障可以单独处理和停用。
 - 用少量确定性规则保证访问边界、幂等、格式和来源追溯，把语义判断交给 AI。
 - 区分“同一内容重复处理”和“不同文章描述同一现实机会”。
 - 从多来源事实生成短小、原创、可追溯的中文简报，而不是转载正文或只展示文章链接。
@@ -60,7 +60,7 @@ ai            模型供应商适配
 
 ### 2. 来源适配与主题逻辑分离
 
-所有适配器统一输出 `DiscoveredItem` 和 `RawDocument`，不直接创建会籍事件。完整 URL、稳定 ID、正文策略、访问限制和核验记录以同目录的[第一版来源注册表](./source-registry.md)为准。第一版使用四类适配器：
+所有适配器统一输出 `DiscoveredItem` 和 `RawDocument`，不直接创建会籍事件。完整 URL、稳定 ID、正文策略、访问限制和核验记录以同目录的[第一版来源注册表](./source-registry.md)为准。第一版使用三类适配器：
 
 | 来源组 | 首选入口 | 适配方式 |
 |---|---|---|
@@ -68,7 +68,6 @@ ai            模型供应商适配
 | Frequent Flyer Bonuses 会籍汇总页 | `https://www.frequentflyerbonuses.com/statusmatchoffers.html` | 静态目录解析；按顶层记录建立稳定指纹 |
 | AwardWallet Elite Status | `https://awardwallet.com/blog/tag/elite-status/feed/` | Feed 发现条目，再获取文章正文 |
 | StatusMatch 与 GetStatus | Gmail `statusmatch` 标签 + `kirikoomiku+statusmatch@gmail.com` | Gmail API 只读适配器；共用 `status_services_mail` 来源 ID |
-| StatusMatcher | `https://statusmatcher.com/` 与 `/report/{report_id}` | 目录发现报告 ID，再获取服务端渲染正文 |
 | LoyaltyLobby | `https://loyaltylobby.com/feed/` | 仅使用 Feed 正文，不请求文章页 |
 | Frequent Miler Elite Status | `https://frequentmiler.com/category/travel/elite-status/feed/` | 使用 Feed 正文 |
 | 很旅行 | `https://www.verylvke.com/feed/` | Feed 正文；允许一篇材料产生多个候选事件 |
@@ -180,6 +179,6 @@ base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 
 ## Open Questions
 
-- 八组来源各自的采集频率与正式启用顺序。
+- 七组来源各自的采集频率与正式启用顺序。
 - 各来源允许保存全文、摘要或仅元数据的最终合规记录。
 - 用户提供首批文章后，金标样本规模、复核规范和可接受指标。

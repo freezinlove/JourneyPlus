@@ -36,7 +36,7 @@ def _positive_int(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("seed-sources", help="Import or refresh the eight V1 sources")
+    subparsers.add_parser("seed-sources", help="Import or refresh the seven V1 sources")
     subparsers.add_parser(
         "gmail-authorize",
         help="Authorize kirikoomiku@gmail.com with gmail.readonly",
@@ -52,11 +52,6 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("source_id", choices=SOURCE_IDS)
     collect.add_argument("--idempotency-key")
     collect.add_argument("--limit", type=_positive_int)
-    collect.add_argument(
-        "--allow-statusmatcher",
-        action="store_true",
-        help="Confirm production access approval was completed",
-    )
     process = subparsers.add_parser(
         "process-pending",
         help="Process collected documents that lack the current AI classification",
@@ -70,11 +65,6 @@ def build_parser() -> argparse.ArgumentParser:
     run_source.add_argument("source_id", choices=SOURCE_IDS)
     run_source.add_argument("--limit", type=_positive_int, default=10)
     run_source.add_argument("--idempotency-key")
-    run_source.add_argument(
-        "--allow-statusmatcher",
-        action="store_true",
-        help="Confirm production access approval was completed",
-    )
     return parser
 
 
@@ -130,11 +120,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     with session_scope(factory) as session:
         seed_sources(session)
-        adapter = _build_configured_adapter(
-            args.source_id,
-            settings,
-            allow_statusmatcher=args.allow_statusmatcher,
-        )
+        adapter = _build_configured_adapter(args.source_id, settings)
         collection = collect_manual(
             session,
             adapter,
@@ -163,8 +149,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_configured_adapter(
     source_id: str,
     settings: Settings,
-    *,
-    allow_statusmatcher: bool,
 ) -> SourceAdapter:
     gmail_client = None
     if source_id == "status_services_mail":
@@ -179,11 +163,7 @@ def _build_configured_adapter(
         else:
             access_token = load_gmail_access_token(settings)
         gmail_client = HttpGmailClient(access_token)
-    return build_adapter(
-        source_id,
-        gmail_client=gmail_client,
-        statusmatcher_approval=allow_statusmatcher,
-    )
+    return build_adapter(source_id, gmail_client=gmail_client)
 
 
 if __name__ == "__main__":

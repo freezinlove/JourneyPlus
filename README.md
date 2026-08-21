@@ -1,6 +1,6 @@
 # JourneyPlus
 
-JourneyPlus 当前实现的是第一条纵向能力：从八组精选第三方来源发现“直接获得、升级或延长会籍”的机会，经轻量清洗、精确与语义去重、证据化事实整理后生成中文原创简报。
+JourneyPlus 当前实现的是第一条纵向能力：从七组精选第三方来源发现“直接获得、升级或延长会籍”的机会，经轻量清洗、精确与语义去重、证据化事实整理后生成中文原创简报。
 
 第一版明确只处理会籍机会，文档标签只有 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`。一篇文档只有一个标签，但可包含多个会籍活动。第一版不处理买分、转分、积分票或积分房晚，项目不建设信用卡独立主题；信用卡只能作为会籍机会的资格条件出现。第一版也不包含个人资产、推荐、通知和自动报名。
 
@@ -19,7 +19,7 @@ uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。`statusmatcher_reports` 须在人工访问合规确认后显式增加 `--allow-statusmatcher`。
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。
 
 本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
 
@@ -64,7 +64,7 @@ OAuth 应用处于 Testing 状态时，External 测试用户授权通常会在 7
 uv run python scripts/smoke_public_sources.py
 ```
 
-该命令只验证六个无需账号的公开来源是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail 或 StatusMatcher。
+该命令只验证六个无需账号的公开来源是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail。
 
 OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-v1/`。
 
@@ -73,7 +73,6 @@ OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-
 - 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
 - 活动截止时间筛选、过期状态和软归档尚未实现；已确认的产品意图与边界记录在[后续需求备忘](./doc/future-requirements.md)中。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
-- StatusMatcher 正式采集仍需人工完成访问与保存范围确认，未显式确认时适配器会拒绝运行。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 首批人工金标要等用户提供文章后共同建立；离线评测刻意不预设上线阈值。

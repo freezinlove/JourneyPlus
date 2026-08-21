@@ -14,7 +14,7 @@
 | `collection_cadence` | `null` |
 | `automatic_scheduling` | `false` |
 | `registration_state` | `SELECTED`；实现后允许手工测试，正式启用仍须满足各项访问条件 |
-| `discovery_mode` | 仅使用本注册表列明的 Feed、公开目录页、公开报告页或只读邮件 |
+| `discovery_mode` | 仅使用本注册表列明的 Feed、公开目录页或只读邮件 |
 | `official_page_following` | 不主动跟踪；只保留来源材料给出的行动链接，供证据展示或人工核验 |
 | `raw_retention` | 服从每个来源的保存策略；不确定时只保存必要内容、哈希、元数据和链接 |
 
@@ -32,9 +32,9 @@ raw_body 或来源策略允许的必要内容
 content_type
 ```
 
-## 2. 八组来源总览
+## 2. 七组来源总览
 
-这里保留用户确定的八组接入范围。StatusMatch 与 GetStatus 共用专用收件别名、Gmail 标签和邮件适配器，因此在数据库中注册为一条邮件来源；可选的 `origin_provider` 只用于区分品牌归属，不参与邮件准入。
+这里保留用户确定的七组接入范围。StatusMatch 与 GetStatus 共用专用收件别名、Gmail 标签和邮件适配器，因此在数据库中注册为一条邮件来源；可选的 `origin_provider` 只用于区分品牌归属，不参与邮件准入。
 
 | 序号 | `source_id` | 来源 | 发现入口 | 适配器 | 正文策略 |
 |---|---|---|---|---|---|
@@ -42,10 +42,9 @@ content_type
 | 2 | `ffb_status_match_catalog` | Frequent Flyer Bonuses 会籍汇总页 | [Status Match & Fast Track Offers](https://www.frequentflyerbonuses.com/statusmatchoffers.html) | `StaticCatalogAdapter` | 将每条顶层活动记录作为独立材料 |
 | 3 | `awardwallet_elite_status_feed` | AwardWallet Elite Status | [Elite Status RSS](https://awardwallet.com/blog/tag/elite-status/feed/) | `FeedAdapter` | Feed 摘要发现，再读取文章页 |
 | 4 | `status_services_mail` | StatusMatch 与 GetStatus 邮件 | Gmail `statusmatch` 标签与专用收件别名 | `MailAdapter` | 一条只读邮件来源；不以网站抓取替代邮件 |
-| 5 | `statusmatcher_reports` | StatusMatcher | [最新报告目录](https://statusmatcher.com/) | `StatusMatcherAdapter` | 目录发现数字报告 ID，再读取公开报告页 |
-| 6 | `loyaltylobby_feed` | LoyaltyLobby | [全站 RSS](https://loyaltylobby.com/feed/) | `FeedAdapter` | 仅使用 Feed 正文，不抓文章页 |
-| 7 | `frequentmiler_elite_status_feed` | Frequent Miler Elite Status | [Elite Status RSS](https://frequentmiler.com/category/travel/elite-status/feed/) | `FeedAdapter` | 使用 Feed 正文，不需要文章页 |
-| 8 | `verylvke_feed` | 飞常旅客 VERYLVKE | [全站 RSS](https://www.verylvke.com/feed/) | `FeedAdapter` | 使用 Feed 正文；一篇可产生多个候选事件 |
+| 5 | `loyaltylobby_feed` | LoyaltyLobby | [全站 RSS](https://loyaltylobby.com/feed/) | `FeedAdapter` | 仅使用 Feed 正文，不抓文章页 |
+| 6 | `frequentmiler_elite_status_feed` | Frequent Miler Elite Status | [Elite Status RSS](https://frequentmiler.com/category/travel/elite-status/feed/) | `FeedAdapter` | 使用 Feed 正文，不需要文章页 |
+| 7 | `verylvke_feed` | 飞常旅客 VERYLVKE | [全站 RSS](https://www.verylvke.com/feed/) | `FeedAdapter` | 使用 Feed 正文；一篇可产生多个候选事件 |
 
 ## 3. 逐项注册信息
 
@@ -100,19 +99,7 @@ content_type
 - Gmail API 依据：[列出邮件](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/list)、[OAuth 权限范围](https://developers.google.com/workspace/gmail/api/auth/scopes)。
 - `collection_cadence: null`
 
-### 3.5 `statusmatcher_reports`
-
-- 人类及最新发现入口：`https://statusmatcher.com/`
-- 分页模板：`https://statusmatcher.com/?page={page}`；实现时从首页开始并跟随页面实际的 Next 链接，不能假定最大页数。
-- 报告正文模板：`https://statusmatcher.com/report/{numeric_report_id}`
-- 辅助目录：[航空](https://statusmatcher.com/airlines)、[酒店](https://statusmatcher.com/hotels)、[租车](https://statusmatcher.com/auto)。辅助目录只用于主体名称提示，不替代最近报告发现。
-- 稳定 ID：公开报告 URL 中的数字 `report_id`。
-- 已核验特征：目录和报告均为服务端渲染 HTML；报告包含结果类型、来源会籍、目标项目、用户叙述和日期。
-- 业务注意：内容为用户提交的个案，不能单独视作仍然有效的正式活动规则；需要 AI 判断并保留来源时间与不确定性。
-- 访问限制：[Terms and Conditions](https://statusmatcher.com/terms) 声明内容版权和复用限制。自动化实现可以规划和制作解析夹具，但正式持续采集、保存范围及对外衍生输出必须先完成人工合规确认；不得保存或输出用户身份信息。
-- `collection_cadence: null`
-
-### 3.6 `loyaltylobby_feed`
+### 3.5 `loyaltylobby_feed`
 
 - 人类入口：`https://loyaltylobby.com/`
 - 发现与正文入口：`https://loyaltylobby.com/feed/`
@@ -122,7 +109,7 @@ content_type
 - 保存限制：遵守 Feed 提供范围，保存必要正文或快照用于内部分析；对外只提供原创简报和原文章链接。
 - `collection_cadence: null`
 
-### 3.7 `frequentmiler_elite_status_feed`
+### 3.6 `frequentmiler_elite_status_feed`
 
 - 人类入口：`https://frequentmiler.com/`
 - 栏目页：`https://frequentmiler.com/category/travel/elite-status/`
@@ -133,7 +120,7 @@ content_type
 - 业务注意：Elite Status 栏目仍含权益介绍和常规定级攻略，适配器不得提前做业务关键词过滤。
 - `collection_cadence: null`
 
-### 3.8 `verylvke_feed`
+### 3.7 `verylvke_feed`
 
 - 人类入口：`https://www.verylvke.com/`
 - 发现与正文入口：`https://www.verylvke.com/feed/`
@@ -145,7 +132,7 @@ content_type
 
 ## 4. 实施约束
 
-1. 实现时 MUST 以本注册表的 `source_id` 作为稳定配置键，不以网站显示名称作为外键；八个来源组共导入八条来源记录。
+1. 实现时 MUST 以本注册表的 `source_id` 作为稳定配置键，不以网站显示名称作为外键；七个来源组共导入七条来源记录。
 2. URL 变化、Feed 失效或访问策略变化时，先更新本注册表和解析夹具，再修改适配器；不得在业务模块散落替代 URL。
 3. `collection_cadence` 在用户明确决定前保持 `null`，注册表核验日期不代表调度频率。
 4. 来源注册与正式启用是两个状态；入口已核验不代表已完成法律、版权或生产访问审批。

@@ -88,23 +88,6 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         enabled=False,
     ),
     SourceDefinition(
-        source_id="statusmatcher_reports",
-        name="StatusMatcher Reports",
-        adapter_type="statusmatcher",
-        human_url="https://statusmatcher.com/",
-        discovery_config={
-            "index_url": "https://statusmatcher.com/",
-            "report_url_template": "https://statusmatcher.com/report/{report_id}",
-        },
-        content_strategy="public_report_page",
-        access_policy={
-            "production_approval_required": True,
-            "approval_granted": False,
-            "store_personal_identity": False,
-        },
-        enabled=False,
-    ),
-    SourceDefinition(
         source_id="loyaltylobby_feed",
         name="LoyaltyLobby",
         adapter_type="feed",
@@ -159,6 +142,10 @@ def seed_sources(session: Session) -> list[Source]:
                 if key != "id":
                     setattr(source, key, value)
         records.append(source)
+    retired_statusmatcher = session.get(Source, "statusmatcher_reports")
+    if retired_statusmatcher is not None:
+        retired_statusmatcher.enabled = False
+        retired_statusmatcher.automatic_scheduling = False
+        retired_statusmatcher.collection_cadence = None
     session.flush()
     return records
-

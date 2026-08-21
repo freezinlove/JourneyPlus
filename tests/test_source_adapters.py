@@ -14,7 +14,6 @@ from journeyplus.sources.gmail import (
     GmailStatusServicesAdapter,
 )
 from journeyplus.sources.registry import get_source_definition
-from journeyplus.sources.statusmatcher import StatusMatcherAdapter
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -141,38 +140,6 @@ def test_catalog_keeps_distinct_action_links_and_discards_known_noise() -> None:
     assert records[3].action_urls == ("https://enterprise.test/match",)
     assert "enterprise.test/book" not in records[3].text
     assert "Book all your Enterprise rentals" not in records[3].text
-
-
-def test_statusmatcher_follows_actual_next_link_then_fetches_report_without_identity() -> None:
-    index = "https://statusmatcher.com/"
-    page_2 = "https://statusmatcher.com/?page=2"
-    fetcher = FakeFetcher(
-        {
-            index: (FIXTURES / "statusmatcher_page_1.html").read_text(),
-            page_2: (FIXTURES / "statusmatcher_page_2.html").read_text(),
-            "https://statusmatcher.com/report/101": (
-                FIXTURES / "statusmatcher_report.html"
-            ).read_text(),
-        }
-    )
-    adapter = StatusMatcherAdapter(
-        index_url=index, fetcher=fetcher, production_approval=True
-    )
-    items = adapter.discover()
-    assert [item.external_id for item in items] == ["101", "102"]
-    assert fetcher.calls == [index, page_2]
-
-    raw = adapter.fetch(items[0])
-    assert "Approved from Gold" in raw.body
-    assert "Private Person" not in raw.body
-
-
-def test_statusmatcher_refuses_unapproved_production_collection() -> None:
-    adapter = StatusMatcherAdapter(
-        index_url="https://statusmatcher.com/", fetcher=FakeFetcher({})
-    )
-    with pytest.raises(PermissionError):
-        adapter.discover()
 
 
 class FakeGmailClient:
