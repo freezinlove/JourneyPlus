@@ -2144,7 +2144,7 @@ That said, these are still fun options to know about, and I’m sure that there 
 
 ### A19 [Southwest SWABIZ A-List and points promotion](https://frequentmiler.com/southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz/)
 
-来源：`frequentmiler_elite_status_feed`；标签：`UNCERTAIN`；最终正文字符：8042；保留链接：3。
+来源：`frequentmiler_elite_status_feed`；标签：`STATUS_OPPORTUNITY`；最终正文字符：8042；保留链接：3。
 
 # Southwest SWABIZ A-List and points promotion
 

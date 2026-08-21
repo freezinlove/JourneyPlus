@@ -2,7 +2,22 @@
 
 第一版金标使用 `GoldDataset` JSON Schema，覆盖文档单标签、文档内活动归属、事件关系或分组、关键事实和证据定位。文档标签只允许 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`，不设上线阈值。
 
-当前第一阶段草稿为 `status_opportunity_phase1_v1.json`，包含用户指定的 30 篇文章和 FFB 会籍列表的 35 个顶层条目，不包含 StatusMatcher。在用户确认审核结果前，不使用这份草稿运行测评；当前 `relationships` 和 `facts` 保持为空。
+第一阶段冻结版为 `status_opportunity_phase1_v1.json`，已于 2026-08-21 经人工确认。它包含用户指定的 30 篇文章和 FFB 会籍列表的 35 个顶层条目，不包含 StatusMatcher；当前 `relationships` 和 `facts` 保持为空。
+
+## 冻结规则
+
+- `dataset_version` 为 `1`；指定文章案例版本为 `3`，FFB 列表案例版本为 `1`。
+- `status_opportunity_phase1_v1.freeze.json` 保存冻结文件的 SHA-256、样本数量和边界声明。
+- 禁止重新运行生成脚本覆盖 v1。标签、正文、活动归并或边界如需变化，必须创建新的数据集版本。
+
+## 时间边界
+
+本阶段金标不考虑活动是否仍然有效。标签回答的是“正文是否描述具体的会籍获取机会”，不是“用户现在是否还能参加”：
+
+- 已截止或后来失效的活动仍可标为 `STATUS_OPPORTUNITY`。
+- 文章发布时间、申请截止时间和会籍有效期不改变本阶段标签。
+- 截止时间抽取、当前有效性筛选、活动过期状态和数据库归档属于后续独立能力，不纳入本数据集的标签、`relationships` 或 `facts`。
+- 后续实现应将活动生命周期与现有审核状态分开记录；`StatusEvent.status` 当前用于 `DRAFT / NEEDS_REVIEW / CONFIRMED / MERGED` 等审核流程，不应直接复用为活动的时间状态。
 
 审核文件分工：
 

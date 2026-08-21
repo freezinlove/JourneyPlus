@@ -71,6 +71,7 @@ OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-
 ## 第一版已知限制
 
 - 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
+- 活动截止时间筛选、过期状态和软归档尚未实现；已确认的产品意图与边界记录在[后续需求备忘](./doc/future-requirements.md)中。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - StatusMatcher 正式采集仍需人工完成访问与保存范围确认，未显式确认时适配器会拒绝运行。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。

@@ -24,6 +24,7 @@ from journeyplus.sources.registry import get_source_definition
 
 ROOT = Path(__file__).resolve().parents[1]
 GOLD_PATH = ROOT / "gold" / "status_opportunity_phase1_v1.json"
+FREEZE_PATH = ROOT / "gold" / "status_opportunity_phase1_v1.freeze.json"
 REVIEW_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_review.md"
 AUDIT_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_extraction_audit.md"
 BODY_REVIEW_PATH = ROOT / "gold" / "status_opportunity_phase1_v1_bodies.md"
@@ -88,11 +89,8 @@ ARTICLES = (
         "https://blog.frequentflyerbonuses.com/2026/06/last-chance-air-france-klm-flying-blue-paid-elite-status-match.html",
         "Air France KLM Flying Blue paid elite status match",
         DocumentLabel.STATUS_OPPORTUNITY,
-        (
-            "flying-blue-paid-status-match-2026",
-            "vietnam-airlines-lotusmiles-paid-status-match-2026",
-        ),
-        "正文同时给出Flying Blue活动截止更新及越航付费匹配替代路径。",
+        ("flying-blue-paid-status-match-2026",),
+        "文章主体是Flying Blue付费匹配；越航仅作为错过活动后的替代选择顺带提及。",
     ),
     ArticleSpec(
         "awardwallet_elite_status_feed",
@@ -213,9 +211,9 @@ ARTICLES = (
         "frequentmiler_elite_status_feed",
         "https://frequentmiler.com/southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz/",
         "Southwest SWABIZ A-List and points promotion",
-        DocumentLabel.UNCERTAIN,
-        (),
-        "活动可直接授予A-List，但正文无法确认是否仅为个人定向。",
+        DocumentLabel.STATUS_OPPORTUNITY,
+        ("southwest-swabiz-a-list-fast-track-2026",),
+        "即使活动可能仅向部分会员开放，完成指定航段仍可直接获得限时A-List会籍。",
     ),
     ArticleSpec(
         "frequentmiler_elite_status_feed",
@@ -270,11 +268,8 @@ ARTICLES = (
         "https://www.verylvke.com/2026/07/14/marriott-japan-airlines-partnership/",
         "万豪与日本航空会籍合作",
         DocumentLabel.STATUS_OPPORTUNITY,
-        (
-            "marriott-bonvoy-to-jal-fly-on-status-path-2026",
-            "jal-diamond-metal-to-marriott-platinum-fast-track-2026",
-        ),
-        "双向合作包含万豪会员获得JAL定级分路径及JAL高卡十晚获得万豪白金两项机会。",
+        ("marriott-bonvoy-jal-status-partnership-2026",),
+        "万豪与日本航空双向提供会籍匹配和加速权益，作为同一项合作活动归并。",
     ),
     ArticleSpec(
         "verylvke_feed",
@@ -557,10 +552,16 @@ def _normalized_catalog(client: httpx.Client) -> tuple[list[dict[str, object]], 
     return documents, page_hash
 
 
-def _case(case_id: str, notes: str, items: list[dict[str, object]]) -> dict[str, object]:
+def _case(
+    case_id: str,
+    notes: str,
+    items: list[dict[str, object]],
+    *,
+    version: int = 1,
+) -> dict[str, object]:
     return {
         "case_id": case_id,
-        "version": 1,
+        "version": version,
         "notes": notes,
         "documents": [item["document"] for item in items],
         "classifications": [item["classification"] for item in items],
@@ -633,6 +634,19 @@ def _review_markdown(
         DocumentLabel.NONE: "否",
         DocumentLabel.UNCERTAIN: "不确定",
     }
+    article_label_counts = Counter(
+        item["spec"].label
+        for item in article_items
+        if isinstance(item["spec"], ArticleSpec)
+    )
+    status_count = (
+        article_label_counts[DocumentLabel.STATUS_OPPORTUNITY]
+        + len(catalog_items)
+    )
+    none_count = article_label_counts[DocumentLabel.NONE]
+    uncertain_count = article_label_counts[DocumentLabel.UNCERTAIN]
+    total_count = len(article_items) + len(catalog_items)
+    non_positive_count = none_count + uncertain_count
     lines = [
         "# 第一阶段人工金标审核清单",
         "",
@@ -640,16 +654,20 @@ def _review_markdown(
         "",
         "范围：30篇指定文章 + FFB列表35个顶层条目，共65份文档。StatusMatcher未纳入。",
         "",
+        "冻结状态：本数据集已于2026-08-21经人工确认并冻结；后续修改必须发布新的数据集版本。",
+        "",
+        "时间边界：标签只判断正文是否描述会籍获取机会，不判断活动在采集、审核或测评时是否仍然有效。即使活动已经截止，仍可标为`STATUS_OPPORTUNITY`；截止时间提取、有效期筛选、过期状态和归档不属于本阶段金标。",
+        "",
         "当前只标注文档是否属于会籍机会以及文档内活动归并；`relationships`和`facts`均为空，尚未运行测评。",
         "",
         "## 汇总",
         "",
         "| 标签 | 数量 |",
         "|---|---:|",
-        "| 是 / `STATUS_OPPORTUNITY` | 48 |",
-        "| 否 / `NONE` | 16 |",
-        "| 不确定 / `UNCERTAIN` | 1 |",
-        "| 合计 | 65 |",
+        f"| 是 / `STATUS_OPPORTUNITY` | {status_count} |",
+        f"| 否 / `NONE` | {none_count} |",
+        f"| 不确定 / `UNCERTAIN` | {uncertain_count} |",
+        f"| 合计 | {total_count} |",
         "",
         "## 指定文章",
         "",
@@ -714,13 +732,14 @@ def _review_markdown(
             "",
             "## 审核顺序",
             "",
-            "1. 先看文章表中的17个非肯定样本，确认16个“否”和1个“不确定”。",
+            f"1. 先看文章表中的{non_positive_count}个非肯定样本，确认"
+            f"{none_count}个“否”和{uncertain_count}个“不确定”。",
             "2. 再看所有多活动文章，确认一篇正文是否应当对应两个活动归并名。",
             "3. 检查同一活动跨来源是否使用相同归并名，重点是肯尼亚航空、越航、Flying Blue、Alaska企业员工和马航。",
             "4. 检查FFB的35个顶层边界；同一航司的不同活动保持分开，条目内多个链接不拆文档。",
             "5. 最后抽查JSON中的`normalized_body`，确认Feed来源没有误用文章页、FFB内嵌等级表没有被拆成新文档。",
             "",
-            "审核时可以直接按“文章编号/FFB编号 + 修改意见”记录；确认后再递增相应案例版本并运行测评。",
+            "本版已经冻结；如需修改标签、正文或活动归并，应创建新的数据集版本，不得覆盖本版。",
             "",
         )
     )
@@ -938,6 +957,10 @@ def _body_review_markdown(
 
 
 def main() -> None:
+    if FREEZE_PATH.exists():
+        raise SystemExit(
+            f"{GOLD_PATH.name} 已冻结；请创建新的数据集版本，不要覆盖 v1。"
+        )
     snapshot_time = datetime.now(UTC).replace(microsecond=0).isoformat()
     headers = {"User-Agent": "JourneyPlus/1.0 gold-build"}
     with httpx.Client(follow_redirects=True, timeout=45, headers=headers) as client:
@@ -950,12 +973,13 @@ def main() -> None:
         "cases": [
             _case(
                 "phase1-selected-articles",
-                "30篇用户指定文章；文章页来源按文章页规范化，Feed正文来源只使用Feed正文。",
+                "30篇用户指定文章；文章页来源按文章页规范化，Feed正文来源只使用Feed正文；标签不以活动当前是否有效作为判断条件。",
                 article_items,
+                version=3,
             ),
             _case(
                 "phase1-ffb-status-match-catalog",
-                f"FFB列表于{snapshot_time}观察；只包含35个顶层条目；页面SHA-256={catalog_hash}。",
+                f"FFB列表于{snapshot_time}观察；只包含35个顶层条目；页面SHA-256={catalog_hash}；标签不以活动当前是否有效作为判断条件。",
                 catalog_items,
             ),
         ],

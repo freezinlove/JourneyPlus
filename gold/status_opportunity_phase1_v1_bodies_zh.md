@@ -240,7 +240,7 @@ Loyalty Status Co. 推出了一项新的身份匹配优惠，此优惠适用于 
 ### A04 最后机会：法航荷航蓝天飞行为美国和加拿大居民提供付费精英身份匹配机会
 
 - 判定：是：属于会籍机会
-- 活动数量：2
+- 活动数量：1
 - [打开原始来源](https://blog.frequentflyerbonuses.com/2026/06/last-chance-air-france-klm-flying-blue-paid-elite-status-match.html)
 
 # 最后机会：法航荷航蓝天飞行为美国和加拿大居民提供付费精英身份匹配机会
@@ -2183,8 +2183,8 @@ All Accor 在美国仍然是一个不受关注的项目，主要是因为缺乏�
 
 ### A19 西南 SWABIZ A 名单和积分促销
 
-- 判定：不确定：需要人工裁决
-- 活动数量：0
+- 判定：是：属于会籍机会
+- 活动数量：1
 - [打开原始来源](https://frequentmiler.com/southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz/)
 
 # 西南 SWABIZ A 名单和积分促销
@@ -2649,7 +2649,7 @@ GHA Discovery 是一个定期提供酒店状态匹配的程序（并包含一些
 ### A26 万豪与日本航空会籍合作
 
 - 判定：是：属于会籍机会
-- 活动数量：2
+- 活动数量：1
 - [打开原始来源](https://www.verylvke.com/2026/07/14/marriott-japan-airlines-partnership/)
 
 # 万豪与日本航空会籍合作

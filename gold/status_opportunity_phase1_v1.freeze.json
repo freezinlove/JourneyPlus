@@ -1,0 +1,27 @@
+{
+  "freeze_schema_version": 1,
+  "dataset_path": "gold/status_opportunity_phase1_v1.json",
+  "schema_version": "2",
+  "dataset_version": 1,
+  "frozen_on": "2026-08-21",
+  "sha256": "bd85babf9812533410c3e1f3c9a7e8d6265215c904aecfcebb89935811153605",
+  "case_versions": {
+    "phase1-selected-articles": 3,
+    "phase1-ffb-status-match-catalog": 1
+  },
+  "counts": {
+    "documents": 65,
+    "status_opportunity": 49,
+    "none": 16,
+    "uncertain": 0
+  },
+  "scope": {
+    "statusmatcher_included": false,
+    "relationships_included": false,
+    "facts_included": false
+  },
+  "temporal_policy": {
+    "classification_ignores_current_validity": true,
+    "description": "标签只判断正文是否描述会籍获取机会；活动是否已截止不改变标签。截止时间提取、当前有效性筛选、过期状态和归档属于后续独立能力。"
+  }
+}

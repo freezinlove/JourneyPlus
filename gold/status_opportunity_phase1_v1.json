@@ -4,8 +4,8 @@
   "cases": [
     {
       "case_id": "phase1-selected-articles",
-      "version": 1,
-      "notes": "30篇用户指定文章；文章页来源按文章页规范化，Feed正文来源只使用Feed正文。",
+      "version": 3,
+      "notes": "30篇用户指定文章；文章页来源按文章页规范化，Feed正文来源只使用Feed正文；标签不以活动当前是否有效作为判断条件。",
       "documents": [
         {
           "document_key": "ffb_elite_status_feed:2026:08:kenya-airways-asante-rewards-skyteam-paid-status-match.html",
@@ -180,8 +180,7 @@
           "document_key": "ffb_elite_status_feed:2026:06:last-chance-air-france-klm-flying-blue-paid-elite-status-match.html",
           "label": "STATUS_OPPORTUNITY",
           "event_keys": [
-            "flying-blue-paid-status-match-2026",
-            "vietnam-airlines-lotusmiles-paid-status-match-2026"
+            "flying-blue-paid-status-match-2026"
           ]
         },
         {
@@ -265,8 +264,10 @@
         },
         {
           "document_key": "frequentmiler_elite_status_feed:southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz",
-          "label": "UNCERTAIN",
-          "event_keys": []
+          "label": "STATUS_OPPORTUNITY",
+          "event_keys": [
+            "southwest-swabiz-a-list-fast-track-2026"
+          ]
         },
         {
           "document_key": "frequentmiler_elite_status_feed:where-hyatt-suite-upgrade-awards-dont-work",
@@ -308,8 +309,7 @@
           "document_key": "verylvke_feed:2026:07:14:marriott-japan-airlines-partnership",
           "label": "STATUS_OPPORTUNITY",
           "event_keys": [
-            "marriott-bonvoy-to-jal-fly-on-status-path-2026",
-            "jal-diamond-metal-to-marriott-platinum-fast-track-2026"
+            "marriott-bonvoy-jal-status-partnership-2026"
           ]
         },
         {
@@ -347,7 +347,7 @@
     {
       "case_id": "phase1-ffb-status-match-catalog",
       "version": 1,
-      "notes": "FFB列表于2026-08-20T09:40:36+00:00观察；只包含35个顶层条目；页面SHA-256=4df3d370b69868e7fb92b9395bc7bad6825b3e85e47332dfc69a16a048f4dff8。",
+      "notes": "FFB列表于2026-08-20T09:40:36+00:00观察；只包含35个顶层条目；页面SHA-256=4df3d370b69868e7fb92b9395bc7bad6825b3e85e47332dfc69a16a048f4dff8；标签不以活动当前是否有效作为判断条件。",
       "documents": [
         {
           "document_key": "ffb_status_match_catalog:vietnam-airlines-lotusmiles-paid-status-match-2026",
