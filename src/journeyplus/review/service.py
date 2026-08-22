@@ -275,7 +275,6 @@ class ReviewService:
         created = StatusEvent(
             created_from_key=f"review-split:{event.id}:{uuid4()}",
             program=event.program,
-            opportunity_type=event.opportunity_type,
             target_status=event.target_status,
             summary=event.summary,
             search_text=event.search_text,
@@ -403,7 +402,6 @@ def _event_dict(event: StatusEvent) -> dict[str, Any]:
     return {
         "id": str(event.id),
         "program": event.program,
-        "opportunity_type": event.opportunity_type,
         "target_status": event.target_status,
         "summary": event.summary,
         "status": event.status,

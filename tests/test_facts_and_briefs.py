@@ -27,7 +27,6 @@ def _event_with_documents(db_session, bodies: list[str]):
     event = StatusEvent(
         created_from_key=f"event-{uuid4()}",
         program="Example Air",
-        opportunity_type="STATUS_MATCH",
         target_status="Gold",
         summary="Example Air match to Gold",
         search_text="Example Air status match Gold",
@@ -175,7 +174,6 @@ def test_same_full_document_is_scoped_to_each_linked_event(db_session) -> None:
     sas_event = StatusEvent(
         created_from_key=f"event-{uuid4()}",
         program="SAS EuroBonus",
-        opportunity_type="STATUS_MATCH",
         target_status="Gold",
         summary="SAS paid match for India residents",
         search_text="SAS EuroBonus paid match India Gold",

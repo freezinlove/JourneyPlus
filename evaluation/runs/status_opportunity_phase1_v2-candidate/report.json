@@ -1,0 +1,208 @@
+{
+  "run_schema_version": 1,
+  "gold_dataset_version": 2,
+  "gold_sha256": "6858c5a59d76262a2b356a3f8eb75b5e694eb67547c96fe6642ec0dd1a7599c2",
+  "complete": true,
+  "processed_documents": 65,
+  "total_documents": 65,
+  "model_calls": 104,
+  "cache_hits": 0,
+  "analysis_failures": [],
+  "evaluation": {
+    "label": "candidate",
+    "document_labels": {
+      "correct": 64,
+      "total": 65,
+      "score": 0.9846153846153847
+    },
+    "event_memberships": {
+      "correct": 62,
+      "total": 65,
+      "score": 0.9538461538461539
+    },
+    "relationships": {
+      "correct": 0,
+      "total": 0,
+      "score": null
+    },
+    "fact_values": {
+      "correct": 0,
+      "total": 0,
+      "score": null
+    },
+    "fact_evidence": {
+      "correct": 0,
+      "total": 0,
+      "score": null
+    },
+    "confusion_matrix": {
+      "STATUS_OPPORTUNITY": {
+        "STATUS_OPPORTUNITY": 50,
+        "NONE": 1,
+        "UNCERTAIN": 0,
+        "MISSING": 0
+      },
+      "NONE": {
+        "STATUS_OPPORTUNITY": 0,
+        "NONE": 14,
+        "UNCERTAIN": 0,
+        "MISSING": 0
+      },
+      "UNCERTAIN": {
+        "STATUS_OPPORTUNITY": 0,
+        "NONE": 0,
+        "UNCERTAIN": 0,
+        "MISSING": 0
+      }
+    },
+    "per_label": {
+      "STATUS_OPPORTUNITY": {
+        "precision": 1.0,
+        "recall": 0.9803921568627451,
+        "f1": 0.99009900990099,
+        "support": 51
+      },
+      "NONE": {
+        "precision": 0.9333333333333333,
+        "recall": 1.0,
+        "f1": 0.9655172413793104,
+        "support": 14
+      },
+      "UNCERTAIN": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 0
+      }
+    },
+    "event_grouping": {
+      "true_positive": 13,
+      "false_positive": 0,
+      "false_negative": 5,
+      "true_negative": 1413,
+      "precision": 1.0,
+      "recall": 0.7222222222222222,
+      "f1": 0.8387096774193548
+    },
+    "errors": [
+      {
+        "kind": "document_label",
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:03:iprefer-titanium-status-match-scandic-avios",
+        "expected": "STATUS_OPPORTUNITY",
+        "actual": "NONE"
+      },
+      {
+        "kind": "event_count",
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:03:iprefer-titanium-status-match-scandic-avios",
+        "expected": 1,
+        "actual": 0
+      },
+      {
+        "kind": "event_count",
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match",
+        "expected": 1,
+        "actual": 3
+      },
+      {
+        "kind": "event_count",
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:06:malaysia-airlines-status-match",
+        "expected": 2,
+        "actual": 1
+      },
+      {
+        "kind": "same_event_split",
+        "left": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "ffb_elite_status_feed:2026:08:kenya-airways-asante-rewards-skyteam-paid-status-match.html",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-001"
+        },
+        "right": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-010"
+        }
+      },
+      {
+        "kind": "same_event_split",
+        "left": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "awardwallet_elite_status_feed:airlines:kenya-airways-status-match-offer",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-001"
+        },
+        "right": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-010"
+        }
+      },
+      {
+        "kind": "same_event_split",
+        "left": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "frequentmiler_elite_status_feed:how-to-get-access-to-airport-lounges-with-accor-elite-status",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-001"
+        },
+        "right": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-010"
+        }
+      },
+      {
+        "kind": "same_event_split",
+        "left": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-010"
+        },
+        "right": {
+          "case_id": "phase1-ffb-status-match-catalog",
+          "document_key": "ffb_status_match_catalog:kenya-airways-asante-rewards-paid-status-match-2026",
+          "hint_index": 0,
+          "expected_event_key": "kenya-airways-asante-rewards-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-001"
+        }
+      },
+      {
+        "kind": "same_event_split",
+        "left": {
+          "case_id": "phase1-selected-articles",
+          "document_key": "verylvke_feed:2026:07:06:malaysia-airlines-status-match",
+          "hint_index": 0,
+          "expected_event_key": "malaysia-airlines-enrich-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-014"
+        },
+        "right": {
+          "case_id": "phase1-ffb-status-match-catalog",
+          "document_key": "ffb_status_match_catalog:malaysia-airlines-enrich-paid-status-match-2026",
+          "hint_index": 0,
+          "expected_event_key": "malaysia-airlines-enrich-paid-status-match-2026",
+          "predicted_event_key": "predicted-event-025"
+        }
+      }
+    ],
+    "thresholds": null,
+    "temporal_metrics": {
+      "included": false,
+      "reason": "第一期冻结金标不包含活动时效标注。"
+    }
+  }
+}

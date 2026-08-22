@@ -27,13 +27,11 @@ def _status_with_two_events() -> dict:
         "event_hints": [
             {
                 "program": "Example Air",
-                "opportunity_type": "STATUS_MATCH",
                 "summary": "Match to Gold",
                 "target_status": "Gold",
             },
             {
                 "program": "Example Hotel",
-                "opportunity_type": "FAST_TRACK",
                 "summary": "Fast track to Platinum",
                 "target_status": "Platinum",
             },
@@ -195,6 +193,7 @@ def test_interrupted_run_uses_cache_and_only_calls_missing_document(tmp_path) ->
     assert resumed.complete
     assert resumed.cache_hits == 1
     assert resumed.model_calls == 1
+    assert resumed.cached_outputs == 2
     assert len(resumed_provider.calls) == 1
     report = json.loads(resumed.report_path.read_text())
     assert report["evaluation"]["document_labels"]["score"] == 1
@@ -231,6 +230,10 @@ def test_multi_event_prediction_is_stable_and_id_independent(tmp_path) -> None:
     assert predicted_keys == ["predicted-event-001", "predicted-event-002"]
     assert json.loads(replay.prediction_path.read_text()) == first_prediction
     assert replay.model_calls == 0
+    assert replay.cached_outputs == 1
     report = json.loads(replay.report_path.read_text())
+    assert report["run_schema_version"] == 2
+    assert report["model_calls"] == 0
+    assert report["cached_outputs"] == 1
     assert report["evaluation"]["event_memberships"]["score"] == 1
     assert report["evaluation"]["temporal_metrics"]["included"] is False

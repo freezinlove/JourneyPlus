@@ -1,0 +1,2674 @@
+{
+  "cache_schema_version": 1,
+  "entries": {
+    "530a521410c0218001462adcd4634e11d9d85984812749d426ef5a46248fbbef": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:23.107314+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "ffb_elite_status_feed:2026:08:kenya-airways-asante-rewards-skyteam-paid-status-match.html"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "文档明确介绍了Kenya Airways Asante Rewards的付费会籍匹配活动，公开且可申请，提供从多个航空公司、酒店和信用卡计划匹配至Silver、Gold或Platinum Elite Plus的路径，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Kenya Airways Asante Rewards",
+            "summary": "付费会籍匹配：从超过45个航空公司、20个酒店计划及高端信用卡匹配至Kenya Airways Asante Rewards Silver、Gold或Platinum Elite Plus，有效期12个月，无需飞行或消费。",
+            "target_status": "Silver, Gold, Platinum Elite Plus",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "13ff0eac36874770eacc3b111ac8f86e1be1a40f5c750952e0885dc5bb879b4d": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:25.400798+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "ffb_elite_status_feed:2026:08:receive-up-to-a-50-bonus-when-you-buy-marriott-bonvoy-points.html"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "文档是关于购买万豪积分获得奖励的促销，属于普通积分购买活动，不涉及会籍匹配、挑战、升级或直接获得精英等级，因此不是会籍机会。",
+        "event_hints": []
+      }
+    },
+    "2eda5ee0425eb4f3da3c1d3eb13b5f6efc7fbd3df28ebf2fd1c2b14cfdd2cee8": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:27.577012+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "ffb_elite_status_feed:2026:07:air-canada-aeroplan-earn-up-to-3-5x-points.html"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 1.0,
+        "reason": "材料是关于Air Canada Aeroplan的普通奖励积分促销，提供特定航线额外积分，不涉及任何会籍升级、匹配或快速通道等直接会籍机会。",
+        "event_hints": []
+      }
+    },
+    "d3ce5257481e243046fbc5587bd2d47533f4d5292eb2d986a1a2f039479eaf28": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:31.733079+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "ffb_elite_status_feed:2026:06:last-chance-air-france-klm-flying-blue-paid-elite-status-match.html"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文章报道了Air France KLM Flying Blue针对美国及加拿大居民的付费精英身份匹配活动，提供银卡和金卡，有明确申请入口和截止日期，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Air France KLM Flying Blue",
+            "summary": "付费精英身份匹配，可匹配至银卡或金卡，有效期12个月，美国及加拿大居民申请截止2025年6月13日。",
+            "target_status": "Silver, Gold",
+            "region_hint": "美国、加拿大居民（其他地区持续有效）"
+          }
+        ]
+      }
+    },
+    "8b39c7657fad3dc3d8e95ba015c18220039adba693085dfc5156dd56345cb3a8": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:15:39.411879+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "ffb_elite_status_feed:2026:06:last-chance-air-france-klm-flying-blue-paid-elite-status-match.html"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是法航荷航Flying Blue的付费精英匹配（针对美国加拿大居民），而候选事件是肯尼亚航空Asante Rewards的付费匹配，二者属于不同的航空公司、常旅客计划、规则和适用人群，没有关联。",
+        "candidate_event_id": null
+      }
+    },
+    "bdd4c7f1d2e48fc97ca0b305c4671e9397436571286c6f30cf8242e220c0c19f": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:43.876620+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:hotels:world-of-hyatt:hyatt-globalist"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.98,
+        "reason": "文档是一篇关于如何通过常规方式（入住、积分、信用卡消费）获得Hyatt Globalist等级的完整攻略指南，属于长期教学/系统性玩法指导，不包含任何当前正在进行的公开会籍匹配、挑战、快速通道或直接授予/升级会籍的限时活动。",
+        "event_hints": []
+      }
+    },
+    "f836b88f045dc65ffa90ffbafe933e761e1b2ddca1bec4f26cec744cb13c8c21": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:49.653190+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:airlines:delta-skymiles"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "The document is a comprehensive guide to the Delta SkyMiles program, covering earning, redeeming, and elite status. It is a long-term educational resource, not a specific time-sensitive announcement of a publicly available status opportunity. Although it mentions status match via a link, the main purpose is tutorial, not reporting an active event.",
+        "event_hints": []
+      }
+    },
+    "79ffca3da8d7939f6fdd54100dfbf4732eb57f72912bb93d618f28cafc1ed400": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:54.279102+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:airlines:kenya-airways-status-match-offer"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "Kenya Airways 提供公开付费会籍匹配活动，可通过持有其他航司/酒店会籍并支付 $99-$299 获得 Asante Rewards 银/金/白金精英会籍，进而获得天合联盟相应等级（Elite/Elite Plus）。材料包含官方申请入口和详细资格条款，是明确的直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Kenya Airways Asante Rewards",
+            "summary": "付费会籍匹配：持有符合条件的航司或酒店精英会籍，支付 $99（银卡）或 $299（金卡/白金卡）即可获得对应 Kenya Airways Asante Rewards 精英等级，并享受天合联盟 Elite 或 Elite Plus 权益。",
+            "target_status": "Silver, Gold, Platinum",
+            "region_hint": "全球，需持有其他航司/酒店会籍"
+          }
+        ]
+      }
+    },
+    "cbfde6c89acc2c21d7ba8a2a898198ecee3b52b99337349df9eda5368349dc9c": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:15:59.073937+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:news:alaska-atmos-rewards:alaska-corporate-status-challenge"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Alaska Airlines 针对企业员工推出了公开的会籍快速通道，注册后可获得180天精英会籍，并通过完成飞行任务延长至Silver、Gold或Platinum，有明确官方活动页面和申请链接，截止日期为2026年12月31日，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Alaska Atmos Rewards",
+            "summary": "企业员工通过注册获得180天精英会籍，并在180天内完成指定飞行任务以延长或升级至Silver、Gold或Platinum会籍，有效期至2027年12月31日。",
+            "target_status": "Silver, Gold, Platinum",
+            "region_hint": "全球（主要面向美国企业员工）"
+          }
+        ]
+      }
+    },
+    "ea6d43750c9c1e6913b58ec273b40cbe83a1ff014a4b8f070fb932cafb83340c": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:16:07.509457+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:news:alaska-atmos-rewards:alaska-corporate-status-challenge"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 1.0,
+        "reason": "新提示是关于Alaska Airlines Atmos Rewards的企业员工快速通道活动，目标等级为Silver/Gold/Platinum；候选事件分别是Air France KLM Flying Blue和Kenya Airways Asante Rewards的付费会籍匹配活动，属于不同航空公司、不同项目，规则和适用对象均不同。",
+        "candidate_event_id": null
+      }
+    },
+    "050612ac82ad4cc6f089c7ab0f2de2edc6c61108b526899aa70d5005e02fe178": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:10.149698+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "awardwallet_elite_status_feed:news:american-aadvantage:elite-status-upgrades-premium-economy"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "材料报道美国航空精英会员免费升舱政策的负面调整，不包含任何提供、升级或延长会籍的公开机会，属于权益变更而非会籍机会。",
+        "event_hints": []
+      }
+    },
+    "8ad2f5a176f64965868b41bd337203db9ec3bb6498662d118bb6b3931c62e9a1": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:12.400035+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:19:last-call-alaska-airlines-buy-miles-up-to-100-bonus-sale-until-august-20-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "材料仅介绍Alaska Airlines买分促销，明确说明购买点数不计入会籍定级积分，不直接获得或升级精英会籍，因此不属于会籍机会。",
+        "event_hints": []
+      }
+    },
+    "9fdf5a27dd0a8c6baec98a90e35e1b50c5d80b83bcaad418d021557f6fa30268": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:15.149881+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:18:american-airlines-brings-back-seatback-screens-on-short-haul-aircraft-from-2028"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 1.0,
+        "reason": "该文档主要报道美国航空计划在窄体机队安装座椅后背屏幕和增加高级座位，属于硬件升级和座位配置新闻，未提及任何会籍机会、会籍匹配、快速通道或精英等级升级等活动。",
+        "event_hints": []
+      }
+    },
+    "410f7014b24554232b57c18876ae70872609421413dd0ac01686f0c2e07e6300": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:17.511745+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:17:united-premier-gold-elite-benefit-experience-on-virgin-australia-domestic-flights"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "材料是个人乘坐Virgin Australia体验United Premier Gold权益的分享，没有提供任何可获得的会籍机会（如会籍匹配、挑战、快速通道等），属于经验/攻略性质，不包含公开的会籍活动。",
+        "event_hints": []
+      }
+    },
+    "a6f50dc932ab97d9f875694d4dd145b21c140ef7c21e42d4ff777e979a357a1b": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:22.161838+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:09:finnair-plus-radisson-rewards-launch-two-way-conversions-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "材料明确报道了Radisson Rewards对Finnair Plus精英等级的公开会籍匹配活动，提供官方页面和详细映射表，符合直接会籍机会定义。",
+        "event_hints": [
+          {
+            "program": "Radisson Rewards",
+            "summary": "Finnair Plus精英会员可匹配Radisson Rewards精英会籍：Silver/Gold/Platinum匹配Premium，Lumo匹配VIP，匹配有效期为2年，需通过Finnair Shop链接账户。",
+            "target_status": "Premium, VIP",
+            "region_hint": "Global (excluding Americas, which are Choice Privileged)"
+          }
+        ]
+      }
+    },
+    "60aa53ca2480c0f09038399867499b396aa18c31eb09986352b4b903cb116e51": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:25.873391+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:08:update-ihg-one-rewards-double-elite-night-credits-august-5-september-29-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "IHG One Rewards 限时双倍精英定级房晚促销，会员通过注册并在活动期内完成合格住宿可获得额外精英定级房晚，加速提升精英会籍等级；属于官方公开的群体性会籍机会。",
+        "event_hints": [
+          {
+            "program": "IHG One Rewards",
+            "summary": "注册后可获得最多5个额外精英定级房晚，加速提升精英会籍等级",
+            "target_status": "Elite status",
+            "region_hint": "全球参与酒店"
+          }
+        ]
+      }
+    },
+    "e040d49b37a1a7c2ea472880971031e6d51dd08c0f43372e60ad1f9095b7093b": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:28.451752+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "loyaltylobby_feed:2026:08:06:turkish-airlines-milessmiles-reduces-oceania-award-pricing"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "文档仅报道土耳其航空Miles&Smiles里程计划降低大洋洲航线奖励机票兑换所需里程，属于普通奖励积分兑换促销，不涉及任何直接获得、升级或延长精英会籍的机会。",
+        "event_hints": []
+      }
+    },
+    "9477a0f00df96b0ddc19b928a1fbd5959ee4b362d9438940e795e3953822e53e": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:31.853358+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:elite-status-via-the-air-france-klm-credit-card"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 1.0,
+        "reason": "材料以长期教学和系统玩法指导为主要目的，详细介绍了如何通过法航荷航信用卡积累XP以获取精英会籍，属于攻略文档而非具体会籍活动报道。虽然提及了信用卡可获XP和status match，但没有提供官方公开活动页面或群体可确认的公开机会，因此标为NONE。",
+        "event_hints": []
+      }
+    },
+    "aa19c72d805ee50cf4264b9cb6296db6f38f3896d8b5a2dbc5b8826d0bcc0bc2": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:36.273271+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:targeted-ihg-promo-earn-double-elite-night-credits-limit-10-bonus-elite-nights"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "该文档报道了IHG One Rewards针对部分会员的限时定向促销，提供双倍精英定级房晚（最多10个奖励房晚），属于会籍资格进度的直接促销，因此归类为STATUS_OPPORTUNITY。",
+        "event_hints": [
+          {
+            "program": "IHG One Rewards",
+            "summary": "双倍精英定级房晚促销，最多10个奖励房晚",
+            "target_status": "精英定级房晚",
+            "region_hint": "主要针对特定企业客户，但注册可能广泛适用"
+          }
+        ]
+      }
+    },
+    "5457307cb6b1b1efcddef89a828aa89033a82b3e50f5f936f69127aee8704f75": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:16:43.307706+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:targeted-ihg-promo-earn-double-elite-night-credits-limit-10-bonus-elite-nights"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示与候选事件分属IHG One Rewards两个不同的双倍精英房晚促销：新提示为最多10个奖励房晚，面向特定企业客户，活动期7月1日至9月30日；候选事件为最多5个奖励房晚，面向更广泛会员，活动期8月5日至9月29日。材料明确将两者视为独立活动，规则机制、目标群体和活动期均不同。",
+        "candidate_event_id": null
+      }
+    },
+    "cb1cfd918cd85ad01ecf659c5bf7499486f38df920dc1b05eb29fbb644fcedc4": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:16:53.967716+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:how-to-get-access-to-airport-lounges-with-accor-elite-status"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档主要报道了两个通过Accor精英状态可获得的会籍匹配机会：Kenya Airways Platinum Elite Plus（SkyTeam Elite Plus）和Qatar Airways Gold（oneworld Sapphire），均提供了直接申请入口，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "Kenya Airways Privilege Club",
+            "summary": "Accor Gold+ members can match to Kenya Airways Platinum Elite Plus (SkyTeam Elite Plus) for $299 fee.",
+            "target_status": "Platinum Elite Plus",
+            "region_hint": "Global (except US domestic lounges)"
+          },
+          {
+            "program": "Qatar Airways Privilege Club",
+            "summary": "Accor Platinum+ members can match to Qatar Airways Gold (oneworld Sapphire) after one paid Qatar Airways flight.",
+            "target_status": "Gold",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "71b19f12b5dd424017f75de1d93b87e5300cec51b365564c1a1ba75ff5902b93": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:16:59.276735+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:how-to-get-access-to-airport-lounges-with-accor-elite-status"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 1.0,
+        "reason": "新提示是卡塔尔航空Privilege Club的Gold匹配（Accor Platinum+，需一次付费飞行），而候选事件842200f9是肯尼亚航空Asante Rewards的付费匹配（Accor Gold+，$299，无飞行要求），两者分属不同航空公司、不同匹配机制、不同目标等级；候选事件40255f32是IHG酒店促销，完全不相关。",
+        "candidate_event_id": null
+      }
+    },
+    "0e8c71b763bc13d38dd14edd0064b9e6fce0092ecf378d817d56a897c38dbf65": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:03.969567+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "西南航空通过SWABIZ渠道推出官方促销活动，注册后完成指定数量航班可获得A-List精英会籍及奖励积分，属于公开的会籍获取机会。",
+        "event_hints": [
+          {
+            "program": "Southwest Rapid Rewards",
+            "summary": "通过SWABIZ、GDS等渠道预订并乘坐2个往返（或4个单程）航班可获促销A-List会籍（有效期至2026年底），完成4个往返（或8个单程）额外获得20,000奖励积分。",
+            "target_status": "A-List",
+            "region_hint": "United States"
+          }
+        ]
+      }
+    },
+    "25754b21b619c2123b1a8f24f648157979330b2b3661f6998376c2a22b4899e0": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:17:08.206253+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:southwest-promo-earn-a-list-status-20k-bonus-points-when-booking-via-swabiz"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 1.0,
+        "reason": "The new hint is about Southwest Rapid Rewards A-List promotion via SWABIZ, while the candidate event is about Alaska Atmos Rewards corporate status challenge. They are from different airlines and different programs, with distinct rules, target statuses, and eligibility.",
+        "candidate_event_id": null
+      }
+    },
+    "cef75fad4c1b901a520b4074f7ff66aa1fff5024e29df29f1b667feef3821337": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:10.657954+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:where-hyatt-suite-upgrade-awards-dont-work"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "文档主要介绍Hyatt套房升级奖励不适用的酒店列表，属于长期攻略/教学性质，而非报道限时会籍活动或直接会籍机会。",
+        "event_hints": []
+      }
+    },
+    "fc2d28a74ee799092a4e3d1bce8d12e5267676dc5e404766c00fe970e04f72b2": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:15.056483+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:gha-discovery-hotel-program-status-match-from-many-hotel-airline-cruise-programs"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档明确报道了GHA Discovery的付费会籍匹配活动，通过官方入口可支付费用获得GHA Platinum或Titanium精英会籍，活动时间、资格矩阵和申请流程均清晰公开，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "GHA Discovery",
+            "summary": "付费会籍匹配，支付$100或$150获得GHA Platinum或Titanium会籍至2027年底，并返还一半费用作为Discovery Dollars（需在首次入住12个月内使用）。",
+            "target_status": "Platinum 或 Titanium",
+            "region_hint": "全球（符合条件的国家/地区）"
+          }
+        ]
+      }
+    },
+    "7ed0dacea54b39fb468ec5b68f326072a17a205bd04120cbe3a7c059ad55fa7a": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:17:20.075313+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "frequentmiler_elite_status_feed:gha-discovery-hotel-program-status-match-from-many-hotel-airline-cruise-programs"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 1.0,
+        "reason": "新提示是GHA Discovery的付费会籍匹配，而所有候选事件均属于其他完全不同忠诚度计划（Kenya Airways、Southwest、Alaska、Qatar Airways、IHG），无任何关联。",
+        "candidate_event_id": null
+      }
+    },
+    "be31a9253193f53e2ddcd4c89674bab918ecae91ef659e6ab0e3bc638e6ecf33": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:22.656532+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:17:accor-plus-wyndham-benefits-enhanced"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "材料主要介绍温德姆钻石新增早餐权益以及雅高A+促销购买会籍赠送餐饮券，均属于权益介绍或普通付费会员促销，没有直接获得、升级或延长精英会籍的机会，因此标为NONE。",
+        "event_hints": []
+      }
+    },
+    "dec95681050aa226da9c2257db5aafe3ca94ecfdca7148c48ce32a4ba6b333b3": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:25.378326+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:19:stay-krakow-sheraton-grand-hotel-indigo-old-town"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.99,
+        "reason": "文档为酒店入住体验游记，仅描述设施、服务、早餐等个人感受，未提及任何会籍匹配、挑战、快速通道或精英定级机会等会籍活动。",
+        "event_hints": []
+      }
+    },
+    "6bd4affad18a24b31e48a22d7713e4832ede35e9b00838fb25c2d09a7c531b8b": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:29.083241+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:03:iprefer-titanium-status-match-scandic-avios"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 0.95,
+        "reason": "文档主要目的是个人实战分享与攻略，其中璞富腾钛金匹配为个人通过客服邮箱申请成功的个案，缺乏官方公开活动页面或群体公开条款，不符合公开会籍机会的标准；Scandic兑换部分为房券兑换，不涉及会籍升级。整体按攻略/经验标为NONE。",
+        "event_hints": []
+      }
+    },
+    "fb30f7352c83e5d7a4555557d89cc8e3c6b3b80cfc3a5494a98e64826f6342e1": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:17:37.930307+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档包含两个明确会籍机会：雅高臻享卡欢悦卡促销送5个等级房晚（限时精英定级进度），以及肯尼亚航空接受雅高金卡及以上匹配至白金卡的会籍匹配活动，均为公开或群体公开的直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "雅高",
+            "summary": "购买臻享卡欢悦卡（199元）送5个等级房晚，截止8月7日",
+            "target_status": null,
+            "region_hint": null
+          },
+          {
+            "program": "肯尼亚航空",
+            "summary": "雅高金卡及以上可匹配至肯尼亚航空白金卡，费用299美元，有效期12个月，非大中华区及阿根廷",
+            "target_status": "白金卡",
+            "region_hint": "除大中华区及阿根廷外"
+          }
+        ]
+      }
+    },
+    "65e5833c4c2e6bc169e1ee90230eed0ac363c96227e8bdb1aea1ec7d40141548": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:17:41.171686+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是关于雅高臻享卡促销（购买欢悦卡送5个等级房晚），而候选事件1是Alaska Atmos Rewards企业员工状态挑战，候选事件2是Air France KLM Flying Blue付费状态匹配，均与雅高无关，且不涉及同一活动或规则更新。",
+        "candidate_event_id": null
+      }
+    },
+    "75c3744056fc2bc8eb89972b79291de482908ac1712d7920d1f16bde08d04385": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:17:51.956680+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:08:05:accor-all-plus-sale-kenya-airways-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "SAME_EVENT",
+        "confidence": 0.95,
+        "reason": "new_hint描述的肯尼亚航空匹配（雅高金卡及以上至白金卡，299美元，非大中华区及阿根廷）与候选2的Kenya Airways Asante Rewards付费匹配活动是同一事件。候选2的materials明确包含Accor Gold+匹配至Platinum Elite Plus for $299，且new_material也引用了相同的匹配链接（https://kenya-airways.statusmatch.com/）。地理限制差异属于同一活动的地区性适用条件，不构成不同活动。",
+        "candidate_event_id": "842200f9-1e76-4b7f-a277-bb628c363bbc"
+      }
+    },
+    "ec72572e03887b2a58511c1805c79b309bb8e1c8b01ff6c472dfb6e8cd710a1e": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:00.937831+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:14:marriott-japan-airlines-partnership"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档明确报道万豪与日本航空的双向会籍合作活动，万豪会员可通过匹配获得日航定级分以升级会籍，日航高卡会员可获万豪白金会籍，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "万豪旅享家 & 日本航空",
+            "summary": "万豪会员根据等级可获日本航空FLY ON定级分（最高40,000点），用于升级日航会籍（水晶/蓝宝石等）；日本航空钻石会员在六个月内住十晚可获万豪白金会籍。",
+            "target_status": "日航JMB水晶/蓝宝石会籍、万豪旅享家白金会籍",
+            "region_hint": "全球"
+          }
+        ]
+      }
+    },
+    "25ffdf8d1d6cba0c13fa7a52bfe7582ef9daa852cae6e1813c6e6de3ca7e19f2": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:18:03.773595+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:14:marriott-japan-airlines-partnership"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.98,
+        "reason": "新提示描述的是万豪旅享家与日本航空的双向会籍合作（万豪会员获日航定级分、日航钻石会员住十晚得万豪白金），而候选事件1是肯尼亚航空Asante Rewards的付费会籍匹配（涉及雅高等酒店会籍，与万豪/日航无关），候选事件2是雅高臻享卡促销。三者活动内容、参与方、机制完全不同，无任何关联。",
+        "candidate_event_id": null
+      }
+    },
+    "09c75fd01b519abff146660cc34c9c3122d664d80f7ff0820045a3d97612d0ee": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:08.309752+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:07:badazhou-grand-hyatt-athens-marriott-devaluation"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档主要报道了八大洲的'一住升金'活动，通过预订专享价并完成入住即可升级至体验金卡，属于明确的会籍机会。",
+        "event_hints": [
+          {
+            "program": "八大洲",
+            "summary": "通过预订专享价并完成入住，可升级至八大洲体验金卡，有效期至年底。",
+            "target_status": "体验金卡",
+            "region_hint": "中国"
+          }
+        ]
+      }
+    },
+    "820d0556ba2f975f7b5faf3e7ab3f962b2173d470a94d0a3e50a7c2f053f5c5d": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:18:10.882906+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:07:badazhou-grand-hyatt-athens-marriott-devaluation"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是关于八大洲的会籍升级活动（一住升金获取体验金卡），而候选事件分别是万豪与日本航空合作、肯尼亚航空付费匹配、雅高臻享卡促销，均与八大洲无关，属于完全不同的活动。",
+        "candidate_event_id": null
+      }
+    },
+    "b2189f3a41e264e9fe1d6c15a9ad8e0b1e61c5d66b8dad48d16bd77713dcfb43": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:18.209397+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:06:malaysia-airlines-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档主要报道马来西亚航空针对印度航空和印尼鹰航会员的付费会籍匹配活动，以及印尼鹰航的付费购买金卡项目，两者均为公开的会籍机会，有独立官方申请入口。",
+        "event_hints": [
+          {
+            "program": "马航Enrich",
+            "summary": "付费匹配马航银卡/金卡/白金，仅限印度航空和印尼鹰航会员，非马来西亚公民，费用$89-$349，有效期12个月。",
+            "target_status": "银卡/金卡/白金",
+            "region_hint": "印度、印尼（仅限印度航空和印尼鹰航会员）"
+          },
+          {
+            "program": "印尼鹰航Gold Privilege",
+            "summary": "付费购买金卡会籍，入会$399，续费$299，无需保级，含天合联盟精英权益。",
+            "target_status": "金卡（天合联盟精英）",
+            "region_hint": "全球可购买"
+          }
+        ]
+      }
+    },
+    "d10e8a812df0aaf52ceb7bdbccaa9c67cb03acb724e15c5ccb7bcd12669c8aa6": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:18:22.556023+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:06:malaysia-airlines-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新线索是马来西亚航空Enrich的付费匹配活动，面向印度航空和印尼鹰航会员；候选1是肯尼亚航空Asante Rewards付费匹配，候选2是法航荷航Flying Blue付费匹配，三者品牌、目标等级、适用人群均不同，无任何关联。",
+        "candidate_event_id": null
+      }
+    },
+    "38fa277d802424f788074ddbf230bfd1cdfeff50aa87ccfdb1c1a180c59bf04f": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:18:28.855909+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:06:malaysia-airlines-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示描述的是印尼鹰航Gold Privilege付费购买金卡项目，而候选事件1是马来西亚航空Enrich的付费匹配活动（仅限印度航空和鹰航会员），候选事件2是肯尼亚航空的付费匹配活动，三者是完全不同的活动，无任何规则或机制上的重叠。",
+        "candidate_event_id": null
+      }
+    },
+    "62b6a859da0c8acac12a6cc2efbef8c6a24882be9a9d8df61dad2d27801e51cc": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:31.555999+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:07:05:trip-summer-mega-sale"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "NONE",
+        "confidence": 1.0,
+        "reason": "材料仅介绍Trip.com夏日大促的各种折扣和优惠，如火车票、机票、酒店、门票等促销，没有涉及任何直接获得、升级或延长旅行忠诚度会籍的机会，因此不属于STATUS_OPPORTUNITY。",
+        "event_hints": []
+      }
+    },
+    "30cf0c9398df4a1e567eed89d7ba20ac3d679f7c961abe580e0a5eb242a84200": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:38.105685+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:05:31:flying-blue-and-sas-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文章明确报道北欧航空和法航荷航的会籍匹配活动，均有官方申请入口，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "北欧航空EuroBonus",
+            "summary": "付费会籍匹配，支持印度航空、英国航空等特定航司，仅限印度居民，可匹配银卡/金卡/钻卡，费用€39-€159。",
+            "target_status": "银卡/金卡/钻卡",
+            "region_hint": "印度"
+          },
+          {
+            "program": "法航荷航Flying Blue",
+            "summary": "付费会籍匹配，支持国航、南航、海航、国泰、汉莎、英航、土航等众多航司，银卡$99、金卡$299，大中华区已回归但不支持白金。",
+            "target_status": "银卡/金卡",
+            "region_hint": "全球多个地区（含大中华区）"
+          }
+        ]
+      }
+    },
+    "a434733a3ad2a6d42ef144a9f586568f6c9234b97ffb2c5e624118364c426d50": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:18:41.634730+00:00",
+      "scope": {
+        "case_id": "phase1-selected-articles",
+        "document_key": "verylvke_feed:2026:05:31:flying-blue-and-sas-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是关于北欧航空EuroBonus的付费会籍匹配（仅限印度居民，目标银卡/金卡/钻卡，费用€39-€159），而所有候选事件均涉及其他航司（肯尼亚航空、法航荷航、马航），与北欧航空无关，且材料中未提及任何与候选事件关联的规则或日期变更。",
+        "candidate_event_id": null
+      }
+    },
+    "757bfbb3d8380dae32f5213e4f6b876e0ca95a75c2a2fd670c995282fc5b7724": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:45.305866+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:vietnam-airlines-lotusmiles-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "The document describes a paid status match opportunity from Vietnam Airlines Lotusmiles, allowing elite members of 45+ airline and 7 hotel programs to receive Titanium, Gold or Platinum status for 12 months. This is a direct, publicly available status match offer.",
+        "event_hints": [
+          {
+            "program": "Vietnam Airlines",
+            "summary": "Paid status match for Lotusmiles elite status (Titanium, Gold, Platinum) for 12 months, open to elite members of 45+ non-SkyTeam airlines and 7 hotel programs.",
+            "target_status": "Titanium, Gold, or Platinum",
+            "region_hint": "Global (including Canada, China, Japan, US, UK, etc.)"
+          }
+        ]
+      }
+    },
+    "8bac7fec3de61dfb88449b8695b7de67ee44a40390631f1a355d90f46318cad4": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:48.564660+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:air-astana-nomad-club-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "提供了明确的付费精英身份匹配活动，面向50+航司和20+酒店计划的精英会员，可直接获得Air Astana Nomad Club银卡或金卡，有官方申请入口。",
+        "event_hints": [
+          {
+            "program": "Air Astana Nomad Club",
+            "summary": "付费精英身份匹配，允许50+航司和20+酒店计划的精英会员获得银卡或金卡。",
+            "target_status": "Silver or Gold",
+            "region_hint": "Europe, Middle East, Asia"
+          }
+        ]
+      }
+    },
+    "ee2dec4b00574323701672a0106090b1fe0725b2cdf92c82135e7224c8bae319": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:52.077491+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:flying-blue-ba-uk-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "材料明确提供付费会籍匹配机会，允许符合条件的英国英国航空俱乐部精英会员获得法航荷航Flying Blue银、金或白金精英会籍，并附有官方申请入口。",
+        "event_hints": [
+          {
+            "program": "Air France KLM",
+            "summary": "付费会籍匹配：英国航空俱乐部精英会员可获得法航荷航Flying Blue银、金或白金精英会籍（12个月）。",
+            "target_status": "Flying Blue Silver/Gold/Platinum",
+            "region_hint": "UK"
+          }
+        ]
+      }
+    },
+    "fd1b4692fda6186e52564083efdcc8730b76e0e52a581560b846b74292948cce": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:18:56.555678+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:flying-blue-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "材料明确描述了一项付费精英会籍匹配活动，允许非天合联盟航司的精英会员获得法航荷航Flying Blue银卡、金卡或白金卡精英会籍，属于直接获得精英等级的公开机会。",
+        "event_hints": [
+          {
+            "program": "Air France KLM",
+            "summary": "Paid status match opportunity for Flying Blue Silver, Gold or Platinum elite status, open to elite members of numerous non-SkyTeam airline programs.",
+            "target_status": "Silver, Gold, Platinum",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "81b1f6c6aeb4e6263b87586969ac7332674534a499de2c7f3ea20b58007ec876": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:00.955960+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-san-diego-fast-track-2025-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 1.0,
+        "reason": "官方提供Fast Track活动，完成指定航段即可获得Alaska Airlines Atmos Rewards的Silver或Gold精英会籍，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Alaska Airlines Atmos Rewards",
+            "summary": "完成5个合格航段获得Silver，完成10个合格航段获得Gold。需在2026年3月20日前注册，旅行日期为2025年9月1日至2026年3月31日，航段需往返或经停圣地亚哥。",
+            "target_status": "Silver or Gold",
+            "region_hint": "San Diego, US"
+          }
+        ]
+      }
+    },
+    "73495ab65aa31bd6c1c1fd9ba0c60f7560e6214192371701eeeb5d6ee340dcd4": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:19:08.661100+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-san-diego-fast-track-2025-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是圣地亚哥地区特定Fast Track，要求完成5/10个圣地亚哥航段直接获得Silver/Gold，注册截止2026年3月20日，旅行期至2026年3月31日；候选事件是企业员工Status Challenge，先获得180天临时会籍，再通过更少航段（4/8个航段）维持或升级至Silver/Gold/Platinum，有效期至2027年底，且适用人群、机制、期限均不同。",
+        "candidate_event_id": null
+      }
+    },
+    "e87a0961592ad584ffbee1b5e7933ad4f81acb70249a5c3aa30b542e87a8761c": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:14.562066+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-corporate-status-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "Alaska Airlines 官方活动，为指定公司员工提供即时 MVP 精英状态（180天）及快速通道，有多个专属注册入口，属于公开会籍机会。",
+        "event_hints": [
+          {
+            "program": "Alaska Airlines Atmos Rewards",
+            "summary": "为指定公司员工提供即时 MVP 状态（180天）及快速通道至精英会籍，注册截止2026年6月30日。",
+            "target_status": "MVP Status (180 days) and Fast Track to elite status",
+            "region_hint": "United States (select employers)"
+          }
+        ]
+      }
+    },
+    "7dcfbf1dcf63e9f9f77ccae352e76d9092ead6933cb8e301a63b4781da27b26d": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:19:26.670824+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-corporate-status-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "SAME_EVENT",
+        "confidence": 0.95,
+        "reason": "new_material 描述的为指定公司员工提供 180 天即时 MVP 状态及快速通道至精英会籍，与候选事件 2 的企业员工通过注册获得 180 天精英会籍并完成飞行任务以升级/保级至 Silver/Gold/Platinum 的机制完全一致，均属于同一 Atmos Rewards 企业员工挑战活动。不同公司的注册链接仅为同一活动下的不同入口，注册截止日期差异（2026 年 6 月 30 日 vs 2026 年 12 月 31 日）属于同一活动不同批次或更新，不构成独立活动。候选事件 1 为圣地亚哥航段挑战，目标等级、规则和截止日期均不同，故不相关。",
+        "candidate_event_id": "d7e15236-e336-40a3-9828-98709d8f2782"
+      }
+    },
+    "ec2e73421aa4bd680aaff8e6895731351b654bfb3c4629fddb718abb8a759e1a": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:30.332526+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-airline-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "材料明确描述了阿拉斯加航空的精英会籍匹配活动，提供官方注册链接，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "Alaska Airlines Atmos Rewards",
+            "summary": "阿拉斯加航空为北美特定航司精英会员提供会籍匹配，需在线注册。",
+            "target_status": null,
+            "region_hint": "北美"
+          }
+        ]
+      }
+    },
+    "ead785c8a657dcc0be92d63f285b2e5625e7ec49b018637edc35f55345537a52": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:19:39.133424+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:alaska-atmos-airline-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是直接匹配其他航司精英会籍（status match），而候选事件1是圣地亚哥往返航段快车道挑战，候选事件2是企业员工快速通道挑战，两者均需完成飞行任务，机制不同，适用对象不同，属于不同活动。",
+        "candidate_event_id": null
+      }
+    },
+    "1bda89b8d070571735fd345a00facf1be14bc8651f7ae5da52268710719b6e7c": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:42.755183+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:american-aadvantage-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档明确描述美国航空AAdvantage精英会籍匹配活动，针对JetBlue、Southwest、Delta或United的会籍持有者，提供官方申请入口，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "American AAdvantage",
+            "summary": "AAdvantage精英会籍匹配：持有JetBlue、Southwest、Delta或United会籍者可申请匹配AAdvantage精英等级。",
+            "target_status": null,
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "247e5a4e104a54fa8cfec03cb5abc102a115d0c52cbfed391d2b7c672d5bfed6": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:46.329393+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:delta-skymiles-status-match-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Delta SkyMiles 官方公开的会籍匹配挑战活动，允许其他航司精英会籍持有者免费获得三个月对等 Medallion 精英会籍，并可完成挑战延长。",
+        "event_hints": [
+          {
+            "program": "Delta SkyMiles",
+            "summary": "Delta SkyMiles Medallion 会籍匹配挑战：持有其他航司精英会籍可免费获得三个月对等 Medallion 会籍，完成挑战可延长。",
+            "target_status": "Medallion Status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "7d1e4cfea0c294edadda11ce444ab99e73409f5564bc680cd233037b51c5cba9": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:49.732671+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:etihad-guest-india-australia-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Etihad Airways 提供面向印度和澳大利亚居民的付费精英会籍匹配，支付后可获得3个月银卡或金卡，完成一次合格航班即可延长，属于公开会籍机会。",
+        "event_hints": [
+          {
+            "program": "Etihad Airways",
+            "summary": "Etihad Airways 精英会籍匹配：来自20家航司的印度或澳大利亚居民可通过支付获得3个月银卡或金卡Guest Status，完成一次合格航班后延长。",
+            "target_status": "Silver or Gold Guest Status",
+            "region_hint": "India, Australia"
+          }
+        ]
+      }
+    },
+    "1f6bb304609218f4941c9a2c1c96b11784e3ece5d6eed6965aa7d19860f1c304": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:54.083067+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:jetblue-mosaic-status-match-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "官方公开的会籍匹配活动，允许从其他航司精英身份匹配至JetBlue Mosaic 1或2，包含快速通道延长，符合STATUS_OPPORTUNITY定义。",
+        "event_hints": [
+          {
+            "program": "JetBlue TrueBlue",
+            "summary": "Mosaic精英会籍匹配：拥有其他航司（达美、美联航、美航、阿拉斯加）精英身份可匹配至Mosaic 1或2，获得3个月状态并通过快速通道延长至下一年年底。",
+            "target_status": "Mosaic 1 or 2",
+            "region_hint": "US"
+          }
+        ]
+      }
+    },
+    "23cd75942e12d26eabd08738c023058732e688883a82a0b3bdd4b1d521544663": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:19:57.671297+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:kenya-airways-asante-rewards-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Kenya Airways Asante Rewards 提供付费状态匹配，允许来自45+非天合联盟航司、20+酒店计划及高端信用卡持有者直接获得银、金、白金精英会籍12个月，有公开申请页面，属于明确的会籍机会。",
+        "event_hints": [
+          {
+            "program": "Kenya Airways Asante Rewards",
+            "summary": "付费状态匹配，使45+非天合联盟航司、20+酒店计划及高端信用卡持有人获得Kenya Airways Asante Rewards精英会籍12个月",
+            "target_status": "Silver, Gold or Platinum",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "3dffac02ccd4e5c761f6cf29b540e4e4db51e12565de2b396035adb4da3d203d": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:12.436379+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:km-malta-km-rewards-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "材料明确描述了一个付费精英状态匹配活动，允许符合条件的会员获得 Kenya Airways Asante Rewards 的银、金、白金精英会籍，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "KM Malta Airlines KM Rewards",
+            "summary": "Paid status match opportunity allowing elite members of 45+ airline programs, 20+ hotel programs, and premium credit card holders to receive Kenya Airways Asante Rewards Silver, Gold or Platinum elite status for 12 months.",
+            "target_status": "Silver, Gold or Platinum",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "ac54174e4d1ac85a4d4d68bb03a6a90411223fae7131511ba0ce5c23cb6180b1": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:16.007287+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:malaysia-airlines-enrich-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "官方提供付费精英会籍匹配，面向特定航司精英会员，可获取Enrich银、金、白金会籍，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Malaysia Airlines Enrich",
+            "summary": "付费精英会籍匹配，面向Air India Maharaja Club和Garuda Indonesia GarudaMiles精英会员，可获得Enrich银/金/白金会籍12个月。",
+            "target_status": "Silver, Gold or Platinum",
+            "region_hint": "亚洲（印度、印度尼西亚为主）"
+          }
+        ]
+      }
+    },
+    "ce09b3a9265c156896aecff7bd767b7dd286a4680831001acbb2634d3cb86daf": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:19.804783+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:miles-and-more-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Miles & More 提供公开精英会籍匹配活动，针对英航、伊比利亚和ITA航空的精英会员，需支付99欧元（ITA免），匹配后有效期至2027年2月28日，附有官方申请链接。",
+        "event_hints": [
+          {
+            "program": "Miles & More",
+            "summary": "Elite Status Match for members of British Airways Club, Iberia Plus & ITA Airways Volare with a 99 EUR co-pay (free for ITA), valid until Feb 28, 2027.",
+            "target_status": "Elite Status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "e47dd5fc8b6831ed89bc6af0af6a008d7b1c75cc347bfdb02721e6002d0e19c9": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:23.615133+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:royal-air-maroc-safar-flyer-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "文档明确描述了Royal Air Maroc Safar Flyer精英会籍匹配活动，付费即可从指定航司或酒店会籍匹配至Safar Flyer精英身份，且提供官方申请链接，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "Royal Air Maroc",
+            "summary": "付费将其他航司或酒店精英会籍匹配至Safar Flyer精英身份，匹配后有效期至2026年12月31日。",
+            "target_status": "Safar Flyer Elite Status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "12178532237dcaadc7c5573c5708240d84c3037a5a69bfe6db8fabcbfb90cf24": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:27.804520+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:royal-jordanian-royal-club-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "官方公开的会籍匹配活动，持有指定航司或酒店精英会籍并支付费用即可获得Royal Jordanian精英会籍，有明确申请入口。",
+        "event_hints": [
+          {
+            "program": "Royal Jordanian",
+            "summary": "持有符合条件的欧洲/中东航司或全球酒店精英会籍，支付处理费可匹配获得Royal Jordanian Royal Club Elite会籍。",
+            "target_status": "Elite Status",
+            "region_hint": "Europe, Middle East, North America, Asia (listed countries: Austria, Bahrain, Belgium, Canada, Cyprus, Denmark, Egypt, France, Germany, Iraq, Italy, Jordan, Kuwait, Lebanon, Netherlands, Oman, Portugal, Saudi Arabia, Spain, Sweden, Switzerland, Syria, Turkey, UAE, UK)"
+          }
+        ]
+      }
+    },
+    "3af1d41face366615fe673886b63ae088e314972085c70c5ae457556684d9899": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:31.254202+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:tap-miles-and-go-paid-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "文档明确描述了TAP Air Portugal Miles&Go精英会籍匹配活动，为符合条件的欧洲非星空联盟航司精英会员提供付费获得银卡或金卡会籍的机会，属于公开的会籍机会。",
+        "event_hints": [
+          {
+            "program": "TAP Air Portugal",
+            "summary": "付费会籍匹配活动，允许非星空联盟航司精英会员获得TAP Air Portugal Miles&Go银卡或金卡会籍12个月。",
+            "target_status": "Silver or Gold",
+            "region_hint": "欧洲特定国家"
+          }
+        ]
+      }
+    },
+    "d781404cdbf2e8670d3111bbf048ce6630b1eeddc0ddec0fd76f808a44004953": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:34.854451+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:united-mileageplus-status-match-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "官方活动页面明确提供精英会籍匹配和快速通道，面向其他航司高等级会员，注册截止日期明确，属于公开群体会籍机会。",
+        "event_hints": [
+          {
+            "program": "United MileagePlus",
+            "summary": "Elite Status Match and fast track to full elite status for top-tier flyers of other airlines, register by Jun 30, 2026.",
+            "target_status": "comparable elite status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "df1dca09b8dc5788c6899d28319c17069659e21e4700af0d4296856b670d13e5": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:38.404669+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:virgin-atlantic-flying-club-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 1.0,
+        "reason": "正文明确提供官方会籍匹配活动，Virgin Atlantic Flying Club 接受来自11个项目的精英会籍匹配，并附有申请链接，属于公开群体机会。",
+        "event_hints": [
+          {
+            "program": "Virgin Atlantic Flying Club",
+            "summary": "Flying Club Elite Status Match – Virgin Atlantic 匹配来自全球11个忠诚度计划的精英会籍。",
+            "target_status": "Elite status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "bce17f9d21bc97c7018e9417dfe659cdfd8dc52a4297bd76118c982ff0aba427": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:41.404364+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-rewards-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Best Western Rewards 提供明确的精英等级状态匹配活动，官方页面显示可匹配其他酒店计划状态，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Best Western Rewards",
+            "summary": "Elite Level Status Match: 匹配其他酒店奖励计划状态，无附加条件。",
+            "target_status": "Elite Level Status",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "ae9344228fc14e1673d527e5e9f93b9cdbced094796bf86245dc7568182ea74a": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:44.631220+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-aarp-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "材料明确提供AARP会员加入Best Western Rewards for AARP可自动获得Gold Elite会籍的机会，并附有注册链接，属于公开直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Best Western Rewards",
+            "summary": "AARP会员加入Best Western Rewards for AARP可自动获得Gold Elite会籍",
+            "target_status": "Gold Elite",
+            "region_hint": ""
+          }
+        ]
+      }
+    },
+    "e602e8c6c6f4ca01148d6b8cf111702f0ef3b497a849f66cc6cf7f5e85fc7a13": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:20:51.123269+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-aarp-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是AARP会员自动获得Gold Elite会籍，通过加入Best Western Rewards for AARP自动获得；候选事件是通用status match，通过匹配其他酒店计划状态获得，两者机制、适用对象完全不同，属于不同活动。",
+        "candidate_event_id": null
+      }
+    },
+    "f2a3b30a7c5c5a57e725cd24073256f7660085d1a6f75b8fb9365428767c2af8": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:20:53.704205+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-us-military-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "权威项目Best Western Rewards为美国军人提供自动获得Gold Elite会籍的公开注册机会，有明确链接和详情。",
+        "event_hints": [
+          {
+            "program": "Best Western Rewards",
+            "summary": "美国军人加入Best Western Service Rewards计划可自动获得Gold Elite会籍。",
+            "target_status": "Gold Elite",
+            "region_hint": "US"
+          }
+        ]
+      }
+    },
+    "b5ca01d33eb43c5b0e92e75fe41101c23e5e4919a20be21ca6b0639ffce8df4b": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:20:58.121818+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-us-military-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是面向美国军人的自动Gold Elite会籍（通过Service Rewards计划），候选1是面向AARP会员的自动Gold Elite会籍，属于不同目标群体和不同活动入口，规则和注册链接均不同，因此是不同活动。候选2是状态匹配，也明显不同。",
+        "candidate_event_id": null
+      }
+    },
+    "01e2cf55051a966e2ef7dc99bc1dd9eb397ef53e33cfbec6deec656e3a04f99e": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:01.056937+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-canada-military-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 1.0,
+        "reason": "明确提供加拿大军人免费获得Best Western Rewards Gold Elite会籍的公开活动，并附有注册链接。",
+        "event_hints": [
+          {
+            "program": "Best Western Rewards",
+            "summary": "加拿大军人加入Best Western Service Rewards计划可自动获得Gold Elite会籍。",
+            "target_status": "Gold Elite",
+            "region_hint": "Canada"
+          }
+        ]
+      }
+    },
+    "36d8348079f38cc0ae1a79f9638126be22732f82e0eff6f82b258f7824f325ba": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:21:07.712456+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:best-western-canada-military-gold-direct-grant"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "SAME_EVENT",
+        "confidence": 0.95,
+        "reason": "加拿大军人加入Best Western Service Rewards自动获得Gold Elite，与美国军人加入同一计划获得Gold Elite属于同一活动，仅适用国家不同，获取机制相同，注册链接不同但可视为同一活动的不同入口。",
+        "candidate_event_id": "fc733e1d-12cc-4b6e-8c6e-3bfa40bf6dbe"
+      }
+    },
+    "db76ee27c9e125935f47badf8d2dba4f0cefd3ef03ffb9e3ef3c6e58adbeec50": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:11.703597+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:choice-privileges-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Choice Privileges 官方发布精英身份匹配活动，扩大范围并提供申请入口，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Choice Privileges",
+            "summary": "Choice Privileges 精英身份匹配活动，匹配其他酒店忠诚计划的精英会籍。",
+            "target_status": null,
+            "region_hint": "美国、加拿大、欧洲、澳大利亚、新西兰、加勒比、拉丁美洲、墨西哥"
+          }
+        ]
+      }
+    },
+    "8ab3e75eca256f39356e5599106e19cd621a89e0bb72e705bd90f8ecd4cfa71e": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:14.453985+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:choice-privileges-us-military-lifetime-gold"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Choice Privileges 提供 Lifetime Gold Elite Status 给现役美军、退伍军人和军属，属于直接授予精英会籍的公开机会。",
+        "event_hints": [
+          {
+            "program": "Choice Privileges",
+            "summary": "向现役美军、退伍军人和军属提供终身 Gold Elite 会籍及 2500 奖励积分",
+            "target_status": "Gold Elite",
+            "region_hint": "美国军事人员"
+          }
+        ]
+      }
+    },
+    "31fc549de481564db70998466ada1ead3502c3fe9f7a2367807d4ea0563d1eae": {
+      "output_model": "RelationshipResult",
+      "created_at": "2026-08-22T09:21:18.277370+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:choice-privileges-us-military-lifetime-gold"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "relationship": "DIFFERENT_EVENT",
+        "confidence": 0.95,
+        "reason": "新提示是专门针对现役美军、退伍军人和军属的终身 Gold Elite 会籍及奖励积分，而候选事件是通用的精英身份匹配活动（需匹配其他酒店会籍）。两者目标群体、获取机制和规则完全不同，尽管同属 Choice Privileges 项目，但属于独立的不同活动。",
+        "candidate_event_id": null
+      }
+    },
+    "95f458b3197b2aa21bdd2880cd7e4dea8d093695a422608dc6061ae64e6879a2": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:22.153855+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:hilton-honors-status-match-challenge-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "材料明确描述Hilton Honors精英身份匹配和挑战（Status Match & Fast Track），属于公开的直接会籍机会，符合STATUS_OPPORTUNITY定义。",
+        "event_hints": [
+          {
+            "program": "Hilton Honors",
+            "summary": "Hilton Honors精英身份匹配与挑战：持有其他酒店精英身份可申请90天精英会籍，完成6晚住宿保留金卡、12晚保留钻石，有效期至2028年3月31日。",
+            "target_status": "Gold or Diamond",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "2cce7287992c70438ddc01c21d72bfd514d744d653cca0938a521ca6ce4a2ab7": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:25.019435+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:sonesta-travel-pass-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "正文明确描述 Elite Status Match to preferred and elite status levels，属于直接会籍机会活动，且提供了详情链接。",
+        "event_hints": [
+          {
+            "program": "Sonesta Hotels Travel Pass",
+            "summary": "Elite Status Match to preferred and elite status levels in other hotel programs.",
+            "target_status": "preferred and elite status levels",
+            "region_hint": null
+          }
+        ]
+      }
+    },
+    "36b63cca2d9547f7446f7d9c3d9f0d29c7cc0d37c110e36c67c719d25c5a8294": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:28.333212+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:worldhotels-rewards-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "提供公开的精英等级状态匹配活动，直接授予会籍，属于公开会籍机会。",
+        "event_hints": [
+          {
+            "program": "WorldHotels Rewards",
+            "summary": "WorldHotels Rewards 精英等级状态匹配，匹配其他酒店奖励计划的状态。",
+            "target_status": null,
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "4cc624c405c965956ea5383e3b4465b2431d57a9dfc311a5128c904fc9d97351": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:31.878322+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:wyndham-rewards-status-match-2026"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 1.0,
+        "reason": "官方公开的精英会籍匹配活动，可直接获得Wyndham Rewards对应精英等级。",
+        "event_hints": [
+          {
+            "program": "Wyndham Rewards",
+            "summary": "Wyndham Rewards精英会籍匹配：用其他酒店会籍匹配获得对应的Wyndham Rewards精英等级。",
+            "target_status": null,
+            "region_hint": null
+          }
+        ]
+      }
+    },
+    "360488a597a7a20607aa5ee33c617837dc330bca42de94714ec5cc3a7e596bdd": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:35.636417+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:avis-preferred-europe-uk-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.98,
+        "reason": "文档明确提供Avis Preferred的精英会籍匹配活动，有官方申请入口，属于直接获得精英等级的公开会籍机会。",
+        "event_hints": [
+          {
+            "program": "Avis Preferred",
+            "summary": "Elite Status Match: 匹配现有租车公司忠诚度最高等级至Avis Preferred。",
+            "target_status": "Elite status",
+            "region_hint": "Europe & UK"
+          }
+        ]
+      }
+    },
+    "ec5cc5ef7db89ce141e24000b8f1f90db84cf366ce255fe219e3272a70f4789d": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:39.154018+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:enterprise-plus-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Enterprise Plus 提供基于 Avis 或 Hertz 精英会籍的官方状态匹配，有明确的官方申请页面和等级对应表，属于公开直接的会籍机会。",
+        "event_hints": [
+          {
+            "program": "Enterprise Plus",
+            "summary": "根据 Avis 或 Hertz 的精英会籍匹配 Enterprise Plus 对应等级（Silver/Gold/Platinum），通过官方申请页面提交。",
+            "target_status": "Silver, Gold, Platinum",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    },
+    "ada0f89a2a7d01a68837e1df7528378c66e0a043f967518898e70c093088ed5b": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:43.020171+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:hertz-gold-plus-rewards-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Hertz Gold Plus Rewards 提供公开的精英会籍匹配活动，匹配来自Avis、Enterprise或National的现有会籍，并明确列出映射表，属于直接会籍机会。",
+        "event_hints": [
+          {
+            "program": "Hertz Gold Plus Rewards",
+            "summary": "Hertz 提供精英会籍匹配，根据Avis、Enterprise或National的当前会籍等级匹配至Hertz Five Star或President's Circle。",
+            "target_status": "Five Star or President's Circle",
+            "region_hint": "Likely US"
+          }
+        ]
+      }
+    },
+    "9589c7aad9e3ed83a7a51ffb60d459d35bf9d4aa0117ef247b4fc7012bef966d": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:46.360591+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:national-emerald-club-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "National Emerald Club 公开提供 Status Match，直接匹配 Avis/Hertz 等级至 Emerald Club 对应等级，有官方申请入口。",
+        "event_hints": [
+          {
+            "program": "National Emerald Club",
+            "summary": "National Car Rental 的 Emerald Club 会籍匹配：匹配 Avis 或 Hertz 的现有等级至 Emerald Club 的对应等级。",
+            "target_status": "Equivalent level in Emerald Club",
+            "region_hint": "US"
+          }
+        ]
+      }
+    },
+    "0962ca038d5d156d87633c3b6bfdce10ae185f23630e51ac38dc555c9126d8fc": {
+      "output_model": "RelevanceResult",
+      "created_at": "2026-08-22T09:21:49.480654+00:00",
+      "scope": {
+        "case_id": "phase1-ffb-status-match-catalog",
+        "document_key": "ffb_status_match_catalog:club-avolta-platinum-status-match"
+      },
+      "run_identity": {
+        "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+        "provider": {
+          "provider": "aliyun-model-studio",
+          "model": "deepseek-v4-flash",
+          "region": "cn-beijing",
+          "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+        },
+        "status_prompt_version": "status-document-classification-v9",
+        "status_schema_version": "3",
+        "relationship_prompt_version": "event-relationship-v5",
+        "relationship_schema_version": "1"
+      },
+      "result": {
+        "label": "STATUS_OPPORTUNITY",
+        "confidence": 0.95,
+        "reason": "Club Avolta offers a free status match to Platinum Elite level for members of various airline and hotel loyalty programs, which is a direct and publicly available elite status opportunity.",
+        "event_hints": [
+          {
+            "program": "Club Avolta",
+            "summary": "Free status match to Platinum Elite level for elite members of eligible airline and hotel loyalty programs.",
+            "target_status": "Platinum Elite",
+            "region_hint": "Global"
+          }
+        ]
+      }
+    }
+  }
+}

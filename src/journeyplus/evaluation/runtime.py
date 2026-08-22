@@ -43,7 +43,7 @@ from journeyplus.status_topic.pipeline import StatusOpportunityPipeline
 OutputModel = TypeVar("OutputModel", bound=BaseModel)
 ProgressCallback = Callable[[int, int, str, str, int], None]
 EVALUATION_CACHE_SCHEMA_VERSION = 1
-EVALUATION_RUN_SCHEMA_VERSION = 1
+EVALUATION_RUN_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,6 +65,7 @@ class BaselineRunResult:
     complete: bool
     model_calls: int
     cache_hits: int
+    cached_outputs: int
     analysis_failures: int
 
     def as_dict(self) -> dict[str, Any]:
@@ -94,6 +95,10 @@ class JsonCachingProvider:
         self.model_calls = 0
         self._scope: dict[str, str] | None = None
         self._cache = self._load()
+
+    @property
+    def cached_output_count(self) -> int:
+        return len(self._cache["entries"])
 
     def set_document_scope(self, case_id: str, document_key: str) -> None:
         self._scope = {
@@ -321,6 +326,7 @@ def run_gold_baseline(
             "total_documents": total_documents,
             "model_calls": caching_provider.model_calls,
             "cache_hits": caching_provider.cache_hits,
+            "cached_outputs": caching_provider.cached_output_count,
             "analysis_failures": [
                 {
                     "stage": item.stage,
@@ -354,6 +360,7 @@ def run_gold_baseline(
             complete=complete,
             model_calls=caching_provider.model_calls,
             cache_hits=caching_provider.cache_hits,
+            cached_outputs=caching_provider.cached_output_count,
             analysis_failures=len(failures),
         )
     finally:
@@ -442,14 +449,30 @@ def _ensure_document(
         )
     )
     if item is None:
+        metadata = {"case_id": case_id, "document_key": document.document_key}
+        title = document.document_key
+        source_prefix = document.document_key.partition(":")[0]
+        metadata["source_id"] = source_prefix
+        if source_prefix == "ffb_status_match_catalog":
+            program = next(
+                (
+                    line.strip().lstrip("#").strip()
+                    for line in document.normalized_body.splitlines()
+                    if line.strip()
+                ),
+                "",
+            )
+            if program:
+                metadata["program"] = program
+                title = program
         item = SourceItem(
             source_id=source_id,
             external_id=external_id,
             discovered_url=str(document.source_url),
             canonical_url=str(document.source_url),
-            title=document.document_key,
+            title=title,
             observed_at=datetime.now(UTC),
-            raw_metadata={"case_id": case_id, "document_key": document.document_key},
+            raw_metadata=metadata,
         )
         session.add(item)
         session.flush()

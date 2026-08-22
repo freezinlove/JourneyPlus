@@ -31,3 +31,35 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "job_runs",
     } <= tables
 
+
+def test_opportunity_type_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'migration.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    assert "opportunity_type" not in {
+        column["name"] for column in inspect(engine).get_columns("status_events")
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0001_status_opportunity_v1")
+    engine = create_engine(database_url)
+    opportunity_type = next(
+        column
+        for column in inspect(engine).get_columns("status_events")
+        if column["name"] == "opportunity_type"
+    )
+    assert opportunity_type["nullable"] is False
+    assert opportunity_type["default"] is None
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    assert "opportunity_type" not in {
+        column["name"] for column in inspect(engine).get_columns("status_events")
+    }
+    engine.dispose()

@@ -1,0 +1,20 @@
+{
+  "run_schema_version": 2,
+  "identity": {
+    "gold_sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+    "provider": {
+      "provider": "aliyun-model-studio",
+      "model": "deepseek-v4-flash",
+      "region": "cn-beijing",
+      "config_version": "cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1"
+    },
+    "status_prompt_version": "status-document-classification-v9",
+    "status_schema_version": "3",
+    "relationship_prompt_version": "event-relationship-v5",
+    "relationship_schema_version": "1"
+  },
+  "processed_documents": 65,
+  "total_documents": 65,
+  "complete": true,
+  "updated_at": "2026-08-22T09:47:39.181159+00:00"
+}

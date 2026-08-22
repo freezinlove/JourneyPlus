@@ -99,7 +99,6 @@ class FailureIsolationProvider:
                     "event_hints": [
                         {
                             "program": "Example Air",
-                            "opportunity_type": "STATUS_MATCH",
                             "summary": "Example Air status match",
                         }
                     ],

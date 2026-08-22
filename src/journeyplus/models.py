@@ -149,7 +149,6 @@ class StatusEvent(Base, TimestampMixin):
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     created_from_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     program: Mapped[str] = mapped_column(String(300), nullable=False)
-    opportunity_type: Mapped[str] = mapped_column(String(100), nullable=False)
     target_status: Mapped[str | None] = mapped_column(String(300))
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     search_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
@@ -236,4 +235,3 @@ class GoldCaseRecord(Base, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     document_text: Mapped[str] = mapped_column(Text, nullable=False)
     labels: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
-

@@ -1,0 +1,35 @@
+{
+  "freeze_schema_version": 1,
+  "dataset_path": "gold/status_opportunity_phase1_v4.json",
+  "schema_version": "2",
+  "dataset_version": 4,
+  "frozen_on": "2026-08-22",
+  "revision_of": {
+    "dataset_path": "gold/status_opportunity_phase1_v3.json",
+    "sha256": "9e6b1767cd63a6b92a9f242f030f32dedbcf262056cb625598339aaa3b70be69"
+  },
+  "sha256": "b0aa3a048785023853b10304d6929f936934215f176c7baa3d75f00c004b1ce5",
+  "case_versions": {
+    "phase1-selected-articles": 5,
+    "phase1-ffb-status-match-catalog": 3
+  },
+  "counts": {
+    "documents": 65,
+    "status_opportunity": 50,
+    "none": 15,
+    "uncertain": 0
+  },
+  "scope": {
+    "statusmatcher_included": false,
+    "relationships_included": false,
+    "facts_included": false,
+    "documents_refetched": false
+  },
+  "corrections": [
+    "Best Western Service Rewards美国与加拿大军人Gold直授入口使用同一活动键"
+  ],
+  "temporal_policy": {
+    "classification_ignores_current_validity": true,
+    "description": "标签只判断正文是否描述会籍获取机会；活动是否已截止不改变标签。截止时间提取、当前有效性筛选、过期状态和归档属于后续独立能力。"
+  }
+}

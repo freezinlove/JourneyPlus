@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import asdict, dataclass
-from itertools import combinations
+from itertools import combinations, permutations
 from typing import Any
 
 from journeyplus.contracts import DocumentLabel
@@ -106,7 +107,9 @@ def evaluate(
         for expected in labels
     }
     errors: list[dict[str, Any]] = []
-    event_occurrences: list[tuple[str, str, int, str, str]] = []
+    classification_rows: list[
+        tuple[str, str, list[str], list[str]]
+    ] = []
 
     for case in gold.cases:
         predicted = predicted_cases.get(case.case_id)
@@ -148,21 +151,14 @@ def evaluate(
                         "actual": actual_count,
                     }
                 )
-            for index, expected_event_key in enumerate(expected.event_keys):
-                predicted_event_key = (
-                    actual_event_keys[index]
-                    if index < len(actual_event_keys)
-                    else f"missing:{case.case_id}:{expected.document_key}:{index}"
+            classification_rows.append(
+                (
+                    case.case_id,
+                    expected.document_key,
+                    list(expected.event_keys),
+                    list(actual_event_keys),
                 )
-                event_occurrences.append(
-                    (
-                        case.case_id,
-                        expected.document_key,
-                        index,
-                        expected_event_key,
-                        predicted_event_key,
-                    )
-                )
+            )
 
         predicted_relationships = (
             {
@@ -211,6 +207,7 @@ def evaluate(
     per_label = {
         label_name: _label_metric(confusion, label_name) for label_name in labels
     }
+    event_occurrences = _align_event_occurrences(classification_rows)
     grouping, grouping_errors = _evaluate_event_grouping(event_occurrences)
     errors.extend(grouping_errors)
 
@@ -252,6 +249,149 @@ def _label_metric(
         else 0.0
     )
     return LabelMetric(precision, recall, f1, recall_denominator)
+
+
+def _align_event_occurrences(
+    rows: list[tuple[str, str, list[str], list[str]]],
+) -> list[tuple[str, str, int, str, str]]:
+    overlap: Counter[tuple[str, str]] = Counter()
+    for _case_id, _document_key, expected_keys, predicted_keys in rows:
+        for expected_key in set(expected_keys):
+            for predicted_key in set(predicted_keys):
+                overlap[(expected_key, predicted_key)] += 1
+
+    occurrences: list[tuple[str, str, int, str, str]] = []
+    for case_id, document_key, expected_keys, predicted_keys in rows:
+        alignment = _best_document_alignment(
+            expected_keys, predicted_keys, overlap
+        )
+        for index, expected_key in enumerate(expected_keys):
+            predicted_key = alignment.get(
+                index,
+                f"missing:{case_id}:{document_key}:{index}",
+            )
+            occurrences.append(
+                (
+                    case_id,
+                    document_key,
+                    index,
+                    expected_key,
+                    predicted_key,
+                )
+            )
+    return occurrences
+
+
+def _best_document_alignment(
+    expected_keys: list[str],
+    predicted_keys: list[str],
+    overlap: Counter[tuple[str, str]],
+) -> dict[int, str]:
+    if not expected_keys or not predicted_keys:
+        return {}
+    if max(len(expected_keys), len(predicted_keys)) > 8:
+        return _greedy_document_alignment(
+            expected_keys, predicted_keys, overlap
+        )
+
+    best: dict[int, str] = {}
+    best_score: tuple[int, int, int, tuple[int, ...]] | None = None
+    if len(expected_keys) <= len(predicted_keys):
+        for predicted_indexes in permutations(
+            range(len(predicted_keys)), len(expected_keys)
+        ):
+            candidate = {
+                expected_index: predicted_keys[predicted_index]
+                for expected_index, predicted_index in enumerate(predicted_indexes)
+            }
+            score = _alignment_score(
+                candidate,
+                expected_keys,
+                predicted_keys,
+                overlap,
+            )
+            if best_score is None or score > best_score:
+                best, best_score = candidate, score
+    else:
+        for expected_indexes in permutations(
+            range(len(expected_keys)), len(predicted_keys)
+        ):
+            candidate = {
+                expected_index: predicted_keys[predicted_index]
+                for predicted_index, expected_index in enumerate(expected_indexes)
+            }
+            score = _alignment_score(
+                candidate,
+                expected_keys,
+                predicted_keys,
+                overlap,
+            )
+            if best_score is None or score > best_score:
+                best, best_score = candidate, score
+    return best
+
+
+def _greedy_document_alignment(
+    expected_keys: list[str],
+    predicted_keys: list[str],
+    overlap: Counter[tuple[str, str]],
+) -> dict[int, str]:
+    edges = sorted(
+        (
+            (
+                overlap[(expected_key, predicted_key)],
+                int(expected_index == predicted_index),
+                -abs(expected_index - predicted_index),
+                -expected_index,
+                -predicted_index,
+            ),
+            expected_index,
+            predicted_index,
+        )
+        for expected_index, expected_key in enumerate(expected_keys)
+        for predicted_index, predicted_key in enumerate(predicted_keys)
+    )
+    alignment: dict[int, str] = {}
+    used_predictions: set[int] = set()
+    for _score, expected_index, predicted_index in reversed(edges):
+        if expected_index in alignment or predicted_index in used_predictions:
+            continue
+        alignment[expected_index] = predicted_keys[predicted_index]
+        used_predictions.add(predicted_index)
+        if len(alignment) == min(len(expected_keys), len(predicted_keys)):
+            break
+    return alignment
+
+
+def _alignment_score(
+    alignment: dict[int, str],
+    expected_keys: list[str],
+    predicted_keys: list[str],
+    overlap: Counter[tuple[str, str]],
+) -> tuple[int, int, int, tuple[int, ...]]:
+    predicted_indexes = {
+        predicted_key: index
+        for index, predicted_key in enumerate(predicted_keys)
+    }
+    ordered_indexes = tuple(
+        predicted_indexes[alignment[index]]
+        for index in sorted(alignment)
+    )
+    return (
+        sum(
+            overlap[(expected_keys[index], predicted_key)]
+            for index, predicted_key in alignment.items()
+        ),
+        sum(
+            index == predicted_indexes[predicted_key]
+            for index, predicted_key in alignment.items()
+        ),
+        -sum(
+            abs(index - predicted_indexes[predicted_key])
+            for index, predicted_key in alignment.items()
+        ),
+        tuple(-index for index in ordered_indexes),
+    )
 
 
 def _evaluate_event_grouping(

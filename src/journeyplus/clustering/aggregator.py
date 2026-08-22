@@ -77,14 +77,12 @@ class EventAggregator:
                 event = StatusEvent(
                     created_from_key=created_from_key,
                     program=hint.program,
-                    opportunity_type=hint.opportunity_type,
                     target_status=hint.target_status,
                     summary=hint.summary,
                     search_text=" ".join(
                         value
                         for value in (
                             hint.program,
-                            hint.opportunity_type,
                             hint.target_status,
                             hint.summary,
                             hint.region_hint,
@@ -96,6 +94,8 @@ class EventAggregator:
                 self._session.add(event)
                 self._session.flush()
                 created = True
+        if not created:
+            event.search_text = _extend_search_text(event.search_text, hint)
 
         evidence = EventEvidence(
             event_id=event.id,
@@ -119,3 +119,25 @@ class EventAggregator:
             relationship_run.event_id = event.id
         self._session.flush()
         return AggregationResult(event, created, needs_review)
+
+
+def _extend_search_text(current: str, hint: EventHint) -> str:
+    values = [
+        value
+        for value in (
+            current,
+            hint.program,
+            hint.target_status,
+            hint.summary,
+            hint.region_hint,
+        )
+        if value
+    ]
+    unique: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = value.casefold().strip()
+        if normalized not in seen:
+            seen.add(normalized)
+            unique.append(value.strip())
+    return " ".join(unique)

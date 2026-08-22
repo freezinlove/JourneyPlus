@@ -150,6 +150,45 @@ def test_event_grouping_reports_splits_and_merges() -> None:
     }
 
 
+def test_event_grouping_aligns_multi_event_documents_by_cross_document_overlap() -> None:
+    gold_data = _dataset()
+    gold_case = gold_data["cases"][0]
+    gold_case["classifications"][0]["event_keys"] = ["accor", "kenya"]
+    gold_case["documents"].append(
+        {
+            "document_key": "doc-2",
+            "source_url": "https://example.com/2",
+            "normalized_body": "A second report about Kenya.",
+        }
+    )
+    gold_case["classifications"].append(
+        {
+            "document_key": "doc-2",
+            "label": "STATUS_OPPORTUNITY",
+            "event_keys": ["kenya"],
+        }
+    )
+    candidate_data = json.loads(json.dumps(gold_data))
+    candidate_classifications = candidate_data["cases"][0]["classifications"]
+    candidate_classifications[0]["event_keys"] = [
+        "predicted-accor",
+        "predicted-voucher",
+        "predicted-kenya",
+    ]
+    candidate_classifications[1]["event_keys"] = ["predicted-kenya"]
+
+    report = evaluate(
+        GoldDataset.model_validate(gold_data),
+        GoldDataset.model_validate(candidate_data),
+        label="candidate",
+    ).as_dict()
+
+    assert report["event_memberships"]["score"] == 0.5
+    assert report["event_grouping"]["true_positive"] == 1
+    assert report["event_grouping"]["false_negative"] == 0
+    assert report["event_grouping"]["false_positive"] == 0
+
+
 def test_gold_schema_rejects_legacy_version() -> None:
     legacy = _dataset()
     legacy["schema_version"] = "1"

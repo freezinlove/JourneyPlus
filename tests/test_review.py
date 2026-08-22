@@ -24,7 +24,6 @@ def _event(db_session, *, documents: int = 1):
     event = StatusEvent(
         created_from_key=f"review-{uuid4()}",
         program="Example Air",
-        opportunity_type="STATUS_MATCH",
         target_status="Gold",
         summary="Match to Gold",
         search_text="Example Air match Gold",
@@ -166,4 +165,3 @@ def test_internal_review_api_exposes_queue_chain_and_actions(session_factory) ->
     )
     assert rejected.status_code == 200
     assert rejected.json()["status"] == "REJECTED"
-

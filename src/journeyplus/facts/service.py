@@ -261,7 +261,6 @@ class FactConsolidator:
         return {
             "id": str(event.id),
             "program": event.program,
-            "opportunity_type": event.opportunity_type,
             "target_status": event.target_status,
             "summary": event.summary,
         }

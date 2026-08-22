@@ -1,0 +1,36 @@
+{
+  "freeze_schema_version": 1,
+  "dataset_path": "gold/status_opportunity_phase1_v3.json",
+  "schema_version": "2",
+  "dataset_version": 3,
+  "frozen_on": "2026-08-21",
+  "revision_of": {
+    "dataset_path": "gold/status_opportunity_phase1_v2.json",
+    "sha256": "6858c5a59d76262a2b356a3f8eb75b5e694eb67547c96fe6642ec0dd1a7599c2"
+  },
+  "sha256": "9e6b1767cd63a6b92a9f242f030f32dedbcf262056cb625598339aaa3b70be69",
+  "case_versions": {
+    "phase1-selected-articles": 5,
+    "phase1-ffb-status-match-catalog": 2
+  },
+  "counts": {
+    "documents": 65,
+    "status_opportunity": 50,
+    "none": 15,
+    "uncertain": 0
+  },
+  "scope": {
+    "statusmatcher_included": false,
+    "relationships_included": false,
+    "facts_included": false,
+    "documents_refetched": false
+  },
+  "corrections": [
+    "iPrefer混合攻略改为NONE",
+    "雅高混合文章标注等级房晚与Kenya Airways两项活动并排除五折房券"
+  ],
+  "temporal_policy": {
+    "classification_ignores_current_validity": true,
+    "description": "标签只判断正文是否描述会籍获取机会；活动是否已截止不改变标签。截止时间提取、当前有效性筛选、过期状态和归档属于后续独立能力。"
+  }
+}

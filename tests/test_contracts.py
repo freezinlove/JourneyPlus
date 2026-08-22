@@ -10,7 +10,6 @@ from journeyplus.contracts import (
     EventHint,
     EvidenceRef,
     FactField,
-    OpportunityType,
     RelevanceResult,
 )
 
@@ -27,7 +26,6 @@ def test_status_opportunity_classification_requires_event_hint() -> None:
 def test_none_classification_rejects_event_hints() -> None:
     hint = EventHint(
         program="Example",
-        opportunity_type=OpportunityType.STATUS_MATCH,
         summary="Example status match",
     )
     with pytest.raises(ValidationError):
@@ -37,6 +35,27 @@ def test_none_classification_rejects_event_hints() -> None:
             reason="not relevant",
             event_hints=[hint],
         )
+
+
+def test_removed_opportunity_type_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        EventHint.model_validate(
+            {
+                "program": "Example",
+                "summary": "Example status match",
+                "opportunity_type": "STATUS_MATCH",
+            }
+        )
+
+
+def test_event_hint_accepts_a_long_but_bounded_region_summary() -> None:
+    hint = EventHint(
+        program="Royal Jordanian Royal Club",
+        summary="Paid status match",
+        region_hint="x" * 500,
+    )
+
+    assert len(hint.region_hint or "") == 500
 
 
 def test_legacy_yes_no_labels_are_rejected() -> None:

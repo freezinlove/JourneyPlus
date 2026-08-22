@@ -6,7 +6,7 @@
 
 - 建立第一期冻结金标的真实模型运行、缓存续跑、分类与事件分组报告；本期金标不评测活动时效，且金标基线和必要调整完成前不得开始时效实现。
 - 将正式来源从八组收缩为七组，**BREAKING**：移除 StatusMatcher 注册、CLI 入口、生产适配能力和相关文档；保留 FFB 两组、AwardWallet、StatusMatch/GetStatus Gmail、LoyaltyLobby、Frequent Miler 和很旅行。
-- 使用现有 `program / opportunity_type / target_status / summary` 与完整材料判断活动关系，只新增可空的申请开始和截止窗口；不新增合作方、地区、入口指纹等事件身份字段。
+- 移除没有独立业务价值的 `opportunity_type`；使用最小的 `program / target_status / summary`、来源权威项目名与完整材料判断活动关系，后续只新增可空的申请开始和截止窗口，不新增合作方、地区、入口指纹等事件身份字段。
 - 明确同活动跨文章聚合、延期作为更新、同品牌不同活动与不同时期新活动拆分，以及不确定关系保守分开并进入复核的行为。
 - 在金标阶段完成后增加与审核状态独立的 `UPCOMING / ACTIVE / EXPIRED / UNKNOWN` 生命周期和可恢复的软归档。
 - 为七个来源统一配置一小时采集周期，增加单轮调度、数据库幂等/互斥、失败隔离、处理积压、生命周期推进和运行状态报告。
@@ -30,6 +30,6 @@
 
 - 影响金标评测 CLI、AI 运行缓存和评测报告。
 - 影响来源注册表、来源工厂、CLI、StatusMatcher 适配代码及其测试和说明文档。
-- 影响 `StatusEvent`、`FactSet`、事件候选召回、关系判断、聚合、迁移和复核数据展示。
+- 影响 `EventHint`、`StatusEvent`、`FactSet`、事件候选召回、关系判断、聚合、迁移和复核数据展示。
 - 新增每小时单轮编排 CLI、运行互斥/幂等、来源运行状态和生命周期推进。
 - PostgreSQL 仍是自动运行目标；模型、现有正文、证据、事实和简报历史必须保留并可重放。

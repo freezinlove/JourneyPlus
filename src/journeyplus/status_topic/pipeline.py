@@ -38,7 +38,7 @@ class StatusOpportunityPipeline:
             if existing is not None:
                 events.append(existing)
                 continue
-            candidates = self._retriever.retrieve(hint)
+            candidates = self._retriever.retrieve(hint, document=document)
             relationship = self._relationship.analyze(
                 document=document,
                 hint=hint,

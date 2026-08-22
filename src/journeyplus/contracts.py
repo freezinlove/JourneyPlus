@@ -29,17 +29,6 @@ class RelationshipType(StrEnum):
     UNCERTAIN = "UNCERTAIN"
 
 
-class OpportunityType(StrEnum):
-    STATUS_MATCH = "STATUS_MATCH"
-    STATUS_CHALLENGE = "STATUS_CHALLENGE"
-    FAST_TRACK = "FAST_TRACK"
-    STATUS_RECIPROCITY = "STATUS_RECIPROCITY"
-    PAID_STATUS = "PAID_STATUS"
-    DIRECT_STATUS_GRANT = "DIRECT_STATUS_GRANT"
-    STATUS_EXTENSION = "STATUS_EXTENSION"
-    OTHER_DIRECT_STATUS = "OTHER_DIRECT_STATUS"
-
-
 class RunStatus(StrEnum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
@@ -96,10 +85,9 @@ class NormalizedDocument(StrictModel):
 
 class EventHint(StrictModel):
     program: str = Field(min_length=1, max_length=200)
-    opportunity_type: OpportunityType
     summary: str = Field(min_length=1, max_length=500)
     target_status: str | None = Field(default=None, max_length=200)
-    region_hint: str | None = Field(default=None, max_length=200)
+    region_hint: str | None = Field(default=None, max_length=500)
 
 
 class RelevanceResult(StrictModel):
