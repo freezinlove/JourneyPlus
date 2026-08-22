@@ -34,3 +34,7 @@ v4 仍为50份 `STATUS_OPPORTUNITY`、15份 `NONE`、0份 `UNCERTAIN`；人工�
 - 文档内活动数量 65/65；事件分组 TP 19、FP 0、FN 0、TN 1412，Precision、Recall、F1 均为 100%；
 - Flying Blue 四份材料使用同一预测事件；Malaysia Airlines 中英文材料使用同一预测事件且 Garuda 保持独立；Best Western 美国/加拿大入口合并；KM 与 Kenya 保持分离；雅高混合文章正确输出等级房晚与 Kenya 两项；
 - 同目录立即重跑没有新增模型调用、事件或错误，验证数据库级重跑幂等。目录中的最终 `report.json` 记录该次重跑，因此 `model_calls=0`，同时以 `cached_outputs=85` 保留首次新鲜运行的结构化输出规模。运行报告明确 `temporal_metrics.included=false`，本轮没有评测实效性。
+
+## 阶段门确认
+
+2026-08-22，用户确认 v4 为第一期最终金标，接受当前分类、文档内活动数量和跨材料事件聚合边界，并批准进入实效性阶段。第一期报告不包含实效性指标；后续时间字段和生命周期实现不得回写或修改 v1–v4 冻结金标。
