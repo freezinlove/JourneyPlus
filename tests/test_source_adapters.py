@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 import base64
+import zlib
 from pathlib import Path
+from urllib.parse import urlencode
 
 import pytest
 
 from journeyplus.sources.base import FetchResponse
-from journeyplus.sources.catalog import StaticCatalogAdapter, parse_catalog_records
 from journeyplus.sources.factory import build_adapter
 from journeyplus.sources.gmail import (
     GMAIL_READONLY_SCOPE,
     QUERY,
+    RECIPIENT_ALIAS,
     GmailStatusServicesAdapter,
 )
 from journeyplus.sources.registry import get_source_definition
@@ -72,76 +74,6 @@ def test_each_registered_feed_uses_its_fixed_body_strategy(
         assert "omhide" not in item.canonical_url
 
 
-def test_catalog_top_level_fingerprint_is_stable_but_content_change_is_visible() -> None:
-    url = "https://www.frequentflyerbonuses.com/statusmatchoffers.html"
-    html = (FIXTURES / "ffb_catalog.html").read_text()
-    adapter = StaticCatalogAdapter(catalog_url=url, fetcher=FakeFetcher({url: html}))
-    first = adapter.discover()
-    changed_html = html.replace("through December", "through January")
-    changed_adapter = StaticCatalogAdapter(
-        catalog_url=url, fetcher=FakeFetcher({url: changed_html})
-    )
-    second = changed_adapter.discover()
-
-    assert len(first) == 2
-    assert first[0].title == "Example Air"
-    assert first[0].raw_metadata["section"] == "airline"
-    assert first[1].raw_metadata["section"] == "hotel"
-    assert first[0].external_id == second[0].external_id
-    assert first[0].discovery_fingerprint != second[0].discovery_fingerprint
-    assert "One match per account" in adapter.fetch(first[0]).body
-    assert "Current tier" in adapter.fetch(first[0]).body
-    assert adapter.fetch(first[0]).content_type == "text/markdown"
-    assert "[Apply](https://example-air.test/match?utm_source=ffb)" in adapter.fetch(
-        first[0]
-    ).body
-
-
-def test_catalog_keeps_distinct_action_links_and_discards_known_noise() -> None:
-    html = """
-        <table data-section="hotel"><tbody>
-          <tr><th scope="row">Best Western Rewards</th><td>
-            Join <a href="/aarp">AARP</a> and
-            <a href="https://bestwestern.test/register">register with Best Western</a>.
-          </td></tr>
-          <tr><th scope="row">Vietnam Airlines</th><td>
-            Use the <a href="https://vietnam.test/match">paid match</a>.
-            <a href="https://vietnam.test/match">Full details</a>
-          </td></tr>
-          <tr><th scope="row">Choice Privileges</th><td>
-            <a href="https://choice.test/match">Match details</a>
-            <a href="https://wrong.test/marriott"><br></a>
-          </td></tr>
-          <tr><th scope="row">Enterprise Plus</th><td>
-            <a href="https://enterprise.test/match">Full details</a>
-            <p><a href="https://enterprise.test/book">Book all your Enterprise rentals here.</a></p>
-          </td></tr>
-        </tbody></table>
-    """
-    records = parse_catalog_records(html, "https://catalog.test/status")
-
-    assert records[0].action_urls == (
-        "https://catalog.test/aarp",
-        "https://bestwestern.test/register",
-    )
-    assert "[AARP](https://catalog.test/aarp)" in records[0].text
-    assert "[register with Best Western](https://bestwestern.test/register)" in records[
-        0
-    ].text
-
-    assert records[1].action_urls == ("https://vietnam.test/match",)
-    assert records[1].text.count("https://vietnam.test/match") == 1
-    assert "Full details" in records[1].text
-
-    assert records[2].action_urls == ("https://choice.test/match",)
-    assert "wrong.test" not in records[2].text
-    assert records[2].discarded_urls == ("https://wrong.test/marriott",)
-
-    assert records[3].action_urls == ("https://enterprise.test/match",)
-    assert "enterprise.test/book" not in records[3].text
-    assert "Book all your Enterprise rentals" not in records[3].text
-
-
 class FakeGmailClient:
     def __init__(self) -> None:
         self.list_args: tuple[str, str] | None = None
@@ -165,33 +97,136 @@ class FakeGmailClient:
         return self.messages[message_id]
 
 
-def _gmail_message(message_id: str, recipient: str, sender: str):
-    encoded = base64.urlsafe_b64encode(b"A direct status match is open.").decode().rstrip("=")
+def _gmail_message(
+    message_id: str,
+    recipient: str,
+    sender: str,
+    *,
+    include_project_link: bool = True,
+):
+    final = (
+        "https://www.statusmatch.com/email/click.php?"
+        "uid=private-user&link=https%3A%2F%2Fclubavolta.statusmatch.com%2F"
+    )
+    token_payload = urlencode({"l": final}).encode()
+    token = base64.urlsafe_b64encode(zlib.compress(token_payload)).decode().rstrip("=")
+    tracking = f"https://email.mail.statusmatch.com/c/{token}"
+    plain = base64.urlsafe_b64encode(b"A direct status match is open.").decode().rstrip("=")
+    project_links = (
+        f'<a href="{tracking}"><img alt="Get Started Button"></a>'
+        '<a href="https://clubavolta.statusmatch.com/?private=drop">Club Avolta</a>'
+        if include_project_link
+        else ""
+    )
+    html = base64.urlsafe_b64encode(
+        (
+            "<html><body>"
+            f"{project_links}"
+            '<a href="https://example.com/unsubscribe">Unsubscribe</a>'
+            "</body></html>"
+        ).encode()
+    ).decode().rstrip("=")
     return {
         "id": message_id,
         "threadId": f"thread-{message_id}",
         "labelIds": ["Label_123"],
         "snippet": "status match",
         "payload": {
-            "mimeType": "text/plain",
+            "mimeType": "multipart/alternative",
             "headers": [
                 {"name": "To", "value": recipient},
                 {"name": "From", "value": f"{sender} <news@example.net>"},
                 {"name": "Subject", "value": "New match"},
                 {"name": "Message-ID", "value": f"<{message_id}@example.net>"},
             ],
-            "body": {"data": encoded},
+            "body": {},
+            "parts": [
+                {
+                    "mimeType": "text/plain",
+                    "body": {"data": plain},
+                },
+                {
+                    "mimeType": "text/html",
+                    "body": {"data": html},
+                },
+            ],
         },
     }
 
 
 def test_gmail_adapter_enforces_label_and_alias_but_no_sender_allowlist() -> None:
     client = FakeGmailClient()
-    adapter = GmailStatusServicesAdapter(client)
+    fetcher = FakeFetcher(
+        {
+            "https://clubavolta.statusmatch.com/": "<html><body>Activity overview</body></html>",
+            "https://clubavolta.statusmatch.com/faq": "<html><body>Detailed eligibility</body></html>",
+        }
+    )
+    adapter = GmailStatusServicesAdapter(client, project_fetcher=fetcher)
     items = adapter.discover()
 
     assert GMAIL_READONLY_SCOPE.endswith("gmail.readonly")
     assert client.list_args == ("Label_123", QUERY)
-    assert [item.external_id for item in items] == ["allowed"]
+    assert [item.external_id for item in items] == [
+        "allowed",
+        "statusmatch-page:clubavolta.statusmatch.com:activity",
+        "statusmatch-page:clubavolta.statusmatch.com:faq",
+    ]
     assert items[0].raw_metadata["origin_provider"] == "STATUSMATCH"
-    assert "direct status match" in adapter.fetch(items[0]).body
+    assert items[0].raw_metadata["document_role"] == "mail_discovery"
+    assert "Get Started Button" in adapter.fetch(items[0]).body
+    assert "Activity overview" in adapter.fetch(items[1]).body
+    assert "Detailed eligibility" in adapter.fetch(items[2]).body
+    assert fetcher.calls == [
+        "https://clubavolta.statusmatch.com/",
+        "https://clubavolta.statusmatch.com/faq",
+    ]
+
+
+def test_gmail_message_without_project_link_remains_discovery_only() -> None:
+    client = FakeGmailClient()
+    client.messages = {
+        "allowed": _gmail_message(
+            "allowed",
+            "kirikoomiku+statusmatch@gmail.com",
+            "StatusMatch",
+            include_project_link=False,
+        )
+    }
+    adapter = GmailStatusServicesAdapter(client, project_fetcher=FakeFetcher({}))
+
+    items = adapter.discover()
+
+    assert len(items) == 1
+    assert items[0].raw_metadata["document_role"] == "mail_discovery"
+    assert items[0].raw_metadata["project_statusmatch_hosts"] == []
+
+
+def test_gmail_two_messages_deduplicate_project_pages_by_subdomain() -> None:
+    client = FakeGmailClient()
+    client.messages = {
+        "first": _gmail_message(
+            "first", RECIPIENT_ALIAS, "StatusMatch"
+        ),
+        "second": _gmail_message(
+            "second", RECIPIENT_ALIAS, "StatusMatch"
+        ),
+    }
+    adapter = GmailStatusServicesAdapter(
+        client,
+        project_fetcher=FakeFetcher(
+            {
+                "https://clubavolta.statusmatch.com/": "<html>Activity</html>",
+                "https://clubavolta.statusmatch.com/faq": "<html>FAQ</html>",
+            }
+        ),
+    )
+
+    items = adapter.discover()
+
+    assert [item.external_id for item in items] == [
+        "first",
+        "second",
+        "statusmatch-page:clubavolta.statusmatch.com:activity",
+        "statusmatch-page:clubavolta.statusmatch.com:faq",
+    ]

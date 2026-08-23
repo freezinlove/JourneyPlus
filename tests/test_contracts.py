@@ -14,6 +14,7 @@ from journeyplus.contracts import (
     FactSet,
     RelationshipResult,
     RelevanceResult,
+    StatusMapping,
 )
 
 
@@ -130,9 +131,10 @@ def test_fact_set_has_unknown_application_start_by_default() -> None:
         what_happened=FactField(),
     )
 
-    assert facts.schema_version == "3"
+    assert facts.schema_version == "4"
     assert facts.application_start.value is None
     assert facts.application_routes == []
+    assert facts.status_mappings == []
 
 
 def test_fact_set_treats_explicit_null_optional_fields_as_unknown() -> None:
@@ -151,12 +153,14 @@ def test_fact_set_treats_explicit_null_optional_fields_as_unknown() -> None:
             "action_link": None,
             "caveats": None,
             "application_routes": None,
+            "status_mappings": None,
         }
     )
 
     assert facts.eligibility.value is None
     assert facts.target_status.value is None
     assert facts.application_routes == []
+    assert facts.status_mappings == []
 
 
 def test_application_route_requires_evidence_and_scoped_detail() -> None:
@@ -182,4 +186,53 @@ def test_application_route_requires_evidence_and_scoped_detail() -> None:
             eligibility="members",
             evidence=[evidence],
             conflict=True,
+        )
+
+
+def test_status_mapping_requires_tiers_unless_explicitly_unavailable() -> None:
+    evidence = EvidenceRef(
+        document_version_id=uuid4(),
+        source_url="https://example.statusmatch.com/faq",
+        locator="airline tier mapping table",
+    )
+    mapping = StatusMapping(
+        source_program="Example Air",
+        source_tiers=["Gold", "Platinum"],
+        target_tier="Target Gold",
+        availability="AVAILABLE",
+        evidence=[evidence],
+    )
+    unavailable = StatusMapping(
+        source_program="Example Air",
+        source_tiers=[],
+        target_tier="Target Platinum",
+        availability="UNAVAILABLE",
+        evidence=[evidence],
+    )
+
+    assert mapping.source_tiers == ["Gold", "Platinum"]
+    assert unavailable.source_tiers == []
+    with pytest.raises(ValidationError):
+        StatusMapping(
+            source_program="Example Air",
+            source_tiers=[],
+            target_tier="Target Gold",
+            availability="AVAILABLE",
+            evidence=[evidence],
+        )
+    with pytest.raises(ValidationError):
+        StatusMapping(
+            source_program="Example Air",
+            source_tiers=["Gold"],
+            target_tier="Target Platinum",
+            availability="UNAVAILABLE",
+            evidence=[evidence],
+        )
+    with pytest.raises(ValidationError):
+        StatusMapping(
+            source_program="Example Air",
+            source_tiers=["Gold"],
+            target_tier="Target Gold",
+            availability="CONDITIONAL",
+            evidence=[evidence],
         )

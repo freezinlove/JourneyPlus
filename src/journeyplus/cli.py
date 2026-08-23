@@ -16,7 +16,7 @@ from journeyplus.automation.service import (
     run_daily_cycle,
 )
 from journeyplus.automation.initialization import (
-    run_catalog_initialization,
+    run_mail_detail_initialization,
     run_public_initialization_window,
 )
 from journeyplus.operations import process_pending_documents
@@ -49,7 +49,7 @@ def _iso_date(value: str) -> date:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("seed-sources", help="Import or refresh the seven V1 sources")
+    subparsers.add_parser("seed-sources", help="Import or refresh the six sources")
     subparsers.add_parser(
         "gmail-authorize",
         help="Authorize kirikoomiku@gmail.com with gmail.readonly",
@@ -89,9 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
         "automation-status",
         help="Report daily automation, source, backlog, failure, and review state",
     )
-    initialize_catalog = subparsers.add_parser(
-        "initialize-catalog",
-        help="Run the full FFB catalog initialization batch and wait for audit",
+    initialize_mail = subparsers.add_parser(
+        "initialize-mail-details",
+        help="Expand all current Gmail activity links and wait for source audit",
     )
     initialize_window = subparsers.add_parser(
         "initialize-window",
@@ -99,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     initialize_window.add_argument("--start", type=_iso_date, required=True)
     initialize_window.add_argument("--end", type=_iso_date, required=True)
-    for command in (initialize_catalog, initialize_window):
+    for command in (initialize_mail, initialize_window):
         command.add_argument("--source-item-limit", type=_positive_int)
         command.add_argument("--document-limit", type=_positive_int)
         command.add_argument("--model-call-limit", type=_positive_int)
@@ -187,7 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
-    if args.command in {"initialize-catalog", "initialize-window"}:
+    if args.command in {"initialize-mail-details", "initialize-window"}:
         provider = OpenAICompatibleProvider(settings)
         limits = AutomationLimits(
             source_items_per_source=(
@@ -202,8 +202,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         adapter_factory = lambda source_id: build_configured_adapter(
             source_id, settings
         )
-        if args.command == "initialize-catalog":
-            summary = run_catalog_initialization(
+        if args.command == "initialize-mail-details":
+            summary = run_mail_detail_initialization(
                 factory,
                 provider,
                 adapter_factory,

@@ -40,13 +40,15 @@ def _document(
     duplicate_of=None,
     source_id: str = "ffb_elite_status_feed",
     raw_metadata: dict | None = None,
+    canonical_url: str | None = None,
 ):
     seed_sources(db_session)
+    resolved_url = canonical_url or f"https://example.com/{suffix}"
     item = SourceItem(
         source_id=source_id,
         external_id=f"item-{suffix}",
-        discovered_url=f"https://example.com/{suffix}",
-        canonical_url=f"https://example.com/{suffix}",
+        discovered_url=resolved_url,
+        canonical_url=resolved_url,
         title=f"Item {suffix}",
         observed_at=datetime.now(UTC),
         raw_metadata=raw_metadata or {},
@@ -101,11 +103,11 @@ def test_first_version_prompt_explicitly_excludes_guide_articles() -> None:
     assert "主要报道某个具体会籍活动" in SYSTEM_PROMPT
     assert "精英定级房晚" in SYSTEM_PROMPT
     assert "多个目标等级、价格档、资格映射" in SYSTEM_PROMPT
-    assert "authoritative_program" in SYSTEM_PROMPT
+    assert "authoritative_program" not in SYSTEM_PROMPT
     assert "房券、折扣券" in SYSTEM_PROMPT
     assert "Garuda Gold Privilege" in SYSTEM_PROMPT
     assert "Accor Plus 会员只赠餐饮券" in SYSTEM_PROMPT
-    assert "缺少时效信息不应单独降为 UNCERTAIN" in SYSTEM_PROMPT
+    assert "活动首页和 `/faq`" in SYSTEM_PROMPT
     assert "application_start 和 application_deadline" in SYSTEM_PROMPT
     assert "统一按北京时间规范化" in SYSTEM_PROMPT
 
@@ -484,7 +486,7 @@ def test_candidate_recall_uses_action_links_without_persisting_a_new_field(
     assert event.id in {item.id for item in candidates}
 
 
-def test_ffb_authoritative_program_allows_cross_language_project_subdomain(
+def test_linked_statusmatch_page_allows_cross_language_project_subdomain(
     db_session,
 ) -> None:
     existing_document = _document(
@@ -512,13 +514,17 @@ def test_ffb_authoritative_program_allows_cross_language_project_subdomain(
     )
     document = _document(
         db_session,
-        suffix="malaysia-ffb",
+        suffix="malaysia-statusmatch-page",
         body=(
             "Malaysia Airlines Enrich paid status match "
             "https://enrich.statusmatch.com/?fpr=test"
         ),
-        source_id="ffb_status_match_catalog",
-        raw_metadata={"program": "Malaysia Airlines Enrich"},
+        source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "linked_statusmatch_page",
+            "project_host": "enrich.statusmatch.com",
+        },
+        canonical_url="https://enrich.statusmatch.com/faq",
     )
     db_session.flush()
 
@@ -603,18 +609,23 @@ def test_same_project_statusmatch_subdomain_is_deterministic_same_event(
     assert provider.calls == []
 
 
-def test_generic_statusmatch_mail_stays_uncertain_against_detailed_catalog(
+def test_statusmatch_activity_page_and_faq_are_same_event(
     db_session,
 ) -> None:
-    mail_document = _document(
+    activity_document = _document(
         db_session,
-        suffix="generic-mail-malaysia",
-        body="Malaysia Airlines status match digest entry",
+        suffix="activity-malaysia",
+        body="Malaysia Airlines Enrich paid status match overview",
         source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "linked_statusmatch_page",
+            "project_host": "enrich.statusmatch.com",
+        },
+        canonical_url="https://enrich.statusmatch.com/",
     )
     event = StatusEvent(
         created_from_key="generic-mail-malaysia",
-        program="Malaysia Airlines",
+        program="Malaysia Airlines Enrich",
         target_status=None,
         summary="Status match available for Malaysia Airlines",
         search_text="Malaysia Airlines status match",
@@ -624,21 +635,25 @@ def test_generic_statusmatch_mail_stays_uncertain_against_detailed_catalog(
     db_session.add(
         EventEvidence(
             event_id=event.id,
-            document_version_id=mail_document.id,
+            document_version_id=activity_document.id,
             hint_index=0,
-            source_url=mail_document.canonical_url,
+            source_url=activity_document.canonical_url,
             locator="Status match available for Malaysia Airlines",
         )
     )
     detailed = _document(
         db_session,
-        suffix="detailed-malaysia-catalog",
+        suffix="detailed-malaysia-page",
         body=(
             "Malaysia Airlines Enrich paid status match for Air India and Garuda "
             "members https://enrich.statusmatch.com/"
         ),
-        source_id="ffb_status_match_catalog",
-        raw_metadata={"program": "Malaysia Airlines Enrich"},
+        source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "linked_statusmatch_page",
+            "project_host": "enrich.statusmatch.com",
+        },
+        canonical_url="https://enrich.statusmatch.com/faq",
     )
     hint = EventHint(
         program="Malaysia Airlines Enrich",
@@ -655,71 +670,63 @@ def test_generic_statusmatch_mail_stays_uncertain_against_detailed_catalog(
         candidates=candidates,
     )
 
-    assert relationship.result.relationship == RelationshipType.UNCERTAIN
+    assert relationship.result.relationship == RelationshipType.SAME_EVENT
     assert relationship.result.candidate_event_id == event.id
     assert relationship.run is None
     assert provider.calls == []
 
 
-def test_multi_brand_statusmatch_digest_stays_uncertain_against_detailed_mail(
+def test_statusmatch_mail_with_project_links_is_discovery_only(
     db_session,
 ) -> None:
-    detailed_document = _document(
-        db_session,
-        suffix="detailed-mail-club-avolta",
-        body=(
-            "Invitation to Club Avolta Gold status. Members receive airport "
-            "retail and dining benefits."
-        ),
-        source_id="status_services_mail",
-    )
-    event = StatusEvent(
-        created_from_key="detailed-mail-club-avolta",
-        program="Club Avolta",
-        target_status="Gold",
-        summary="Invitation to match to Club Avolta Gold",
-        search_text="Club Avolta Gold status match invitation",
-    )
-    db_session.add(event)
-    db_session.flush()
-    db_session.add(
-        EventEvidence(
-            event_id=event.id,
-            document_version_id=detailed_document.id,
-            hint_index=0,
-            source_url=detailed_document.canonical_url,
-            locator="Invitation to match to Club Avolta Gold",
-        )
-    )
     digest = _document(
         db_session,
         suffix="digest-mail-club-avolta",
         body=(
             "Status Match Digest Header Status Updates "
-            "[Club Avolta](https://email.mail.statusmatch.com/c/club) "
-            "[Air Astana](https://email.mail.statusmatch.com/c/air) "
+            "[Club Avolta](https://clubavolta.statusmatch.com/) "
+            "[Air Astana](https://airastana.statusmatch.com/) "
             "Please visit each offer page to see unique application "
             "requirements by brand."
         ),
         source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "mail_discovery",
+            "project_statusmatch_hosts": [
+                "airastana.statusmatch.com",
+                "clubavolta.statusmatch.com",
+            ],
+        },
     )
-    hint = EventHint(
-        program="Club Avolta",
-        summary="Status match opportunity for Club Avolta elite status",
-    )
-    candidates = CandidateRetriever(db_session).retrieve(hint, document=digest)
     provider = SequenceAIProvider([])
 
-    relationship = EventRelationshipAnalyzer(db_session, provider).analyze(
-        document=digest,
-        hint=hint,
-        hint_index=0,
-        candidates=candidates,
-    )
+    result = StatusRelevanceAnalyzer(db_session, provider).analyze(digest)
 
-    assert relationship.result.relationship == RelationshipType.UNCERTAIN
-    assert relationship.result.candidate_event_id == event.id
-    assert relationship.run is None
+    assert result.result.label == DocumentLabel.NONE
+    assert "仅用于发现" in result.result.reason
+    assert provider.calls == []
+
+
+def test_legacy_mail_without_supported_project_links_is_still_discovery_only(
+    db_session,
+) -> None:
+    digest = _document(
+        db_session,
+        suffix="digest-mail-without-project-link",
+        body="Status Match email without a supported public project URL.",
+        source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "mail_content",
+            "project_statusmatch_hosts": [],
+        },
+    )
+    provider = SequenceAIProvider([])
+
+    result = StatusRelevanceAnalyzer(db_session, provider).analyze(digest)
+
+    assert result.result.label == DocumentLabel.NONE
+    assert result.result.event_hints == []
+    assert "仅用于发现" in result.result.reason
     assert provider.calls == []
 
 
@@ -770,13 +777,17 @@ def test_project_subdomain_affinity_does_not_leak_between_document_events(
     )
     document = _document(
         db_session,
-        suffix="enrich-ffb",
+        suffix="enrich-page",
         body=(
             "Malaysia Airlines Enrich paid status match "
             "https://enrich.statusmatch.com/?fpr=catalog"
         ),
-        source_id="ffb_status_match_catalog",
-        raw_metadata={"program": "Malaysia Airlines Enrich"},
+        source_id="status_services_mail",
+        raw_metadata={
+            "document_role": "linked_statusmatch_page",
+            "project_host": "enrich.statusmatch.com",
+        },
+        canonical_url="https://enrich.statusmatch.com/faq",
     )
     db_session.flush()
 
@@ -814,81 +825,6 @@ def test_project_subdomain_affinity_does_not_leak_between_document_events(
     )
     assert relationship.result.relationship == RelationshipType.DIFFERENT_EVENT
     assert len(provider.calls) == 1
-
-
-def test_ffb_catalog_program_overrides_conflicting_body_brand(db_session) -> None:
-    document = _document(
-        db_session,
-        suffix="k",
-        body=(
-            "KM Malta Airlines KM Rewards\n\n"
-            "KM Rewards paid status match; copied sentence says Kenya Airways."
-        ),
-        source_id="ffb_status_match_catalog",
-        raw_metadata={"program": "KM Malta Airlines KM Rewards"},
-    )
-    result = StatusRelevanceAnalyzer(
-        db_session,
-        SequenceAIProvider([_status_opportunity(program="Kenya Airways")]),
-    ).analyze(document)
-
-    assert result.result.event_hints[0].program == "KM Malta Airlines KM Rewards"
-
-
-def test_ffb_catalog_authoritative_program_rejects_conflicting_candidates(
-    db_session,
-) -> None:
-    kenya_document = _document(
-        db_session,
-        suffix="kenya-conflict",
-        body=(
-            "Kenya Airways Asante Rewards paid status match "
-            "https://kenya-airways.statusmatch.com/?fpr=kenya"
-        ),
-    )
-    kenya = StatusEvent(
-        created_from_key="kenya-conflict",
-        program="Kenya Airways Asante Rewards",
-        target_status="Silver, Gold or Platinum",
-        summary="Paid status match",
-        search_text="Kenya Airways Asante Rewards paid status match",
-    )
-    db_session.add(kenya)
-    db_session.flush()
-    db_session.add(
-        EventEvidence(
-            event_id=kenya.id,
-            document_version_id=kenya_document.id,
-            hint_index=0,
-            source_url=kenya_document.canonical_url,
-            locator="Kenya Airways paid status match",
-        )
-    )
-    document = _document(
-        db_session,
-        suffix="q",
-        body=(
-            "KM Malta Airlines KM Rewards\n\n"
-            "KM Rewards paid status match at https://kmrewards.statusmatch.com/; "
-            "copied sentence says Kenya Airways."
-        ),
-        source_id="ffb_status_match_catalog",
-        raw_metadata={"program": "KM Malta Airlines KM Rewards"},
-    )
-
-    candidates = CandidateRetriever(db_session).retrieve(
-        EventHint(
-            program="KM Malta Airlines KM Rewards",
-            summary=(
-                "Copied details claim Kenya Airways Asante Rewards Silver, Gold "
-                "or Platinum"
-            ),
-            target_status="Silver, Gold or Platinum",
-        ),
-        document=document,
-    )
-
-    assert kenya.id not in {item.id for item in candidates}
 
 
 def test_relationship_aggregation_handles_update_and_uncertain_without_duplicates(

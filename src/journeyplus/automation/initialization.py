@@ -27,7 +27,7 @@ from journeyplus.sources.history import HistoricalFeedWindowAdapter
 from journeyplus.sources.registry import seed_sources
 
 
-CATALOG_SOURCE_ID = "ffb_status_match_catalog"
+MAIL_SOURCE_ID = "status_services_mail"
 PUBLIC_FEED_SOURCE_IDS = (
     "ffb_elite_status_feed",
     "awardwallet_elite_status_feed",
@@ -46,6 +46,7 @@ class InitializationSourceSummary:
     discovered: int = 0
     considered: int = 0
     new_documents: int = 0
+    document_version_ids: tuple[str, ...] = ()
     reused: bool = False
     pages_scanned: int | None = None
     missing_published_at: int | None = None
@@ -74,7 +75,7 @@ class InitializationSummary:
     error: str | None
 
 
-def run_catalog_initialization(
+def run_mail_detail_initialization(
     session_factory: sessionmaker[Session],
     provider: AIProvider,
     adapter_factory: Callable[[str], SourceAdapter],
@@ -86,9 +87,9 @@ def run_catalog_initialization(
         session_factory,
         provider,
         adapter_factory,
-        batch_key="initialization:catalog",
-        batch_type="CATALOG",
-        source_ids=(CATALOG_SOURCE_ID,),
+        batch_key="initialization:mail-details",
+        batch_type="MAIL_DETAILS",
+        source_ids=(MAIL_SOURCE_ID,),
         start=None,
         end=None,
         limits=limits or AutomationLimits(source_items_per_source=500),
@@ -173,6 +174,7 @@ def _run_initialization(
     budgeted = BudgetedAIProvider(provider, limits.model_calls)
     backlog = 0
     error: str | None = None
+    attempt = 0
     try:
         with session_factory.begin() as session:
             seed_sources(session)
@@ -199,6 +201,7 @@ def _run_initialization(
             run.status = RunStatus.RUNNING
             run.audit_status = "PENDING"
             run.attempts = (run.attempts or 0) + 1
+            attempt = run.attempts
             run.limits = asdict(limits)
             run.error = None
             run.started_at = current
@@ -212,7 +215,7 @@ def _run_initialization(
                     session_factory,
                     adapter_factory=adapter_factory,
                     source_id=source_id,
-                    batch_key=batch_key,
+                    batch_key=f"{batch_key}:run:{run_id}:attempt:{attempt}",
                     start=start,
                     end=end,
                     max_items=limits.source_items_per_source,
@@ -221,6 +224,11 @@ def _run_initialization(
             )
 
         source_failed = any(item.status == RunStatus.FAILED for item in source_results)
+        current_document_ids = tuple(
+            document_id
+            for item in source_results
+            for document_id in item.document_version_ids
+        )
         if source_failed:
             error = "one or more initialization sources failed"
             processing_payload = {
@@ -234,8 +242,9 @@ def _run_initialization(
             processing = process_pending_documents(
                 session_factory,
                 budgeted,
-                source_id=CATALOG_SOURCE_ID if batch_type == "CATALOG" else None,
+                source_id=MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None,
                 source_ids=list(source_ids) if batch_type == "PUBLIC_WINDOW" else None,
+                document_ids=current_document_ids,
                 published_from=published_from,
                 published_until=published_until,
                 limit=limits.documents,
@@ -259,8 +268,9 @@ def _run_initialization(
             backlog = pending_document_count(
                 session,
                 budgeted,
-                source_id=CATALOG_SOURCE_ID if batch_type == "CATALOG" else None,
+                source_id=MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None,
                 source_ids=list(source_ids) if batch_type == "PUBLIC_WINDOW" else None,
+                document_ids=current_document_ids,
                 published_from=published_from,
                 published_until=published_until,
             )
@@ -385,6 +395,7 @@ def _collect_initialization_source(
             discovered=collection.discovered,
             considered=collection.considered,
             new_documents=collection.new_versions,
+            document_version_ids=collection.current_document_version_ids,
             reused=collection.reused_run,
             pages_scanned=report.pages_scanned if report else None,
             missing_published_at=report.missing_published_at if report else None,
@@ -420,11 +431,11 @@ def _require_previous_batch_passed(
     batch_type: str,
     start: date | None,
 ) -> None:
-    if batch_type == "CATALOG":
+    if batch_type == "MAIL_DETAILS":
         return
     assert start is not None
     if start == INITIALIZATION_START:
-        previous_key = "initialization:catalog"
+        previous_key = "initialization:mail-details"
     else:
         previous_start = start - timedelta(days=2)
         previous_end = min(previous_start + timedelta(days=1), INITIALIZATION_END)

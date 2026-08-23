@@ -16,7 +16,6 @@ from journeyplus.lifecycle.service import (
     windows_non_overlapping,
 )
 from journeyplus.models import DocumentVersion, EventEvidence, StatusEvent
-from journeyplus.status_topic.source_context import catalog_authoritative_program
 
 
 class CandidateRetriever:
@@ -74,7 +73,7 @@ class CandidateRetriever:
                     same_document_events
                 )
                 new_project_hosts = matching_project_statusmatch_hosts(
-                    document.normalized_body,
+                    _document_material(document),
                     " ".join(
                         value
                         for value in (hint.program, hint.target_status, hint.summary)
@@ -91,36 +90,8 @@ class CandidateRetriever:
                         & same_document_project_hosts.get(event.id, set())
                     )
                 ]
-        authoritative_program = (
-            catalog_authoritative_program(self._session, document)
-            if document is not None
-            else None
-        )
-        new_links = _link_signals(document.normalized_body if document else "")
+        new_links = _link_signals(_document_material(document) if document else "")
         candidate_links = self._candidate_link_signals(candidates) if new_links[0] else {}
-        if authoritative_program is not None:
-            candidate_project_hosts = self._candidate_project_hosts(candidates)
-            new_project_hosts = matching_project_statusmatch_hosts(
-                document.normalized_body if document else "",
-                " ".join(
-                    value
-                    for value in (
-                        authoritative_program,
-                        hint.program,
-                        hint.summary,
-                    )
-                    if value
-                ),
-            )
-            candidates = [
-                event
-                for event in candidates
-                if _program_score(event.program, authoritative_program) > 0
-                or bool(
-                    new_project_hosts
-                    & candidate_project_hosts.get(event.id, set())
-                )
-            ]
         scored = [
             (
                 _candidate_score(
@@ -147,19 +118,41 @@ class CandidateRetriever:
         if not candidates:
             return {}
         bodies: dict[object, list[str]] = defaultdict(list)
-        for event_id, normalized_body in self._session.execute(
-            select(EventEvidence.event_id, DocumentVersion.normalized_body)
+        for event_id, canonical_url, normalized_body in self._session.execute(
+            select(
+                EventEvidence.event_id,
+                DocumentVersion.canonical_url,
+                DocumentVersion.normalized_body,
+            )
             .join(
                 DocumentVersion,
                 DocumentVersion.id == EventEvidence.document_version_id,
             )
             .where(EventEvidence.event_id.in_([event.id for event in candidates]))
         ):
-            bodies[event_id].append(normalized_body)
-        return {
-            event_id: _link_signals("\n".join(materials))
-            for event_id, materials in bodies.items()
-        }
+            bodies[event_id].append(f"{canonical_url}\n{normalized_body}")
+        results: dict[object, tuple[set[str], set[str]]] = {}
+        events = {event.id: event for event in candidates}
+        for event_id, materials in bodies.items():
+            material = "\n".join(materials)
+            exact, hosts = _link_signals(material)
+            owned_project_hosts = matching_project_statusmatch_hosts(
+                material, _event_identity(events[event_id])
+            )
+            hosts = {
+                host
+                for host in hosts
+                if not _is_project_statusmatch_host(host)
+                or host in owned_project_hosts
+            }
+            exact = {
+                value
+                for value in exact
+                if not _is_project_statusmatch_host(value.split("/", 1)[0])
+                or value.split("/", 1)[0] in owned_project_hosts
+            }
+            results[event_id] = exact, hosts
+        return results
 
     def _candidate_project_hosts(
         self, candidates: list[StatusEvent]
@@ -168,15 +161,19 @@ class CandidateRetriever:
             return {}
         events = {event.id: event for event in candidates}
         bodies: dict[object, list[str]] = defaultdict(list)
-        for event_id, normalized_body in self._session.execute(
-            select(EventEvidence.event_id, DocumentVersion.normalized_body)
+        for event_id, canonical_url, normalized_body in self._session.execute(
+            select(
+                EventEvidence.event_id,
+                DocumentVersion.canonical_url,
+                DocumentVersion.normalized_body,
+            )
             .join(
                 DocumentVersion,
                 DocumentVersion.id == EventEvidence.document_version_id,
             )
             .where(EventEvidence.event_id.in_(events))
         ):
-            bodies[event_id].append(normalized_body)
+            bodies[event_id].append(f"{canonical_url}\n{normalized_body}")
         return {
             event_id: matching_project_statusmatch_hosts(
                 "\n".join(materials), _event_identity(events[event_id])
@@ -262,6 +259,10 @@ def _event_identity(event: StatusEvent) -> str:
         )
         if value
     )
+
+
+def _document_material(document: DocumentVersion) -> str:
+    return f"{document.canonical_url}\n{document.normalized_body}"
 
 
 def _program_score(left: str, right: str) -> int:

@@ -39,7 +39,7 @@ class OpenAICompatibleProvider:
         settings: Settings,
         *,
         temperature: float = 0.0,
-        timeout_seconds: float = 60.0,
+        timeout_seconds: float | None = None,
         client: httpx.Client | None = None,
     ) -> None:
         settings.require_ai()
@@ -49,7 +49,11 @@ class OpenAICompatibleProvider:
         self._client = client or httpx.Client(
             base_url=settings.ai_base_url.rstrip("/") + "/",
             headers={"Authorization": f"Bearer {settings.ai_api_key}"},
-            timeout=timeout_seconds,
+            timeout=(
+                settings.ai_timeout_seconds
+                if timeout_seconds is None
+                else timeout_seconds
+            ),
         )
         self.metadata = AIProviderMetadata(
             provider=settings.ai_provider,

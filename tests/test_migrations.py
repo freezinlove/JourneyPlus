@@ -150,3 +150,39 @@ def test_daily_automation_migration_round_trips_on_sqlite(
     assert "source_automation_states" not in tables
     assert "initialization_runs" not in tables
     engine.dispose()
+
+
+def test_document_parser_version_constraint_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'parser-version.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0004_daily_automation")
+    engine = create_engine(database_url)
+    before = {
+        tuple(constraint["column_names"])
+        for constraint in inspect(engine).get_unique_constraints("document_versions")
+    }
+    assert ("source_item_id", "raw_hash") in before
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    upgraded = {
+        tuple(constraint["column_names"])
+        for constraint in inspect(engine).get_unique_constraints("document_versions")
+    }
+    assert ("source_item_id", "raw_hash", "parser_version") in upgraded
+    assert ("source_item_id", "raw_hash") not in upgraded
+    engine.dispose()
+
+    command.downgrade(config, "0004_daily_automation")
+    engine = create_engine(database_url)
+    downgraded = {
+        tuple(constraint["column_names"])
+        for constraint in inspect(engine).get_unique_constraints("document_versions")
+    }
+    assert ("source_item_id", "raw_hash") in downgraded
+    engine.dispose()

@@ -194,6 +194,7 @@ def run_daily_cycle(
             processing = process_pending_documents(
                 session_factory,
                 budgeted,
+                source_ids=selected_source_ids,
                 limit=resolved_limits.documents,
             )
             processing_payload = {
@@ -218,7 +219,11 @@ def run_daily_cycle(
         with session_factory.begin() as session:
             lifecycle = advance_lifecycles(session, now=current)
             lifecycle_payload = asdict(lifecycle)
-            backlog = pending_document_count(session, budgeted)
+            backlog = pending_document_count(
+                session,
+                budgeted,
+                source_ids=selected_source_ids,
+            )
             needs_review = int(
                 session.scalar(
                     select(func.count())
@@ -296,7 +301,11 @@ def automation_status(
             state.source_id: state
             for state in session.scalars(select(SourceAutomationState))
         }
-        backlog = pending_document_count(session, provider)
+        backlog = pending_document_count(
+            session,
+            provider,
+            source_ids=[source.id for source in sources if source.enabled],
+        )
         failed_jobs = int(
             session.scalar(
                 select(func.count())

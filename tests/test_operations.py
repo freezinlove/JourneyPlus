@@ -5,7 +5,11 @@ from sqlalchemy import select
 from journeyplus.ai.provider import AIProviderMetadata, SequenceAIProvider
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.models import JobRun
-from journeyplus.operations import process_pending_documents
+from journeyplus.operations import (
+    pending_documents,
+    process_pending_documents,
+    workflow_idempotency_key,
+)
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.registry import seed_sources
 
@@ -31,6 +35,34 @@ class TwoDocumentAdapter:
             external_id=item.external_id,
             canonical_url=item.canonical_url,
             body=f"<article>{item.title}: ordinary points news</article>",
+        )
+
+
+class VersionedDocumentAdapter:
+    source_id = "ffb_elite_status_feed"
+
+    def __init__(self) -> None:
+        self.body = "Version one"
+
+    def discover(self):
+        return [
+            DiscoveredItem(
+                source_id=self.source_id,
+                external_id="versioned-document",
+                discovered_url="https://example.com/versioned-document",
+                canonical_url="https://example.com/versioned-document",
+                title="Versioned document",
+                discovery_fingerprint=self.body,
+            )
+        ]
+
+    def fetch(self, item):
+        return RawDocument(
+            source_id=self.source_id,
+            external_id=item.external_id,
+            canonical_url=item.canonical_url,
+            body=self.body,
+            content_type="text/plain",
         )
 
 
@@ -153,3 +185,71 @@ def test_initialization_mode_stops_after_first_document_failure(
     assert summary.failed == 1
     assert summary.succeeded == 0
     assert summary.stopped_early
+
+
+def test_pending_processing_can_be_scoped_to_exact_document_ids(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collection = collect_manual(session, TwoDocumentAdapter())
+    selected_id = collection.current_document_version_ids[1]
+    provider = SequenceAIProvider([_not_a_status_opportunity("selected only")])
+
+    summary = process_pending_documents(
+        session_factory,
+        provider,
+        document_ids=[selected_id],
+        limit=10,
+    )
+
+    assert summary.selected == 1
+    assert summary.documents[0].document_version_id == selected_id
+    with session_factory() as session:
+        remaining = pending_documents(
+            session,
+            provider,
+            source_id="ffb_elite_status_feed",
+            limit=10,
+        )
+    assert len(remaining) == 1
+    assert str(remaining[0][0]) != selected_id
+
+
+def test_global_pending_selection_uses_only_latest_document_version(
+    session_factory,
+) -> None:
+    adapter = VersionedDocumentAdapter()
+    with session_factory.begin() as session:
+        seed_sources(session)
+        first = collect_manual(session, adapter, idempotency_key="version:first")
+        adapter.body = "Version two"
+        second = collect_manual(session, adapter, idempotency_key="version:second")
+
+    with session_factory() as session:
+        pending = pending_documents(
+            session,
+            SequenceAIProvider([]),
+            source_id="ffb_elite_status_feed",
+            limit=10,
+        )
+
+    assert len(pending) == 1
+    assert str(pending[0][0]) == second.current_document_version_ids[0]
+    assert str(pending[0][0]) != first.current_document_version_ids[0]
+
+
+def test_workflow_idempotency_changes_when_any_stage_version_changes(
+    session_factory, monkeypatch
+) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collection = collect_manual(session, TwoDocumentAdapter(), max_items=1)
+    document_id = collection.current_document_version_ids[0]
+    provider = SequenceAIProvider([])
+    original = workflow_idempotency_key(document_id, provider)
+
+    monkeypatch.setattr("journeyplus.operations.FACT_PROMPT_VERSION", "facts-next")
+    changed = workflow_idempotency_key(document_id, provider)
+
+    assert changed != original

@@ -58,33 +58,56 @@
 - **WHEN** 用户购买名称含会籍、Plus、Pass、Club 或 Card 的普通会员产品，结果只有会员资格、餐饮券、折扣或权益包，没有明确精英等级或定级进度
 - **THEN** 系统将该促销标为 `NONE`
 
-### Requirement: FFB 顶层公司名必须作为权威项目名
-对于 Frequent Flyer Bonuses 会籍汇总页，系统 MUST 把每个顶层记录左侧的公司或项目名称作为该材料的权威 `program`，并保留右侧正文原文。权威项目名 MUST 约束分类输出并参与候选召回，但 MUST NOT 作为自动合并键；同一公司下的不同时期或不同活动记录仍由关系判断拆分。
+### Requirement: Gmail 必须展开有用的 StatusMatch 活动链接
+Gmail 适配器 MUST 检查邮件 HTML 中所有文字链接、按钮和仅图片可点击锚点，并 MAY 从纯文本正文补充 URL。系统 MUST 在本地递归解开受支持的 StatusMatch 邮件跟踪包装，MUST NOT 访问带收件人或点击标识的跟踪中转地址。系统 MUST 排除无关链接，只将主机为单一项目专属 `*.statusmatch.com` 子域的 HTTPS 链接视为 StatusMatch 活动；`www`、邮件跟踪、社交、退订、条款和宣传入口不属于活动链接。系统 MUST 按规范化项目主机去重，并为每个项目分别读取活动首页和同域 `/faq`。
 
-#### Scenario: KM 正文包含来源笔误
-- **WHEN** FFB 顶层记录左侧为 `KM Malta Airlines KM Rewards`、行动链接指向 KM，但右侧正文误写 Kenya Airways
-- **THEN** 系统保留原始正文，活动提示使用 KM 权威项目名，并在候选层排除项目名不兼容的 Kenya 活动
+#### Scenario: 图片按钮是唯一活动入口
+- **WHEN** 邮件正文没有可见文字 URL，只有一个 `<a href>` 包裹带 alt 文字的图片按钮
+- **THEN** 系统仍发现并本地解包该链接，规范化到项目专属 StatusMatch 主机
 
-#### Scenario: 同一公司存在多个顶层记录
-- **WHEN** FFB 页面为 Air France KLM 或 Alaska Airlines 展示多个独立顶层记录
-- **THEN** 系统分别处理每条材料，并继续根据完整活动语义判断合并或拆分
+#### Scenario: 一封邮件包含无关和重复链接
+- **WHEN** 同一项目活动以正文、按钮和图片重复出现，同时邮件还包含社交、退订、隐私和课程宣传链接
+- **THEN** 系统只为该项目建立一组活动首页和 `/faq` 材料，不请求或处理无关链接
+
+#### Scenario: 跟踪链接嵌套活动链接
+- **WHEN** StatusMatch 邮件跟踪载荷先指向通用点击页，再由查询参数指向项目活动页
+- **THEN** 系统在本地递归得到最终项目 URL、丢弃私人跟踪参数，并只请求最终项目首页与 `/faq`
+
+### Requirement: StatusMatch 详细页必须作为独立增量事实材料
+每个去重项目主机的活动首页与 `/faq` SHALL 使用稳定的来源条目和规范 URL 独立保存。邮件正文 SHALL 保留用于来源审计和活动发现，但 MUST 确定性标为非业务材料，不得创建活动提示或进入事件证据、事实、简报及 `source_links`；公开页面 SHALL 作为资格、映射、价格、申请窗口、有效期、入口和注意事项的详细事实材料，且不得套用仅用于邮件正文的链接清洗规则。系统 MUST 在邮件来源的每日采集中重新检查已发现页面；内容未变化且清洗解析版本相同时不得创建新文档版本，正文变化或清洗解析版本升级时必须保留旧版本并创建新版本。自动积压只选择每个来源条目的最新文档版本，受控初始化只处理本次当前发现集合。首页与 `/faq` 共享项目主机 SHALL 成为防串线的强关系信号，但页面路径本身不得把同一活动拆开。
+
+#### Scenario: FAQ 包含比首页更详细的映射规则
+- **WHEN** 活动首页只有概述而 `/faq` 列出多项资格等级、目标等级、价格或有效期
+- **THEN** 系统使用两页完整正文提取和总结关键信息，并把各项事实绑定到对应页面证据
+
+#### Scenario: FAQ 映射表位于历史地区费用表之后
+- **WHEN** `/faq` 的 `Recently ended offers` 下先出现历史国家/地区与申请费表，之后另有航司或酒店原会籍到目标会籍的对应表
+- **THEN** 系统不把历史地区费用写入当前活动事实，但逐行逐目标等级结构化后面的对应表，保留可用、受条件限制和不可用单元及对应 FAQ 证据
+
+#### Scenario: 公开页面内容没有变化
+- **WHEN** 次日采集重新读取同一活动首页和 `/faq` 且原始内容哈希不变
+- **THEN** 系统复用已有来源条目和文档版本，不重复生成业务事件或简报
+
+#### Scenario: 邮件正文包含活动概述
+- **WHEN** 邮件正文自身描述活动名称、申请提示或通用条款
+- **THEN** 这些文字仍只用于链接发现和审计，不得成为事实证据或简报来源；系统只引用展开后的公开页面
+
+#### Scenario: 删除干扰邮件后重试初始化
+- **WHEN** 前一次 Gmail 初始化失败后用户删除了注册或验证干扰邮件并再次运行
+- **THEN** 系统重新查询当前邮箱并只处理本次发现的邮件及去重公开页面，不复用前一次成功采集清单或继续处理已删除邮件的历史待办
 
 ## MODIFIED Requirements
 
-### Requirement: 七组精选来源通过统一适配契约接入
-系统 MUST 支持 Frequent Flyer Bonuses 博客、Frequent Flyer Bonuses 会籍汇总页、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行七组来源。实施使用的稳定 `source_id`、完整 URL、正文策略、访问限制和默认状态 MUST 来自同一来源注册表，不得在业务模块另行猜测或散落配置。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。StatusMatcher MUST 不存在于正式注册表、CLI可选来源或自动调度范围。
+### Requirement: 六组精选来源通过统一适配契约接入
+系统 MUST 支持 Frequent Flyer Bonuses 博客、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行六组来源。实施使用的稳定 `source_id`、完整 URL、正文策略、访问限制和默认状态 MUST 来自同一来源注册表，不得在业务模块另行猜测或散落配置。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。StatusMatcher 与 Frequent Flyer Bonuses 会籍汇总列表 MUST 不存在于正式注册表、CLI可选来源或自动调度范围。
 
 #### Scenario: 注册表成为唯一来源配置输入
 - **WHEN** 系统初始化会籍来源配置
-- **THEN** 它导入七条来源记录及其入口和策略，其中 StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 StatusMatcher
+- **THEN** 它导入六条来源记录及其入口和策略，其中 StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 StatusMatcher 或 FFB 会籍汇总列表
 
 #### Scenario: 目录或Feed条目继续获取正文
 - **WHEN** Feed、栏目页或目录页只提供文章入口
 - **THEN** 对应适配器发现稳定条目标识和正文地址，并按该来源配置获取正文或Feed内全文
-
-#### Scenario: 静态汇总记录成为独立材料
-- **WHEN** Frequent Flyer Bonuses 会籍汇总页包含多个顶层活动记录
-- **THEN** 适配器为每个顶层记录产生稳定指纹，使单条变化可以独立处理
 
 #### Scenario: 邮件保持只读和幂等
 - **WHEN** 邮件适配器读取 StatusMatch 或 GetStatus 的允许邮件
@@ -96,7 +119,7 @@
 
 #### Scenario: 专用别名替代发件人白名单
 - **WHEN** 一封邮件同时具有 `statusmatch` 标签且发送至 `kirikoomiku+statusmatch@gmail.com`
-- **THEN** 系统将其作为 `status_services_mail` 来源材料继续处理，不要求真实发件人白名单；可识别时只额外记录 StatusMatch 或 GetStatus 品牌归属
+- **THEN** 系统将其作为 `status_services_mail` 链接发现材料，不要求真实发件人白名单；可识别时只额外记录 StatusMatch 或 GetStatus 品牌归属，邮件本身不进入业务分析
 
 #### Scenario: Feed内有正文时不重复抓文章页
 - **WHEN** LoyaltyLobby、Frequent Miler 或很旅行的 Feed 条目已提供允许使用的正文
@@ -138,8 +161,8 @@
 - **THEN** 候选召回把可能的同项目事件交给关系模型，但不因名称包含或词重叠自动合并
 
 #### Scenario: 中英文项目名没有词面重叠
-- **WHEN** 很旅行使用 `马来西亚航空`、FFB 使用 `Malaysia Airlines Enrich`，但两份材料都包含 `enrich.statusmatch.com` 行动入口
-- **THEN** 候选召回不得被 FFB 权威英文名过滤掉，关系层使用项目专属子域将两份材料聚合，数据库不增加行动链接身份字段
+- **WHEN** 很旅行使用 `马来西亚航空`、Gmail 展开的详细页使用 `Malaysia Airlines Enrich`，但两份材料都包含或来自 `enrich.statusmatch.com`
+- **THEN** 关系层使用项目专属子域将两份材料聚合，数据库不增加行动链接身份字段
 
 #### Scenario: 同一项目专属子域使用不同路径
 - **WHEN** Flying Blue 英国入口使用 `flyingblue.statusmatch.com/ba/`，通用入口使用同一子域根路径
@@ -150,13 +173,13 @@
 - **THEN** 该子域只能关联 Enrich 提示，不得把 Garuda 活动合并进 Enrich 事件
 
 #### Scenario: 不同项目子域保持分离
-- **WHEN** KM Rewards 使用 `kmrewards.statusmatch.com`，正文笔误提到的 Kenya Airways 使用 `kenya-airways.statusmatch.com`
-- **THEN** 两者不得因同属 StatusMatch 平台或正文笔误而召回或合并
+- **WHEN** 两份详细材料分别来自 `kmrewards.statusmatch.com` 与 `kenya-airways.statusmatch.com`
+- **THEN** 两者不得因同属 StatusMatch 平台而召回或合并
 
 #### Scenario: 同一命名授予计划存在国家入口
 - **WHEN** Best Western Service Rewards 对美国和加拿大军人分别提供注册入口但授予机制相同
 - **THEN** 系统把两份材料聚合为同一现实活动，不仅因国家和注册链接不同而拆分
 
-#### Scenario: 简略邮件只有项目名
-- **WHEN** StatusMatch 摘要邮件只写某项目存在 status match，而详细目录或文章给出具体资格、价格和入口
-- **THEN** 系统不得只凭相同项目名自动合并，关系保持 `UNCERTAIN` 并保留候选供人工复核
+#### Scenario: 同一邮件发现同域首页和 FAQ
+- **WHEN** StatusMatch 邮件链接已规范化到项目专属子域且系统取得同域首页与 `/faq`
+- **THEN** 邮件只完成发现；关系层使用两个公开页面共有的项目主机聚合现实活动，不将邮件加入该事件

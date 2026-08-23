@@ -185,7 +185,12 @@ class SourceItem(Base, TimestampMixin):
 class DocumentVersion(Base, TimestampMixin):
     __tablename__ = "document_versions"
     __table_args__ = (
-        UniqueConstraint("source_item_id", "raw_hash"),
+        UniqueConstraint(
+            "source_item_id",
+            "raw_hash",
+            "parser_version",
+            name="uq_document_versions_source_item_raw_parser",
+        ),
         Index("ix_document_versions_normalized_hash", "normalized_hash"),
     )
 

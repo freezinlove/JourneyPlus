@@ -17,9 +17,11 @@ from journeyplus.models import (
     AutomationRun,
     CollectionRun,
     DocumentVersion,
+    Source,
     SourceAutomationState,
     StatusEvent,
 )
+from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.registry import seed_sources
 
 
@@ -205,6 +207,63 @@ def test_document_limit_leaves_visible_backlog(session_factory) -> None:
     assert source.collection_cadence == "P1D"
     assert not source.automatic_scheduling
     assert source.pending_document_count == 1
+
+
+def test_daily_cycle_only_processes_selected_sources(session_factory) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collect_manual(
+            session,
+            SyntheticAdapter("awardwallet_elite_status_feed"),
+            idempotency_key="unselected-source-pending",
+        )
+
+    provider = SequenceAIProvider([_none("selected source document")])
+    result = run_daily_cycle(
+        session_factory,
+        provider,
+        lambda source_id: SyntheticAdapter(source_id),
+        source_ids=["ffb_elite_status_feed"],
+        now=datetime(2026, 8, 24, 8, tzinfo=UTC),
+    )
+
+    assert result.documents_selected == result.documents_succeeded == 1
+    assert result.backlog_count == 0
+    assert len(provider.calls) == 1
+    status = automation_status(session_factory, provider)
+    assert status.backlog_count == 1
+    awardwallet = next(
+        item
+        for item in status.sources
+        if item.source_id == "awardwallet_elite_status_feed"
+    )
+    assert awardwallet.pending_document_count == 1
+
+
+def test_automation_status_excludes_retired_source_backlog(session_factory) -> None:
+    with session_factory.begin() as session:
+        session.add(
+            Source(
+                id="ffb_status_match_catalog",
+                name="Retired FFB catalog",
+                adapter_type="retired",
+                discovery_config={},
+                access_policy={},
+                collection_cadence=None,
+                automatic_scheduling=False,
+                enabled=False,
+            )
+        )
+        session.flush()
+        collect_manual(
+            session,
+            SyntheticAdapter("ffb_status_match_catalog"),
+            idempotency_key="retired-source-pending",
+        )
+
+    status = automation_status(session_factory, SequenceAIProvider([]))
+
+    assert status.backlog_count == 0
 
 
 def test_model_call_limit_stops_downstream_work_and_keeps_document_pending(

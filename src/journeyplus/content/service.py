@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from journeyplus.content.cleaner import lightly_clean
@@ -29,6 +29,8 @@ class IngestionService:
         source_item.observed_at = item.observed_at
         source_item.raw_metadata = item.raw_metadata
         source_item.title = item.title or source_item.title
+        if item.raw_metadata.get("refresh_on_discovery") is True:
+            return True
         if item.discovery_fingerprint is None:
             return False
         return source_item.discovery_fingerprint != item.discovery_fingerprint
@@ -58,17 +60,27 @@ class IngestionService:
 
         cleaned = lightly_clean(raw)
         existing = self._session.scalar(
-            select(DocumentVersion).where(
+            select(DocumentVersion)
+            .where(
                 DocumentVersion.source_item_id == source_item.id,
-                DocumentVersion.raw_hash == cleaned.raw_hash,
+                DocumentVersion.parser_version == cleaned.parser_version,
+                or_(
+                    DocumentVersion.raw_hash == cleaned.raw_hash,
+                    DocumentVersion.normalized_hash == cleaned.normalized_hash,
+                ),
             )
+            .order_by(DocumentVersion.created_at.asc())
+            .limit(1)
         )
         if existing is not None:
             return IngestionResult(source_item, existing, new_item, False)
 
         duplicate = self._session.scalar(
             select(DocumentVersion)
-            .where(DocumentVersion.normalized_hash == cleaned.normalized_hash)
+            .where(
+                DocumentVersion.normalized_hash == cleaned.normalized_hash,
+                DocumentVersion.parser_version == cleaned.parser_version,
+            )
             .order_by(DocumentVersion.created_at.asc())
             .limit(1)
         )
@@ -88,6 +100,17 @@ class IngestionService:
         self._session.add(version)
         self._session.flush()
         return IngestionResult(source_item, version, new_item, True)
+
+    def current_document(self, item: DiscoveredItem) -> DocumentVersion | None:
+        source_item = self._find_item(item)
+        if source_item is None:
+            return None
+        return self._session.scalar(
+            select(DocumentVersion)
+            .where(DocumentVersion.source_item_id == source_item.id)
+            .order_by(DocumentVersion.created_at.desc(), DocumentVersion.id.desc())
+            .limit(1)
+        )
 
     def _find_item(self, item: DiscoveredItem) -> SourceItem | None:
         by_id = self._session.scalar(

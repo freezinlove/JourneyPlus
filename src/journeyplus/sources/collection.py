@@ -21,6 +21,7 @@ class CollectionSummary:
     considered: int
     new_versions: int
     document_version_ids: tuple[str, ...] = ()
+    current_document_version_ids: tuple[str, ...] = ()
     reused_run: bool = False
 
 
@@ -45,6 +46,7 @@ def collect_manual(
             min(existing.discovered_count, max_items or existing.discovered_count),
             0,
             (),
+            (),
             True,
         )
     run = existing or CollectionRun(
@@ -66,10 +68,15 @@ def collect_manual(
         )
         ingestion = IngestionService(session)
         document_version_ids: list[str] = []
+        current_document_version_ids: list[str] = []
         for item in items:
             if not ingestion.should_fetch(item):
+                current = ingestion.current_document(item)
+                if current is not None:
+                    current_document_version_ids.append(str(current.id))
                 continue
             result = ingestion.ingest(item, adapter.fetch(item))
+            current_document_version_ids.append(str(result.document_version.id))
             if result.new_version:
                 document_version_ids.append(str(result.document_version.id))
         run.status = RunStatus.SUCCEEDED
@@ -84,6 +91,7 @@ def collect_manual(
             len(items),
             len(document_version_ids),
             tuple(document_version_ids),
+            tuple(dict.fromkeys(current_document_version_ids)),
         )
     except Exception as exc:
         run.status = RunStatus.FAILED

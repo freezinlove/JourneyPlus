@@ -11,7 +11,6 @@ from journeyplus.sources.factory import build_adapter
 
 PUBLIC_SOURCE_IDS = (
     "ffb_elite_status_feed",
-    "ffb_status_match_catalog",
     "awardwallet_elite_status_feed",
     "loyaltylobby_feed",
     "frequentmiler_elite_status_feed",

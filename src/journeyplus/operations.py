@@ -1,17 +1,28 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import exists, func, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy import select
+from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
-from journeyplus.contracts import AnalysisStage, DocumentLabel
+from journeyplus.briefs.service import BRIEF_PROMPT_VERSION, BRIEF_SCHEMA_VERSION
+from journeyplus.clustering.relationship import (
+    RELATIONSHIP_PROMPT_VERSION,
+    RELATIONSHIP_SCHEMA_VERSION,
+)
+from journeyplus.contracts import DocumentLabel
+from journeyplus.facts.service import FACT_PROMPT_VERSION, FACT_SCHEMA_VERSION
 from journeyplus.jobs.runner import JobRunner
-from journeyplus.models import AnalysisRun, DocumentVersion, SourceItem
-from journeyplus.status_topic.analyzer import STATUS_RELEVANCE_PROMPT_VERSION
+from journeyplus.models import DocumentVersion, JobRun, SourceItem
+from journeyplus.status_topic.analyzer import (
+    STATUS_RELEVANCE_PROMPT_VERSION,
+    STATUS_RELEVANCE_SCHEMA_VERSION,
+)
 from journeyplus.workflow import V1Workflow
 
 
@@ -45,26 +56,64 @@ def pending_documents(
     *,
     source_id: str | None = None,
     source_ids: list[str] | tuple[str, ...] | None = None,
+    document_ids: list[UUID | str] | tuple[UUID | str, ...] | None = None,
     published_from: datetime | None = None,
     published_until: datetime | None = None,
     limit: int = 10,
 ) -> list[tuple[UUID, str]]:
     if limit < 1:
         raise ValueError("limit must be positive")
-    current_analysis_exists = _current_analysis_exists(provider)
+    return _pending_document_rows(
+        session,
+        provider,
+        source_id=source_id,
+        source_ids=source_ids,
+        document_ids=document_ids,
+        published_from=published_from,
+        published_until=published_until,
+    )[:limit]
+
+
+def _candidate_document_rows(
+    session: Session,
+    *,
+    source_id: str | None,
+    source_ids: list[str] | tuple[str, ...] | None,
+    document_ids: list[UUID | str] | tuple[UUID | str, ...] | None,
+    published_from: datetime | None,
+    published_until: datetime | None,
+) -> list[tuple[UUID, str]]:
+    if source_id is not None and source_ids is not None:
+        raise ValueError("source_id and source_ids are mutually exclusive")
+    normalized_document_ids = (
+        [UUID(str(value)) for value in document_ids]
+        if document_ids is not None
+        else None
+    )
+    if normalized_document_ids == []:
+        return []
     statement = (
         select(DocumentVersion.id, SourceItem.source_id)
         .join(SourceItem, SourceItem.id == DocumentVersion.source_item_id)
-        .where(~current_analysis_exists)
         .order_by(DocumentVersion.created_at.asc(), DocumentVersion.id.asc())
-        .limit(limit)
     )
-    if source_id is not None and source_ids is not None:
-        raise ValueError("source_id and source_ids are mutually exclusive")
     if source_id is not None:
         statement = statement.where(SourceItem.source_id == source_id)
     if source_ids is not None:
         statement = statement.where(SourceItem.source_id.in_(source_ids))
+    if normalized_document_ids is not None:
+        statement = statement.where(DocumentVersion.id.in_(normalized_document_ids))
+    else:
+        newer = aliased(DocumentVersion)
+        latest_document_id = (
+            select(newer.id)
+            .where(newer.source_item_id == DocumentVersion.source_item_id)
+            .order_by(newer.created_at.desc(), newer.id.desc())
+            .limit(1)
+            .correlate(DocumentVersion)
+            .scalar_subquery()
+        )
+        statement = statement.where(DocumentVersion.id == latest_document_id)
     if published_from is not None:
         statement = statement.where(SourceItem.published_at >= published_from)
     if published_until is not None:
@@ -75,44 +124,86 @@ def pending_documents(
     ]
 
 
+def _pending_document_rows(
+    session: Session,
+    provider: AIProvider,
+    *,
+    source_id: str | None,
+    source_ids: list[str] | tuple[str, ...] | None,
+    document_ids: list[UUID | str] | tuple[UUID | str, ...] | None,
+    published_from: datetime | None,
+    published_until: datetime | None,
+) -> list[tuple[UUID, str]]:
+    candidates = _candidate_document_rows(
+        session,
+        source_id=source_id,
+        source_ids=source_ids,
+        document_ids=document_ids,
+        published_from=published_from,
+        published_until=published_until,
+    )
+    keys = [
+        workflow_idempotency_key(document_id, provider)
+        for document_id, _ in candidates
+    ]
+    completed: set[str] = set()
+    for start in range(0, len(keys), 500):
+        completed.update(
+            session.scalars(
+                select(JobRun.idempotency_key).where(
+                    JobRun.idempotency_key.in_(keys[start : start + 500]),
+                    JobRun.status == "SUCCEEDED",
+                )
+            )
+        )
+    return [
+        row
+        for row, key in zip(candidates, keys, strict=True)
+        if key not in completed
+    ]
+
+
 def pending_document_count(
     session: Session,
     provider: AIProvider,
     *,
     source_id: str | None = None,
     source_ids: list[str] | tuple[str, ...] | None = None,
+    document_ids: list[UUID | str] | tuple[UUID | str, ...] | None = None,
     published_from: datetime | None = None,
     published_until: datetime | None = None,
 ) -> int:
-    statement = (
-        select(func.count())
-        .select_from(DocumentVersion)
-        .join(SourceItem, SourceItem.id == DocumentVersion.source_item_id)
-        .where(~_current_analysis_exists(provider))
-    )
-    if source_id is not None and source_ids is not None:
-        raise ValueError("source_id and source_ids are mutually exclusive")
-    if source_id is not None:
-        statement = statement.where(SourceItem.source_id == source_id)
-    if source_ids is not None:
-        statement = statement.where(SourceItem.source_id.in_(source_ids))
-    if published_from is not None:
-        statement = statement.where(SourceItem.published_at >= published_from)
-    if published_until is not None:
-        statement = statement.where(SourceItem.published_at < published_until)
-    return int(session.scalar(statement) or 0)
-
-
-def _current_analysis_exists(provider: AIProvider):
-    return exists(
-        select(AnalysisRun.id).where(
-            AnalysisRun.document_version_id == DocumentVersion.id,
-            AnalysisRun.stage == AnalysisStage.STATUS_RELEVANCE,
-            AnalysisRun.model_config_version == provider.metadata.config_version,
-            AnalysisRun.prompt_version == STATUS_RELEVANCE_PROMPT_VERSION,
-            AnalysisRun.result.is_not(None),
+    return len(
+        _pending_document_rows(
+            session,
+            provider,
+            source_id=source_id,
+            source_ids=source_ids,
+            document_ids=document_ids,
+            published_from=published_from,
+            published_until=published_until,
         )
     )
+
+
+def workflow_idempotency_key(document_id: UUID, provider: AIProvider) -> str:
+    version_payload = {
+        "provider": provider.metadata.config_version,
+        "status": [
+            STATUS_RELEVANCE_PROMPT_VERSION,
+            STATUS_RELEVANCE_SCHEMA_VERSION,
+        ],
+        "relationship": [
+            RELATIONSHIP_PROMPT_VERSION,
+            RELATIONSHIP_SCHEMA_VERSION,
+        ],
+        "facts": [FACT_PROMPT_VERSION, FACT_SCHEMA_VERSION],
+        "brief": [BRIEF_PROMPT_VERSION, BRIEF_SCHEMA_VERSION],
+    }
+    fingerprint = hashlib.sha256(
+        json.dumps(version_payload, sort_keys=True).encode()
+    ).hexdigest()[:20]
+    return f"v1-workflow:{document_id}:{fingerprint}"
 
 
 def process_pending_documents(
@@ -121,6 +212,7 @@ def process_pending_documents(
     *,
     source_id: str | None = None,
     source_ids: list[str] | tuple[str, ...] | None = None,
+    document_ids: list[UUID | str] | tuple[UUID | str, ...] | None = None,
     published_from: datetime | None = None,
     published_until: datetime | None = None,
     limit: int = 10,
@@ -132,6 +224,7 @@ def process_pending_documents(
             provider,
             source_id=source_id,
             source_ids=source_ids,
+            document_ids=document_ids,
             published_from=published_from,
             published_until=published_until,
             limit=limit,
@@ -170,11 +263,7 @@ def process_pending_documents(
 
         try:
             result, skipped = runner.execute(
-                idempotency_key=(
-                    f"v1-workflow:{document_id}:"
-                    f"{provider.metadata.config_version}:"
-                    f"{STATUS_RELEVANCE_PROMPT_VERSION}"
-                ),
+                idempotency_key=workflow_idempotency_key(document_id, provider),
                 job_type="v1_document_workflow",
                 operation=operation,
                 serialize=asdict,

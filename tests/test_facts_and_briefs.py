@@ -83,6 +83,23 @@ def _evidence(document, locator="paragraph 2"):
     }
 
 
+def _set_document_url(db_session, event, document, url: str) -> None:
+    document.canonical_url = url
+    item = db_session.get(SourceItem, document.source_item_id)
+    assert item is not None
+    item.discovered_url = url
+    item.canonical_url = url
+    evidence = db_session.scalar(
+        select(EventEvidence).where(
+            EventEvidence.event_id == event.id,
+            EventEvidence.document_version_id == document.id,
+        )
+    )
+    assert evidence is not None
+    evidence.source_url = url
+    db_session.flush()
+
+
 def _add_document_evidence(
     db_session,
     event,
@@ -566,6 +583,250 @@ def test_equivalent_status_validity_wording_does_not_create_conflict(
     assert second.record.id == first.record.id
 
 
+def test_equivalent_status_validity_date_wording_does_not_create_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Status valid until December 31, 2027."]
+    )
+    response = _fact_response(event, documents[0])
+    response["status_validity"] = {
+        "value": None,
+        "evidence": [_evidence(documents[0], "validity")],
+        "conflict": True,
+        "alternatives": [
+            "Status valid until December 31, 2027",
+            "Valid until 31 December 2027",
+        ],
+    }
+
+    result = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert result.fact_set.status_validity.value is not None
+    assert "2027" in result.fact_set.status_validity.value
+    assert not result.fact_set.status_validity.conflict
+    assert event.status == "DRAFT"
+
+
+def test_statusmatch_home_summary_and_faq_detail_are_refinements(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Eligible airline and hotel status holders may apply.",
+            "Applicants also need a member number, eligible-country residence and ID.",
+        ],
+    )
+    _set_document_url(
+        db_session, event, documents[0], "https://exampleair.statusmatch.com/"
+    )
+    _set_document_url(
+        db_session, event, documents[1], "https://exampleair.statusmatch.com/faq"
+    )
+    response = _fact_response(event, documents[0])
+    response["eligibility"] = {
+        "value": None,
+        "evidence": [
+            _evidence(documents[0], "homepage summary"),
+            _evidence(documents[1], "FAQ eligibility"),
+        ],
+        "conflict": True,
+        "alternatives": [
+            "符合条件的航空公司及酒店会籍持有者",
+            "必须拥有会员号、所列航空或酒店精英会籍、合资格地区居住证明和身份证件",
+        ],
+    }
+
+    result = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert not result.fact_set.eligibility.conflict
+    assert "身份证件" in (result.fact_set.eligibility.value or "")
+    assert not result.record.has_conflicts
+
+
+def test_statusmatch_later_faq_refines_homepage_without_false_conflicts(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Eligible airline and hotel elite members in Europe, Asia and the "
+            "Middle East can apply. Application fees apply. Successful Platinum "
+            "members receive D$50 and Titanium members receive D$75."
+        ],
+    )
+    homepage = documents[0]
+    _set_document_url(
+        db_session, event, homepage, "https://exampleair.statusmatch.com/"
+    )
+    homepage_response = _fact_response(
+        event, homepage, what="Elite members can request a status match"
+    )
+    homepage_response.update(
+        {
+            "eligibility": {
+                "value": "Eligible airline and hotel elite members",
+                "evidence": [_evidence(homepage, "homepage eligibility")],
+            },
+            "cost": {
+                "value": "Application fees apply",
+                "evidence": [_evidence(homepage, "generic fee notice")],
+            },
+            "region": {
+                "value": "Europe, Asia & Middle East",
+                "evidence": [_evidence(homepage, "homepage regions")],
+            },
+            "caveats": {
+                "value": (
+                    "Terms, conditions and fees apply. Successful Platinum members "
+                    "receive D$50 and Titanium members receive D$75"
+                ),
+                "evidence": [_evidence(homepage, "homepage benefit summary")],
+            },
+        }
+    )
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([homepage_response])
+    ).consolidate(event)
+
+    faq = _add_document_evidence(
+        db_session,
+        event,
+        (
+            "Applicants need an airline or hotel elite status plus identity and "
+            "residency evidence. Platinum receives D$50 and Titanium receives D$75; "
+            "only one match is permitted and enrollment closes 20 April 2026."
+        ),
+        locator="FAQ details",
+        relationship="SAME_EVENT",
+    )
+    _set_document_url(
+        db_session, event, faq, "https://exampleair.statusmatch.com/faq"
+    )
+    faq_response = _fact_response(
+        event,
+        faq,
+        what=(
+            "Eligible airline and hotel elite members can request a paid match "
+            "after supplying identity and residency evidence"
+        ),
+    )
+    faq_response.update(
+        {
+            "eligibility": {
+                "value": (
+                    "Applicants need airline or hotel elite status, a member number, "
+                    "identity document and eligible-region residency"
+                ),
+                "evidence": [_evidence(faq, "FAQ eligibility")],
+            },
+            "cost": {
+                "value": "Platinum: USD 49; Titanium: USD 199",
+                "evidence": [_evidence(faq, "FAQ fee table")],
+            },
+            "region": {
+                "value": "Europe, Asia, Middle East",
+                "evidence": [_evidence(faq, "FAQ regions")],
+            },
+            "caveats": {
+                "value": (
+                    "Platinum receives D$50 and Titanium receives D$75; only one "
+                    "match is permitted; enrollment closes 20 April 2026"
+                ),
+                "evidence": [_evidence(faq, "FAQ limitations")],
+            },
+        }
+    )
+    second = FactConsolidator(
+        db_session, SequenceAIProvider([faq_response])
+    ).consolidate(event)
+
+    assert first.fact_set.cost.value is None
+    assert second.fact_set.cost.value == "Platinum: USD 49; Titanium: USD 199"
+    assert second.fact_set.region.value in {
+        "Europe, Asia & Middle East",
+        "Europe, Asia, Middle East",
+    }
+    assert "identity" in (second.fact_set.eligibility.value or "")
+    assert "20 April 2026" in (second.fact_set.caveats.value or "")
+    assert not second.record.has_conflicts
+    assert event.status == "DRAFT"
+
+
+def test_statusmatch_upgrade_voucher_exclusion_wording_is_not_a_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Eligible members receive all benefits except upgrade vouchers. "
+            "Hotel applicants can only receive Silver Jay."
+        ],
+    )
+    _set_document_url(
+        db_session, event, documents[0], "https://rj.statusmatch.com/faq"
+    )
+    response = _fact_response(event, documents[0])
+    response["caveats"] = {
+        "value": None,
+        "evidence": [_evidence(documents[0], "benefit limitations")],
+        "conflict": True,
+        "alternatives": [
+            "符合条件的会员可获得除升级券外的所有礼遇",
+            (
+                "符合条件的会员在会籍匹配期间不获得升级券，直到重新获得该等级资格；"
+                "酒店匹配申请人只能获得 Silver Jay 等级，Gold Sparrow 不可用"
+            ),
+        ],
+    }
+
+    result = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert not result.fact_set.caveats.conflict
+    assert "酒店" in (result.fact_set.caveats.value or "")
+    assert not result.record.has_conflicts
+    assert event.status == "DRAFT"
+
+
+def test_statusmatch_external_registration_is_not_the_application_entry(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["Apply for Gold."])
+    _set_document_url(
+        db_session, event, documents[0], "https://clubavolta.statusmatch.com/"
+    )
+    response = _fact_response(event, documents[0])
+    response["action_link"] = {
+        "value": "https://sso.clubavolta.com/register?source=statusmatch",
+        "evidence": [_evidence(documents[0], "Step 1 registration")],
+    }
+    response["application_routes"] = [
+        {
+            "scope": "Club Avolta Gold route",
+            "eligibility": "Eligible airline or hotel loyalty members",
+            "action_link": "https://sso.clubavolta.com/register?source=statusmatch",
+            "evidence": [_evidence(documents[0], "Step 1 registration")],
+        }
+    ]
+
+    result = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert result.fact_set.action_link.value == "https://clubavolta.statusmatch.com/"
+    route_link = result.fact_set.application_routes[0].action_link
+    assert route_link is not None
+    assert str(route_link) == "https://clubavolta.statusmatch.com/"
+    assert type(route_link).__name__ == "HttpUrl"
+
+
 def test_equivalent_status_validity_alternatives_can_resolve_old_conflict(
     db_session,
 ) -> None:
@@ -599,7 +860,7 @@ def test_equivalent_status_validity_alternatives_can_resolve_old_conflict(
         db_session, SequenceAIProvider([resolved_response])
     ).consolidate(event)
 
-    assert resolved.fact_set.status_validity.value == "one year"
+    assert resolved.fact_set.status_validity.value == "twelve months"
     assert not resolved.fact_set.status_validity.conflict
     assert resolved.fact_set.status_validity.alternatives == []
     assert event.status == "DRAFT"
@@ -762,6 +1023,138 @@ def test_multiple_application_routes_do_not_create_cross_route_conflicts(
     assert generated.brief.summary_fact_keys == ["application_routes"]
 
 
+def test_routes_with_the_same_application_link_reconcile_by_scope(db_session) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Airline and travel-card routes share one application page."]
+    )
+    first_response = _fact_response(event, documents[0])
+    first_response["application_routes"] = [
+        {
+            "scope": "Airline status route",
+            "eligibility": "Eligible airline elites",
+            "cost": "USD 99",
+            "action_link": "https://example.com/apply",
+            "evidence": [_evidence(documents[0], "airline route")],
+        },
+        {
+            "scope": "Travel card route",
+            "eligibility": "Eligible travel card holders",
+            "cost": "Silver USD 99; Gold and Platinum unavailable",
+            "action_link": "https://example.com/apply",
+            "evidence": [_evidence(documents[0], "travel card route")],
+        },
+    ]
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    added = _add_document_evidence(
+        db_session,
+        event,
+        "The airline route remains available.",
+        locator="airline route refresh",
+        relationship="SAME_EVENT",
+    )
+    refreshed = _fact_response(event, added)
+    refreshed["application_routes"] = [
+        {
+            "scope": "Airline status route",
+            "eligibility": "Eligible airline elites",
+            "cost": "USD 99",
+            "action_link": "https://example.com/apply",
+            "evidence": [_evidence(added, "airline route refresh")],
+        }
+    ]
+
+    second = FactConsolidator(
+        db_session, SequenceAIProvider([refreshed])
+    ).consolidate(event)
+
+    assert first.fact_set.application_routes[1].scope == "Travel card route"
+    assert [route.scope for route in second.fact_set.application_routes] == [
+        "Airline status route",
+        "Travel card route",
+    ]
+    assert second.fact_set.application_routes[1].cost == (
+        "Silver USD 99; Gold and Platinum unavailable"
+    )
+
+
+def test_statusmatch_tier_table_is_structured_and_available_to_briefs(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Example Air Gold and Platinum map to Target Gold; "
+            "Target Platinum is unavailable."
+        ],
+    )
+    response = _fact_response(event, documents[0])
+    response["status_mappings"] = [
+        {
+            "source_program": "Example Air",
+            "source_tiers": ["Gold", "Platinum"],
+            "target_tier": "Target Gold",
+            "availability": "AVAILABLE",
+            "evidence": [_evidence(documents[0], "tier mapping table")],
+        },
+        {
+            "source_program": "Example Air",
+            "source_tiers": [],
+            "target_tier": "Target Platinum",
+            "availability": "UNAVAILABLE",
+            "evidence": [_evidence(documents[0], "tier mapping table")],
+        },
+    ]
+    fact_provider = SequenceAIProvider([response])
+
+    facts = FactConsolidator(db_session, fact_provider).consolidate(event)
+
+    assert facts.fact_set.schema_version == "4"
+    assert len(facts.fact_set.status_mappings) == 2
+    assert facts.fact_set.status_mappings[0].source_tiers == ["Gold", "Platinum"]
+    assert facts.fact_set.status_mappings[1].availability == "UNAVAILABLE"
+    assert "Recently ended offers" in fact_provider.calls[0]["system_prompt"]
+    assert "仍会被解析" in fact_provider.calls[0]["system_prompt"]
+
+    brief = _brief_response(facts.record, documents[0].canonical_url)
+    brief["summary"] = "Example Air 金卡及白金卡可匹配到目标金卡。"
+    brief["summary_fact_keys"] = ["status_mappings"]
+    generated = BriefGenerator(
+        db_session, SequenceAIProvider([brief])
+    ).generate(facts.record)
+
+    assert generated.brief.summary_fact_keys == ["status_mappings"]
+
+
+def test_statusmatch_html_table_is_injected_without_model_copying_rows(
+    db_session,
+) -> None:
+    html = """
+    <table>
+      <tr><td></td><td colspan="2">Target Club Tier</td></tr>
+      <tr><td>AIRLINE</td><td>SILVER</td><td>GOLD</td></tr>
+      <tr><td><strong>Example Air</strong><p>Rewards</p></td>
+          <td>Silver<br></td><td>Gold<br>Platinum<br></td></tr>
+    </table>
+    """
+    event, documents = _event_with_documents(db_session, [html])
+    document = documents[0]
+    document.canonical_url = "https://example.statusmatch.com/faq"
+    document.raw_body = html
+    document.normalized_body = html
+    response = _fact_response(event, document)
+    response["status_mappings"] = []
+    provider = SequenceAIProvider([response])
+
+    result = FactConsolidator(db_session, provider).consolidate(event)
+
+    assert len(result.fact_set.status_mappings) == 2
+    assert result.fact_set.status_mappings[1].source_tiers == ["Gold", "Platinum"]
+    request = json.loads(provider.calls[0]["user_prompt"])
+    assert request["evidence_rules"]["deterministic_status_mapping_count"] == 2
+
+
 def test_missing_region_cannot_be_inferred_as_global(db_session) -> None:
     event, documents = _event_with_documents(
         db_session,
@@ -879,7 +1272,7 @@ def test_conflicting_facts_stay_explicit_and_enter_review(db_session) -> None:
     assert event.status == "NEEDS_REVIEW"
 
 
-def test_generic_brand_requirements_become_caveat_and_brief_retry_is_corrected(
+def test_generic_brand_requirements_are_not_promoted_to_business_facts(
     db_session,
 ) -> None:
     event, documents = _event_with_documents(
@@ -906,38 +1299,40 @@ def test_generic_brand_requirements_become_caveat_and_brief_retry_is_corrected(
     facts = FactConsolidator(db_session, fact_provider).consolidate(event)
 
     assert facts.fact_set.eligibility.value is None
-    assert facts.fact_set.caveats.value == fact_response["eligibility"]["value"]
-    assert "这只是 caveats，不是具体 eligibility" in fact_provider.calls[0][
+    assert facts.fact_set.caveats.value is None
+    assert "Gmail 邮件仅用于发现" in fact_provider.calls[0]["system_prompt"]
+    assert "通用兜底文字不得代替具体事实" in fact_provider.calls[0][
         "system_prompt"
     ]
 
-    invalid_brief = _brief_response(facts.record, documents[0].canonical_url)
-    invalid_brief["summary"] = "符合条件的会员需要查看品牌页面的申请要求。"
-    invalid_brief["summary_fact_keys"] = ["what_happened", "eligibility"]
-    corrected_brief = _brief_response(facts.record, documents[0].canonical_url)
-    corrected_brief["summary"] = "邮件提示该匹配存在，具体要求需查看对应活动页。"
-    corrected_brief["summary_fact_keys"] = ["what_happened", "caveats"]
-    corrected_brief["caveats"] = [
-        {
-            "text": "各品牌的申请要求可能不同，应以对应活动页为准。",
-            "fact_keys": ["caveats"],
-        }
-    ]
-    brief_provider = SequenceAIProvider([invalid_brief, corrected_brief])
 
-    generated = BriefGenerator(db_session, brief_provider).generate(facts.record)
-
-    assert generated.brief.summary_fact_keys == ["what_happened", "caveats"]
-    assert generated.brief.caveats[0].fact_keys == ["caveats"]
-    assert len(brief_provider.calls) == 2
-    first_request = json.loads(brief_provider.calls[0]["user_prompt"])
-    second_request = json.loads(brief_provider.calls[1]["user_prompt"])
-    assert "caveats" in first_request["known_fact_keys"]
-    assert "eligibility" in first_request["unknown_fact_keys"]
-    assert "correction" not in first_request
-    assert second_request["correction"]["previous_attempt_rejected_for"] == (
-        "Brief makes a claim from unknown fact: eligibility"
+def test_generic_caveat_clause_is_removed_without_losing_specific_limits(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["Terms, conditions and fees apply. Platinum companion is excluded."],
     )
+    response = _fact_response(event, documents[0])
+    response["caveats"] = {
+        "value": None,
+        "evidence": [_evidence(documents[0], "terms and exclusions")],
+        "conflict": True,
+        "alternatives": [
+            "Terms, conditions and fees apply",
+            "条款、条件及费用适用；匹配的铂金会员不享受铂金同伴特权；申请费批准后不可退还。",
+        ],
+    }
+
+    facts = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert not facts.fact_set.caveats.conflict
+    assert facts.fact_set.caveats.value == (
+        "匹配的铂金会员不享受铂金同伴特权；申请费批准后不可退还"
+    )
+    assert not facts.record.has_conflicts
 
 
 def test_program_name_is_not_reused_as_target_status(db_session) -> None:
@@ -998,8 +1393,8 @@ def test_brief_retry_removes_unknown_absence_descriptions(db_session) -> None:
     invalid["summary"] = "资格、地区和截止日期未明确，具体要求需查看品牌页面。"
     invalid["summary_fact_keys"] = ["what_happened", "caveats"]
     corrected = _brief_response(facts.record, documents[0].canonical_url)
-    corrected["summary"] = "该会籍匹配的具体要求需以品牌活动页面为准。"
-    corrected["summary_fact_keys"] = ["what_happened", "caveats"]
+    corrected["summary"] = "该会籍匹配活动已经发布。"
+    corrected["summary_fact_keys"] = ["what_happened"]
     provider = SequenceAIProvider([invalid, corrected])
 
     generated = BriefGenerator(db_session, provider).generate(facts.record)
@@ -1011,7 +1406,7 @@ def test_brief_retry_removes_unknown_absence_descriptions(db_session) -> None:
     )
 
 
-def test_brief_retry_requires_caveat_key_for_generic_requirements(
+def test_brief_retry_removes_generic_page_reference_even_with_caveat_evidence(
     db_session,
 ) -> None:
     event, documents = _event_with_documents(db_session, ["Status match digest."])
@@ -1026,19 +1421,274 @@ def test_brief_retry_requires_caveat_key_for_generic_requirements(
     ).consolidate(event)
     invalid = _brief_response(facts.record, documents[0].canonical_url)
     invalid["summary"] = "具体申请要求需查看各品牌页面。"
-    invalid["summary_fact_keys"] = ["what_happened", "action_link"]
+    invalid["summary_fact_keys"] = ["what_happened", "caveats"]
     corrected = _brief_response(facts.record, documents[0].canonical_url)
-    corrected["summary"] = invalid["summary"]
-    corrected["summary_fact_keys"] = ["what_happened", "caveats"]
+    corrected["summary"] = "该会籍匹配活动已经发布。"
+    corrected["summary_fact_keys"] = ["what_happened"]
     provider = SequenceAIProvider([invalid, corrected])
 
     generated = BriefGenerator(db_session, provider).generate(facts.record)
 
-    assert "caveats" in generated.brief.summary_fact_keys
+    assert generated.brief.summary_fact_keys == ["what_happened"]
+    assert "查看" not in generated.brief.summary
     retry_request = json.loads(provider.calls[1]["user_prompt"])
-    assert retry_request["correction"]["previous_attempt_rejected_for"] == (
-        "Brief describes generic requirements without citing caveats"
+    rejection = retry_request["correction"]["previous_attempt_rejected_for"]
+    assert rejection.startswith(
+        "Brief uses a generic page-reference caveat instead of concrete facts | "
     )
+    diagnostic = json.loads(rejection.split(" | ", maxsplit=1)[1])
+    assert diagnostic == {
+        "rule_id": "BRIEF_GENERIC_PAGE_REFERENCE",
+        "claim_location": "summary",
+        "claim_term": "申请要求",
+        "reference_term": "页面",
+        "matched_text": "申请要求需查看各品牌页面",
+        "claim_excerpt": "具体申请要求需查看各品牌页面。",
+        "fact_keys": ["caveats", "what_happened"],
+    }
+    assert "删除" in retry_request["correction"]["required_action"]
+
+
+def test_brief_generic_page_reference_allows_concrete_fee_difference(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["Status match terms."])
+    response = _fact_response(event, documents[0])
+    response["eligibility"] = {
+        "value": "Kenya Airways eligible members",
+        "evidence": [_evidence(documents[0], "eligibility section")],
+    }
+    response["application_routes"] = [
+        {
+            "scope": "Airline status route",
+            "eligibility": "Eligible airline elite members",
+            "region": "Americas",
+            "cost": "Silver 99 USD; Gold/Platinum 299 USD",
+            "action_link": "https://example.com/apply/airline",
+            "evidence": [_evidence(documents[0], "airline route")],
+        },
+        {
+            "scope": "Hotel status route",
+            "eligibility": "Eligible hotel elite members",
+            "action_link": "https://example.com/apply/hotel",
+            "evidence": [_evidence(documents[0], "hotel route")],
+        },
+        {
+            "scope": "Travel card route",
+            "eligibility": "Eligible travel card holders",
+            "action_link": "https://example.com/apply/card",
+            "evidence": [_evidence(documents[0], "travel card route")],
+        },
+    ]
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([response]),
+    ).consolidate(event)
+    candidate = _brief_response(facts.record, documents[0].canonical_url)
+    candidate["key_points"] = [
+        {
+            "text": "申请条件适用于 Kenya Airways 合资格会员。",
+            "fact_keys": ["eligibility"],
+        },
+        {
+            "text": (
+                "提供航司身份、酒店身份、旅行信用卡三种匹配路径，"
+                "不同路径和地区费用不同。例如，航司身份匹配中，美洲地区"
+                "Silver 99 USD、Gold/Platinum 299 USD。"
+            ),
+            "fact_keys": ["application_routes"],
+        },
+    ]
+    provider = SequenceAIProvider([candidate])
+
+    generated = BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert len(generated.brief.key_points) == 2
+    assert len(provider.calls) == 1
+
+
+def test_conflicts_enter_review_but_still_generate_a_visible_chinese_brief(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["The fee is USD 99 in one place and USD 149 in another."]
+    )
+    response = _fact_response(event, documents[0])
+    response["cost"] = {
+        "value": None,
+        "evidence": [_evidence(documents[0], "two fee statements")],
+        "conflict": True,
+        "alternatives": ["USD 99", "USD 149"],
+    }
+    facts = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+    candidate = _brief_response(facts.record, documents[0].canonical_url)
+    provider = SequenceAIProvider([candidate])
+
+    generated = BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert event.status == "NEEDS_REVIEW"
+    assert event.current_brief_id == generated.record.id
+    conflict_points = [
+        point for point in generated.brief.caveats if "cost" in point.fact_keys
+    ]
+    assert len(conflict_points) == 1
+    assert "USD 99" in conflict_points[0].text
+    assert "USD 149" in conflict_points[0].text
+    assert "待复核" in conflict_points[0].text
+
+
+def test_statusmatch_fee_table_and_footnote_conflict_is_deterministic(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Argentina, Brazil, Chile | Platinum: USD 399 | Not Available for Brazil. "
+            "Platinum status match is not available for Argentina, Brazil, Chila, "
+            "Hong Kong, Taiwan or China residents."
+        ],
+    )
+    _set_document_url(
+        db_session, event, documents[0], "https://flyingblue.statusmatch.com/faq"
+    )
+    response = _fact_response(event, documents[0])
+    response["application_routes"] = [
+        {
+            "scope": "South America",
+            "region": "Argentina, Brazil, Chile, Colombia",
+            "cost": "Silver: USD 99; Gold: USD 299; Platinum: USD 399 (Not Available for Brazil)",
+            "evidence": [_evidence(documents[0], "current regional fee table")],
+        }
+    ]
+    facts = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert event.status == "NEEDS_REVIEW"
+    assert facts.record.has_conflicts
+    assert facts.fact_set.application_routes[0].conflict
+    assert "argentina" in (
+        facts.fact_set.application_routes[0].conflict_note or ""
+    ).casefold()
+    assert "chile" in (
+        facts.fact_set.application_routes[0].conflict_note or ""
+    ).casefold()
+
+    candidate = _brief_response(facts.record, documents[0].canonical_url)
+    generated = BriefGenerator(
+        db_session, SequenceAIProvider([candidate])
+    ).generate(facts.record)
+
+    points = [
+        point
+        for point in generated.brief.caveats
+        if "application_routes" in point.fact_keys
+    ]
+    assert len(points) == 1
+    assert "待复核" in points[0].text
+    assert event.current_brief_id == generated.record.id
+
+
+def test_impossible_post_expiry_link_date_marks_deadline_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Applications run from May 1, 2026 until September 1, 2026. "
+            "This link will be active two weeks after the offer expires, until "
+            "20 April 2026, and will be automatically deactivated after that date."
+        ],
+    )
+    _set_document_url(
+        db_session, event, documents[0], "https://ghadiscovery.statusmatch.com/faq"
+    )
+    response = _fact_response(event, documents[0])
+    response["application_start"] = {
+        "value": "May 1, 2026",
+        "evidence": [_evidence(documents[0], "application window")],
+    }
+    response["deadline"] = {
+        "value": "September 1, 2026",
+        "evidence": [_evidence(documents[0], "application window")],
+    }
+
+    facts = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert facts.fact_set.deadline.conflict
+    assert "September 1, 2026" in facts.fact_set.deadline.alternatives
+    assert any("20 April 2026" in item for item in facts.fact_set.deadline.alternatives)
+    assert facts.record.has_conflicts
+    assert event.status == "NEEDS_REVIEW"
+    assert event.lifecycle_status == "UNKNOWN"
+
+
+def test_brief_replaces_internal_fact_keys_with_chinese_labels(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Three application routes."])
+    response = _fact_response(event, documents[0])
+    response["application_routes"] = [
+        {
+            "scope": "Travel card route",
+            "eligibility": "Eligible travel card holders",
+            "cost": "USD 99",
+            "evidence": [_evidence(documents[0], "travel card route")],
+        }
+    ]
+    facts = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+    candidate = _brief_response(facts.record, documents[0].canonical_url)
+    candidate["key_points"] = [
+        {
+            "text": "具体费用详见application_routes。",
+            "fact_keys": ["application_routes"],
+        }
+    ]
+
+    generated = BriefGenerator(
+        db_session, SequenceAIProvider([candidate])
+    ).generate(facts.record)
+
+    assert "application_routes" not in generated.brief.key_points[0].text
+    assert "申请路径" in generated.brief.key_points[0].text
+
+
+def test_brief_rejects_standalone_generic_terms_apply(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Status match terms."])
+    response = _fact_response(event, documents[0])
+    response["caveats"] = {
+        "value": "申请费批准后不可退还。",
+        "evidence": [_evidence(documents[0], "footer")],
+    }
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([response]),
+    ).consolidate(event)
+    candidate = _brief_response(facts.record, documents[0].canonical_url)
+    candidate["caveats"] = [
+        {"text": "条款和费用适用。", "fact_keys": ["caveats"]}
+    ]
+    provider = SequenceAIProvider([candidate, candidate])
+
+    with pytest.raises(ValueError):
+        BriefGenerator(db_session, provider).generate(facts.record)
+
+    failed = db_session.scalar(
+        select(AnalysisRun).where(AnalysisRun.stage == "BRIEF_GENERATION")
+    )
+    assert failed is not None and failed.error is not None
+    diagnostics = json.loads(failed.error)
+    detail = json.loads(
+        diagnostics["attempts"][0]["message"].split(" | ", maxsplit=1)[1]
+    )
+    assert detail["rule_id"] == "BRIEF_GENERIC_TERMS_APPLY"
+    assert detail["claim_location"] == "caveats[0]"
+    assert detail["claim_term"] == "条款和费用"
+    assert detail["reference_term"] == "适用"
 
 
 def test_brief_reads_only_fact_set_and_traces_every_claim(db_session) -> None:

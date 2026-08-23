@@ -53,6 +53,79 @@ def test_light_cleaning_keeps_structure_and_removes_page_chrome() -> None:
     assert "secret" not in cleaned.normalized_body
 
 
+def test_mail_cleaning_preserves_image_project_link_and_strips_unrelated_link() -> None:
+    cleaned = lightly_clean(
+        RawDocument(
+            source_id="status_services_mail",
+            external_id="mail-one",
+            canonical_url="https://mail.google.com/mail/u/0/?message_id=mail-one",
+            body=(
+                '<html><body><a href="https://clubavolta.statusmatch.com/?uid=x">'
+                '<img alt="Get Started Button"></a>'
+                '<a href="https://example.com/unsubscribe">Unsubscribe</a>'
+                "</body></html>"
+            ),
+            content_type="text/html",
+            metadata={"document_role": "mail_discovery"},
+        )
+    )
+
+    assert "clubavolta.statusmatch.com" in cleaned.normalized_body
+    assert "Get Started Button" in cleaned.normalized_body
+    assert "example.com/unsubscribe" not in cleaned.normalized_body
+    assert "Unsubscribe" in cleaned.normalized_body
+
+
+def test_linked_statusmatch_page_keeps_public_links_and_tables() -> None:
+    cleaned = lightly_clean(
+        RawDocument(
+            source_id="status_services_mail",
+            external_id="statusmatch-page:example.statusmatch.com:faq",
+            canonical_url="https://example.statusmatch.com/faq",
+            body=(
+                "<html><body><table><tr><th>Source</th><th>Gold</th></tr>"
+                "<tr><td>Example Air</td><td>Platinum</td></tr></table>"
+                '<a href="https://example-air.com/apply">Apply now</a>'
+                '<a href="https://example.com/terms">Terms</a>'
+                "</body></html>"
+            ),
+            content_type="text/html",
+            metadata={"document_role": "linked_statusmatch_page"},
+        )
+    )
+
+    assert "Example Air" in cleaned.normalized_body
+    assert "Platinum" in cleaned.normalized_body
+    assert "https://example-air.com/apply" in cleaned.normalized_body
+    assert "https://example.com/terms" in cleaned.normalized_body
+
+
+def test_linked_statusmatch_page_ignores_cloudflare_email_token_churn() -> None:
+    def clean(token: str):
+        return lightly_clean(
+            RawDocument(
+                source_id="status_services_mail",
+                external_id="statusmatch-page:example.statusmatch.com:faq",
+                canonical_url="https://example.statusmatch.com/faq",
+                body=(
+                    '<html><body><p>Stable offer</p><a href="/cdn-cgi/l/'
+                    f'email-protection#{token}">[email protected]</a></body></html>'
+                ),
+                content_type="text/html",
+                metadata={"document_role": "linked_statusmatch_page"},
+            )
+        )
+
+    first = clean("012345")
+    second = clean("abcdef")
+
+    assert first.raw_hash != second.raw_hash
+    assert first.normalized_body == second.normalized_body
+    assert first.normalized_hash == second.normalized_hash
+    assert "012345" not in first.normalized_body
+    assert "abcdef" not in second.normalized_body
+
+
 def test_discovery_and_content_deduplication_and_versioning(db_session) -> None:
     seed_sources(db_session)
     service = IngestionService(db_session)
@@ -85,3 +158,49 @@ def test_discovery_and_content_deduplication_and_versioning(db_session) -> None:
     assert db_session.scalar(select(func.count()).select_from(SourceItem)) == 2
     assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 3
 
+
+def test_same_item_dynamic_html_does_not_version_unchanged_normalized_content(
+    db_session,
+) -> None:
+    seed_sources(db_session)
+    service = IngestionService(db_session)
+    item = _item("dynamic", "https://example.com/dynamic")
+    first = service.ingest(
+        item,
+        _raw(
+            "dynamic",
+            "https://example.com/dynamic",
+            "<html><body><p>Stable offer</p><form>token-one</form></body></html>",
+        ),
+    )
+    second = service.ingest(
+        item,
+        _raw(
+            "dynamic",
+            "https://example.com/dynamic",
+            "<html><body><p>Stable offer</p><form>token-two</form></body></html>",
+        ),
+    )
+
+    assert first.new_version is True
+    assert second.new_version is False
+    assert second.document_version.id == first.document_version.id
+
+
+def test_parser_version_change_creates_a_new_normalized_document(
+    db_session, monkeypatch
+) -> None:
+    seed_sources(db_session)
+    service = IngestionService(db_session)
+    item = _item("parser", "https://example.com/parser")
+    raw = _raw("parser", "https://example.com/parser", "<p>Stable body</p>")
+
+    monkeypatch.setattr("journeyplus.content.cleaner.PARSER_VERSION", "parser-one")
+    first = service.ingest(item, raw)
+    monkeypatch.setattr("journeyplus.content.cleaner.PARSER_VERSION", "parser-two")
+    second = service.ingest(item, raw)
+
+    assert first.new_version is True
+    assert second.new_version is True
+    assert second.document_version.id != first.document_version.id
+    assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 2

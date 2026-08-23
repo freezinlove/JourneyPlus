@@ -15,11 +15,10 @@ from journeyplus.contracts import (
     RelevanceResult,
     RunStatus,
 )
-from journeyplus.models import AnalysisRun, DocumentVersion
-from journeyplus.status_topic.source_context import catalog_authoritative_program
+from journeyplus.models import AnalysisRun, DocumentVersion, SourceItem
 
 
-STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v10"
+STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v12"
 STATUS_RELEVANCE_SCHEMA_VERSION = "4"
 
 SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档只能选择以下一个 label：
@@ -35,9 +34,7 @@ SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档�
 
 STATUS_OPPORTUNITY 必须按现实活动输出最小 event_hint，而不是按措辞或档位拆分：同一活动的多个目标等级、价格档、资格映射只输出一个提示；同一合作活动中的双向会籍路径也只输出一个提示。不同目标忠诚度项目且具有各自独立官方行动入口时，必须输出不同提示，即使其中一个会籍可能被用作另一个活动的资格来源。例如 Malaysia Airlines Enrich 付费匹配与通过另一官方入口购买 Garuda Gold Privilege 是两个活动。只有彼此独立的现实活动才输出多个 event_hints。正文主体活动中顺带推荐的一句话替代链接、TIP 或延伸阅读不另建提示。
 
-输入中的 authoritative_program 非空时，它是来源顶层记录给出的权威公司/忠诚度项目名，所有 event_hint.program 必须原样使用它；右侧正文里的其他品牌可能是比较、适用资格或来源笔误。权威项目名只确定材料主体，不代表同一项目的不同记录一定是同一活动。
-
-当 authoritative_program 非空且汇总条目明确写出 Elite Status Match、Fast Track、Free Status 等直接会籍机会并提供详情或申请入口时，即使条目很短、没有日期或完整资格列表，也足以标为 STATUS_OPPORTUNITY；缺少时效信息不应单独降为 UNCERTAIN。region_hint 只需给出简洁区域摘要，不必逐一抄写很长的国家列表。
+StatusMatch 邮件展开得到的项目活动首页和 `/faq` 是完整公开材料。它们可能很长，必须提炼现实活动粒度的关键信息，尤其是目标项目与等级、资格来源与等级映射、价格、地区、申请窗口、会籍有效期、申请入口和注意事项；不要因页面包含多条 FAQ 就拆成多个现实活动。region_hint 只需给出简洁区域摘要，不必逐一抄写很长的国家列表。
 
 每个 event_hint 还可输出 application_start 和 application_deadline。只有材料明确给出当前活动的申请开始或截止文字时才原样摘录对应值；不得使用文章发布时间、会籍有效期或模型常识补猜。只有日期就保留该日期，明确给出时刻或时区时保留完整信息；系统后续统一按北京时间规范化。缺失值必须为 null，并且一篇多活动文档的时间不得串到其他 event_hint。
 
@@ -70,18 +67,44 @@ class StatusRelevanceAnalyzer:
             f"{AnalysisStage.STATUS_RELEVANCE}:{document.id}:"
             f"{self._provider.metadata.config_version}:{self._prompt_version}"
         )
+        discovery_only = self._mail_is_discovery_only(document)
         existing = self._session.scalar(
             select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
         )
+        if discovery_only:
+            run = existing or AnalysisRun(
+                idempotency_key=key,
+                document_version_id=document.id,
+                stage=AnalysisStage.STATUS_RELEVANCE,
+                status=RunStatus.SUCCEEDED,
+                input_version=str(document.id),
+                provider=self._provider.metadata.provider,
+                model=self._provider.metadata.model,
+                model_config_version=self._provider.metadata.config_version,
+                prompt_version=self._prompt_version,
+                schema_version=STATUS_RELEVANCE_SCHEMA_VERSION,
+            )
+            if existing is None:
+                self._session.add(run)
+            result = RelevanceResult(
+                label=DocumentLabel.NONE,
+                confidence=1,
+                reason=(
+                    "邮件仅用于发现项目活动链接；详细事实由已展开的活动首页和"
+                    "FAQ 独立处理。"
+                ),
+                event_hints=[],
+            )
+            run.status = RunStatus.SUCCEEDED
+            run.result = result.model_dump(mode="json")
+            run.error = None
+            self._session.flush()
+            return RelevanceAnalysis(run, result, existing is not None)
         if existing and existing.result:
             result = self._finalize_result(
-                document,
-                RelevanceResult.model_validate(existing.result),
-                catalog_authoritative_program(self._session, document),
+                document, RelevanceResult.model_validate(existing.result)
             )
             return RelevanceAnalysis(existing, result, True)
-
-        authoritative_program = catalog_authoritative_program(self._session, document)
 
         if document.duplicate_of_id is not None:
             reusable = self._session.scalar(
@@ -99,9 +122,7 @@ class StatusRelevanceAnalyzer:
             )
             if reusable is not None and reusable.result:
                 reused_result = self._finalize_result(
-                    document,
-                    RelevanceResult.model_validate(reusable.result),
-                    authoritative_program,
+                    document, RelevanceResult.model_validate(reusable.result)
                 )
                 run = AnalysisRun(
                     idempotency_key=key,
@@ -142,16 +163,13 @@ class StatusRelevanceAnalyzer:
                     system_prompt=SYSTEM_PROMPT,
                     user_prompt=json.dumps(
                         {
-                            "authoritative_program": authoritative_program,
                             "normalized_material": document.normalized_body,
                         },
                         ensure_ascii=False,
                     ),
                     output_model=RelevanceResult,
                 )
-                result = self._finalize_result(
-                    document, result, authoritative_program
-                )
+                result = self._finalize_result(document, result)
                 break
             except Exception as exc:
                 last_error = exc
@@ -174,7 +192,6 @@ class StatusRelevanceAnalyzer:
     def _finalize_result(
         document: DocumentVersion,
         result: RelevanceResult,
-        authoritative_program: str | None,
     ) -> RelevanceResult:
         if result.label != DocumentLabel.STATUS_OPPORTUNITY:
             return result
@@ -188,16 +205,14 @@ class StatusRelevanceAnalyzer:
                 ),
                 event_hints=[],
             )
-        if authoritative_program is None:
-            return result
-        return result.model_copy(
-            update={
-                "event_hints": [
-                    hint.model_copy(update={"program": authoritative_program})
-                    for hint in result.event_hints
-                ]
-            }
-        )
+        return result
+
+    def _mail_is_discovery_only(self, document: DocumentVersion) -> bool:
+        item = self._session.get(SourceItem, document.source_item_id)
+        if item is None or item.source_id != "status_services_mail":
+            return False
+        metadata = item.raw_metadata or {}
+        return metadata.get("document_role") != "linked_statusmatch_page"
 
 
 _EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)

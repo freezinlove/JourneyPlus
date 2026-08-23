@@ -51,6 +51,12 @@ class LifecycleStatus(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class MappingAvailability(StrEnum):
+    AVAILABLE = "AVAILABLE"
+    CONDITIONAL = "CONDITIONAL"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
 class AnalysisStage(StrEnum):
     STATUS_RELEVANCE = "STATUS_RELEVANCE"
     EVENT_RELATIONSHIP = "EVENT_RELATIONSHIP"
@@ -185,8 +191,35 @@ class ApplicationRoute(StrictModel):
         return self
 
 
+class StatusMapping(StrictModel):
+    source_program: str = Field(min_length=1, max_length=300)
+    source_tiers: list[str] = Field(default_factory=list, max_length=20)
+    target_tier: str = Field(min_length=1, max_length=200)
+    availability: MappingAvailability
+    conditions: str | None = Field(default=None, max_length=1000)
+    evidence: list[EvidenceRef] = Field(min_length=1, max_length=20)
+    conflict: bool = False
+    conflict_note: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def mapping_requires_consistent_availability_and_conflict(self) -> StatusMapping:
+        if self.availability == MappingAvailability.UNAVAILABLE:
+            if self.source_tiers:
+                raise ValueError("Unavailable mappings cannot list source tiers")
+        elif not self.source_tiers:
+            raise ValueError("Available mappings require at least one source tier")
+        if self.availability == MappingAvailability.CONDITIONAL:
+            if self.conditions is None:
+                raise ValueError("Conditional mappings require conditions")
+        elif self.conditions is not None:
+            raise ValueError("Mapping conditions require conditional availability")
+        if self.conflict != (self.conflict_note is not None):
+            raise ValueError("Mapping conflicts require a conflict_note and vice versa")
+        return self
+
+
 class FactSet(StrictModel):
-    schema_version: str = "3"
+    schema_version: str = "4"
     event_id: UUID
     what_happened: FactField
     eligibility: FactField = Field(default_factory=FactField)
@@ -202,6 +235,7 @@ class FactSet(StrictModel):
     application_routes: list[ApplicationRoute] = Field(
         default_factory=list, max_length=20
     )
+    status_mappings: list[StatusMapping] = Field(default_factory=list, max_length=500)
 
     @field_validator(
         "eligibility",
@@ -220,9 +254,9 @@ class FactSet(StrictModel):
     def explicit_null_means_unknown_fact(cls, value):
         return {} if value is None else value
 
-    @field_validator("application_routes", mode="before")
+    @field_validator("application_routes", "status_mappings", mode="before")
     @classmethod
-    def explicit_null_means_no_routes(cls, value):
+    def explicit_null_means_no_structured_details(cls, value):
         return [] if value is None else value
 
     def fact_fields(self) -> dict[str, FactField]:

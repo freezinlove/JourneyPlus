@@ -45,18 +45,6 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         collection_cadence="P1D",
     ),
     SourceDefinition(
-        source_id="ffb_status_match_catalog",
-        name="Frequent Flyer Bonuses Status Match Catalog",
-        adapter_type="static_catalog",
-        human_url="https://www.frequentflyerbonuses.com/statusmatchoffers.html",
-        discovery_config={
-            "catalog_url": "https://www.frequentflyerbonuses.com/statusmatchoffers.html",
-        },
-        content_strategy="top_level_records",
-        access_policy={"external_output": "original_brief_and_source_link"},
-        collection_cadence="P1D",
-    ),
-    SourceDefinition(
         source_id="awardwallet_elite_status_feed",
         name="AwardWallet Elite Status",
         adapter_type="feed",
@@ -81,7 +69,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
             "query": "to:(kirikoomiku+statusmatch@gmail.com)",
             "oauth_scope": "https://www.googleapis.com/auth/gmail.readonly",
         },
-        content_strategy="message_body",
+        content_strategy="message_body_and_linked_statusmatch_pages",
         access_policy={
             "read_only": True,
             "sender_allowlist": None,
@@ -148,10 +136,14 @@ def seed_sources(session: Session) -> list[Source]:
                 if key != "id":
                     setattr(source, key, value)
         records.append(source)
-    retired_statusmatcher = session.get(Source, "statusmatcher_reports")
-    if retired_statusmatcher is not None:
-        retired_statusmatcher.enabled = False
-        retired_statusmatcher.automatic_scheduling = False
-        retired_statusmatcher.collection_cadence = None
+    for retired_source_id in (
+        "statusmatcher_reports",
+        "ffb_status_match_catalog",
+    ):
+        retired = session.get(Source, retired_source_id)
+        if retired is not None:
+            retired.enabled = False
+            retired.automatic_scheduling = False
+            retired.collection_cadence = None
     session.flush()
     return records

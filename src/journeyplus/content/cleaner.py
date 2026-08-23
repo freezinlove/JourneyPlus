@@ -8,9 +8,10 @@ from selectolax.parser import HTMLParser
 
 from journeyplus.content.extractors import extract_source_html
 from journeyplus.contracts import NormalizedDocument, RawDocument
+from journeyplus.sources.statusmatch_links import normalized_statusmatch_mail_html
 
 
-PARSER_VERSION = "source-cleaner-v2"
+PARSER_VERSION = "source-cleaner-v5"
 _EXCLUDED_SELECTORS = (
     "script",
     "style",
@@ -50,10 +51,19 @@ def _normalize_space(value: str) -> str:
 
 
 def lightly_clean(raw: RawDocument) -> NormalizedDocument:
+    input_body = raw.body
+    if (
+        raw.source_id == "status_services_mail"
+        and raw.metadata.get("document_role") == "mail_discovery"
+        and (
+            "html" in raw.content_type.lower() or "<a" in raw.body.casefold()
+        )
+    ):
+        input_body = normalized_statusmatch_mail_html(raw.body)
     body = extract_source_html(
         source_id=raw.source_id,
         content_strategy=str(raw.metadata.get("content_strategy") or "") or None,
-        html=raw.body,
+        html=input_body,
         canonical_url=raw.canonical_url,
         title=str(raw.metadata.get("title") or "") or None,
     )
@@ -62,6 +72,7 @@ def lightly_clean(raw: RawDocument) -> NormalizedDocument:
         for selector in _EXCLUDED_SELECTORS:
             for node in tree.css(selector):
                 node.decompose()
+        _normalize_volatile_links(tree)
         _replace_images(tree)
         _remove_empty_headings(tree)
         root = tree.body or tree.root
@@ -93,13 +104,25 @@ def _replace_images(tree: HTMLParser) -> None:
             and len(parent.css("img")) == 1
         ):
             if replacement:
-                parent.replace_with(replacement)
+                image.replace_with(replacement)
             else:
                 parent.decompose()
         elif replacement:
             image.replace_with(replacement)
         else:
             image.decompose()
+
+
+def _normalize_volatile_links(tree: HTMLParser) -> None:
+    """Remove Cloudflare's per-response email-protection token from page hashes."""
+    for anchor in tree.css("a[href]"):
+        href = str(anchor.attributes.get("href") or "")
+        if re.match(
+            r"^(?:https?://[^/]+)?/cdn-cgi/l/email-protection(?:[?#].*)?$",
+            href,
+            flags=re.IGNORECASE,
+        ):
+            anchor.attrs["href"] = "/cdn-cgi/l/email-protection"
 
 
 def _meaningful_image_alt(alt: str) -> bool:

@@ -31,12 +31,11 @@ from journeyplus.models import (
     AnalysisRun,
     DocumentVersion,
     EventEvidence,
-    SourceItem,
     StatusEvent,
 )
 
 
-RELATIONSHIP_PROMPT_VERSION = "event-relationship-v9"
+RELATIONSHIP_PROMPT_VERSION = "event-relationship-v11"
 RELATIONSHIP_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """判断一个新的会籍获取机会提示与候选现实事件的关系。只可返回：SAME_EVENT（同一活动）、UPDATE_OF（同一活动的新规则/日期/资格）、DIFFERENT_EVENT（不同活动）或 UNCERTAIN。
@@ -89,27 +88,6 @@ class EventRelationshipAnalyzer:
                 False,
             )
         candidate_payload = [self._candidate_payload(item) for item in candidates]
-        conservative_candidate = _generic_mail_detail_candidate(
-            session=self._session,
-            document=document,
-            hint=hint,
-            candidates=candidates,
-            candidate_payload=candidate_payload,
-        )
-        if conservative_candidate is not None:
-            return RelationshipAnalysis(
-                None,
-                RelationshipResult(
-                    relationship=RelationshipType.UNCERTAIN,
-                    confidence=1,
-                    reason=(
-                        "简略 StatusMatch 邮件只有项目提示，不能仅凭项目名与"
-                        "详细材料自动合并。"
-                    ),
-                    candidate_event_id=conservative_candidate.id,
-                ),
-                False,
-            )
         strong_candidate = _project_subdomain_candidate(
             document=document,
             hint=hint,
@@ -200,7 +178,6 @@ class EventRelationshipAnalyzer:
         materials = list(
             self._session.execute(
                 select(
-                    SourceItem.source_id,
                     DocumentVersion.canonical_url,
                     DocumentVersion.normalized_body,
                 )
@@ -208,17 +185,15 @@ class EventRelationshipAnalyzer:
                     EventEvidence,
                     EventEvidence.document_version_id == DocumentVersion.id,
                 )
-                .join(SourceItem, SourceItem.id == DocumentVersion.source_item_id)
                 .where(EventEvidence.event_id == event.id)
                 .order_by(EventEvidence.created_at.desc())
                 .limit(3)
             )
         )
         material_text = "\n".join(
-            normalized_body for _, _, normalized_body in materials
+            f"{canonical_url}\n{normalized_body}"
+            for canonical_url, normalized_body in materials
         )
-        source_ids = {source_id for source_id, _, _ in materials}
-        material_bodies = [normalized_body for _, _, normalized_body in materials]
         return {
             "id": str(event.id),
             "program": event.program,
@@ -232,85 +207,14 @@ class EventRelationshipAnalyzer:
                     material_text, _event_identity(event)
                 )
             ),
-            "source_ids": sorted(source_ids),
-            "generic_mail_only": bool(materials)
-            and source_ids == {"status_services_mail"}
-            and (
-                _generic_mail_summary(event.summary)
-                or all(_status_match_digest(body) for body in material_bodies)
-            ),
             "materials": [
                 {
-                    "source_id": source_id,
                     "source_url": source_url,
                     "text": normalized_body[:2500],
                 }
-                for source_id, source_url, normalized_body in materials
+                for source_url, normalized_body in materials
             ],
         }
-
-
-def _generic_mail_detail_candidate(
-    *,
-    session: Session,
-    document: DocumentVersion,
-    hint: EventHint,
-    candidates: list[StatusEvent],
-    candidate_payload: list[dict[str, object]],
-) -> StatusEvent | None:
-    source_id = session.scalar(
-        select(SourceItem.source_id).where(SourceItem.id == document.source_item_id)
-    )
-    new_is_generic_mail = source_id == "status_services_mail" and (
-        _generic_mail_summary(hint.summary)
-        or _status_match_digest(document.normalized_body)
-    )
-    matches: list[StatusEvent] = []
-    for event, payload in zip(candidates, candidate_payload, strict=True):
-        candidate_is_generic_mail = payload.get("generic_mail_only") is True
-        if candidate_is_generic_mail == new_is_generic_mail:
-            continue
-        if _programs_compatible(event.program, hint.program):
-            matches.append(event)
-    return matches[0] if len(matches) == 1 else None
-
-
-def _generic_mail_summary(value: str) -> bool:
-    return bool(
-        re.fullmatch(
-            r"\s*status match available for\s+.+?\s*",
-            value,
-            flags=re.IGNORECASE,
-        )
-    )
-
-
-def _status_match_digest(value: str) -> bool:
-    normalized = " ".join(value.casefold().split())
-    has_digest_marker = bool(
-        re.search(r"status match (?:digest|updates?)", normalized)
-    )
-    has_thin_entry_context = (
-        normalized.count("statusmatch.com/c/") >= 2
-        or "unique application requirements by brand" in normalized
-    )
-    return has_digest_marker and has_thin_entry_context
-
-
-def _programs_compatible(left: str, right: str) -> bool:
-    normalized_left = _compact_program(left)
-    normalized_right = _compact_program(right)
-    return bool(
-        min(len(normalized_left), len(normalized_right)) >= 5
-        and (
-            normalized_left in normalized_right
-            or normalized_right in normalized_left
-        )
-    )
-
-
-def _compact_program(value: str) -> str:
-    return "".join(re.findall(r"[a-z0-9]+", value.casefold()))
 
 
 def _project_subdomain_candidate(
@@ -328,7 +232,7 @@ def _project_subdomain_candidate(
         if value
     )
     new_hosts = matching_project_statusmatch_hosts(
-        document.normalized_body, new_identity
+        f"{document.canonical_url}\n{document.normalized_body}", new_identity
     )
     if not new_hosts:
         return None

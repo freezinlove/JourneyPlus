@@ -71,3 +71,19 @@ def test_ai_configuration_rejects_non_beijing_base_url() -> None:
         assert "Beijing" in str(exc)
     else:
         raise AssertionError("A non-Beijing endpoint must be rejected")
+
+
+def test_provider_uses_configured_timeout_for_large_structured_results() -> None:
+    provider = OpenAICompatibleProvider(
+        Settings(
+            ai_region="cn-beijing",
+            ai_model="deepseek-v4-flash",
+            ai_base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            ai_api_key="test-only",
+            ai_timeout_seconds=180,
+        )
+    )
+    try:
+        assert provider._client.timeout.read == 180
+    finally:
+        provider._client.close()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import journeyplus.cli as cli
+import pytest
 
 from journeyplus.config import Settings
 from journeyplus.contracts import DiscoveredItem, RawDocument
@@ -48,7 +49,9 @@ def test_manual_collection_is_idempotent_with_explicit_key(db_session) -> None:
     assert first.reused_run is False
     assert second.reused_run is True
     assert len(first.document_version_ids) == 1
+    assert first.current_document_version_ids == first.document_version_ids
     assert second.document_version_ids == ()
+    assert second.current_document_version_ids == ()
 
 
 def test_new_collection_run_skips_unchanged_item_before_body_fetch(db_session) -> None:
@@ -59,6 +62,50 @@ def test_new_collection_run_skips_unchanged_item_before_body_fetch(db_session) -
     assert adapter.fetch_count == 1
     assert second.discovered == 1
     assert second.new_versions == 0
+    assert len(second.current_document_version_ids) == 1
+
+
+def test_refreshable_linked_page_is_refetched_but_only_versions_changes(
+    db_session,
+) -> None:
+    class RefreshingPageAdapter(OneItemAdapter):
+        source_id = "status_services_mail"
+
+        def __init__(self):
+            super().__init__()
+            self.body = "<p>Version one</p>"
+
+        def discover(self):
+            return [
+                DiscoveredItem(
+                    source_id=self.source_id,
+                    external_id="statusmatch-page:example.statusmatch.com:faq",
+                    discovered_url="https://example.statusmatch.com/faq",
+                    canonical_url="https://example.statusmatch.com/faq",
+                    raw_metadata={"refresh_on_discovery": True},
+                )
+            ]
+
+        def fetch(self, item):
+            self.fetch_count += 1
+            return RawDocument(
+                source_id=self.source_id,
+                external_id=item.external_id,
+                canonical_url=item.canonical_url,
+                body=self.body,
+            )
+
+    seed_sources(db_session)
+    adapter = RefreshingPageAdapter()
+    first = collect_manual(db_session, adapter, idempotency_key="refresh:first")
+    unchanged = collect_manual(db_session, adapter, idempotency_key="refresh:second")
+    adapter.body = "<p>Version two</p>"
+    changed = collect_manual(db_session, adapter, idempotency_key="refresh:third")
+
+    assert first.new_versions == 1
+    assert unchanged.new_versions == 0
+    assert changed.new_versions == 1
+    assert adapter.fetch_count == 3
 
 
 def test_manual_collection_can_limit_fetched_items(db_session) -> None:
@@ -103,18 +150,29 @@ def test_ai_smoke_has_a_dedicated_cli_command() -> None:
 
 def test_runtime_cli_keeps_collection_and_processing_separate() -> None:
     collect = build_parser().parse_args(
-        ["collect", "ffb_status_match_catalog", "--limit", "1"]
+        ["collect", "status_services_mail", "--limit", "1"]
     )
     process = build_parser().parse_args(
-        ["process-pending", "--source-id", "ffb_status_match_catalog", "--limit", "1"]
+        ["process-pending", "--source-id", "status_services_mail", "--limit", "1"]
     )
     run_source = build_parser().parse_args(
-        ["run-source", "ffb_status_match_catalog", "--limit", "1"]
+        ["run-source", "status_services_mail", "--limit", "1"]
     )
 
     assert collect.command == "collect"
     assert process.command == "process-pending"
     assert run_source.command == "run-source"
+
+
+def test_ffb_catalog_is_not_a_cli_source_or_initialization_command() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["collect", "ffb_status_match_catalog"])
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["initialize-catalog"])
+    assert (
+        build_parser().parse_args(["initialize-mail-details"]).command
+        == "initialize-mail-details"
+    )
 
 
 def test_gmail_authorization_does_not_initialize_database(

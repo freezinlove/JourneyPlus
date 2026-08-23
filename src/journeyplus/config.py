@@ -18,6 +18,7 @@ class Settings:
     ai_model: str = "deepseek-v4-flash"
     ai_base_url: str | None = BEIJING_DASHSCOPE_BASE_URL
     ai_api_key: str | None = None
+    ai_timeout_seconds: int = 180
     gmail_access_token: str | None = None
     gmail_client_secret_file: str = ".secrets/google-oauth-client.json"
     gmail_token_file: str = ".secrets/gmail-token.json"
@@ -40,6 +41,9 @@ class Settings:
                 "JOURNEYPLUS_AI_BASE_URL", BEIJING_DASHSCOPE_BASE_URL
             ),
             ai_api_key=os.getenv("JOURNEYPLUS_AI_API_KEY"),
+            ai_timeout_seconds=_positive_env_int(
+                "JOURNEYPLUS_AI_TIMEOUT_SECONDS", 180
+            ),
             gmail_access_token=os.getenv("JOURNEYPLUS_GMAIL_ACCESS_TOKEN"),
             gmail_client_secret_file=os.getenv(
                 "JOURNEYPLUS_GMAIL_CLIENT_SECRET_FILE",

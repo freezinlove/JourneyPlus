@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
-from journeyplus.sources.catalog import StaticCatalogAdapter
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.gmail import GmailClient, GmailStatusServicesAdapter
 from journeyplus.sources.registry import get_source_definition
@@ -24,12 +23,10 @@ def build_adapter(
             fetcher=resolved_fetcher,
             extra_drop_params=set(config.get("strip_query_params", [])),
         )
-    if definition.adapter_type == "static_catalog":
-        return StaticCatalogAdapter(
-            catalog_url=str(config["catalog_url"]), fetcher=resolved_fetcher
-        )
     if definition.adapter_type == "gmail":
         if gmail_client is None:
             raise ValueError("A GmailClient is required for status_services_mail")
-        return GmailStatusServicesAdapter(gmail_client)
+        return GmailStatusServicesAdapter(
+            gmail_client, project_fetcher=resolved_fetcher
+        )
     raise NotImplementedError(definition.adapter_type)

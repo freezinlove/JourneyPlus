@@ -453,18 +453,6 @@ def _ensure_document(
         title = document.document_key
         source_prefix = document.document_key.partition(":")[0]
         metadata["source_id"] = source_prefix
-        if source_prefix == "ffb_status_match_catalog":
-            program = next(
-                (
-                    line.strip().lstrip("#").strip()
-                    for line in document.normalized_body.splitlines()
-                    if line.strip()
-                ),
-                "",
-            )
-            if program:
-                metadata["program"] = program
-                title = program
         item = SourceItem(
             source_id=source_id,
             external_id=external_id,

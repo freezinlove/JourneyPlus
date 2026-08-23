@@ -28,6 +28,19 @@ from journeyplus.sources.registry import seed_sources
 def _seed_raw_and_derived(session_factory) -> None:
     with session_factory.begin() as session:
         seed_sources(session)
+        session.add(
+            Source(
+                id="ffb_status_match_catalog",
+                name="Retired FFB catalog",
+                adapter_type="static_catalog",
+                discovery_config={},
+                access_policy={},
+                collection_cadence=None,
+                automatic_scheduling=False,
+                enabled=False,
+            )
+        )
+        session.flush()
         item = SourceItem(
             source_id="ffb_status_match_catalog",
             external_id="rebuild-item",
