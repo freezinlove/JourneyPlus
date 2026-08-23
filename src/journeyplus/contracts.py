@@ -37,6 +37,13 @@ class RunStatus(StrEnum):
     SKIPPED = "SKIPPED"
 
 
+class LifecycleStatus(StrEnum):
+    UPCOMING = "UPCOMING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    UNKNOWN = "UNKNOWN"
+
+
 class AnalysisStage(StrEnum):
     STATUS_RELEVANCE = "STATUS_RELEVANCE"
     EVENT_RELATIONSHIP = "EVENT_RELATIONSHIP"
@@ -88,6 +95,8 @@ class EventHint(StrictModel):
     summary: str = Field(min_length=1, max_length=500)
     target_status: str | None = Field(default=None, max_length=200)
     region_hint: str | None = Field(default=None, max_length=500)
+    application_start: str | None = Field(default=None, max_length=200)
+    application_deadline: str | None = Field(default=None, max_length=200)
 
 
 class RelevanceResult(StrictModel):
@@ -112,6 +121,13 @@ class RelationshipResult(StrictModel):
     confidence: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1, max_length=1000)
     candidate_event_id: UUID | None = None
+    deadline_extension: bool = False
+
+    @model_validator(mode="after")
+    def deadline_extension_requires_update(self) -> RelationshipResult:
+        if self.deadline_extension and self.relationship != RelationshipType.UPDATE_OF:
+            raise ValueError("deadline_extension requires UPDATE_OF")
+        return self
 
 
 class EvidenceRef(StrictModel):
@@ -136,7 +152,7 @@ class FactField(StrictModel):
 
 
 class FactSet(StrictModel):
-    schema_version: str = "1"
+    schema_version: str = "2"
     event_id: UUID
     what_happened: FactField
     eligibility: FactField = Field(default_factory=FactField)
@@ -144,6 +160,7 @@ class FactSet(StrictModel):
     cost: FactField = Field(default_factory=FactField)
     challenge_requirements: FactField = Field(default_factory=FactField)
     region: FactField = Field(default_factory=FactField)
+    application_start: FactField = Field(default_factory=FactField)
     deadline: FactField = Field(default_factory=FactField)
     status_validity: FactField = Field(default_factory=FactField)
     action_link: FactField = Field(default_factory=FactField)

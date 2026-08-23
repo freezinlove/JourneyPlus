@@ -86,6 +86,8 @@ def create_review_app(
                 return {
                     "event_id": str(result.event.id),
                     "status": result.event.status,
+                    "review_status": result.event.status,
+                    "lifecycle_status": result.event.lifecycle_status,
                     "decision_id": str(result.decision.id),
                     "created_event_id": (
                         str(result.created_event.id) if result.created_event else None
@@ -97,4 +99,3 @@ def create_review_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     return app
-

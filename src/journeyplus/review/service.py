@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from journeyplus.ai.provider import AIProvider
 from journeyplus.briefs.service import BriefGeneration, BriefGenerator
-from journeyplus.contracts import FactSet, ReviewAction
+from journeyplus.contracts import FactSet, LifecycleStatus, ReviewAction
+from journeyplus.lifecycle.service import as_beijing, refresh_event_lifecycle
 from journeyplus.models import (
     AnalysisRun,
     BriefRecord,
@@ -53,6 +54,13 @@ class ReviewService:
                 "kind": "event",
                 "id": str(event.id),
                 "program": event.program,
+                "review_status": event.status,
+                "lifecycle_status": event.lifecycle_status,
+                "application_start_at": _datetime_text(event.application_start_at),
+                "application_deadline_at": _datetime_text(
+                    event.application_deadline_at
+                ),
+                "archived_at": _datetime_text(event.archived_at),
                 "reason": "uncertain relationship or conflicting facts",
             }
             for event in events
@@ -240,6 +248,10 @@ class ReviewService:
         source.status = "MERGED"
         target.current_fact_set_id = None
         target.current_brief_id = None
+        target.application_start_at = None
+        target.application_deadline_at = None
+        target.lifecycle_status = LifecycleStatus.UNKNOWN
+        target.archived_at = None
         decision = self._decision(
             ReviewAction.MERGE,
             source,
@@ -366,6 +378,7 @@ class ReviewService:
         self._session.flush()
         event.current_fact_set_id = record.id
         event.current_brief_id = None
+        refresh_event_lifecycle(event, resolved, allow_restore=True)
         return record
 
     def _decision(
@@ -405,9 +418,18 @@ def _event_dict(event: StatusEvent) -> dict[str, Any]:
         "target_status": event.target_status,
         "summary": event.summary,
         "status": event.status,
+        "review_status": event.status,
+        "lifecycle_status": event.lifecycle_status,
+        "application_start_at": _datetime_text(event.application_start_at),
+        "application_deadline_at": _datetime_text(event.application_deadline_at),
+        "archived_at": _datetime_text(event.archived_at),
         "merged_into_id": str(event.merged_into_id) if event.merged_into_id else None,
         "current_fact_set_id": (
             str(event.current_fact_set_id) if event.current_fact_set_id else None
         ),
         "current_brief_id": str(event.current_brief_id) if event.current_brief_id else None,
     }
+
+
+def _datetime_text(value) -> str | None:
+    return as_beijing(value).isoformat() if value is not None else None

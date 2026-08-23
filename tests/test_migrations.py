@@ -63,3 +63,49 @@ def test_opportunity_type_migration_round_trips_on_sqlite(
         column["name"] for column in inspect(engine).get_columns("status_events")
     }
     engine.dispose()
+
+
+def test_status_event_lifecycle_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'lifecycle.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0002_remove_opportunity_type")
+    engine = create_engine(database_url)
+    before = {
+        column["name"] for column in inspect(engine).get_columns("status_events")
+    }
+    assert "lifecycle_status" not in before
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    columns = {
+        column["name"]: column
+        for column in inspect(engine).get_columns("status_events")
+    }
+    assert {
+        "application_start_at",
+        "application_deadline_at",
+        "lifecycle_status",
+        "archived_at",
+    } <= columns.keys()
+    assert columns["lifecycle_status"]["nullable"] is False
+    assert "UNKNOWN" in str(columns["lifecycle_status"]["default"])
+    assert "ix_status_events_lifecycle_archived" in {
+        index["name"] for index in inspect(engine).get_indexes("status_events")
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0002_remove_opportunity_type")
+    engine = create_engine(database_url)
+    after = {
+        column["name"] for column in inspect(engine).get_columns("status_events")
+    }
+    assert "application_start_at" not in after
+    assert "application_deadline_at" not in after
+    assert "lifecycle_status" not in after
+    assert "archived_at" not in after
+    engine.dispose()

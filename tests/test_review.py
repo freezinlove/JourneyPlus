@@ -156,12 +156,22 @@ def test_internal_review_api_exposes_queue_chain_and_actions(session_factory) ->
     queue = client.get("/internal/review/queue")
     assert queue.status_code == 200
     assert any(item["id"] == str(event_id) for item in queue.json())
+    queue_event = next(item for item in queue.json() if item["id"] == str(event_id))
+    assert queue_event["review_status"] == "NEEDS_REVIEW"
+    assert queue_event["lifecycle_status"] == "UNKNOWN"
     chain = client.get(f"/internal/review/events/{event_id}")
     assert chain.status_code == 200
     assert chain.json()["documents"][0]["normalized_body"] == "Match body"
+    assert chain.json()["event"]["review_status"] == "NEEDS_REVIEW"
+    assert chain.json()["event"]["lifecycle_status"] == "UNKNOWN"
+    assert chain.json()["event"]["application_start_at"] is None
+    assert chain.json()["event"]["application_deadline_at"] is None
+    assert chain.json()["event"]["archived_at"] is None
     rejected = client.post(
         f"/internal/review/events/{event_id}/actions",
         json={"action": "REJECT", "reason": "not a public opportunity"},
     )
     assert rejected.status_code == 200
     assert rejected.json()["status"] == "REJECTED"
+    assert rejected.json()["review_status"] == "REJECTED"
+    assert rejected.json()["lifecycle_status"] == "UNKNOWN"

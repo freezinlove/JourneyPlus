@@ -145,6 +145,9 @@ class AnalysisRun(Base, TimestampMixin):
 
 class StatusEvent(Base, TimestampMixin):
     __tablename__ = "status_events"
+    __table_args__ = (
+        Index("ix_status_events_lifecycle_archived", "lifecycle_status", "archived_at"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     created_from_key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
@@ -153,6 +156,18 @@ class StatusEvent(Base, TimestampMixin):
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     search_text: Mapped[str] = mapped_column(Text, default="", nullable=False)
     status: Mapped[str] = mapped_column(String(50), default="DRAFT", nullable=False)
+    application_start_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    application_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    lifecycle_status: Mapped[str] = mapped_column(
+        String(30), default="UNKNOWN", nullable=False
+    )
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     merged_into_id: Mapped[UUID | None] = mapped_column(ForeignKey("status_events.id"))
     current_fact_set_id: Mapped[UUID | None] = mapped_column(nullable=True)
     current_brief_id: Mapped[UUID | None] = mapped_column(nullable=True)

@@ -86,6 +86,8 @@ class EventAggregator:
                             hint.target_status,
                             hint.summary,
                             hint.region_hint,
+                            hint.application_start,
+                            hint.application_deadline,
                         )
                         if value
                     ),
@@ -95,7 +97,13 @@ class EventAggregator:
                 self._session.flush()
                 created = True
         if not created:
+            previous_summary = event.summary
+            event.summary = hint.summary
             event.search_text = _extend_search_text(event.search_text, hint)
+            if previous_summary != event.summary:
+                event.search_text = _extend_values(
+                    event.search_text, [previous_summary, event.summary]
+                )
 
         evidence = EventEvidence(
             event_id=event.id,
@@ -130,9 +138,16 @@ def _extend_search_text(current: str, hint: EventHint) -> str:
             hint.target_status,
             hint.summary,
             hint.region_hint,
+            hint.application_start,
+            hint.application_deadline,
         )
         if value
     ]
+    return _extend_values("", values)
+
+
+def _extend_values(current: str, values: list[str]) -> str:
+    values = [current, *values] if current else values
     unique: list[str] = []
     seen: set[str] = set()
     for value in values:

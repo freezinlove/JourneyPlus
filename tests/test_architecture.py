@@ -43,3 +43,26 @@ def test_ai_provider_does_not_import_business_modules() -> None:
     for path in root.glob("*.py"):
         assert not (imported_journeyplus_modules(path) & BUSINESS_MODULES), path
 
+
+def test_candidate_retrieval_has_no_vector_database_dependency() -> None:
+    path = (
+        Path(__file__).parents[1]
+        / "src"
+        / "journeyplus"
+        / "clustering"
+        / "retrieval.py"
+    )
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    imports = {
+        name
+        for node in ast.walk(tree)
+        for name in (
+            [alias.name for alias in node.names]
+            if isinstance(node, ast.Import)
+            else [node.module]
+            if isinstance(node, ast.ImportFrom) and node.module
+            else []
+        )
+    }
+    forbidden = ("pinecone", "qdrant", "chromadb", "weaviate", "pgvector")
+    assert not any(name.startswith(forbidden) for name in imports)

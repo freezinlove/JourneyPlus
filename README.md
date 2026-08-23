@@ -66,14 +66,14 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证六个无需账号的公开来源是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail。
 
-OpenSpec 实施契约位于 `openspec/changes/build-status-opportunity-pipeline-v1/`。
+第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；当前活动时效与自动化收尾契约位于 `openspec/changes/finish-status-opportunity-automation/`。
 
 ## 第一版已知限制
 
 - 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
-- 活动截止时间筛选、过期状态和软归档尚未实现；已确认的产品意图与边界记录在[后续需求备忘](./doc/future-requirements.md)中。
+- 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已经实现；生命周期单轮推进尚未接入每小时自动编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
-- 首批人工金标要等用户提供文章后共同建立；离线评测刻意不预设上线阈值。
+- 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 内部复核 API 默认只监听 `127.0.0.1`，第一版没有公开 UI、账号体系或远程部署配置。

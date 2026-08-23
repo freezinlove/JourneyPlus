@@ -10,6 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.contracts import EventHint
+from journeyplus.lifecycle.service import (
+    as_beijing,
+    normalize_event_time,
+    windows_non_overlapping,
+)
 from journeyplus.models import DocumentVersion, EventEvidence, StatusEvent
 from journeyplus.status_topic.source_context import catalog_authoritative_program
 
@@ -160,6 +165,7 @@ def _candidate_score(
     if len(shared_context) >= 2:
         score = max(score, 20 + min(len(shared_context), 10))
     score = max(score, link_score)
+    score = max(score, _window_score(event, hint))
 
     updated_at = event.updated_at
     if updated_at.tzinfo is None:
@@ -167,6 +173,42 @@ def _candidate_score(
     else:
         updated_at = updated_at.astimezone(UTC)
     return score, updated_at
+
+
+def _window_score(event: StatusEvent, hint: EventHint) -> int:
+    hint_start = normalize_event_time(hint.application_start, end_of_day=False)
+    hint_deadline = normalize_event_time(hint.application_deadline, end_of_day=True)
+    if windows_non_overlapping(
+        hint_start,
+        hint_deadline,
+        event.application_start_at,
+        event.application_deadline_at,
+    ):
+        return 0
+    exact_boundaries = sum(
+        left is not None and right is not None and left == right
+        for left, right in (
+            (
+                hint_start,
+                as_beijing(event.application_start_at)
+                if event.application_start_at
+                else None,
+            ),
+            (
+                hint_deadline,
+                as_beijing(event.application_deadline_at)
+                if event.application_deadline_at
+                else None,
+            ),
+        )
+    )
+    if exact_boundaries:
+        return 35 + exact_boundaries * 5
+    if (hint_start or hint_deadline) and (
+        event.application_start_at or event.application_deadline_at
+    ):
+        return 25
+    return 0
 
 
 def _event_identity(event: StatusEvent) -> str:

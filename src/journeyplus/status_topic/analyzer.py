@@ -19,8 +19,8 @@ from journeyplus.models import AnalysisRun, DocumentVersion
 from journeyplus.status_topic.source_context import catalog_authoritative_program
 
 
-STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v9"
-STATUS_RELEVANCE_SCHEMA_VERSION = "3"
+STATUS_RELEVANCE_PROMPT_VERSION = "status-document-classification-v10"
+STATUS_RELEVANCE_SCHEMA_VERSION = "4"
 
 SYSTEM_PROMPT = """你是会籍机会文档的单标签分类器。每份文档只能选择以下一个 label：
 - STATUS_OPPORTUNITY：包含至少一个可直接获得、升级或延长航空、酒店或其他旅行忠诚度会籍的公开或群体公开机会，例如会籍匹配、会籍挑战、快速通道、会籍互通、付费直升、合作直接授予或延期。
@@ -38,6 +38,8 @@ STATUS_OPPORTUNITY 必须按现实活动输出最小 event_hint，而不是按�
 输入中的 authoritative_program 非空时，它是来源顶层记录给出的权威公司/忠诚度项目名，所有 event_hint.program 必须原样使用它；右侧正文里的其他品牌可能是比较、适用资格或来源笔误。权威项目名只确定材料主体，不代表同一项目的不同记录一定是同一活动。
 
 当 authoritative_program 非空且汇总条目明确写出 Elite Status Match、Fast Track、Free Status 等直接会籍机会并提供详情或申请入口时，即使条目很短、没有日期或完整资格列表，也足以标为 STATUS_OPPORTUNITY；缺少时效信息不应单独降为 UNCERTAIN。region_hint 只需给出简洁区域摘要，不必逐一抄写很长的国家列表。
+
+每个 event_hint 还可输出 application_start 和 application_deadline。只有材料明确给出当前活动的申请开始或截止文字时才原样摘录对应值；不得使用文章发布时间、会籍有效期或模型常识补猜。只有日期就保留该日期，明确给出时刻或时区时保留完整信息；系统后续统一按北京时间规范化。缺失值必须为 null，并且一篇多活动文档的时间不得串到其他 event_hint。
 
 NONE 不得输出 event_hints。不要创建正式事件，不要输出机会机制类型字段，不要生成其他主题标签，不要补猜材料没有的信息。只输出符合给定 JSON Schema 的 JSON。"""
 

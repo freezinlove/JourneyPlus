@@ -15,6 +15,7 @@ from journeyplus.models import (
     BriefRecord,
     DocumentVersion,
     EventEvidence,
+    EventRevision,
     FactSetRecord,
     SourceItem,
     StatusEvent,
@@ -89,6 +90,8 @@ def _add_document_evidence(
     *,
     locator: str,
     hint_index: int = 0,
+    relationship: str | None = None,
+    deadline_extension: bool = False,
 ):
     token = uuid4().hex
     item = SourceItem(
@@ -125,13 +128,28 @@ def _add_document_evidence(
             locator=locator,
         )
     )
+    if relationship is not None:
+        db_session.add(
+            EventRevision(
+                event_id=event.id,
+                document_version_id=document.id,
+                relationship=relationship,
+                snapshot={
+                    "hint": {"summary": locator},
+                    "relationship": {
+                        "relationship": relationship,
+                        "deadline_extension": deadline_extension,
+                    },
+                },
+            )
+        )
     db_session.flush()
     return document
 
 
 def _fact_response(event, document, *, what="Example Air offers a match to Gold"):
     return {
-        "schema_version": "1",
+        "schema_version": "2",
         "event_id": str(event.id),
         "what_happened": {"value": what, "evidence": [_evidence(document)]},
         "target_status": {"value": "Gold", "evidence": [_evidence(document)]},
@@ -251,6 +269,38 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
         FactConsolidator(
             db_session, bad_provider, prompt_version="fact-invalid-test"
         ).consolidate(event)
+
+
+def test_application_window_requires_evidence_and_normalizes_to_beijing(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["Applications run from January 1 through February 28, 2099."],
+    )
+    response = _fact_response(event, documents[0])
+    response["application_start"] = {
+        "value": "2099-01-01",
+        "evidence": [_evidence(documents[0], "application start sentence")],
+    }
+    response["deadline"] = {
+        "value": "2099-02-28",
+        "evidence": [_evidence(documents[0], "application deadline sentence")],
+    }
+
+    result = FactConsolidator(
+        db_session, SequenceAIProvider([response])
+    ).consolidate(event)
+
+    assert result.fact_set.application_start.value == "2099-01-01"
+    assert event.application_start_at is not None
+    assert event.application_start_at.isoformat().endswith("+08:00")
+    assert event.application_start_at.hour == 0
+    assert event.application_deadline_at is not None
+    assert event.application_deadline_at.isoformat().endswith("+08:00")
+    assert event.application_deadline_at.hour == 23
+    assert event.application_deadline_at.microsecond == 999999
+    assert event.lifecycle_status == "UPCOMING"
 
 
 def test_weaker_new_source_reuses_current_facts_and_brief(db_session) -> None:
@@ -389,6 +439,93 @@ def test_different_known_value_becomes_conflict_instead_of_overwrite(
     } == {documents[0].id, changed_document.id}
     assert changed.record.has_conflicts
     assert event.status == "NEEDS_REVIEW"
+
+
+def test_different_deadline_without_extension_signal_remains_conflicted(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Apply by September 30, 2026."]
+    )
+    first_response = _fact_response(event, documents[0])
+    first_response["deadline"] = {
+        "value": "2026-09-30",
+        "evidence": [_evidence(documents[0], "original deadline")],
+    }
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    changed_document = _add_document_evidence(
+        db_session,
+        event,
+        "A second source says October 31 without describing an extension.",
+        locator="different deadline",
+        relationship="SAME_EVENT",
+    )
+    changed_response = _fact_response(event, changed_document)
+    changed_response["deadline"] = {
+        "value": "2026-10-31",
+        "evidence": [_evidence(changed_document, "different deadline")],
+    }
+
+    changed = FactConsolidator(
+        db_session, SequenceAIProvider([changed_response])
+    ).consolidate(event)
+
+    assert changed.record.id != first.record.id
+    assert changed.fact_set.deadline.conflict
+    assert changed.fact_set.deadline.value is None
+    assert changed.fact_set.deadline.alternatives == [
+        "2026-09-30",
+        "2026-10-31",
+    ]
+    assert event.status == "NEEDS_REVIEW"
+    assert event.lifecycle_status == "UNKNOWN"
+
+
+def test_structured_explicit_extension_advances_deadline_and_restores_archive(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["The original deadline was January 31, 2020."]
+    )
+    first_response = _fact_response(event, documents[0])
+    first_response["deadline"] = {
+        "value": "2020-01-31",
+        "evidence": [_evidence(documents[0], "original deadline")],
+    }
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    assert event.lifecycle_status == "EXPIRED"
+    assert event.archived_at is not None
+
+    extension_document = _add_document_evidence(
+        db_session,
+        event,
+        "The same application deadline is explicitly extended to December 31, 2099.",
+        locator="explicit extension sentence",
+        relationship="UPDATE_OF",
+        deadline_extension=True,
+    )
+    extension_response = _fact_response(event, extension_document)
+    extension_response["deadline"] = {
+        "value": "2099-12-31",
+        "evidence": [_evidence(extension_document, "explicit extension sentence")],
+    }
+
+    extended = FactConsolidator(
+        db_session, SequenceAIProvider([extension_response])
+    ).consolidate(event)
+
+    assert extended.record.version == 2
+    assert extended.fact_set.deadline.value == "2099-12-31"
+    assert not extended.fact_set.deadline.conflict
+    old_record = db_session.get(FactSetRecord, first.record.id)
+    assert old_record is not None
+    assert old_record.facts["deadline"]["value"] == "2020-01-31"
+    assert event.lifecycle_status == "ACTIVE"
+    assert event.archived_at is None
 
 
 def test_conflicting_facts_stay_explicit_and_enter_review(db_session) -> None:

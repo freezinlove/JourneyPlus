@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func, select
 
@@ -68,18 +69,27 @@ def _document(
     return document
 
 
-def _status_opportunity(program="Example Air", summary="Match to Gold"):
+def _status_opportunity(
+    program="Example Air",
+    summary="Match to Gold",
+    *,
+    application_start: str | None = None,
+    application_deadline: str | None = None,
+):
+    hint = {
+        "program": program,
+        "summary": summary,
+        "target_status": "Gold",
+    }
+    if application_start is not None:
+        hint["application_start"] = application_start
+    if application_deadline is not None:
+        hint["application_deadline"] = application_deadline
     return {
         "label": "STATUS_OPPORTUNITY",
         "confidence": 0.95,
         "reason": "direct status acquisition path",
-        "event_hints": [
-            {
-                "program": program,
-                "summary": summary,
-                "target_status": "Gold",
-            }
-        ],
+        "event_hints": [hint],
     }
 
 
@@ -94,6 +104,8 @@ def test_first_version_prompt_explicitly_excludes_guide_articles() -> None:
     assert "Garuda Gold Privilege" in SYSTEM_PROMPT
     assert "Accor Plus 会员只赠餐饮券" in SYSTEM_PROMPT
     assert "缺少时效信息不应单独降为 UNCERTAIN" in SYSTEM_PROMPT
+    assert "application_start 和 application_deadline" in SYSTEM_PROMPT
+    assert "统一按北京时间规范化" in SYSTEM_PROMPT
 
 
 def test_prompt_includes_named_travel_platform_tiers_but_not_paid_memberships() -> None:
@@ -110,6 +122,8 @@ def test_relationship_prompt_does_not_split_on_region_or_entry_alone() -> None:
         RELATIONSHIP_SYSTEM_PROMPT
     )
     assert "申请窗口属于不同期次" in RELATIONSHIP_SYSTEM_PROMPT
+    assert "deadline_extension" in RELATIONSHIP_SYSTEM_PROMPT
+    assert "非重叠的新一期窗口" in RELATIONSHIP_SYSTEM_PROMPT
 
 
 def test_none_and_invalid_classification_do_not_create_events(db_session) -> None:
@@ -729,6 +743,313 @@ def test_relationship_aggregation_handles_update_and_uncertain_without_duplicate
     assert uncertain.events[0].event.id != original_event.id
     assert uncertain.events[0].event.status == "NEEDS_REVIEW"
     assert uncertain.events[0].needs_review
+
+
+def test_missing_window_can_still_join_same_event_and_refresh_current_summary(
+    db_session,
+) -> None:
+    original = _document(db_session, suffix="window-original", body="Original terms")
+    event = StatusOpportunityPipeline(
+        db_session,
+        SequenceAIProvider(
+            [
+                _status_opportunity(
+                    summary="Original short summary",
+                    application_deadline="2026-12-31",
+                )
+            ]
+        ),
+    ).process(original).events[0].event
+    follow_up = _document(
+        db_session,
+        suffix="window-undated",
+        body="A fuller report of the same status match without a date",
+    )
+    provider = SequenceAIProvider(
+        [
+            _status_opportunity(
+                summary="Fuller current summary without a repeated date"
+            ),
+            {
+                "relationship": "SAME_EVENT",
+                "confidence": 0.94,
+                "reason": "same rules and program; the follow-up omits the date",
+                "candidate_event_id": str(event.id),
+            },
+        ]
+    )
+
+    result = StatusOpportunityPipeline(db_session, provider).process(follow_up)
+
+    assert result.events[0].event.id == event.id
+    assert event.summary == "Fuller current summary without a repeated date"
+    assert "Original short summary" in event.search_text
+    assert "Fuller current summary" in event.search_text
+
+
+def test_non_overlapping_new_period_is_split_even_if_model_requests_same_event(
+    db_session,
+) -> None:
+    beijing = ZoneInfo("Asia/Shanghai")
+    event = StatusEvent(
+        created_from_key="old-period",
+        program="Example Air",
+        target_status="Gold",
+        summary="2026 status match",
+        search_text="Example Air 2026 status match",
+        application_start_at=datetime(2026, 1, 1, tzinfo=beijing),
+        application_deadline_at=datetime(2026, 2, 28, 23, 59, 59, tzinfo=beijing),
+        lifecycle_status="EXPIRED",
+    )
+    db_session.add(event)
+    db_session.flush()
+    document = _document(
+        db_session,
+        suffix="new-period",
+        body="The independently reopened 2027 status match",
+    )
+    provider = SequenceAIProvider(
+        [
+            _status_opportunity(
+                summary="2027 status match",
+                application_start="2027-01-01",
+                application_deadline="2027-02-28",
+            ),
+            {
+                "relationship": "SAME_EVENT",
+                "confidence": 0.8,
+                "reason": "same brand",
+                "candidate_event_id": str(event.id),
+            },
+        ]
+    )
+
+    result = StatusOpportunityPipeline(db_session, provider).process(document)
+
+    assert result.events[0].event.id != event.id
+    revision = db_session.scalar(
+        select(EventRevision).where(
+            EventRevision.event_id == result.events[0].event.id
+        )
+    )
+    assert revision is not None and revision.relationship == "DIFFERENT_EVENT"
+    assert event.application_deadline_at is not None
+
+
+def test_explicit_new_year_wording_bypasses_project_subdomain_auto_merge(
+    db_session,
+) -> None:
+    beijing = ZoneInfo("Asia/Shanghai")
+    existing_document = _document(
+        db_session,
+        suffix="gha-2025",
+        body=(
+            "GHA DISCOVERY status match 2025 "
+            "https://gha.statusmatch.com/"
+        ),
+    )
+    event = StatusEvent(
+        created_from_key="gha-2025",
+        program="GHA DISCOVERY",
+        target_status="Platinum",
+        summary="2025 status match",
+        search_text="GHA DISCOVERY 2025 status match Platinum",
+        application_deadline_at=datetime(
+            2025, 11, 30, 23, 59, 59, tzinfo=beijing
+        ),
+        lifecycle_status="EXPIRED",
+    )
+    db_session.add(event)
+    db_session.flush()
+    db_session.add(
+        EventEvidence(
+            event_id=event.id,
+            document_version_id=existing_document.id,
+            hint_index=0,
+            source_url=existing_document.canonical_url,
+            locator="GHA DISCOVERY status match 2025",
+        )
+    )
+    document = _document(
+        db_session,
+        suffix="gha-2026",
+        body=(
+            "The GHA DISCOVERY Status Match has returned for the first time in "
+            "2026. Apply by April 6, 2026 at https://gha.statusmatch.com/."
+        ),
+    )
+    hint = EventHint(
+        program="GHA DISCOVERY",
+        summary="2026 status match",
+        target_status="Platinum",
+        application_deadline="April 6, 2026",
+    )
+    provider = SequenceAIProvider(
+        [
+            {
+                "relationship": "DIFFERENT_EVENT",
+                "confidence": 0.99,
+                "reason": "the article explicitly identifies a new 2026 period",
+                "candidate_event_id": None,
+            }
+        ]
+    )
+
+    relationship = EventRelationshipAnalyzer(db_session, provider).analyze(
+        document=document,
+        hint=hint,
+        hint_index=0,
+        candidates=[event],
+    )
+
+    assert relationship.result.relationship == RelationshipType.DIFFERENT_EVENT
+    assert relationship.run is not None
+    assert len(provider.calls) == 1
+
+
+def test_explicit_later_deadline_keeps_update_and_structured_extension_signal(
+    db_session,
+) -> None:
+    beijing = ZoneInfo("Asia/Shanghai")
+    event = StatusEvent(
+        created_from_key="extension-period",
+        program="Example Air",
+        target_status="Gold",
+        summary="Match through September",
+        search_text="Example Air match September",
+        application_start_at=datetime(2026, 8, 1, tzinfo=beijing),
+        application_deadline_at=datetime(2026, 9, 30, 23, 59, 59, tzinfo=beijing),
+    )
+    db_session.add(event)
+    db_session.flush()
+    document = _document(
+        db_session,
+        suffix="deadline-extension",
+        body="The same offer is explicitly extended through October 31.",
+    )
+    provider = SequenceAIProvider(
+        [
+            _status_opportunity(
+                summary="Deadline extended through October",
+                application_deadline="2026-10-31",
+            ),
+            {
+                "relationship": "UPDATE_OF",
+                "confidence": 0.99,
+                "reason": "the source explicitly extends the same deadline",
+                "candidate_event_id": str(event.id),
+                "deadline_extension": True,
+            },
+        ]
+    )
+
+    result = StatusOpportunityPipeline(db_session, provider).process(document)
+
+    assert result.events[0].event.id == event.id
+    assert event.summary == "Deadline extended through October"
+    revision = db_session.scalar(
+        select(EventRevision).where(
+            EventRevision.event_id == event.id,
+            EventRevision.document_version_id == document.id,
+        )
+    )
+    assert revision is not None
+    assert revision.snapshot["relationship"]["deadline_extension"] is True
+    relationship_payload = json.loads(provider.calls[1]["user_prompt"])
+    assert relationship_payload["candidates"][0][
+        "application_deadline_at"
+    ].endswith("+08:00")
+
+
+def test_two_digit_year_deadline_extension_is_accepted(db_session) -> None:
+    beijing = ZoneInfo("Asia/Shanghai")
+    event = StatusEvent(
+        created_from_key="real-short-date-extension",
+        program="United MileagePlus",
+        target_status="Premier",
+        summary="Register by June 30",
+        search_text="United MileagePlus status match",
+        application_deadline_at=datetime(
+            2025, 6, 30, 23, 59, 59, 999999, tzinfo=beijing
+        ),
+    )
+    db_session.add(event)
+    db_session.flush()
+    document = _document(
+        db_session,
+        suffix="united-extension-short-date",
+        body="OFFER EXTENDED: Register by Dec 31, 25.",
+    )
+    hint = EventHint(
+        program="United MileagePlus",
+        summary="Registration deadline extended",
+        target_status="Premier",
+        application_deadline="Dec 31, 25",
+    )
+    provider = SequenceAIProvider(
+        [
+            {
+                "relationship": "UPDATE_OF",
+                "confidence": 0.99,
+                "reason": "same offer with an explicitly extended deadline",
+                "candidate_event_id": str(event.id),
+                "deadline_extension": True,
+            }
+        ]
+    )
+
+    relationship = EventRelationshipAnalyzer(db_session, provider).analyze(
+        document=document,
+        hint=hint,
+        hint_index=0,
+        candidates=[event],
+    )
+
+    assert relationship.result.relationship == RelationshipType.UPDATE_OF
+    assert relationship.result.deadline_extension is True
+    assert relationship.run is not None and relationship.run.status == "SUCCEEDED"
+
+
+def test_same_brand_overlapping_different_mechanism_remains_separate(
+    db_session,
+) -> None:
+    beijing = ZoneInfo("Asia/Shanghai")
+    event = StatusEvent(
+        created_from_key="corporate-match",
+        program="Example Hotel",
+        target_status="Gold",
+        summary="Corporate status match",
+        search_text="Example Hotel corporate status match",
+        application_start_at=datetime(2026, 9, 1, tzinfo=beijing),
+        application_deadline_at=datetime(2026, 12, 31, 23, 59, 59, tzinfo=beijing),
+    )
+    db_session.add(event)
+    db_session.flush()
+    document = _document(
+        db_session,
+        suffix="public-fast-track",
+        body="A public stay-based fast track during the same dates",
+    )
+    provider = SequenceAIProvider(
+        [
+            _status_opportunity(
+                program="Example Hotel",
+                summary="Public stay-based fast track",
+                application_start="2026-10-01",
+                application_deadline="2026-11-30",
+            ),
+            {
+                "relationship": "DIFFERENT_EVENT",
+                "confidence": 0.98,
+                "reason": "overlapping dates but a distinct audience and mechanism",
+                "candidate_event_id": None,
+            },
+        ]
+    )
+
+    result = StatusOpportunityPipeline(db_session, provider).process(document)
+
+    assert result.events[0].event.id != event.id
 
 
 def test_relevance_can_rerun_with_new_prompt_without_relationship_contract(db_session) -> None:
