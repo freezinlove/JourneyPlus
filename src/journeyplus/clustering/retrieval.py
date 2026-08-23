@@ -6,10 +6,10 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from journeyplus.contracts import EventHint
+from journeyplus.contracts import EventHint, LifecycleStatus
 from journeyplus.lifecycle.service import (
     as_beijing,
     normalize_event_time,
@@ -39,13 +39,20 @@ class CandidateRetriever:
         *,
         document: DocumentVersion | None = None,
     ) -> list[StatusEvent]:
-        since = datetime.now(UTC) - timedelta(days=self._lookback_days)
+        current = datetime.now(UTC)
+        since = current - timedelta(days=self._lookback_days)
         candidates = list(
             self._session.scalars(
                 select(StatusEvent)
                 .where(
                     StatusEvent.created_at >= since,
                     StatusEvent.merged_into_id.is_(None),
+                    StatusEvent.archived_at.is_(None),
+                    StatusEvent.lifecycle_status != LifecycleStatus.EXPIRED,
+                    or_(
+                        StatusEvent.application_deadline_at.is_(None),
+                        StatusEvent.application_deadline_at >= current,
+                    ),
                 )
                 .order_by(StatusEvent.updated_at.desc())
                 .limit(self._candidate_pool_limit)

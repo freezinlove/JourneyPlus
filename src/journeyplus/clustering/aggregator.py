@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.contracts import EventHint, RelationshipResult, RelationshipType
+from journeyplus.lifecycle.service import event_closed_for_automation
 from journeyplus.models import (
     AnalysisRun,
     DocumentVersion,
@@ -59,6 +60,18 @@ class EventAggregator:
             if relationship.candidate_event_id
             else None
         )
+        if (
+            relationship.relationship
+            in {RelationshipType.SAME_EVENT, RelationshipType.UPDATE_OF}
+            and candidate is not None
+            and event_closed_for_automation(candidate)
+        ):
+            relationship = RelationshipResult(
+                relationship=RelationshipType.DIFFERENT_EVENT,
+                confidence=1,
+                reason="候选活动已经过期或归档，自动聚合必须创建独立事件。",
+            )
+            candidate = None
         created = False
         needs_review = relationship.relationship == RelationshipType.UNCERTAIN
         if relationship.relationship in {

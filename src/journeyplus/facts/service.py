@@ -184,11 +184,6 @@ class FactConsolidator:
         run.result = fact_set.model_dump(mode="json")
         run.error = None
         has_conflicts = any(field.conflict for field in fact_set.fact_fields().values())
-        deadline_extended = self._deadline_was_extended(
-            current_fact_set,
-            candidate,
-            extension_document_ids,
-        )
         if current_record is not None and current_fact_set is not None:
             if self._material_signature(fact_set) == self._material_signature(
                 current_fact_set
@@ -196,11 +191,7 @@ class FactConsolidator:
                 run.result = current_fact_set.model_dump(mode="json")
                 if has_conflicts:
                     event.status = "NEEDS_REVIEW"
-                refresh_event_lifecycle(
-                    event,
-                    current_fact_set,
-                    allow_restore=deadline_extended,
-                )
+                refresh_event_lifecycle(event, current_fact_set)
                 self._session.flush()
                 return FactConsolidation(
                     run,
@@ -229,11 +220,7 @@ class FactConsolidator:
         event.current_fact_set_id = record.id
         if has_conflicts:
             event.status = "NEEDS_REVIEW"
-        refresh_event_lifecycle(
-            event,
-            fact_set,
-            allow_restore=deadline_extended,
-        )
+        refresh_event_lifecycle(event, fact_set)
         self._session.flush()
         return FactConsolidation(run, record, fact_set, False)
 
@@ -409,35 +396,6 @@ class FactConsolidator:
             ):
                 return candidate
         return cls._reconcile_field(current, candidate)
-
-    @staticmethod
-    def _deadline_was_extended(
-        current: FactSet | None,
-        candidate: FactSet,
-        extension_document_ids: set,
-    ) -> bool:
-        if current is None:
-            return False
-        current_field = current.deadline
-        candidate_field = candidate.deadline
-        if (
-            current_field.value is None
-            or candidate_field.value is None
-            or current_field.conflict
-            or candidate_field.conflict
-            or not any(
-                evidence.document_version_id in extension_document_ids
-                for evidence in candidate_field.evidence
-            )
-        ):
-            return False
-        current_time = normalize_event_time(current_field.value, end_of_day=True)
-        candidate_time = normalize_event_time(candidate_field.value, end_of_day=True)
-        return bool(
-            current_time is not None
-            and candidate_time is not None
-            and candidate_time > current_time
-        )
 
     @staticmethod
     def _merge_evidence(

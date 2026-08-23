@@ -483,34 +483,34 @@ def test_different_deadline_without_extension_signal_remains_conflicted(
     assert event.lifecycle_status == "UNKNOWN"
 
 
-def test_structured_explicit_extension_advances_deadline_and_restores_archive(
+def test_structured_explicit_extension_advances_active_deadline(
     db_session,
 ) -> None:
     event, documents = _event_with_documents(
-        db_session, ["The original deadline was January 31, 2020."]
+        db_session, ["The original deadline is January 31, 2098."]
     )
     first_response = _fact_response(event, documents[0])
     first_response["deadline"] = {
-        "value": "2020-01-31",
+        "value": "2098-01-31",
         "evidence": [_evidence(documents[0], "original deadline")],
     }
     first = FactConsolidator(
         db_session, SequenceAIProvider([first_response])
     ).consolidate(event)
-    assert event.lifecycle_status == "EXPIRED"
-    assert event.archived_at is not None
+    assert event.lifecycle_status == "ACTIVE"
+    assert event.archived_at is None
 
     extension_document = _add_document_evidence(
         db_session,
         event,
-        "The same application deadline is explicitly extended to December 31, 2099.",
+        "The same application deadline is explicitly extended to December 31, 2098.",
         locator="explicit extension sentence",
         relationship="UPDATE_OF",
         deadline_extension=True,
     )
     extension_response = _fact_response(event, extension_document)
     extension_response["deadline"] = {
-        "value": "2099-12-31",
+        "value": "2098-12-31",
         "evidence": [_evidence(extension_document, "explicit extension sentence")],
     }
 
@@ -519,13 +519,51 @@ def test_structured_explicit_extension_advances_deadline_and_restores_archive(
     ).consolidate(event)
 
     assert extended.record.version == 2
-    assert extended.fact_set.deadline.value == "2099-12-31"
+    assert extended.fact_set.deadline.value == "2098-12-31"
     assert not extended.fact_set.deadline.conflict
     old_record = db_session.get(FactSetRecord, first.record.id)
     assert old_record is not None
-    assert old_record.facts["deadline"]["value"] == "2020-01-31"
+    assert old_record.facts["deadline"]["value"] == "2098-01-31"
     assert event.lifecycle_status == "ACTIVE"
     assert event.archived_at is None
+
+
+def test_automatic_fact_refresh_cannot_restore_archived_event(db_session) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["The original deadline was January 31, 2020."]
+    )
+    first_response = _fact_response(event, documents[0])
+    first_response["deadline"] = {
+        "value": "2020-01-31",
+        "evidence": [_evidence(documents[0], "original deadline")],
+    }
+    FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    archived_at = event.archived_at
+    extension_document = _add_document_evidence(
+        db_session,
+        event,
+        "The application deadline is explicitly extended to December 31, 2099.",
+        locator="late extension sentence",
+        relationship="UPDATE_OF",
+        deadline_extension=True,
+    )
+    extension_response = _fact_response(event, extension_document)
+    extension_response["deadline"] = {
+        "value": "2099-12-31",
+        "evidence": [_evidence(extension_document, "late extension sentence")],
+    }
+
+    extended = FactConsolidator(
+        db_session, SequenceAIProvider([extension_response])
+    ).consolidate(event)
+
+    assert extended.fact_set.deadline.value == "2099-12-31"
+    assert event.application_deadline_at is not None
+    assert event.application_deadline_at.year == 2099
+    assert event.lifecycle_status == "EXPIRED"
+    assert event.archived_at == archived_at
 
 
 def test_conflicting_facts_stay_explicit_and_enter_review(db_session) -> None:

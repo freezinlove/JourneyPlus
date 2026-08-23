@@ -378,7 +378,7 @@ class ReviewService:
         self._session.flush()
         event.current_fact_set_id = record.id
         event.current_brief_id = None
-        refresh_event_lifecycle(event, resolved, allow_restore=True)
+        refresh_event_lifecycle(event, resolved, allow_manual_restore=True)
         return record
 
     def _decision(

@@ -53,6 +53,10 @@ def test_date_only_boundaries_and_offset_times_normalize_to_beijing() -> None:
         ("9/30/26", datetime(2026, 9, 30, 23, 59, 59, 999999, tzinfo=BEIJING)),
         ("Jun 30, 25", datetime(2025, 6, 30, 23, 59, 59, 999999, tzinfo=BEIJING)),
         ("Dec 31, 25", datetime(2025, 12, 31, 23, 59, 59, 999999, tzinfo=BEIJING)),
+        (
+            "Register by Jun 30, 25",
+            datetime(2025, 6, 30, 23, 59, 59, 999999, tzinfo=BEIJING),
+        ),
     ],
 )
 def test_real_article_two_digit_year_dates_normalize_to_beijing(
@@ -140,7 +144,13 @@ def test_lifecycle_advance_soft_archives_without_deleting_history(db_session) ->
         deadline=datetime(2026, 1, 31, 23, 59, 59, tzinfo=BEIJING),
     )
     unknown = _event("unknown")
-    db_session.add_all([expired, active, unknown])
+    archived_future = _event(
+        "archived-future",
+        deadline=datetime(2099, 1, 1, 23, 59, 59, tzinfo=BEIJING),
+    )
+    archived_future.lifecycle_status = LifecycleStatus.EXPIRED
+    archived_future.archived_at = datetime(2025, 1, 1, tzinfo=BEIJING)
+    db_session.add_all([expired, active, unknown, archived_future])
     db_session.flush()
     now = datetime(2026, 1, 15, 12, 0, tzinfo=BEIJING)
 
@@ -148,11 +158,13 @@ def test_lifecycle_advance_soft_archives_without_deleting_history(db_session) ->
     archived_at = expired.archived_at
     second = advance_lifecycles(db_session, now=now)
 
-    assert first.scanned == 3 and first.expired == 1 and first.updated == 2
-    assert second.scanned == 3 and second.updated == 0
+    assert first.scanned == 4 and first.expired == 2 and first.updated == 2
+    assert second.scanned == 4 and second.expired == 2 and second.updated == 0
     assert expired.lifecycle_status == LifecycleStatus.EXPIRED
     assert expired.archived_at == archived_at == now
     assert active.lifecycle_status == LifecycleStatus.ACTIVE
     assert active.archived_at is None
     assert unknown.lifecycle_status == LifecycleStatus.UNKNOWN
-    assert db_session.scalar(select(func.count()).select_from(StatusEvent)) == 3
+    assert archived_future.lifecycle_status == LifecycleStatus.EXPIRED
+    assert archived_future.archived_at == datetime(2025, 1, 1, tzinfo=BEIJING)
+    assert db_session.scalar(select(func.count()).select_from(StatusEvent)) == 4

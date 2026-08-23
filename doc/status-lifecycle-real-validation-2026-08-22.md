@@ -1,16 +1,16 @@
-# 会籍活动时效真实文章验证报告（2026-08-22）
+# 会籍活动时效真实文章验证报告（2026-08-22 至 2026-08-23）
 
 ## 结论
 
-阶段四、阶段五在真实公开文章上的阻塞性时效问题已修复并通过复测。验证统一以北京时间 `Asia/Shanghai` 为查询和比较时区，覆盖明确延期、跨年度新一期、同品牌不同机制、仅日期、两位数年份、美国时区时刻、当前有效、已过期、缺少截止日以及截止证据冲突。
+阶段四、阶段五在真实公开文章上的阻塞性时效问题已修复并通过复测。验证统一以北京时间 `Asia/Shanghai` 为查询和比较时区，覆盖截止前明确延期、过期后延期创建新事件、归档自动不可恢复、跨年度新一期、同品牌不同机制、仅日期、两位数年份、美国时区时刻、当前有效、已过期、缺少截止日以及截止证据冲突。
 
 本轮没有改动冻结金标，也没有把第三方文章正文写入仓库；仓库只保存公开 URL、案例键和边界说明。所有代码和报告均保留在未提交工作区。
 
 ## 验证环境
 
-- 日期与时区：2026-08-22，`Asia/Shanghai`
-- 数据库：Docker PostgreSQL 17，使用隔离数据库 `journeyplus_real_lifecycle_20260822`、`journeyplus_real_lifecycle_fix_20260822`、`journeyplus_real_united_chain_20260822`、`journeyplus_real_timezone_20260822`
-- 数据库迁移：在三个全新数据库中实跑 `0001 → 0002 → 0003`
+- 日期与时区：2026-08-22 至 2026-08-23，`Asia/Shanghai`
+- 数据库：Docker PostgreSQL 17，使用隔离数据库 `journeyplus_real_lifecycle_20260822`、`journeyplus_real_lifecycle_fix_20260822`、`journeyplus_real_united_chain_20260822`、`journeyplus_real_timezone_20260822`、`journeyplus_real_united_archive_boundary_20260823`
+- 数据库迁移：包括 2026-08-23 新建的归档边界库在内，实跑 `0001 → 0002 → 0003`；本次规则复用既有生命周期和归档字段，不需要新增迁移
 - 模型：`aliyun-model-studio / deepseek-v4-flash`
 - 模型配置：`cn-beijing:deepseek-v4-flash:temp-0:json-mode-pydantic-v1`
 - 正文：运行时从公开网页或正式 Feed 获取并清洗；没有使用仓库内固定正文替代真实抓取
@@ -34,7 +34,7 @@
 
 | 边界 | 真实材料 | 数据库结果 | 结论 |
 | --- | --- | --- | --- |
-| 两位数年份 + 明确延期 | [United 初始截止日](https://blog.frequentflyerbonuses.com/2025/01/january-17-2025-highlight.html)、[OFFER EXTENDED](https://blog.frequentflyerbonuses.com/2025/08/august-27-2025-highlight.html) | 同一事件 ID；第二篇为 `UPDATE_OF`、`deadline_extension=true`；截止日由 `Jun 30, 25` 更新为北京时间 2025-12-31 日末；当前 `EXPIRED` 且软归档 | 通过 |
+| 两位数年份 + 过期后出现延期 | [United 初始截止日](https://blog.frequentflyerbonuses.com/2025/01/january-17-2025-highlight.html)、[OFFER EXTENDED](https://blog.frequentflyerbonuses.com/2025/08/august-27-2025-highlight.html) | 按顺序处理后形成两个事件：旧事件截止日为北京时间 2025-06-30 日末，保持 `EXPIRED` 和原归档时间；8 月文章为 `DIFFERENT_EVENT`、`deadline_extension=false`，新事件截止日为北京时间 2025-12-31 日末 | 通过 |
 | 同项目跨年度新一期 | [GHA 2025](https://blog.frequentflyerbonuses.com/2025/09/gha-discovery-status-match-2025.html)、[GHA 2026 首次回归](https://blog.frequentflyerbonuses.com/2026/03/gha-discovery-status-match.html) | 两个独立事件；截止日分别为 2025-11-30、2026-04-06 北京时间日末；均保持各自归档历史 | 通过 |
 | 仅日期截止 | [Frontier Elite Gold](https://awardwallet.com/news/airlines/frontier-status-match/) | 2025-09-09 23:59:59.999999 北京时间，`EXPIRED` | 通过 |
 | 同品牌不同机制 | [Frontier Platinum Challenge](https://awardwallet.com/news/airlines/frontier-elite-status-promotion/) | 与 Frontier Gold 拆分；文章顶部“已结束”与正文原截止日并存，截止事实冲突，按规范保守为 `UNKNOWN` | 通过 |
@@ -52,6 +52,14 @@
 1. 两位数年份未解析：`9/30/26`、`Jun 30, 25`、`Dec 31, 25` 原来会使查询截止时间为空，并阻断明确延期关系。现已支持数字和英文月份的两位数年份。
 2. 专属 `*.statusmatch.com` 子域误合并跨年度活动：GHA 正文明确写 `returned for the first time in 2026`，原来仍会被强制并入 2025 事件。现在明确新期次措辞和可靠非重叠窗口会绕过该强合并信号，交给关系判断并保持独立。
 3. 常见美国时区文本未解析：模型从真实正文提取了 `11:59 p.m. EST on May 28, 2026` 和 `May 28, 2026, 11:59 p.m. EST` 两种格式，原实现均返回空。现在支持两种顺序及 `EST/EDT/ET`、`CST/CDT/CT`、`MST/MDT/MT`、`PST/PDT/PT`，并统一换算到北京时间。
+4. 模型保留日期动作前缀时未解析：2026-08-23 重跑 United 首篇时，事实值原样返回 `Register by Jun 30, 25`，原实现只接受裸日期并把生命周期留在 `UNKNOWN`。现在确定性剥离常见 `Register/Apply by`、registration/application deadline 前缀，重新计算后正确得到北京时间 2025-06-30 日末并软归档。
+
+## 2026-08-23 归档边界行为验证
+
+- 在全新隔离库中先真实抓取并处理 United 1 月文章，模型判为 `STATUS_OPPORTUNITY`，事实截止值为原文 `Register by Jun 30, 25`；规范化后事件为 `EXPIRED` 并设置归档时间。
+- 再真实抓取并处理 8 月 `OFFER EXTENDED` 文章。候选召回没有返回旧事件，关系模型未被允许选择旧事件，最终创建第二个 `StatusEvent`。
+- 旧事件 ID `07d64516-e196-47fe-9fbb-66d61c84072f` 保持截止日 2025-06-30、`EXPIRED` 和原归档时间；新事件 ID `37fbb5c5-55c6-47e3-b0d9-865589ea3af2` 使用截止日 2025-12-31，并因当前时间已经超过该日期独立归档。
+- 两个事件各自只有一份证据、一个简报；二次抓取两篇均为 `new_version=false`，随后 `process-pending` 选择数为 0，数据库仍为 2 份正文、2 个事件、2 个简报。
 
 ## 幂等、迁移与自动化测试
 
@@ -60,7 +68,7 @@
 - 六个公开来源使用新的采集运行键再次发现首篇时，全部新增正文 0。
 - `git diff --check`：通过。
 - `python -m compileall`：通过。
-- `pytest`：`126 passed`；有 1 条来自 FastAPI/Starlette 测试依赖的弃用警告，不影响本次结果。
+- `pytest`：`131 passed`；新增候选池排除、关系层过滤、聚合层硬边界、截止前延期、过期后新事件、归档自动不可恢复和日期动作前缀解析覆盖；有 1 条来自 FastAPI/Starlette 测试依赖的弃用警告，不影响本次结果。
 - OpenSpec：`openspec validate finish-status-opportunity-automation --strict` 通过。
 - `ruff`：项目未声明该依赖，本机环境不可调用，因此未执行且不记为通过。
 

@@ -23,6 +23,7 @@ from journeyplus.contracts import (
 )
 from journeyplus.lifecycle.service import (
     BEIJING_TZ,
+    event_closed_for_automation,
     normalize_event_time,
     windows_non_overlapping,
 )
@@ -34,14 +35,14 @@ from journeyplus.models import (
 )
 
 
-RELATIONSHIP_PROMPT_VERSION = "event-relationship-v6"
+RELATIONSHIP_PROMPT_VERSION = "event-relationship-v7"
 RELATIONSHIP_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """判断一个新的会籍获取机会提示与候选现实事件的关系。只可返回：SAME_EVENT（同一活动）、UPDATE_OF（同一活动的新规则/日期/资格）、DIFFERENT_EVENT（不同活动）或 UNCERTAIN。
 
-项目全称、简称、中文名、英文名或 status match / paid status / fast track 等措辞不同，都不能单独证明活动不同。同一现实活动可以有多个目标等级、价格档、资格映射、地区或申请入口；如果行动链接、活动规则和材料表明它们属于同一活动，应返回 SAME_EVENT。同一命名项目下、获取机制相同的国家或群体入口，不得仅因适用国家、人群、目标档位或注册链接不同就拆分；这些差异只有在材料明确表明是独立活动、规则机制不同或申请窗口属于不同期次时才支持 DIFFERENT_EVENT。同品牌仍不自动代表同一活动：不同获取机制、明确独立的适用对象与规则、或不同时期的独立活动应返回 DIFFERENT_EVENT。申请窗口相同、重叠或一方缺失仍需结合完整材料判断；可靠且非重叠的新一期窗口在没有明确延期语义时必须返回 DIFFERENT_EVENT。单独出现 OFFER UPDATED 或类似措辞不能证明 UPDATE_OF；只有同一活动确有规则、日期或资格变化时才返回 UPDATE_OF。
+项目全称、简称、中文名、英文名或 status match / paid status / fast track 等措辞不同，都不能单独证明活动不同。同一现实活动可以有多个目标等级、价格档、资格映射、地区或申请入口；如果行动链接、活动规则和材料表明它们属于同一活动，应返回 SAME_EVENT。同一命名项目下、获取机制相同的国家或群体入口，不得仅因适用国家、人群、目标档位或注册链接不同就拆分；这些差异只有在材料明确表明是独立活动、规则机制不同或申请窗口属于不同期次时才支持 DIFFERENT_EVENT。同品牌仍不自动代表同一活动：不同获取机制、明确独立的适用对象与规则、或不同时期的独立活动应返回 DIFFERENT_EVENT。申请窗口相同、重叠或一方缺失仍需结合完整材料判断；可靠且非重叠的新一期窗口在没有明确延期语义时必须返回 DIFFERENT_EVENT。延期只有在候选活动尚未超过原截止时间且未归档时才可返回 UPDATE_OF；过期或归档活动不会作为候选，过期后出现的延期、重开或新一期材料必须创建新事件。单独出现 OFFER UPDATED 或类似措辞不能证明 UPDATE_OF；只有同一活动确有规则、日期或资格变化时才返回 UPDATE_OF。
 
-candidates.materials 是候选事件已关联的原始证据摘要，必须与 new_material 一起判断。候选召回只代表可能相关，绝不代表可以自动合并。输出布尔字段 deadline_extension：只有 new_material 明确表示同一活动的申请截止时间被延长、给出晚于候选当前截止时间的新值且关系为 UPDATE_OF 时才为 true；价格、资格、规则或其他日期更新必须为 false。无法确信时返回 UNCERTAIN。SAME_EVENT、UPDATE_OF 或指向某候选的 UNCERTAIN 必须填写该候选 event ID。只输出符合 JSON Schema 的 JSON。"""
+candidates.materials 是候选事件已关联的原始证据摘要，必须与 new_material 一起判断。候选召回只代表可能相关，绝不代表可以自动合并。输出布尔字段 deadline_extension：只有候选事件尚未超过原截止时间且未归档、new_material 明确表示同一活动的申请截止时间被延长、给出晚于候选当前截止时间的新值且关系为 UPDATE_OF 时才为 true；价格、资格、规则或其他日期更新必须为 false。无法确信时返回 UNCERTAIN。SAME_EVENT、UPDATE_OF 或指向某候选的 UNCERTAIN 必须填写该候选 event ID。只输出符合 JSON Schema 的 JSON。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +72,11 @@ class EventRelationshipAnalyzer:
         hint_index: int,
         candidates: list[StatusEvent],
     ) -> RelationshipAnalysis:
+        candidates = [
+            candidate
+            for candidate in candidates
+            if not event_closed_for_automation(candidate)
+        ]
         if not candidates:
             return RelationshipAnalysis(
                 None,
@@ -283,6 +289,8 @@ def _apply_window_guard(
 
 
 def _valid_deadline_extension(hint: EventHint, candidate: StatusEvent) -> bool:
+    if event_closed_for_automation(candidate):
+        return False
     new_start = normalize_event_time(hint.application_start, end_of_day=False)
     new_deadline = normalize_event_time(hint.application_deadline, end_of_day=True)
     current_deadline = candidate.application_deadline_at

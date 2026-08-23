@@ -27,7 +27,7 @@ def normalize_event_time(value: str | None, *, end_of_day: bool) -> datetime | N
 
     if value is None or not value.strip():
         return None
-    original = value.strip()
+    original = _strip_event_time_prefix(value.strip())
     named_zone_datetime = _parse_named_timezone_datetime(original)
     if named_zone_datetime is not None:
         return named_zone_datetime.astimezone(BEIJING_TZ)
@@ -65,6 +65,19 @@ def calculate_lifecycle(
     return LifecycleStatus.EXPIRED
 
 
+def event_closed_for_automation(
+    event: StatusEvent, *, now: datetime | None = None
+) -> bool:
+    if event.archived_at is not None:
+        return True
+    if event.lifecycle_status == LifecycleStatus.EXPIRED:
+        return True
+    if event.application_deadline_at is None:
+        return False
+    current = as_beijing(now or datetime.now(BEIJING_TZ))
+    return current > as_beijing(event.application_deadline_at)
+
+
 def windows_non_overlapping(
     left_start: datetime | None,
     left_deadline: datetime | None,
@@ -86,7 +99,7 @@ def refresh_event_lifecycle(
     fact_set: FactSet,
     *,
     now: datetime | None = None,
-    allow_restore: bool = False,
+    allow_manual_restore: bool = False,
 ) -> LifecycleStatus:
     current = as_beijing(now or datetime.now(BEIJING_TZ))
     start_field = fact_set.application_start
@@ -106,10 +119,13 @@ def refresh_event_lifecycle(
         event.application_deadline_at,
         now=current,
     )
+    if event.archived_at is not None and not allow_manual_restore:
+        event.lifecycle_status = LifecycleStatus.EXPIRED
+        return LifecycleStatus.EXPIRED
     event.lifecycle_status = lifecycle
     if lifecycle == LifecycleStatus.EXPIRED:
         event.archived_at = event.archived_at or current
-    elif allow_restore and event.archived_at is not None:
+    elif allow_manual_restore and event.archived_at is not None:
         event.archived_at = None
     return lifecycle
 
@@ -127,10 +143,14 @@ def advance_lifecycles(
     expired = 0
     for event in events:
         before = (event.lifecycle_status, event.archived_at)
-        lifecycle = calculate_lifecycle(
-            event.application_start_at,
-            event.application_deadline_at,
-            now=current,
+        lifecycle = (
+            LifecycleStatus.EXPIRED
+            if event.archived_at is not None
+            else calculate_lifecycle(
+                event.application_start_at,
+                event.application_deadline_at,
+                now=current,
+            )
         )
         event.lifecycle_status = lifecycle
         if lifecycle == LifecycleStatus.EXPIRED:
@@ -151,6 +171,17 @@ def as_beijing(value: datetime) -> datetime:
 def _strip_beijing_suffix(value: str) -> str:
     return re.sub(
         r"\s*(?:北京时间|中国标准时间|Asia/Shanghai|CST)\s*$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def _strip_event_time_prefix(value: str) -> str:
+    return re.sub(
+        r"^(?:(?:register|apply|enroll|enrol|sign\s+up)\s+"
+        r"(?:by|before|through|until)|(?:registration|application)\s+"
+        r"(?:deadline|ends?)|deadline)\s*(?:is|:)?\s*",
         "",
         value,
         flags=re.IGNORECASE,

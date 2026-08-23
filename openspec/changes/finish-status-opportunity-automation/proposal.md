@@ -8,7 +8,7 @@
 - 将正式来源从八组收缩为七组，**BREAKING**：移除 StatusMatcher 注册、CLI 入口、生产适配能力和相关文档；保留 FFB 两组、AwardWallet、StatusMatch/GetStatus Gmail、LoyaltyLobby、Frequent Miler 和很旅行。
 - 移除没有独立业务价值的 `opportunity_type`；使用最小的 `program / target_status / summary`、来源权威项目名与完整材料判断活动关系，后续只新增可空的申请开始和截止窗口，不新增合作方、地区、入口指纹等事件身份字段。
 - 明确同活动跨文章聚合、延期作为更新、同品牌不同活动与不同时期新活动拆分，以及不确定关系保守分开并进入复核的行为。
-- 在金标阶段完成后增加与审核状态独立的 `UPCOMING / ACTIVE / EXPIRED / UNKNOWN` 生命周期和可恢复的软归档。
+- 在金标阶段完成后增加与审核状态独立的 `UPCOMING / ACTIVE / EXPIRED / UNKNOWN` 生命周期；过期事件软归档后退出自动候选池且不得自动恢复。
 - 为七个来源统一配置一小时采集周期，增加单轮调度、数据库幂等/互斥、失败隔离、处理积压、生命周期推进和运行状态报告。
 - 使用邮箱中现有三封 StatusMatch 邮件完成只读真实联调和幂等验证；真实邮件正文不得进入仓库测试夹具或金标，GetStatus 在收到真实邮件后补充联调但不阻塞首期上线。
 - 通过第一期金标、真实来源端到端检查和短期自动运行观察后，将会籍主题转入维护并允许开始下一个主题。
@@ -18,7 +18,7 @@
 ### New Capabilities
 
 - `gold-baseline-runtime`: 运行第一期冻结金标、缓存真实模型输出、报告文档分类和事件分组指标，并以结果作为后续时效开发的阶段门。
-- `status-event-lifecycle`: 从有证据的活动开始/截止窗口计算独立生命周期、软归档过期活动并处理延期恢复或新一期拆分。
+- `status-event-lifecycle`: 从有证据的活动开始/截止窗口计算独立生命周期、软归档过期活动，只允许截止前明确延期更新同一事件，并把过期后的延期或重开拆成新事件。
 - `hourly-source-automation`: 对七个正式来源执行统一的一小时采集、处理、生命周期推进、故障隔离和运行状态报告。
 
 ### Modified Capabilities
