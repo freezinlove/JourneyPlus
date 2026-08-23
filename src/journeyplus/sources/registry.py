@@ -42,6 +42,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         },
         content_strategy="fetch_article",
         access_policy={"external_output": "original_brief_and_source_link"},
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="ffb_status_match_catalog",
@@ -53,6 +54,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         },
         content_strategy="top_level_records",
         access_policy={"external_output": "original_brief_and_source_link"},
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="awardwallet_elite_status_feed",
@@ -65,6 +67,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         },
         content_strategy="fetch_article",
         access_policy={"external_output": "original_brief_and_source_link"},
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="status_services_mail",
@@ -85,7 +88,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
             "attachments": "ignore_unknown_types",
             "secrets_in_logs": False,
         },
-        enabled=False,
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="loyaltylobby_feed",
@@ -98,6 +101,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         },
         content_strategy="feed_body_only",
         access_policy={"fetch_article_page": False},
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="frequentmiler_elite_status_feed",
@@ -109,6 +113,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         },
         content_strategy="feed_body_only",
         access_policy={"fetch_article_page": False},
+        collection_cadence="P1D",
     ),
     SourceDefinition(
         source_id="verylvke_feed",
@@ -118,6 +123,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         discovery_config={"feed_url": "https://www.verylvke.com/feed/"},
         content_strategy="feed_body_only_multi_hint",
         access_policy={"fetch_article_page": False},
+        collection_cadence="P1D",
     ),
 )
 

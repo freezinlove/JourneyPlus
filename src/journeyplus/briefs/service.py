@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
+from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -11,10 +14,44 @@ from journeyplus.contracts import AnalysisStage, Brief, FactSet, RunStatus
 from journeyplus.models import AnalysisRun, BriefRecord, FactSetRecord, StatusEvent
 
 
-BRIEF_PROMPT_VERSION = "chinese-brief-v1"
+BRIEF_PROMPT_VERSION = "chinese-brief-v5"
 BRIEF_SCHEMA_VERSION = "1"
 
-SYSTEM_PROMPT = """你是中文旅行会籍机会编辑。只能读取输入的版本化 FactSet，用自己的中文重组核心信息，输出短标题、短摘要、要点、限制/不确定性和来源链接。标题、摘要、每个要点和每项限制都要用 fact_keys 声明依据；不得使用 value=null 的字段支持确定性陈述。冲突必须写成不确定性，不可擅自选择。不得添加 FactSet 没有的日期、费用、资格或结论，不得复制长段原文。只输出符合 JSON Schema 的 JSON。"""
+SYSTEM_PROMPT = """你是中文旅行会籍机会编辑。只能读取输入的版本化 FactSet，用自己的中文重组核心信息，输出短标题、短摘要、要点、限制/不确定性和来源链接。标题、摘要、每个要点和每项限制都要用 fact_keys 声明依据；unknown_fact_keys 中的字段必须完全省略，不得出现在任何 fact_keys 中，也不得据此写出“符合条件的会员”等暗示存在具体资格的措辞。汇总邮件只说明各品牌要求不同或请查看活动页时，只有 caveats 为已知事实才可作为注意事项引用，绝不能改标为 eligibility。source_links 只能逐项复制 allowed_source_links 中的证据来源；action_link 是申请入口，可以在有事实依据的行动要点中说明，但绝不能放入 source_links。application_routes 是同一活动下分别有证据的申请路径，应按各路径的资格、地区、价格和入口准确说明，不得把路径差异写成冲突。字段或路径明确标记的冲突必须写成不确定性，不可擅自选择。不得添加 FactSet 没有的日期、费用、资格、地域或结论，不得复制长段原文。只输出符合 JSON Schema 的 JSON。"""
+
+_UNKNOWN_ABSENCE_PATTERNS = {
+    "eligibility": re.compile(
+        r"(?:资格|申请条件|适用对象|谁可申请).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "target_status": re.compile(
+        r"(?:目标等级|会籍等级|级别).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "cost": re.compile(
+        r"(?:费用|价格|收费).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "challenge_requirements": re.compile(
+        r"(?:挑战要求|任务要求).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "region": re.compile(
+        r"(?:地区|地域|国家范围).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "application_start": re.compile(
+        r"(?:开始日期|开放日期).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "deadline": re.compile(
+        r"(?:截止日期|截止时间).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "status_validity": re.compile(
+        r"(?:有效期|有效时间).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+    "action_link": re.compile(
+        r"(?:申请入口|申请链接).{0,60}(?:未明确|未说明|未知|未提供|没有给出|暂无)"
+    ),
+}
+_GENERIC_CAVEAT_CLAIM_RE = re.compile(
+    r"(?:条款|条件|费用|申请要求|具体要求).{0,80}"
+    r"(?:品牌|合作伙伴|活动页|页面|查看|为准|不同|适用)"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +60,93 @@ class BriefGeneration:
     record: BriefRecord
     brief: Brief
     reused: bool
+
+
+def _safe_error_message(exc: Exception) -> str:
+    """Keep diagnostics useful without persisting model output or source text."""
+    if isinstance(exc, ValidationError):
+        errors = [
+            {
+                "type": item.get("type"),
+                "location": [str(part) for part in item.get("loc", ())],
+                "message": item.get("msg"),
+            }
+            for item in exc.errors(include_input=False, include_url=False)
+        ]
+        message = json.dumps(errors, ensure_ascii=False, separators=(",", ":"))
+    else:
+        message = " ".join(str(exc).split())
+    return message[:500] or "No error message"
+
+
+def _attempt_diagnostic(
+    *, attempt: int, phase: str, exc: Exception
+) -> dict[str, Any]:
+    return {
+        "attempt": attempt,
+        "phase": phase,
+        "error_type": type(exc).__name__,
+        "message": _safe_error_message(exc),
+    }
+
+
+def _fact_key_availability(fact_set: FactSet) -> tuple[list[str], list[str]]:
+    fields = fact_set.fact_fields()
+    known = [
+        key
+        for key, field in fields.items()
+        if field.value is not None or field.conflict
+    ]
+    unknown = [
+        key
+        for key, field in fields.items()
+        if field.value is None and not field.conflict
+    ]
+    if fact_set.application_routes:
+        known.append("application_routes")
+    else:
+        unknown.append("application_routes")
+    return sorted(known), sorted(unknown)
+
+
+def _allowed_source_links(fact_set: FactSet) -> list[str]:
+    fields = fact_set.fact_fields()
+    return sorted(
+        {
+            str(evidence.source_url).rstrip("/")
+            for evidence in [
+                *(
+                    evidence
+                    for field in fields.values()
+                    for evidence in field.evidence
+                ),
+                *(
+                    evidence
+                    for route in fact_set.application_routes
+                    for evidence in route.evidence
+                ),
+            ]
+        }
+    )
+
+
+def _correction_action(exc: Exception) -> str:
+    message = _safe_error_message(exc)
+    if "unsupported source link" in message:
+        return (
+            "source_links 只能逐项复制 allowed_source_links；不得把 action_link "
+            "申请入口放入 source_links。"
+        )
+    if "unknown fact" in message:
+        return (
+            "移除所有未知事实引用；若原句只是要求查看品牌活动页，仅在 "
+            "caveats 已知时改用 caveats，否则整句省略。"
+        )
+    if "describes an unknown fact field" in message:
+        return "完全删除对未知字段及其“未明确/未提供”状态的描述。"
+    if "without citing caveats" in message:
+        return "描述各品牌条款、费用或申请要求时必须在 fact_keys 中引用 caveats。"
+    return "严格按 known_fact_keys 与 allowed_source_links 修正上一版输出。"
 
 
 class BriefGenerator:
@@ -88,30 +212,95 @@ class BriefGenerator:
             self._session.add(run)
 
         last_error: Exception | None = None
+        attempt_diagnostics: list[dict[str, Any]] = []
         brief: Brief | None = None
-        for _attempt in range(self._max_attempts):
+        known_fact_keys, unknown_fact_keys = _fact_key_availability(fact_set)
+        allowed_source_links = _allowed_source_links(fact_set)
+        for attempt in range(1, self._max_attempts + 1):
+            request_payload: dict[str, Any] = {
+                "fact_set_id": str(fact_record.id),
+                "fact_set": fact_record.facts,
+                "known_fact_keys": known_fact_keys,
+                "unknown_fact_keys": unknown_fact_keys,
+                "allowed_source_links": allowed_source_links,
+                "editorial_rules": [
+                    "只能引用 known_fact_keys",
+                    "unknown_fact_keys 必须从文案和 fact_keys 中省略",
+                    "未展开的品牌申请要求只能引用已有 caveats，不能引用 eligibility",
+                ],
+            }
+            if last_error is not None:
+                request_payload["correction"] = {
+                    "previous_attempt_rejected_for": _safe_error_message(last_error),
+                    "required_action": _correction_action(last_error),
+                }
             try:
                 candidate = self._provider.generate_structured(
                     system_prompt=SYSTEM_PROMPT,
-                    user_prompt=json.dumps(
-                        {
-                            "fact_set_id": str(fact_record.id),
-                            "fact_set": fact_record.facts,
-                        },
-                        ensure_ascii=False,
-                    ),
+                    user_prompt=json.dumps(request_payload, ensure_ascii=False),
                     output_model=Brief,
                 )
+            except Exception as exc:
+                last_error = exc
+                attempt_diagnostics.append(
+                    _attempt_diagnostic(
+                        attempt=attempt,
+                        phase="MODEL_GENERATION_OR_SCHEMA_VALIDATION",
+                        exc=exc,
+                    )
+                )
+                continue
+            try:
                 self._validate(candidate, fact_record, fact_set)
                 brief = candidate
                 break
             except Exception as exc:
                 last_error = exc
+                attempt_diagnostics.append(
+                    _attempt_diagnostic(
+                        attempt=attempt,
+                        phase="GROUNDING_VALIDATION",
+                        exc=exc,
+                    )
+                )
         if brief is None:
+            fields = fact_set.fact_fields()
+            diagnostic_payload = {
+                "stage": "BRIEF_GENERATION",
+                "fact_set_id": str(fact_record.id),
+                "event_id": str(fact_record.event_id),
+                "attempt_limit": self._max_attempts,
+                "known_fact_keys": known_fact_keys,
+                "unknown_fact_keys": unknown_fact_keys,
+                "allowed_source_link_count": len(
+                    {
+                        str(evidence.source_url).rstrip("/")
+                        for evidence in [
+                            *(
+                                evidence
+                                for field in fields.values()
+                                for evidence in field.evidence
+                            ),
+                            *(
+                                evidence
+                                for route in fact_set.application_routes
+                                for evidence in route.evidence
+                            ),
+                        ]
+                    }
+                ),
+                "attempts": attempt_diagnostics,
+            }
+            diagnostic_json = json.dumps(
+                diagnostic_payload, ensure_ascii=False, separators=(",", ":")
+            )
             run.status = RunStatus.FAILED
-            run.error = f"{type(last_error).__name__}: {last_error}"[:2000]
+            run.error = diagnostic_json[:4000]
             self._session.flush()
-            raise ValueError("Brief generation failed grounding validation") from last_error
+            raise ValueError(
+                f"Brief generation failed after {self._max_attempts} attempts: "
+                f"{diagnostic_json}"
+            ) from last_error
 
         run.status = RunStatus.SUCCEEDED
         run.result = brief.model_dump(mode="json")
@@ -141,23 +330,55 @@ class BriefGenerator:
         if brief.fact_set_id != record.id:
             raise ValueError("Brief fact_set_id does not match its input")
         fields = fact_set.fact_fields()
-        referenced_groups = [
-            brief.title_fact_keys,
-            brief.summary_fact_keys,
-            *(point.fact_keys for point in brief.key_points),
-            *(point.fact_keys for point in brief.caveats),
+        route_key_available = bool(fact_set.application_routes)
+        claim_groups = [
+            (brief.title, brief.title_fact_keys),
+            (brief.summary, brief.summary_fact_keys),
+            *((point.text, point.fact_keys) for point in brief.key_points),
+            *((point.text, point.fact_keys) for point in brief.caveats),
         ]
-        for keys in referenced_groups:
+        for text, keys in claim_groups:
             for key in keys:
+                if key == "application_routes":
+                    if not route_key_available:
+                        raise ValueError(
+                            "Brief makes a claim from unknown fact: application_routes"
+                        )
+                    continue
                 if key not in fields:
                     raise ValueError(f"Brief references unknown fact key: {key}")
                 field = fields[key]
                 if field.value is None and not field.conflict:
                     raise ValueError(f"Brief makes a claim from unknown fact: {key}")
+            for key, pattern in _UNKNOWN_ABSENCE_PATTERNS.items():
+                field = fields[key]
+                if (
+                    field.value is None
+                    and not field.conflict
+                    and pattern.search(text) is not None
+                ):
+                    raise ValueError(
+                        f"Brief describes an unknown fact field: {key}"
+                    )
+            if _GENERIC_CAVEAT_CLAIM_RE.search(text) is not None:
+                if fact_set.caveats.value is None or "caveats" not in keys:
+                    raise ValueError(
+                        "Brief describes generic requirements without citing caveats"
+                    )
         allowed_links = {
             str(evidence.source_url).rstrip("/")
-            for field in fields.values()
-            for evidence in field.evidence
+            for evidence in [
+                *(
+                    evidence
+                    for field in fields.values()
+                    for evidence in field.evidence
+                ),
+                *(
+                    evidence
+                    for route in fact_set.application_routes
+                    for evidence in route.evidence
+                ),
+            ]
         }
         if any(str(link).rstrip("/") not in allowed_links for link in brief.source_links):
             raise ValueError("Brief contains an unsupported source link")
@@ -169,8 +390,24 @@ class BriefGenerator:
                 *(point.text for point in brief.caveats),
             ]
         )
-        for field in fields.values():
-            if field.value and len(field.value) >= 160:
-                for start in range(0, len(field.value) - 159):
-                    if field.value[start : start + 160] in output_text:
+        fact_values = [
+            *(field.value for field in fields.values() if field.value),
+            *(
+                value
+                for route in fact_set.application_routes
+                for value in (
+                    route.scope,
+                    route.eligibility,
+                    route.region,
+                    route.cost,
+                    str(route.action_link) if route.action_link else None,
+                    route.conflict_note,
+                )
+                if value
+            ),
+        ]
+        for value in fact_values:
+            if len(value) >= 160:
+                for start in range(0, len(value) - 159):
+                    if value[start : start + 160] in output_text:
                         raise ValueError("Brief repeats a long source-derived passage")

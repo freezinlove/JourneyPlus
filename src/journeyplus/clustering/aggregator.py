@@ -126,16 +126,24 @@ class EventAggregator:
             locator=hint.summary,
         )
         self._session.add(evidence)
-        revision = EventRevision(
-            event_id=event.id,
-            document_version_id=document.id,
-            relationship=relationship.relationship,
-            snapshot={
-                "hint": hint.model_dump(mode="json"),
-                "relationship": relationship.model_dump(mode="json"),
-            },
+        revision = self._session.scalar(
+            select(EventRevision).where(
+                EventRevision.event_id == event.id,
+                EventRevision.document_version_id == document.id,
+                EventRevision.relationship == relationship.relationship,
+            )
         )
-        self._session.add(revision)
+        if revision is None:
+            revision = EventRevision(
+                event_id=event.id,
+                document_version_id=document.id,
+                relationship=relationship.relationship,
+                snapshot={
+                    "hint": hint.model_dump(mode="json"),
+                    "relationship": relationship.model_dump(mode="json"),
+                },
+            )
+            self._session.add(revision)
         if relationship_run is not None:
             relationship_run.event_id = event.id
         self._session.flush()

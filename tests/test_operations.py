@@ -130,3 +130,26 @@ def test_one_document_failure_does_not_block_the_next_document(
     with session_factory() as session:
         statuses = set(session.scalars(select(JobRun.status)))
     assert statuses == {"SUCCEEDED", "FAILED"}
+
+
+def test_initialization_mode_stops_after_first_document_failure(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collect_manual(session, TwoDocumentAdapter())
+
+    provider = FailureIsolationProvider()
+    summary = process_pending_documents(
+        session_factory,
+        provider,
+        source_id="ffb_elite_status_feed",
+        limit=2,
+        stop_on_failure=True,
+    )
+
+    assert summary.selected == 2
+    assert summary.attempted == 1
+    assert summary.failed == 1
+    assert summary.succeeded == 0
+    assert summary.stopped_early

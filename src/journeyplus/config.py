@@ -21,6 +21,10 @@ class Settings:
     gmail_access_token: str | None = None
     gmail_client_secret_file: str = ".secrets/google-oauth-client.json"
     gmail_token_file: str = ".secrets/gmail-token.json"
+    automation_source_item_limit: int = 100
+    automation_document_limit: int = 20
+    automation_model_call_limit: int = 100
+    automation_lease_seconds: int = 3600
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -43,6 +47,18 @@ class Settings:
             ),
             gmail_token_file=os.getenv(
                 "JOURNEYPLUS_GMAIL_TOKEN_FILE", ".secrets/gmail-token.json"
+            ),
+            automation_source_item_limit=_positive_env_int(
+                "JOURNEYPLUS_AUTOMATION_SOURCE_ITEM_LIMIT", 100
+            ),
+            automation_document_limit=_positive_env_int(
+                "JOURNEYPLUS_AUTOMATION_DOCUMENT_LIMIT", 20
+            ),
+            automation_model_call_limit=_positive_env_int(
+                "JOURNEYPLUS_AUTOMATION_MODEL_CALL_LIMIT", 100
+            ),
+            automation_lease_seconds=_positive_env_int(
+                "JOURNEYPLUS_AUTOMATION_LEASE_SECONDS", 3600
             ),
         )
 
@@ -70,3 +86,10 @@ class Settings:
         if not self.ai_api_key:
             raise ValueError("JOURNEYPLUS_AI_API_KEY is required for live model calls")
         return self
+
+
+def _positive_env_int(name: str, default: int) -> int:
+    value = int(os.getenv(name, str(default)))
+    if value < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return value

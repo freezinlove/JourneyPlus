@@ -5,7 +5,14 @@ from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 
 
 def utc_now() -> datetime:
@@ -151,8 +158,35 @@ class FactField(StrictModel):
         return self
 
 
+class ApplicationRoute(StrictModel):
+    scope: str = Field(min_length=1, max_length=300)
+    eligibility: str | None = Field(default=None, max_length=2000)
+    region: str | None = Field(default=None, max_length=1000)
+    cost: str | None = Field(default=None, max_length=1000)
+    action_link: HttpUrl | None = None
+    evidence: list[EvidenceRef] = Field(min_length=1, max_length=20)
+    conflict: bool = False
+    conflict_note: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def route_requires_detail_and_consistent_conflict(self) -> ApplicationRoute:
+        if not any(
+            value is not None
+            for value in (
+                self.eligibility,
+                self.region,
+                self.cost,
+                self.action_link,
+            )
+        ):
+            raise ValueError("Application routes require at least one scoped detail")
+        if self.conflict != (self.conflict_note is not None):
+            raise ValueError("Route conflicts require a conflict_note and vice versa")
+        return self
+
+
 class FactSet(StrictModel):
-    schema_version: str = "2"
+    schema_version: str = "3"
     event_id: UUID
     what_happened: FactField
     eligibility: FactField = Field(default_factory=FactField)
@@ -165,6 +199,31 @@ class FactSet(StrictModel):
     status_validity: FactField = Field(default_factory=FactField)
     action_link: FactField = Field(default_factory=FactField)
     caveats: FactField = Field(default_factory=FactField)
+    application_routes: list[ApplicationRoute] = Field(
+        default_factory=list, max_length=20
+    )
+
+    @field_validator(
+        "eligibility",
+        "target_status",
+        "cost",
+        "challenge_requirements",
+        "region",
+        "application_start",
+        "deadline",
+        "status_validity",
+        "action_link",
+        "caveats",
+        mode="before",
+    )
+    @classmethod
+    def explicit_null_means_unknown_fact(cls, value):
+        return {} if value is None else value
+
+    @field_validator("application_routes", mode="before")
+    @classmethod
+    def explicit_null_means_no_routes(cls, value):
+        return [] if value is None else value
 
     def fact_fields(self) -> dict[str, FactField]:
         return {

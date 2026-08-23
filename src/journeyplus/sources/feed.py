@@ -4,6 +4,7 @@ import hashlib
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import feedparser
 
@@ -29,7 +30,13 @@ class FeedAdapter:
         self._extra_drop_params = extra_drop_params or set()
 
     def discover(self) -> list[DiscoveredItem]:
-        response = self._fetcher.get(self.feed_url)
+        return self.discover_page(1)
+
+    def discover_page(self, page: int) -> list[DiscoveredItem]:
+        if page < 1:
+            raise ValueError("feed page must be positive")
+        feed_url = _feed_page_url(self.feed_url, page)
+        response = self._fetcher.get(feed_url)
         parsed = feedparser.parse(response.body)
         results: list[DiscoveredItem] = []
         for entry in parsed.entries:
@@ -60,7 +67,7 @@ class FeedAdapter:
                         discovery_signature.encode()
                     ).hexdigest(),
                     raw_metadata={
-                        "feed_url": self.feed_url,
+                        "feed_url": feed_url,
                         "feed_guid": str(entry.get("id") or entry.get("guid") or ""),
                         "feed_summary": str(entry.get("summary") or ""),
                         "feed_body": feed_body,
@@ -116,3 +123,20 @@ def _published_at(entry: Any) -> datetime | None:
         return result
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _feed_page_url(feed_url: str, page: int) -> str:
+    if page == 1:
+        return feed_url
+    parsed = urlsplit(feed_url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query["paged"] = str(page)
+    return urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            urlencode(query),
+            parsed.fragment,
+        )
+    )

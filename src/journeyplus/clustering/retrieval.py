@@ -58,6 +58,39 @@ class CandidateRetriever:
                 .limit(self._candidate_pool_limit)
             )
         )
+        if document is not None and candidates:
+            same_document_event_ids = set(
+                self._session.scalars(
+                    select(EventEvidence.event_id).where(
+                        EventEvidence.document_version_id == document.id
+                    )
+                )
+            )
+            if same_document_event_ids:
+                same_document_events = [
+                    event for event in candidates if event.id in same_document_event_ids
+                ]
+                same_document_project_hosts = self._candidate_project_hosts(
+                    same_document_events
+                )
+                new_project_hosts = matching_project_statusmatch_hosts(
+                    document.normalized_body,
+                    " ".join(
+                        value
+                        for value in (hint.program, hint.target_status, hint.summary)
+                        if value
+                    ),
+                )
+                candidates = [
+                    event
+                    for event in candidates
+                    if event.id not in same_document_event_ids
+                    or _program_score(event.program, hint.program) > 0
+                    or bool(
+                        new_project_hosts
+                        & same_document_project_hosts.get(event.id, set())
+                    )
+                ]
         authoritative_program = (
             catalog_authoritative_program(self._session, document)
             if document is not None
@@ -356,7 +389,14 @@ def _normalized_host(raw_url: str) -> str:
 
 
 def _is_project_statusmatch_host(host: str) -> bool:
-    return host != "statusmatch.com" and host.endswith(".statusmatch.com")
+    suffix = ".statusmatch.com"
+    if not host.endswith(suffix):
+        return False
+    project = host[: -len(suffix)]
+    return bool(project) and "." not in project and project not in {
+        "email",
+        "mail",
+    }
 
 
 def _shared_link_score(

@@ -198,7 +198,14 @@ def test_official_group_email_application_is_not_downgraded(db_session) -> None:
 def test_one_document_can_create_multiple_minimal_events_and_rerun_is_idempotent(
     db_session,
 ) -> None:
-    document = _document(db_session, suffix="m", body="Two independent matches")
+    document = _document(
+        db_session,
+        suffix="m",
+        body=(
+            "[Example Air](https://email.mail.statusmatch.com/c/air) "
+            "[Example Hotel](https://email.mail.statusmatch.com/c/hotel)"
+        ),
+    )
     response = _status_opportunity()
     response["event_hints"].append(
         {
@@ -596,6 +603,126 @@ def test_same_project_statusmatch_subdomain_is_deterministic_same_event(
     assert provider.calls == []
 
 
+def test_generic_statusmatch_mail_stays_uncertain_against_detailed_catalog(
+    db_session,
+) -> None:
+    mail_document = _document(
+        db_session,
+        suffix="generic-mail-malaysia",
+        body="Malaysia Airlines status match digest entry",
+        source_id="status_services_mail",
+    )
+    event = StatusEvent(
+        created_from_key="generic-mail-malaysia",
+        program="Malaysia Airlines",
+        target_status=None,
+        summary="Status match available for Malaysia Airlines",
+        search_text="Malaysia Airlines status match",
+    )
+    db_session.add(event)
+    db_session.flush()
+    db_session.add(
+        EventEvidence(
+            event_id=event.id,
+            document_version_id=mail_document.id,
+            hint_index=0,
+            source_url=mail_document.canonical_url,
+            locator="Status match available for Malaysia Airlines",
+        )
+    )
+    detailed = _document(
+        db_session,
+        suffix="detailed-malaysia-catalog",
+        body=(
+            "Malaysia Airlines Enrich paid status match for Air India and Garuda "
+            "members https://enrich.statusmatch.com/"
+        ),
+        source_id="ffb_status_match_catalog",
+        raw_metadata={"program": "Malaysia Airlines Enrich"},
+    )
+    hint = EventHint(
+        program="Malaysia Airlines Enrich",
+        summary="Paid match for eligible Air India and Garuda members",
+        target_status="Silver, Gold or Platinum",
+    )
+    candidates = CandidateRetriever(db_session).retrieve(hint, document=detailed)
+    provider = SequenceAIProvider([])
+
+    relationship = EventRelationshipAnalyzer(db_session, provider).analyze(
+        document=detailed,
+        hint=hint,
+        hint_index=0,
+        candidates=candidates,
+    )
+
+    assert relationship.result.relationship == RelationshipType.UNCERTAIN
+    assert relationship.result.candidate_event_id == event.id
+    assert relationship.run is None
+    assert provider.calls == []
+
+
+def test_multi_brand_statusmatch_digest_stays_uncertain_against_detailed_mail(
+    db_session,
+) -> None:
+    detailed_document = _document(
+        db_session,
+        suffix="detailed-mail-club-avolta",
+        body=(
+            "Invitation to Club Avolta Gold status. Members receive airport "
+            "retail and dining benefits."
+        ),
+        source_id="status_services_mail",
+    )
+    event = StatusEvent(
+        created_from_key="detailed-mail-club-avolta",
+        program="Club Avolta",
+        target_status="Gold",
+        summary="Invitation to match to Club Avolta Gold",
+        search_text="Club Avolta Gold status match invitation",
+    )
+    db_session.add(event)
+    db_session.flush()
+    db_session.add(
+        EventEvidence(
+            event_id=event.id,
+            document_version_id=detailed_document.id,
+            hint_index=0,
+            source_url=detailed_document.canonical_url,
+            locator="Invitation to match to Club Avolta Gold",
+        )
+    )
+    digest = _document(
+        db_session,
+        suffix="digest-mail-club-avolta",
+        body=(
+            "Status Match Digest Header Status Updates "
+            "[Club Avolta](https://email.mail.statusmatch.com/c/club) "
+            "[Air Astana](https://email.mail.statusmatch.com/c/air) "
+            "Please visit each offer page to see unique application "
+            "requirements by brand."
+        ),
+        source_id="status_services_mail",
+    )
+    hint = EventHint(
+        program="Club Avolta",
+        summary="Status match opportunity for Club Avolta elite status",
+    )
+    candidates = CandidateRetriever(db_session).retrieve(hint, document=digest)
+    provider = SequenceAIProvider([])
+
+    relationship = EventRelationshipAnalyzer(db_session, provider).analyze(
+        document=digest,
+        hint=hint,
+        hint_index=0,
+        candidates=candidates,
+    )
+
+    assert relationship.result.relationship == RelationshipType.UNCERTAIN
+    assert relationship.result.candidate_event_id == event.id
+    assert relationship.run is None
+    assert provider.calls == []
+
+
 def test_project_subdomain_affinity_does_not_leak_between_document_events(
     db_session,
 ) -> None:
@@ -814,6 +941,53 @@ def test_relationship_aggregation_handles_update_and_uncertain_without_duplicate
     assert uncertain.events[0].event.id != original_event.id
     assert uncertain.events[0].event.status == "NEEDS_REVIEW"
     assert uncertain.events[0].needs_review
+
+
+def test_multiple_hints_for_same_event_share_one_revision(db_session) -> None:
+    document = _document(db_session, suffix="multi-hint", body="Two status tiers")
+    event = StatusEvent(
+        created_from_key="multi-hint-existing-event",
+        program="Example Air",
+        target_status="Gold",
+        summary="Example Air status match",
+        search_text="Example Air status match",
+    )
+    db_session.add(event)
+    db_session.flush()
+    aggregator = EventAggregator(db_session)
+    relationship = RelationshipResult(
+        relationship=RelationshipType.SAME_EVENT,
+        confidence=0.99,
+        reason="Both hints describe tiers of the same offer",
+        candidate_event_id=event.id,
+    )
+
+    for index, tier in enumerate(("Gold", "Platinum")):
+        result = aggregator.apply(
+            document=document,
+            hint=EventHint(
+                program="Example Air",
+                target_status=tier,
+                summary=f"Example Air {tier} status match",
+            ),
+            hint_index=index,
+            relationship=relationship,
+        )
+        assert result.event.id == event.id
+
+    assert db_session.scalar(
+        select(func.count()).select_from(EventEvidence).where(
+            EventEvidence.event_id == event.id,
+            EventEvidence.document_version_id == document.id,
+        )
+    ) == 2
+    assert db_session.scalar(
+        select(func.count()).select_from(EventRevision).where(
+            EventRevision.event_id == event.id,
+            EventRevision.document_version_id == document.id,
+            EventRevision.relationship == RelationshipType.SAME_EVENT,
+        )
+    ) == 1
 
 
 def test_missing_window_can_still_join_same_event_and_refresh_current_summary(

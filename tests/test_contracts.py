@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from journeyplus.contracts import (
+    ApplicationRoute,
     DocumentLabel,
     EventHint,
     EvidenceRef,
@@ -129,5 +130,56 @@ def test_fact_set_has_unknown_application_start_by_default() -> None:
         what_happened=FactField(),
     )
 
-    assert facts.schema_version == "2"
+    assert facts.schema_version == "3"
     assert facts.application_start.value is None
+    assert facts.application_routes == []
+
+
+def test_fact_set_treats_explicit_null_optional_fields_as_unknown() -> None:
+    facts = FactSet.model_validate(
+        {
+            "event_id": str(uuid4()),
+            "what_happened": {},
+            "eligibility": None,
+            "target_status": None,
+            "cost": None,
+            "challenge_requirements": None,
+            "region": None,
+            "application_start": None,
+            "deadline": None,
+            "status_validity": None,
+            "action_link": None,
+            "caveats": None,
+            "application_routes": None,
+        }
+    )
+
+    assert facts.eligibility.value is None
+    assert facts.target_status.value is None
+    assert facts.application_routes == []
+
+
+def test_application_route_requires_evidence_and_scoped_detail() -> None:
+    evidence = EvidenceRef(
+        document_version_id=uuid4(),
+        source_url="https://example.com/route",
+        locator="route terms",
+    )
+
+    route = ApplicationRoute(
+        scope="UK BA Club members",
+        eligibility="British Airways Club elite members in the UK",
+        action_link="https://example.com/route",
+        evidence=[evidence],
+    )
+
+    assert route.region is None
+    with pytest.raises(ValidationError):
+        ApplicationRoute(scope="empty", evidence=[evidence])
+    with pytest.raises(ValidationError):
+        ApplicationRoute(
+            scope="inconsistent conflict",
+            eligibility="members",
+            evidence=[evidence],
+            conflict=True,
+        )

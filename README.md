@@ -14,12 +14,16 @@ uv run journeyplus seed-sources
 uv run journeyplus collect ffb_elite_status_feed --limit 1
 uv run journeyplus process-pending --source-id ffb_elite_status_feed --limit 1
 uv run journeyplus run-source ffb_elite_status_feed --limit 1
+uv run journeyplus run-daily
+uv run journeyplus automation-status
+uv run journeyplus initialize-catalog
+uv run journeyplus initialize-window --start 2026-07-15 --end 2026-07-16
 uv run journeyplus ai-smoke
 uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。所有采集频率默认均为空，因此不会自动运行来源任务。外部来源只能通过手工命令或内部 API 触发。
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。七组来源都已配置 `P1D`（每天一次），但初始化逐批审核完成前 `automatic_scheduling` 保持关闭，因此不会自行运行来源任务，也尚未安装外部定时任务。
 
 本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
 
@@ -29,7 +33,18 @@ uv run alembic upgrade head
 uv run journeyplus seed-sources
 ```
 
-`collect` 只负责采集与精确去重，`process-pending` 只处理数据库中的待分析文档，`run-source` 是依次调用两者的薄编排。首次真实运行应使用 `--limit 1` 控制抓取量和模型费用。
+`collect` 只负责采集与精确去重，`process-pending` 只处理数据库中的待分析文档，`run-source` 是依次调用两者的薄编排。`run-daily` 是供未来外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 显示租约、来源最后成功/失败、连续失败、积压、分析失败和待复核数量。当前自动标志关闭时，`run-daily` 不采集来源，但显式调用仍会处理既有积压并推进生命周期。
+
+`initialize-catalog` 只运行 FFB 会籍汇总列表批次；`initialize-window` 只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日）。公开 Feed 会自动翻页直到覆盖窗口起点。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。
+
+默认单轮上限可通过环境变量调整：
+
+```bash
+JOURNEYPLUS_AUTOMATION_SOURCE_ITEM_LIMIT=100
+JOURNEYPLUS_AUTOMATION_DOCUMENT_LIMIT=20
+JOURNEYPLUS_AUTOMATION_MODEL_CALL_LIMIT=100
+JOURNEYPLUS_AUTOMATION_LEASE_SECONDS=3600
+```
 
 ## 配置
 
@@ -56,7 +71,7 @@ uv run journeyplus ai-smoke
 7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
 8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。
 
-OAuth 应用处于 Testing 状态时，External 测试用户授权通常会在 7 天后失效；第一轮验证可先保持 Testing，长期后台运行前再决定发布状态与 Google 验证方式。
+本项目的 OAuth Audience 已在 2026-08-23 确认为 Production，当前只读刷新令牌已通过四封合规邮件的发现、清洗、完整分析和重复采集验证。若以后重新创建 OAuth 项目，Testing 状态的 External 测试用户授权可能较快失效，长期自动运行前仍须重新确认发布状态和刷新令牌。
 
 ### 公开来源只读冒烟
 
@@ -70,8 +85,8 @@ uv run python scripts/smoke_public_sources.py
 
 ## 第一版已知限制
 
-- 采集频率仍由用户决定，系统没有自动调度命令；每次只手工运行一个来源。
-- 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已经实现；生命周期单轮推进尚未接入每小时自动编排。
+- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；受控历史初始化全部审核通过前不会安装外部定时任务，也不会打开七组来源的自动标志。
+- 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。

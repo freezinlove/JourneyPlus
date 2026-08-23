@@ -156,3 +156,7 @@
 #### Scenario: 同一命名授予计划存在国家入口
 - **WHEN** Best Western Service Rewards 对美国和加拿大军人分别提供注册入口但授予机制相同
 - **THEN** 系统把两份材料聚合为同一现实活动，不仅因国家和注册链接不同而拆分
+
+#### Scenario: 简略邮件只有项目名
+- **WHEN** StatusMatch 摘要邮件只写某项目存在 status match，而详细目录或文章给出具体资格、价格和入口
+- **THEN** 系统不得只凭相同项目名自动合并，关系保持 `UNCERTAIN` 并保留候选供人工复核

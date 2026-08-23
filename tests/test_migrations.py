@@ -29,6 +29,10 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "review_decisions",
         "gold_cases",
         "job_runs",
+        "automation_leases",
+        "automation_runs",
+        "source_automation_states",
+        "initialization_runs",
     } <= tables
 
 
@@ -108,4 +112,41 @@ def test_status_event_lifecycle_migration_round_trips_on_sqlite(
     assert "application_deadline_at" not in after
     assert "lifecycle_status" not in after
     assert "archived_at" not in after
+    engine.dispose()
+
+
+def test_daily_automation_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'automation.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0003_status_event_lifecycle")
+    engine = create_engine(database_url)
+    assert "automation_runs" not in set(inspect(engine).get_table_names())
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    tables = set(inspect(engine).get_table_names())
+    assert {
+        "automation_leases",
+        "automation_runs",
+        "source_automation_states",
+        "initialization_runs",
+    } <= tables
+    run_columns = {
+        column["name"] for column in inspect(engine).get_columns("automation_runs")
+    }
+    assert {"day_bucket", "model_calls", "backlog_count"} <= run_columns
+    engine.dispose()
+
+    command.downgrade(config, "0003_status_event_lifecycle")
+    engine = create_engine(database_url)
+    tables = set(inspect(engine).get_table_names())
+    assert "automation_leases" not in tables
+    assert "automation_runs" not in tables
+    assert "source_automation_states" not in tables
+    assert "initialization_runs" not in tables
     engine.dispose()

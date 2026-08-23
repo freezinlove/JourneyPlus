@@ -16,10 +16,11 @@ EXPECTED_IDS = {
 }
 
 
-def test_registry_has_exactly_seven_stable_sources_and_no_cadence(db_session) -> None:
+def test_registry_has_exactly_seven_daily_sources_with_scheduling_off(db_session) -> None:
     assert {item.source_id for item in SOURCE_REGISTRY} == EXPECTED_IDS
-    assert all(item.collection_cadence is None for item in SOURCE_REGISTRY)
+    assert all(item.collection_cadence == "P1D" for item in SOURCE_REGISTRY)
     assert all(not item.automatic_scheduling for item in SOURCE_REGISTRY)
+    assert all(item.enabled for item in SOURCE_REGISTRY)
 
     first = seed_sources(db_session)
     second = seed_sources(db_session)

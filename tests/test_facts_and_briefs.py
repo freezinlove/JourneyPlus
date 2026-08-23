@@ -265,10 +265,56 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
     invalid = _fact_response(event, documents[0])
     invalid["deadline"]["evidence"][0]["document_version_id"] = str(uuid4())
     bad_provider = SequenceAIProvider([invalid, invalid])
-    with pytest.raises(ValueError, match="evidence validation"):
+    with pytest.raises(ValueError, match="Fact consolidation failed after 2 attempts"):
         FactConsolidator(
             db_session, bad_provider, prompt_version="fact-invalid-test"
         ).consolidate(event)
+    assert len(bad_provider.calls) == 2
+    retry_request = json.loads(bad_provider.calls[1]["user_prompt"])
+    assert retry_request["correction"]["previous_attempt_rejected_for"] == (
+        "Fact cites a document outside the event"
+    )
+    failed = db_session.scalar(
+        select(AnalysisRun).where(
+            AnalysisRun.stage == "FACT_CONSOLIDATION",
+            AnalysisRun.prompt_version == "fact-invalid-test",
+        )
+    )
+    assert failed is not None and failed.error is not None
+    diagnostics = json.loads(failed.error)
+    assert diagnostics["attempt_limit"] == 2
+    assert diagnostics["material_count"] == 1
+    assert diagnostics["allowed_source_link_count"] == 1
+    assert [item["phase"] for item in diagnostics["attempts"]] == [
+        "EVIDENCE_REGION_OR_RECONCILIATION_VALIDATION",
+        "EVIDENCE_REGION_OR_RECONCILIATION_VALIDATION",
+    ]
+    assert "Original long body" not in failed.error
+
+
+def test_fact_retry_uses_validation_correction_and_can_recover(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Match to Gold."])
+    invalid = _fact_response(event, documents[0])
+    invalid["what_happened"]["evidence"][0]["source_url"] = (
+        "https://example.com/not-the-material-source"
+    )
+    valid = _fact_response(event, documents[0])
+    provider = SequenceAIProvider([invalid, valid])
+
+    result = FactConsolidator(
+        db_session,
+        provider,
+        prompt_version="fact-corrected-retry-test",
+    ).consolidate(event)
+
+    assert result.fact_set.what_happened.value is not None
+    assert len(provider.calls) == 2
+    first_request = json.loads(provider.calls[0]["user_prompt"])
+    retry_request = json.loads(provider.calls[1]["user_prompt"])
+    assert "correction" not in first_request
+    assert retry_request["correction"]["previous_attempt_rejected_for"] == (
+        "Fact cites a source URL outside the event"
+    )
 
 
 def test_application_window_requires_evidence_and_normalizes_to_beijing(
@@ -483,6 +529,258 @@ def test_different_deadline_without_extension_signal_remains_conflicted(
     assert event.lifecycle_status == "UNKNOWN"
 
 
+def test_equivalent_status_validity_wording_does_not_create_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Status is valid for 12 months."]
+    )
+    first_response = _fact_response(event, documents[0])
+    first_response["status_validity"] = {
+        "value": "12 months",
+        "evidence": [_evidence(documents[0], "validity")],
+    }
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    second_document = _add_document_evidence(
+        db_session,
+        event,
+        "Status is valid for twelve months.",
+        locator="equivalent validity",
+        relationship="SAME_EVENT",
+    )
+    second_response = _fact_response(event, second_document)
+    second_response["status_validity"] = {
+        "value": "twelve months",
+        "evidence": [_evidence(second_document, "equivalent validity")],
+    }
+
+    second = FactConsolidator(
+        db_session, SequenceAIProvider([second_response])
+    ).consolidate(event)
+
+    assert second.fact_set.status_validity.value == "12 months"
+    assert not second.fact_set.status_validity.conflict
+    assert second.fact_set.status_validity.alternatives == []
+    assert second.record.id == first.record.id
+
+
+def test_equivalent_status_validity_alternatives_can_resolve_old_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session, ["Status is valid for twelve months."]
+    )
+    conflicted_response = _fact_response(event, documents[0])
+    conflicted_response["status_validity"] = {
+        "value": None,
+        "evidence": [_evidence(documents[0], "validity")],
+        "conflict": True,
+        "alternatives": ["12 months", "twelve months"],
+    }
+    FactConsolidator(
+        db_session, SequenceAIProvider([conflicted_response])
+    ).consolidate(event)
+    second_document = _add_document_evidence(
+        db_session,
+        event,
+        "Status is valid for one year.",
+        locator="equivalent validity",
+        relationship="SAME_EVENT",
+    )
+    resolved_response = _fact_response(event, second_document)
+    resolved_response["status_validity"] = {
+        "value": "one year",
+        "evidence": [_evidence(second_document, "equivalent validity")],
+    }
+
+    resolved = FactConsolidator(
+        db_session, SequenceAIProvider([resolved_response])
+    ).consolidate(event)
+
+    assert resolved.fact_set.status_validity.value == "one year"
+    assert not resolved.fact_set.status_validity.conflict
+    assert resolved.fact_set.status_validity.alternatives == []
+    assert event.status == "DRAFT"
+
+
+def test_same_document_evidence_rewrite_keeps_current_fact_without_conflict(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["Elite members of 50+ airline and 20+ hotel programs in Europe may match."],
+    )
+    first_response = _fact_response(
+        event,
+        documents[0],
+        what="Elite Status Match opportunity to receive Silver or Gold status",
+    )
+    first_response["eligibility"] = {
+        "value": "Elite members of 50+ airline and 20+ hotel programs",
+        "evidence": [_evidence(documents[0], "eligibility sentence")],
+    }
+    first_response["region"] = {
+        "value": "Europe, Middle East and Asia",
+        "evidence": [_evidence(documents[0], "region sentence")],
+    }
+    first = FactConsolidator(
+        db_session,
+        SequenceAIProvider([first_response]),
+        prompt_version="same-evidence-v1",
+    ).consolidate(event)
+    rewritten = _fact_response(
+        event,
+        documents[0],
+        what=(
+            "Elite Status Match - paid opportunity for eligible members to receive "
+            "Silver or Gold status"
+        ),
+    )
+    rewritten["eligibility"] = {
+        "value": "elite members of 50+ airline & 20+ hotel programs",
+        "evidence": [_evidence(documents[0], "eligibility sentence")],
+    }
+    rewritten["region"] = {
+        "value": "Europe, the Middle East and Asia",
+        "evidence": [_evidence(documents[0], "region sentence")],
+    }
+
+    second = FactConsolidator(
+        db_session,
+        SequenceAIProvider([rewritten]),
+        prompt_version="same-evidence-v2",
+    ).consolidate(event)
+
+    assert second.reused
+    assert second.record.id == first.record.id
+    assert second.fact_set.what_happened.value == first.fact_set.what_happened.value
+    assert second.fact_set.eligibility.value == first.fact_set.eligibility.value
+    assert second.fact_set.region.value == first.fact_set.region.value
+    assert not second.record.has_conflicts
+    assert event.status == "DRAFT"
+
+
+def test_multiple_application_routes_do_not_create_cross_route_conflicts(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["UK BA Club elites may use the UK route for GBP 69."],
+    )
+    first_response = _fact_response(
+        event,
+        documents[0],
+        what="Flying Blue offers a paid status match for UK BA Club elites",
+    )
+    first_response["eligibility"] = {
+        "value": "UK BA Club elite members",
+        "evidence": [_evidence(documents[0], "UK eligibility")],
+    }
+    first_response["region"] = {
+        "value": "United Kingdom",
+        "evidence": [_evidence(documents[0], "UK region")],
+    }
+    first_response["cost"] = {
+        "value": "GBP 69",
+        "evidence": [_evidence(documents[0], "UK price")],
+    }
+    first = FactConsolidator(
+        db_session, SequenceAIProvider([first_response])
+    ).consolidate(event)
+    second_document = _add_document_evidence(
+        db_session,
+        event,
+        "Eligible non-alliance elites may use the general route for EUR 99.",
+        locator="general route",
+        relationship="SAME_EVENT",
+    )
+    combined = {
+        "schema_version": "3",
+        "event_id": str(event.id),
+        "what_happened": {
+            "value": "Flying Blue offers a paid status match through multiple routes",
+            "evidence": [
+                _evidence(documents[0], "UK route"),
+                _evidence(second_document, "general route"),
+            ],
+        },
+        "target_status": {
+            "value": "Gold",
+            "evidence": [_evidence(documents[0], "target tier")],
+        },
+        "application_routes": [
+            {
+                "scope": "UK BA Club route",
+                "eligibility": "UK BA Club elite members",
+                "region": "United Kingdom",
+                "cost": "GBP 69",
+                "action_link": "https://example.com/apply/uk",
+                "evidence": [_evidence(documents[0], "UK route")],
+            },
+            {
+                "scope": "General non-alliance route",
+                "eligibility": "Eligible non-alliance elite members",
+                "cost": "EUR 99",
+                "action_link": "https://example.com/apply/general",
+                "evidence": [_evidence(second_document, "general route")],
+            },
+        ],
+    }
+    routed = FactConsolidator(
+        db_session, SequenceAIProvider([combined])
+    ).consolidate(event)
+
+    assert routed.record.id != first.record.id
+    assert routed.fact_set.eligibility.value is None
+    assert routed.fact_set.region.value is None
+    assert routed.fact_set.cost.value is None
+    assert routed.fact_set.action_link.value is None
+    assert len(routed.fact_set.application_routes) == 2
+    assert not routed.record.has_conflicts
+    assert event.status == "DRAFT"
+
+    brief_response = _brief_response(
+        routed.record, documents[0].canonical_url
+    )
+    brief_response["summary"] = "同一活动提供英国和通用两条申请路径。"
+    brief_response["summary_fact_keys"] = ["application_routes"]
+    brief_response["key_points"] = [
+        {
+            "text": "英国和通用路径分别适用不同资格与价格。",
+            "fact_keys": ["application_routes"],
+        }
+    ]
+    brief_response["source_links"] = [
+        documents[0].canonical_url,
+        second_document.canonical_url,
+    ]
+    generated = BriefGenerator(
+        db_session, SequenceAIProvider([brief_response])
+    ).generate(routed.record)
+    assert generated.brief.summary_fact_keys == ["application_routes"]
+
+
+def test_missing_region_cannot_be_inferred_as_global(db_session) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        ["Eligible members may apply for the status match."],
+    )
+    unsupported = _fact_response(event, documents[0])
+    unsupported["region"] = {
+        "value": "Global",
+        "evidence": [_evidence(documents[0], "region is not mentioned")],
+    }
+
+    with pytest.raises(ValueError, match="Fact consolidation failed after 2 attempts"):
+        FactConsolidator(
+            db_session,
+            SequenceAIProvider([unsupported, unsupported]),
+            prompt_version="unsupported-global-region",
+        ).consolidate(event)
+
+
 def test_structured_explicit_extension_advances_active_deadline(
     db_session,
 ) -> None:
@@ -581,6 +879,168 @@ def test_conflicting_facts_stay_explicit_and_enter_review(db_session) -> None:
     assert event.status == "NEEDS_REVIEW"
 
 
+def test_generic_brand_requirements_become_caveat_and_brief_retry_is_corrected(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(
+        db_session,
+        [
+            "Terms, conditions and application requirements differ by airline and "
+            "hotel partner. Visit each offer page for details."
+        ],
+    )
+    fact_response = _fact_response(
+        event,
+        documents[0],
+        what="Example Air status match is listed in the digest",
+    )
+    fact_response["eligibility"] = {
+        "value": (
+            "Application requirements differ by airline and hotel partner; "
+            "visit each offer page"
+        ),
+        "evidence": [_evidence(documents[0], "digest footer")],
+    }
+    fact_provider = SequenceAIProvider([fact_response])
+
+    facts = FactConsolidator(db_session, fact_provider).consolidate(event)
+
+    assert facts.fact_set.eligibility.value is None
+    assert facts.fact_set.caveats.value == fact_response["eligibility"]["value"]
+    assert "这只是 caveats，不是具体 eligibility" in fact_provider.calls[0][
+        "system_prompt"
+    ]
+
+    invalid_brief = _brief_response(facts.record, documents[0].canonical_url)
+    invalid_brief["summary"] = "符合条件的会员需要查看品牌页面的申请要求。"
+    invalid_brief["summary_fact_keys"] = ["what_happened", "eligibility"]
+    corrected_brief = _brief_response(facts.record, documents[0].canonical_url)
+    corrected_brief["summary"] = "邮件提示该匹配存在，具体要求需查看对应活动页。"
+    corrected_brief["summary_fact_keys"] = ["what_happened", "caveats"]
+    corrected_brief["caveats"] = [
+        {
+            "text": "各品牌的申请要求可能不同，应以对应活动页为准。",
+            "fact_keys": ["caveats"],
+        }
+    ]
+    brief_provider = SequenceAIProvider([invalid_brief, corrected_brief])
+
+    generated = BriefGenerator(db_session, brief_provider).generate(facts.record)
+
+    assert generated.brief.summary_fact_keys == ["what_happened", "caveats"]
+    assert generated.brief.caveats[0].fact_keys == ["caveats"]
+    assert len(brief_provider.calls) == 2
+    first_request = json.loads(brief_provider.calls[0]["user_prompt"])
+    second_request = json.loads(brief_provider.calls[1]["user_prompt"])
+    assert "caveats" in first_request["known_fact_keys"]
+    assert "eligibility" in first_request["unknown_fact_keys"]
+    assert "correction" not in first_request
+    assert second_request["correction"]["previous_attempt_rejected_for"] == (
+        "Brief makes a claim from unknown fact: eligibility"
+    )
+
+
+def test_program_name_is_not_reused_as_target_status(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Example Air link."])
+    response = _fact_response(event, documents[0])
+    response["target_status"] = {
+        "value": "Example Air",
+        "evidence": [_evidence(documents[0], "Example Air link")],
+    }
+
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([response]),
+    ).consolidate(event)
+
+    assert facts.fact_set.target_status.value is None
+
+
+def test_brief_retry_uses_evidence_source_allowlist_not_action_link(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["Match to Gold."])
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([_fact_response(event, documents[0])]),
+    ).consolidate(event)
+    invalid = _brief_response(facts.record, "https://example.com/apply")
+    corrected = _brief_response(facts.record, documents[0].canonical_url)
+    provider = SequenceAIProvider([invalid, corrected])
+
+    generated = BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert str(generated.brief.source_links[0]).rstrip("/") == (
+        documents[0].canonical_url.rstrip("/")
+    )
+    assert len(provider.calls) == 2
+    first_request = json.loads(provider.calls[0]["user_prompt"])
+    second_request = json.loads(provider.calls[1]["user_prompt"])
+    assert first_request["allowed_source_links"] == [documents[0].canonical_url]
+    assert second_request["correction"]["previous_attempt_rejected_for"] == (
+        "Brief contains an unsupported source link"
+    )
+    assert "action_link" in second_request["correction"]["required_action"]
+
+
+def test_brief_retry_removes_unknown_absence_descriptions(db_session) -> None:
+    event, documents = _event_with_documents(db_session, ["Status match digest."])
+    response = _fact_response(event, documents[0])
+    response["caveats"] = {
+        "value": "Requirements differ by brand; visit each offer page.",
+        "evidence": [_evidence(documents[0], "digest footer")],
+    }
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([response]),
+    ).consolidate(event)
+    invalid = _brief_response(facts.record, documents[0].canonical_url)
+    invalid["summary"] = "资格、地区和截止日期未明确，具体要求需查看品牌页面。"
+    invalid["summary_fact_keys"] = ["what_happened", "caveats"]
+    corrected = _brief_response(facts.record, documents[0].canonical_url)
+    corrected["summary"] = "该会籍匹配的具体要求需以品牌活动页面为准。"
+    corrected["summary_fact_keys"] = ["what_happened", "caveats"]
+    provider = SequenceAIProvider([invalid, corrected])
+
+    generated = BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert "未明确" not in generated.brief.summary
+    retry_request = json.loads(provider.calls[1]["user_prompt"])
+    assert retry_request["correction"]["previous_attempt_rejected_for"] == (
+        "Brief describes an unknown fact field: eligibility"
+    )
+
+
+def test_brief_retry_requires_caveat_key_for_generic_requirements(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["Status match digest."])
+    response = _fact_response(event, documents[0])
+    response["caveats"] = {
+        "value": "Requirements differ by brand; visit each offer page.",
+        "evidence": [_evidence(documents[0], "digest footer")],
+    }
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([response]),
+    ).consolidate(event)
+    invalid = _brief_response(facts.record, documents[0].canonical_url)
+    invalid["summary"] = "具体申请要求需查看各品牌页面。"
+    invalid["summary_fact_keys"] = ["what_happened", "action_link"]
+    corrected = _brief_response(facts.record, documents[0].canonical_url)
+    corrected["summary"] = invalid["summary"]
+    corrected["summary_fact_keys"] = ["what_happened", "caveats"]
+    provider = SequenceAIProvider([invalid, corrected])
+
+    generated = BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert "caveats" in generated.brief.summary_fact_keys
+    retry_request = json.loads(provider.calls[1]["user_prompt"])
+    assert retry_request["correction"]["previous_attempt_rejected_for"] == (
+        "Brief describes generic requirements without citing caveats"
+    )
+
+
 def test_brief_reads_only_fact_set_and_traces_every_claim(db_session) -> None:
     event, documents = _event_with_documents(
         db_session, ["ORIGINAL ARTICLE BODY SHOULD NEVER ENTER BRIEF PROMPT"]
@@ -638,9 +1098,60 @@ def test_brief_rejects_unknown_claims_unsupported_links_and_long_copy(db_session
         "source_links": ["https://unsupported.example/"],
     }
     provider = SequenceAIProvider([bad, bad])
-    with pytest.raises(ValueError, match="grounding validation"):
+    with pytest.raises(ValueError) as exc_info:
         BriefGenerator(db_session, provider).generate(facts.record)
+    error_text = str(exc_info.value)
+    assert "Brief generation failed after 2 attempts" in error_text
+    assert '"attempt":1' in error_text
+    assert '"attempt":2' in error_text
+    assert error_text.count('"phase":"GROUNDING_VALIDATION"') == 2
+    assert "Brief makes a claim from unknown fact: cost" in error_text
+    assert long_fact[:180] not in error_text
     failed = db_session.scalar(
         select(AnalysisRun).where(AnalysisRun.stage == "BRIEF_GENERATION")
     )
     assert failed is not None and failed.status == "FAILED"
+    diagnostics = json.loads(failed.error)
+    assert diagnostics["attempt_limit"] == 2
+    assert diagnostics["known_fact_keys"]
+    assert diagnostics["allowed_source_link_count"] == 1
+    assert [item["attempt"] for item in diagnostics["attempts"]] == [1, 2]
+
+
+def test_brief_diagnostics_distinguish_model_and_grounding_failures(
+    db_session,
+) -> None:
+    event, documents = _event_with_documents(db_session, ["Body"])
+    facts = FactConsolidator(
+        db_session,
+        SequenceAIProvider([_fact_response(event, documents[0])]),
+    ).consolidate(event)
+    bad = _brief_response(facts.record, documents[0].canonical_url)
+    bad["key_points"] = [
+        {"text": "费用已知。", "fact_keys": ["cost"]},
+    ]
+    provider = SequenceAIProvider([RuntimeError("temporary timeout"), bad])
+
+    with pytest.raises(ValueError) as exc_info:
+        BriefGenerator(db_session, provider).generate(facts.record)
+
+    assert "temporary timeout" in str(exc_info.value)
+    failed = db_session.scalar(
+        select(AnalysisRun).where(AnalysisRun.stage == "BRIEF_GENERATION")
+    )
+    assert failed is not None and failed.error is not None
+    diagnostics = json.loads(failed.error)
+    assert diagnostics["attempts"] == [
+        {
+            "attempt": 1,
+            "phase": "MODEL_GENERATION_OR_SCHEMA_VALIDATION",
+            "error_type": "RuntimeError",
+            "message": "temporary timeout",
+        },
+        {
+            "attempt": 2,
+            "phase": "GROUNDING_VALIDATION",
+            "error_type": "ValueError",
+            "message": "Brief makes a claim from unknown fact: cost",
+        },
+    ]

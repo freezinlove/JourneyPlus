@@ -43,7 +43,7 @@ class JobRunner:
                 session.add(existing)
                 session.commit()
 
-        last_error: Exception | None = None
+        last_error: BaseException | None = None
         for attempt in range(1, self._max_attempts + 1):
             with self._session_factory() as session:
                 run = session.scalar(
@@ -56,7 +56,7 @@ class JobRunner:
                 session.commit()
             try:
                 value = operation()
-            except Exception as exc:  # the caller decides which errors are retryable
+            except BaseException as exc:  # record operator interrupts before propagating
                 last_error = exc
                 with self._session_factory() as session:
                     run = session.scalar(
@@ -68,6 +68,8 @@ class JobRunner:
                         run.status = RunStatus.FAILED
                         run.finished_at = datetime.now(UTC)
                     session.commit()
+                if not isinstance(exc, Exception):
+                    raise
                 continue
 
             with self._session_factory() as session:
@@ -95,4 +97,3 @@ class JobRunner:
             except Exception as exc:
                 results[source_id] = exc
         return results
-

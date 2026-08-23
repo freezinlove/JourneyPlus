@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -76,6 +77,90 @@ class JobRun(Base, TimestampMixin):
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AutomationLease(Base, TimestampMixin):
+    __tablename__ = "automation_leases"
+
+    name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    owner_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    acquired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AutomationRun(Base, TimestampMixin):
+    __tablename__ = "automation_runs"
+    __table_args__ = (UniqueConstraint("idempotency_key"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    day_bucket: Mapped[date] = mapped_column(Date, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    owner_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    limits: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    source_results: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    processing_result: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    lifecycle_result: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    model_calls: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    backlog_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    needs_review_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class InitializationRun(Base, TimestampMixin):
+    __tablename__ = "initialization_runs"
+    __table_args__ = (UniqueConstraint("batch_key"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    batch_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    batch_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    window_start: Mapped[date | None] = mapped_column(Date, nullable=True)
+    window_end: Mapped[date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    audit_status: Mapped[str] = mapped_column(
+        String(30), default="PENDING", nullable=False
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    limits: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    source_results: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    processing_result: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, nullable=False
+    )
+    audit_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SourceAutomationState(Base, TimestampMixin):
+    __tablename__ = "source_automation_states"
+
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey("sources.id"), primary_key=True
+    )
+    last_day_bucket: Mapped[date | None] = mapped_column(Date, nullable=True)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_new_document_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    pending_document_count: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
 
 
 class SourceItem(Base, TimestampMixin):
