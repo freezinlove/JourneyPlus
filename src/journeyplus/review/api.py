@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
 from journeyplus.contracts import ReviewAction
 from journeyplus.review.service import ReviewService
+from journeyplus.statusmatch.graph import MembershipGraphService
+from journeyplus.statusmatch.graph_contracts import TraversalLimits
 
 
 class ReviewRequest(BaseModel):
@@ -31,6 +33,30 @@ def create_review_app(
     def queue():
         with session_factory.begin() as session:
             return ReviewService(session).queue()
+
+    @app.get("/internal/statusmatch/graph/audit")
+    def statusmatch_graph_audit():
+        with session_factory.begin() as session:
+            return MembershipGraphService(session).audit().model_dump(mode="json")
+
+    @app.get("/internal/statusmatch/graph/tree")
+    def statusmatch_graph_tree(
+        program: str,
+        tier: str,
+        max_depth: int = Query(default=4, ge=1, le=8),
+        max_nodes: int = Query(default=100, ge=1, le=500),
+        max_branches: int = Query(default=20, ge=1, le=100),
+    ):
+        with session_factory.begin() as session:
+            return MembershipGraphService(session).tree(
+                program,
+                tier,
+                limits=TraversalLimits(
+                    max_depth=max_depth,
+                    max_nodes=max_nodes,
+                    max_branches=max_branches,
+                ),
+            ).model_dump(mode="json")
 
     @app.get("/internal/review/events/{event_id}")
     def full_chain(event_id: UUID):

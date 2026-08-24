@@ -28,6 +28,8 @@ from journeyplus.sources.gmail_auth import (
 from journeyplus.sources.registry import SOURCE_REGISTRY, seed_sources
 from journeyplus.sources.runtime import build_configured_adapter
 from journeyplus.statusmatch.audit import audit_statusmatch_projects
+from journeyplus.statusmatch.graph import MembershipGraphService
+from journeyplus.statusmatch.graph_contracts import TraversalLimits
 
 
 SOURCE_IDS = [item.source_id for item in SOURCE_REGISTRY]
@@ -100,6 +102,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Audit the stored current snapshot without fetching public pages",
     )
+    statusmatch_graph = subparsers.add_parser(
+        "statusmatch-graph",
+        help="Expand a current membership as a bounded StatusMatch tree",
+    )
+    statusmatch_graph.add_argument("program")
+    statusmatch_graph.add_argument("tier")
+    statusmatch_graph.add_argument("--max-depth", type=_positive_int, default=4)
+    statusmatch_graph.add_argument("--max-nodes", type=_positive_int, default=100)
+    statusmatch_graph.add_argument("--max-branches", type=_positive_int, default=20)
+    subparsers.add_parser(
+        "statusmatch-graph-audit",
+        help="Audit current StatusMatch graph fidelity and topology",
+    )
     initialize_mail = subparsers.add_parser(
         "initialize-mail-details",
         help="Expand all current Gmail activity links and wait for source audit",
@@ -153,6 +168,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         with session_scope(factory) as session:
             sources = seed_sources(session)
             print(json.dumps({"seeded": [source.id for source in sources]}))
+        return 0
+    if args.command == "statusmatch-graph":
+        limits = TraversalLimits(
+            max_depth=args.max_depth,
+            max_nodes=args.max_nodes,
+            max_branches=args.max_branches,
+        )
+        with session_scope(factory) as session:
+            result = MembershipGraphService(session).tree(
+                args.program,
+                args.tier,
+                limits=limits,
+            )
+            print(result.model_dump_json())
+        return 0
+    if args.command == "statusmatch-graph-audit":
+        with session_scope(factory) as session:
+            result = MembershipGraphService(session).audit()
+            print(result.model_dump_json())
         return 0
     if args.command == "process-pending":
         provider = OpenAICompatibleProvider(settings)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from enum import StrEnum
 from uuid import UUID
 
 from selectolax.parser import HTMLParser, Node
@@ -28,6 +30,22 @@ _TARGET_OFFER_RE = re.compile(
     r"status\s+offer$",
     re.IGNORECASE,
 )
+
+
+class MappingSourceCategory(StrEnum):
+    AIRLINE = "AIRLINE"
+    HOTEL = "HOTEL"
+    CRUISE = "CRUISE"
+    CARD = "CARD"
+    UNKNOWN = "UNKNOWN"
+
+
+@dataclass(frozen=True, slots=True)
+class MappingSourceMetadata:
+    source_program: str
+    category: MappingSourceCategory
+    table_index: int
+    row_index: int
 
 
 def extract_statusmatch_status_mappings(
@@ -69,6 +87,77 @@ def extract_statusmatch_status_mappings(
         if matrix is not None:
             mappings.extend(matrix)
     return _deduplicate_mappings(mappings)
+
+
+def extract_statusmatch_mapping_source_metadata(
+    *,
+    raw_html: str | None,
+    canonical_url: str,
+) -> list[MappingSourceMetadata]:
+    """Return deterministic source categories without changing FactSet mappings."""
+    if raw_html is None or not canonical_url.casefold().endswith("/faq"):
+        return []
+    host = canonical_url.split("/", 3)[2].casefold()
+    if not is_project_statusmatch_host(host):
+        return []
+
+    tree = HTMLParser(raw_html)
+    result: list[MappingSourceMetadata] = []
+    seen: set[tuple[str, MappingSourceCategory]] = set()
+    for table_index, table in enumerate(tree.css("table"), start=1):
+        rows = [_cells(row) for row in table.css("tr")]
+        rows = [row for row in rows if row]
+        header_index = next(
+            (
+                index
+                for index, row in enumerate(rows[:3])
+                if len(row) >= 2 and _SOURCE_HEADER_RE.fullmatch(_cell_text(row[0]))
+            ),
+            None,
+        )
+        if header_index is None:
+            continue
+        header_text = [_cell_text(cell) for cell in rows[header_index]]
+        if any(
+            marker in " ".join(header_text).casefold()
+            for marker in _EXCLUDED_HEADER_MARKERS
+        ):
+            continue
+        category = _mapping_source_category(header_text[0])
+        for row_index, row in enumerate(
+            rows[header_index + 1 :], start=header_index + 2
+        ):
+            if len(row) < 2:
+                continue
+            source_program = " ".join(_cell_lines(row[0]))
+            if not source_program:
+                continue
+            key = (_normalize(source_program).casefold(), category)
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(
+                MappingSourceMetadata(
+                    source_program=source_program,
+                    category=category,
+                    table_index=table_index,
+                    row_index=row_index,
+                )
+            )
+    return result
+
+
+def _mapping_source_category(value: str) -> MappingSourceCategory:
+    folded = _normalize(value).casefold()
+    if folded == "airline":
+        return MappingSourceCategory.AIRLINE
+    if folded in {"hotel", "hotels"}:
+        return MappingSourceCategory.HOTEL
+    if folded == "cruise line":
+        return MappingSourceCategory.CRUISE
+    if folded in {"card type", "card type/region", "your country of residence"}:
+        return MappingSourceCategory.CARD
+    return MappingSourceCategory.UNKNOWN
 
 
 def _flat_program_tier_table(
