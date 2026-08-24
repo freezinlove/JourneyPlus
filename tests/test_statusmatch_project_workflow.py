@@ -1,0 +1,702 @@
+from __future__ import annotations
+
+import json
+from copy import deepcopy
+from datetime import UTC, datetime
+
+import pytest
+from sqlalchemy import func, select
+
+from journeyplus.ai.provider import AIProviderMetadata
+from journeyplus.contracts import Brief
+from journeyplus.models import (
+    AnalysisRun,
+    BriefRecord,
+    EventEvidence,
+    FactSetRecord,
+    JobRun,
+    StatusEvent,
+    StatusMatchChangeSet,
+    StatusMatchWatch,
+    StatusMatchWatchPage,
+)
+from journeyplus.sources.base import FetchResponse
+from journeyplus.sources.registry import seed_sources
+from journeyplus.statusmatch.contracts import StatusMatchProjectExtraction
+from journeyplus.statusmatch.audit import audit_statusmatch_projects
+from journeyplus.statusmatch.project_workflow import (
+    backfill_current_statusmatch_change_sets,
+    process_pending_statusmatch_projects,
+)
+from journeyplus.statusmatch.service import monitor_statusmatch_watches
+from journeyplus.statusmatch.watchlist import (
+    delete_watch_only,
+    ensure_statusmatch_watch,
+)
+
+
+ACTIVE_ACTIVITY = """
+<html><body><h1>Apply for a Status Match today</h1>
+<p>Example Air members may apply for Example Club Gold.</p>
+<form><button>Continue</button></form></body></html>
+"""
+ACTIVE_FAQ = """
+<html><body><h1>Frequently Asked Questions</h1>
+<p>Current members of Example Air with Gold status are eligible.</p>
+</body></html>
+"""
+
+
+class PageFetcher:
+    def __init__(self, responses: dict[str, str | Exception]) -> None:
+        self.responses = responses
+
+    def get(self, url: str) -> FetchResponse:
+        value = self.responses[url]
+        if isinstance(value, Exception):
+            raise value
+        return FetchResponse(body=value, content_type="text/html", final_url=url)
+
+
+class ProjectProvider:
+    metadata = AIProviderMetadata(
+        provider="test",
+        model="statusmatch-project",
+        region="local",
+        config_version="statusmatch-project-test-v1",
+    )
+
+    def __init__(self, extractions: list[dict]) -> None:
+        self.extractions = list(extractions)
+        self.calls: list[dict] = []
+
+    def generate_structured(
+        self, *, system_prompt: str, user_prompt: str, output_model
+    ):
+        request = json.loads(user_prompt)
+        self.calls.append(
+            {
+                "model": output_model.__name__,
+                "request": request,
+                "system_prompt": system_prompt,
+            }
+        )
+        if output_model is StatusMatchProjectExtraction:
+            if not self.extractions:
+                raise RuntimeError("No project extraction remains")
+            return output_model.model_validate(self.extractions.pop(0))
+        if output_model is Brief:
+            fact_set_id = request["fact_set_id"]
+            caveats = []
+            if request["fact_set"].get("caveats", {}).get("value"):
+                caveats.append(
+                    {
+                        "text": request["fact_set"]["caveats"]["value"],
+                        "fact_keys": ["caveats"],
+                    }
+                )
+            return output_model.model_validate(
+                {
+                    "schema_version": "1",
+                    "fact_set_id": fact_set_id,
+                    "title": "Example Club 开放会籍匹配",
+                    "title_fact_keys": ["what_happened"],
+                    "summary": "Example Club 当前开放 Gold 会籍匹配。",
+                    "summary_fact_keys": ["what_happened", "target_status"],
+                    "key_points": [
+                        {
+                            "text": "符合资格的 Example Air Gold 会员可申请。",
+                            "fact_keys": ["eligibility"],
+                        }
+                    ],
+                    "caveats": caveats,
+                    "source_links": request["allowed_source_links"],
+                }
+            )
+        raise AssertionError(f"Unexpected output model: {output_model}")
+
+
+def _responses(host: str = "example.statusmatch.com") -> dict[str, str]:
+    return {
+        f"https://{host}/": ACTIVE_ACTIVITY,
+        f"https://{host}/faq": ACTIVE_FAQ,
+    }
+
+
+def _extraction(
+    host: str = "example.statusmatch.com",
+    *,
+    eligibility: str = "Example Air Gold 会员",
+    narrative_mappings: list[dict] | None = None,
+) -> dict:
+    return {
+        "schema_version": "1",
+        "identity": {
+            "program": "Example Club",
+            "summary": f"{host} 当前开放会籍匹配",
+            "target_status": "Gold",
+        },
+        "what_happened": {
+            "value": "Example Club 当前开放 Gold 会籍匹配",
+            "evidence": [{"source": "HOME", "locator": "application heading"}],
+        },
+        "eligibility": {
+            "value": eligibility,
+            "evidence": [{"source": "FAQ", "locator": "eligibility paragraph"}],
+        },
+        "target_status": {
+            "value": "Gold",
+            "evidence": [{"source": "HOME", "locator": "offer paragraph"}],
+        },
+        "action_link": {
+            "value": f"https://{host}/",
+            "evidence": [{"source": "HOME", "locator": "application form"}],
+        },
+        "application_routes": [
+            {
+                "scope": "默认申请路径",
+                "eligibility": eligibility,
+                "action_link": f"https://{host}/",
+                "evidence": [
+                    {"source": "HOME", "locator": "application form"},
+                    {"source": "FAQ", "locator": "eligibility paragraph"},
+                ],
+            }
+        ],
+        "narrative_status_mappings": narrative_mappings or [],
+    }
+
+
+def _seed_active_watch(session, host: str = "example.statusmatch.com"):
+    seed_sources(session)
+    watch = ensure_statusmatch_watch(session, host)
+    monitor_statusmatch_watches(session, PageFetcher(_responses(host)))
+    session.refresh(watch)
+    return watch
+
+
+def test_initial_project_uses_exactly_two_calls_without_generic_analysis(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        watch = _seed_active_watch(session)
+        watch_id = watch.id
+
+    provider = ProjectProvider([_extraction()])
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert (summary.selected, summary.succeeded, summary.failed) == (1, 1, 0)
+    assert summary.model_calls == 2
+    assert [item["model"] for item in provider.calls] == [
+        "StatusMatchProjectExtraction",
+        "Brief",
+    ]
+    with session_factory() as session:
+        watch = session.get(StatusMatchWatch, watch_id)
+        assert watch is not None and watch.current_event_id is not None
+        event = session.get(StatusEvent, watch.current_event_id)
+        assert event is not None
+        assert event.program == "Example Club"
+        assert session.scalar(
+            select(func.count()).select_from(StatusEvent)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(BriefRecord)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(StatusMatchChangeSet)
+        ) == 1
+        assert set(session.scalars(select(AnalysisRun.stage))) == {
+            "STATUSMATCH_PROJECT_EXTRACTION",
+            "BRIEF_GENERATION",
+        }
+        evidence_ids = set(
+            session.scalars(
+                select(EventEvidence.document_version_id).where(
+                    EventEvidence.event_id == event.id
+                )
+            )
+        )
+        page_ids = set(
+            session.scalars(
+                select(StatusMatchWatchPage.current_document_version_id).where(
+                    StatusMatchWatchPage.watch_id == watch.id
+                )
+            )
+        )
+        assert evidence_ids == page_ids
+
+
+def test_page_update_keeps_event_and_records_structured_changes(
+    session_factory,
+) -> None:
+    fetcher = PageFetcher(_responses())
+    with session_factory.begin() as session:
+        watch = _seed_active_watch(session)
+        watch_id = watch.id
+    first = ProjectProvider([_extraction()])
+    process_pending_statusmatch_projects(session_factory, first)
+    with session_factory() as session:
+        watch = session.get(StatusMatchWatch, watch_id)
+        assert watch is not None
+        event_id = watch.current_event_id
+
+    fetcher.responses["https://example.statusmatch.com/faq"] = (
+        "<html><body><h1>FAQ</h1>"
+        "<p>Example Air Platinum and Gold members are eligible.</p></body></html>"
+    )
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(
+            session, fetcher, checked_at=datetime(2026, 8, 25, tzinfo=UTC)
+        )
+    second = ProjectProvider(
+        [_extraction(eligibility="Example Air Platinum 和 Gold 会员")]
+    )
+    summary = process_pending_statusmatch_projects(session_factory, second)
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].event_id == str(event_id)
+    assert summary.projects[0].change_kind == "FACTS_CHANGED"
+    assert any(
+        item["path"] == "fields.eligibility"
+        for item in summary.projects[0].changes
+    )
+    with session_factory() as session:
+        watch = session.get(StatusMatchWatch, watch_id)
+        assert watch is not None and watch.current_event_id == event_id
+        assert session.scalar(
+            select(func.count()).select_from(StatusEvent)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 2
+        assert session.scalar(
+            select(func.count()).select_from(BriefRecord)
+        ) == 2
+
+
+def test_semantically_identical_page_update_reuses_fact_and_brief(
+    session_factory,
+) -> None:
+    fetcher = PageFetcher(_responses())
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+
+    fetcher.responses["https://example.statusmatch.com/faq"] = (
+        ACTIVE_FAQ.replace("</body>", "<p>Page layout refreshed.</p></body>")
+    )
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, fetcher)
+    provider = ProjectProvider([_extraction()])
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].fact_reused
+    assert summary.projects[0].brief_reused
+    assert summary.projects[0].change_kind == "SEMANTIC_UNCHANGED"
+    assert [item["model"] for item in provider.calls] == [
+        "StatusMatchProjectExtraction"
+    ]
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(BriefRecord)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(StatusMatchChangeSet)
+        ) == 2
+
+
+def test_same_page_snapshot_can_record_a_new_prompt_fact_revision(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+    upgraded = ProjectProvider(
+        [_extraction(eligibility="Example Air Platinum 会员")]
+    )
+    upgraded.metadata = AIProviderMetadata(
+        provider="test",
+        model="statusmatch-project",
+        region="local",
+        config_version="statusmatch-project-test-v2",
+    )
+
+    summary = process_pending_statusmatch_projects(session_factory, upgraded)
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].change_kind == "FACTS_CHANGED"
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 2
+        assert session.scalar(
+            select(func.count()).select_from(StatusMatchChangeSet)
+        ) == 2
+        assert backfill_current_statusmatch_change_sets(session) == ()
+
+
+def test_table_and_narrative_mappings_are_combined_without_duplicates(
+    session_factory,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] = """
+    <html><body><h1>Frequently Asked Questions</h1>
+    <table>
+      <tr><th>Existing programme and tier</th><th>Example Club tier</th></tr>
+      <tr><td>Example Air Gold</td><td>Gold</td></tr>
+    </table>
+    <p>Partner Plus Platinum members may also receive Gold.</p>
+    </body></html>
+    """
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    narrative = {
+        "source_program": "Partner Plus",
+        "source_tiers": ["Platinum"],
+        "target_tier": "Gold",
+        "availability": "AVAILABLE",
+        "evidence": [{"source": "FAQ", "locator": "Partner Plus paragraph"}],
+    }
+    provider = ProjectProvider([_extraction(narrative_mappings=[narrative])])
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].mapping_count == 2
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        mappings = record.facts["status_mappings"]
+        assert {item["source_program"] for item in mappings} == {
+            "Example Air",
+            "Partner Plus",
+        }
+        assert {
+            item["evidence"][0]["source_url"].rstrip("/") for item in mappings
+        } == {"https://example.statusmatch.com/faq"}
+
+
+@pytest.mark.parametrize("channel", ["table", "narrative"])
+def test_table_only_and_narrative_only_mapping_channels(
+    session_factory,
+    channel: str,
+) -> None:
+    responses = _responses()
+    narrative: list[dict] = []
+    expected_program = "Example Air"
+    if channel == "table":
+        responses["https://example.statusmatch.com/faq"] = """
+        <html><body><table>
+          <tr><th>Existing programme and tier</th><th>Example Club tier</th></tr>
+          <tr><td>Example Air Gold</td><td>Gold</td></tr>
+        </table></body></html>
+        """
+    else:
+        expected_program = "Partner Plus"
+        responses["https://example.statusmatch.com/faq"] = (
+            "<html><body><p>Partner Plus Platinum members receive Gold.</p>"
+            "</body></html>"
+        )
+        narrative = [
+            {
+                "source_program": "Partner Plus",
+                "source_tiers": ["Platinum"],
+                "target_tier": "Gold",
+                "availability": "AVAILABLE",
+                "evidence": [
+                    {"source": "FAQ", "locator": "Partner Plus paragraph"}
+                ],
+            }
+        ]
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+
+    summary = process_pending_statusmatch_projects(
+        session_factory,
+        ProjectProvider([_extraction(narrative_mappings=narrative)]),
+    )
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].mapping_count == 1
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        assert record.facts["status_mappings"][0]["source_program"] == expected_program
+
+
+def test_invalid_alias_retries_without_persisting_partial_output(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    invalid = deepcopy(_extraction())
+    invalid["what_happened"]["evidence"][0]["source"] = "ARTICLE"
+    provider = ProjectProvider([invalid, _extraction()])
+
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert [item["model"] for item in provider.calls] == [
+        "StatusMatchProjectExtraction",
+        "StatusMatchProjectExtraction",
+        "Brief",
+    ]
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 1
+
+
+def test_explicit_null_unknowns_are_normalized_and_failed_calls_are_counted(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    valid_with_nulls = _extraction()
+    valid_with_nulls.update(
+        {
+            "challenge_requirements": None,
+            "application_start": None,
+            "deadline": None,
+            "narrative_status_mappings": None,
+        }
+    )
+    success = process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([valid_with_nulls])
+    )
+    assert success.succeeded == 1
+    assert success.model_calls == 2
+
+
+def test_requalification_requirement_is_mandatory_caveat_with_retry(
+    session_factory,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] = (
+        "<html><body><p>Members must requalify on merit to retain benefits "
+        "beyond the initial year.</p></body></html>"
+    )
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    corrected = _extraction()
+    corrected["caveats"] = {
+        "value": "首年结束后必须按正常规则重新达标才能保留会籍",
+        "evidence": [{"source": "FAQ", "locator": "requalification paragraph"}],
+    }
+    provider = ProjectProvider([_extraction(), corrected])
+
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert summary.model_calls == 3
+    assert [item["model"] for item in provider.calls] == [
+        "StatusMatchProjectExtraction",
+        "StatusMatchProjectExtraction",
+        "Brief",
+    ]
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        assert "重新达标" in record.facts["caveats"]["value"]
+
+
+def test_requalify_on_merit_cannot_be_over_specified_as_spend(
+    session_factory,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] = (
+        "<html><body><p>Members must requalify on merit to retain benefits "
+        "beyond the initial year.</p></body></html>"
+    )
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    over_specific = _extraction()
+    over_specific["caveats"] = {
+        "value": "首年结束后必须通过正常消费重新达标",
+        "evidence": [{"source": "FAQ", "locator": "requalification paragraph"}],
+    }
+    corrected = deepcopy(over_specific)
+    corrected["caveats"]["value"] = "首年结束后必须按项目正常规则重新达标"
+    provider = ProjectProvider([over_specific, corrected])
+
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert summary.model_calls == 3
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        assert "正常规则" in record.facts["caveats"]["value"]
+        assert "消费" not in record.facts["caveats"]["value"]
+
+
+def test_failed_project_attempts_are_included_in_model_call_summary(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    invalid = deepcopy(_extraction())
+    invalid["what_happened"]["evidence"][0]["source"] = "ARTICLE"
+    provider = ProjectProvider([invalid, invalid])
+
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.failed == 1
+    assert summary.succeeded == 0
+    assert summary.model_calls == 2
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(FactSetRecord)
+        ) == 0
+
+
+def test_missing_or_failed_page_is_not_selected(session_factory) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+    provider = ProjectProvider([])
+    missing = process_pending_statusmatch_projects(session_factory, provider)
+    assert missing.selected == 0
+
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] = RuntimeError("HTTP 503")
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    failed = process_pending_statusmatch_projects(session_factory, provider)
+    assert failed.selected == 0
+    assert provider.calls == []
+
+
+def test_closed_project_is_archived_and_never_reprocessed(session_factory) -> None:
+    with session_factory.begin() as session:
+        watch = _seed_active_watch(session)
+        watch_id = watch.id
+    process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+    with session_factory() as session:
+        watch = session.get(StatusMatchWatch, watch_id)
+        assert watch is not None and watch.current_event_id is not None
+        event_id = watch.current_event_id
+
+    closed = _responses()
+    closed["https://example.statusmatch.com/"] = (
+        "<html><body><p>This status match offer has ended.</p></body></html>"
+    )
+    closed["https://example.statusmatch.com/faq"] = (
+        "<html><body><p>This offer has expired and is no longer available.</p>"
+        "</body></html>"
+    )
+    with session_factory.begin() as session:
+        monitoring = monitor_statusmatch_watches(session, PageFetcher(closed))
+    assert monitoring.projects_archived == 1
+
+    provider = ProjectProvider([])
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+    assert summary.selected == 0
+    assert provider.calls == []
+    with session_factory() as session:
+        assert session.get(StatusMatchWatch, watch_id) is None
+        event = session.get(StatusEvent, event_id)
+        assert event is not None and event.archived_at is not None
+
+
+def test_different_hosts_and_reonboarded_watch_create_distinct_events(
+    session_factory,
+) -> None:
+    hosts = ["one.statusmatch.com", "two.statusmatch.com"]
+    with session_factory.begin() as session:
+        seed_sources(session)
+        for host in hosts:
+            ensure_statusmatch_watch(session, host)
+        responses = {key: value for host in hosts for key, value in _responses(host).items()}
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    provider = ProjectProvider([_extraction(host) for host in hosts])
+    first = process_pending_statusmatch_projects(session_factory, provider)
+    assert first.succeeded == 2
+    assert len({item.event_id for item in first.projects}) == 2
+
+    with session_factory.begin() as session:
+        old_watch = session.scalar(
+            select(StatusMatchWatch).where(
+                StatusMatchWatch.host == "one.statusmatch.com"
+            )
+        )
+        assert old_watch is not None and old_watch.current_event_id is not None
+        old_event_id = old_watch.current_event_id
+        old_event = session.get(StatusEvent, old_event_id)
+        assert old_event is not None
+        old_event.archived_at = datetime(2026, 8, 26, tzinfo=UTC)
+        delete_watch_only(session, old_watch)
+        ensure_statusmatch_watch(session, "one.statusmatch.com")
+        monitor_statusmatch_watches(
+            session, PageFetcher(_responses("one.statusmatch.com"))
+        )
+    reonboard = process_pending_statusmatch_projects(
+        session_factory,
+        ProjectProvider([_extraction("one.statusmatch.com")]),
+        hosts=["one.statusmatch.com"],
+    )
+    assert reonboard.succeeded == 1
+    assert reonboard.projects[0].event_id != str(old_event_id)
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(JobRun).where(
+                JobRun.job_type == "statusmatch_project_workflow",
+                JobRun.status == "SUCCEEDED",
+            )
+        ) == 3
+
+
+def test_selected_host_audit_reports_complete_project_without_reprocessing(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+
+    provider = ProjectProvider([])
+    report = audit_statusmatch_projects(
+        session_factory,
+        provider,
+        hosts=["example.statusmatch.com"],
+        refresh=False,
+    )
+
+    assert report["processing"]["selected"] == 0
+    assert provider.calls == []
+    assert report["assertions"] == {
+        "classification_or_relationship_runs": 0,
+        "dedicated_project_runs": 0,
+        "brief_runs": 0,
+        "one_live_event_per_watch": True,
+    }
+    project = report["projects"][0]
+    assert len(project["pages"]) == 2
+    assert project["event"]["program"] == "Example Club"
+    assert project["fact_set"]["version"] == 1
+    assert project["change_set"]["kind"] == "INITIAL_SNAPSHOT"
+    assert project["brief"]["content"]["title"] == "Example Club 开放会籍匹配"
+    assert project["historical_dedicated_project_runs"] == 1
+    assert project["historical_brief_runs"] == 1

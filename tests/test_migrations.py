@@ -4,7 +4,14 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
+
+
+def test_migration_revision_ids_fit_postgresql_alembic_version_column() -> None:
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    scripts = ScriptDirectory.from_config(config)
+    assert all(len(revision.revision) <= 32 for revision in scripts.walk_revisions())
 
 
 def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) -> None:
@@ -35,6 +42,7 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "initialization_runs",
         "statusmatch_watches",
         "statusmatch_watch_pages",
+        "statusmatch_change_sets",
     } <= tables
 
 
@@ -281,4 +289,55 @@ def test_statusmatch_monitoring_migration_backfills_complete_page_pairs(
                 "WHERE current_document_version_id IS NOT NULL"
             )
         ) == 2
+    engine.dispose()
+
+
+def test_statusmatch_project_changeset_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'statusmatch-project.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0006_statusmatch_monitoring")
+    engine = create_engine(database_url)
+    assert "statusmatch_change_sets" not in set(inspect(engine).get_table_names())
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    assert "statusmatch_change_sets" in set(inspector.get_table_names())
+    assert {
+        "event_id",
+        "from_fact_set_id",
+        "to_fact_set_id",
+        "activity_document_version_id",
+        "faq_document_version_id",
+        "kind",
+        "changes",
+    } <= {
+        column["name"]
+        for column in inspector.get_columns("statusmatch_change_sets")
+    }
+    assert "ix_statusmatch_change_sets_event_created" in {
+        index["name"]
+        for index in inspector.get_indexes("statusmatch_change_sets")
+    }
+    assert (
+        "event_id",
+        "activity_document_version_id",
+        "faq_document_version_id",
+        "to_fact_set_id",
+    ) in {
+        tuple(constraint["column_names"])
+        for constraint in inspector.get_unique_constraints(
+            "statusmatch_change_sets"
+        )
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0006_statusmatch_monitoring")
+    engine = create_engine(database_url)
+    assert "statusmatch_change_sets" not in set(inspect(engine).get_table_names())
     engine.dispose()

@@ -44,11 +44,14 @@ def monitor_statusmatch_watches(
     fetcher: Fetcher,
     *,
     checked_at: datetime | None = None,
+    hosts: list[str] | tuple[str, ...] | None = None,
 ) -> StatusMatchMonitoringSummary:
     current = checked_at or datetime.now(UTC)
-    watches = list(
-        session.scalars(select(StatusMatchWatch).order_by(StatusMatchWatch.host.asc()))
-    )
+    statement = select(StatusMatchWatch)
+    if hosts is not None:
+        normalized_hosts = {host.casefold().rstrip(".") for host in hosts}
+        statement = statement.where(StatusMatchWatch.host.in_(normalized_hosts))
+    watches = list(session.scalars(statement.order_by(StatusMatchWatch.host.asc())))
     ingestion = IngestionService(session)
     pages_checked = 0
     pages_changed = 0

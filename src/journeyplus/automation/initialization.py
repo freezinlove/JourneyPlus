@@ -18,13 +18,23 @@ from journeyplus.automation.service import (
 )
 from journeyplus.contracts import RunStatus
 from journeyplus.lifecycle.service import BEIJING_TZ
-from journeyplus.models import CollectionRun, InitializationRun
+from journeyplus.models import (
+    CollectionRun,
+    DocumentVersion,
+    InitializationRun,
+    SourceItem,
+)
 from journeyplus.operations import pending_document_count, process_pending_documents
 from journeyplus.sources.base import SourceAdapter
 from journeyplus.sources.collection import CollectionSummary, collect_manual
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.history import HistoricalFeedWindowAdapter
 from journeyplus.sources.registry import seed_sources
+from journeyplus.statusmatch.project_workflow import (
+    StatusMatchProjectProcessingSummary,
+    pending_statusmatch_project_count,
+    process_pending_statusmatch_projects,
+)
 
 
 MAIL_SOURCE_ID = "status_services_mail"
@@ -172,6 +182,8 @@ def _run_initialization(
     source_results: list[InitializationSourceSummary] = []
     processing_payload: dict[str, Any] = {}
     budgeted = BudgetedAIProvider(provider, limits.model_calls)
+    project_processing = StatusMatchProjectProcessingSummary()
+    project_hosts: tuple[str, ...] = ()
     backlog = 0
     error: str | None = None
     attempt = 0
@@ -229,6 +241,11 @@ def _run_initialization(
             for item in source_results
             for document_id in item.document_version_ids
         )
+        if batch_type == "MAIL_DETAILS":
+            with session_factory() as session:
+                project_hosts = _statusmatch_hosts_for_documents(
+                    session, current_document_ids
+                )
         if source_failed:
             error = "one or more initialization sources failed"
             processing_payload = {
@@ -239,29 +256,65 @@ def _run_initialization(
             }
         else:
             published_from, published_until = _window_bounds(start, end)
-            processing = process_pending_documents(
-                session_factory,
-                budgeted,
-                source_id=MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None,
-                source_ids=list(source_ids) if batch_type == "PUBLIC_WINDOW" else None,
-                document_ids=current_document_ids,
-                published_from=published_from,
-                published_until=published_until,
-                limit=limits.documents,
-                stop_on_failure=True,
-            )
-            processing_payload = {
-                "selected": processing.selected,
-                "attempted": processing.attempted,
-                "succeeded": processing.succeeded,
-                "failed": processing.failed,
-                "stopped_early": processing.stopped_early,
-                "status_opportunities": processing.status_opportunities,
-                "events": processing.events,
-                "briefs": processing.briefs,
+            if project_hosts:
+                project_processing = process_pending_statusmatch_projects(
+                    session_factory,
+                    budgeted,
+                    hosts=project_hosts,
+                    limit=limits.documents,
+                )
+            generic_limit = limits.documents - project_processing.attempted
+            generic_payload: dict[str, Any] = {
+                "selected": 0,
+                "attempted": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "stopped_early": False,
+                "status_opportunities": 0,
+                "events": 0,
+                "briefs": 0,
             }
-            if processing.failed:
-                error = f"{processing.failed} initialization documents failed"
+            if generic_limit > 0:
+                processing = process_pending_documents(
+                    session_factory,
+                    budgeted,
+                    source_id=(
+                        MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None
+                    ),
+                    source_ids=(
+                        list(source_ids)
+                        if batch_type == "PUBLIC_WINDOW"
+                        else None
+                    ),
+                    document_ids=current_document_ids,
+                    published_from=published_from,
+                    published_until=published_until,
+                    limit=generic_limit,
+                    stop_on_failure=True,
+                )
+                generic_payload = asdict(processing)
+            processing_payload = {
+                "selected": (
+                    project_processing.selected + generic_payload["selected"]
+                ),
+                "attempted": (
+                    project_processing.attempted + generic_payload["attempted"]
+                ),
+                "succeeded": (
+                    project_processing.succeeded + generic_payload["succeeded"]
+                ),
+                "failed": project_processing.failed + generic_payload["failed"],
+                "stopped_early": generic_payload["stopped_early"],
+                "status_opportunities": generic_payload["status_opportunities"],
+                "events": generic_payload["events"],
+                "briefs": generic_payload["briefs"],
+                "statusmatch_projects": asdict(project_processing),
+                "generic_documents": generic_payload,
+            }
+            if processing_payload["failed"]:
+                error = (
+                    f"{processing_payload['failed']} initialization items failed"
+                )
 
         with session_factory.begin() as session:
             published_from, published_until = _window_bounds(start, end)
@@ -274,6 +327,12 @@ def _run_initialization(
                 published_from=published_from,
                 published_until=published_until,
             )
+            if batch_type == "MAIL_DETAILS":
+                backlog += pending_statusmatch_project_count(
+                    session,
+                    budgeted,
+                    hosts=project_hosts,
+                )
             run = session.get(InitializationRun, UUID(run_id))
             assert run is not None
             if error is None and backlog == 0:
@@ -451,6 +510,30 @@ def _require_previous_batch_passed(
         raise RuntimeError(
             f"previous initialization batch {previous_key} has not passed audit"
         )
+
+
+def _statusmatch_hosts_for_documents(
+    session: Session,
+    document_ids: tuple[str, ...],
+) -> tuple[str, ...]:
+    if not document_ids:
+        return ()
+    external_ids = session.scalars(
+        select(SourceItem.external_id)
+        .join(DocumentVersion, DocumentVersion.source_item_id == SourceItem.id)
+        .where(
+            DocumentVersion.id.in_([UUID(value) for value in document_ids]),
+            SourceItem.source_id == MAIL_SOURCE_ID,
+            SourceItem.external_id.startswith("statusmatch-page:"),
+        )
+    )
+    hosts: list[str] = []
+    for external_id in external_ids:
+        identity = external_id.removeprefix("statusmatch-page:")
+        host, separator, page_kind = identity.rpartition(":")
+        if separator and host and page_kind in {"activity", "faq"}:
+            hosts.append(host.casefold().rstrip("."))
+    return tuple(dict.fromkeys(hosts))
 
 
 def _validate_window(start: date, end: date) -> None:

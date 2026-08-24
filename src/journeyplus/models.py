@@ -310,6 +310,41 @@ class StatusMatchWatchPage(Base, TimestampMixin):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class StatusMatchChangeSet(Base, TimestampMixin):
+    __tablename__ = "statusmatch_change_sets"
+    __table_args__ = (
+        UniqueConstraint(
+            "event_id",
+            "activity_document_version_id",
+            "faq_document_version_id",
+            "to_fact_set_id",
+            name="uq_statusmatch_change_sets_event_snapshot_fact",
+        ),
+        Index("ix_statusmatch_change_sets_event_created", "event_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    event_id: Mapped[UUID] = mapped_column(
+        ForeignKey("status_events.id"), nullable=False
+    )
+    from_fact_set_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("fact_sets.id"), nullable=True
+    )
+    to_fact_set_id: Mapped[UUID] = mapped_column(
+        ForeignKey("fact_sets.id"), nullable=False
+    )
+    activity_document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    faq_document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(50), nullable=False)
+    changes: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+
+
 class EventRevision(Base, TimestampMixin):
     __tablename__ = "event_revisions"
     __table_args__ = (

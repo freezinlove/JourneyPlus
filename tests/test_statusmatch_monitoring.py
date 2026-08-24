@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import base64
+import json
 from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select
 
-from journeyplus.ai.provider import SequenceAIProvider
+from journeyplus.ai.provider import AIProviderMetadata, SequenceAIProvider
 from journeyplus.automation.service import run_daily_cycle
-from journeyplus.contracts import DiscoveredItem, RawDocument
+from journeyplus.contracts import Brief, DiscoveredItem, RawDocument
 from journeyplus.facts.service import FactConsolidator
 from journeyplus.models import (
     BriefRecord,
@@ -26,6 +27,7 @@ from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.gmail import GmailStatusServicesAdapter, RECIPIENT_ALIAS
 from journeyplus.sources.registry import seed_sources
 from journeyplus.statusmatch.service import monitor_statusmatch_watches
+from journeyplus.statusmatch.contracts import StatusMatchProjectExtraction
 from journeyplus.statusmatch.watchlist import (
     delete_watch_only,
     ensure_statusmatch_watch,
@@ -55,6 +57,63 @@ class PageFetcher:
         else:
             body, final_url = configured, url
         return FetchResponse(body=body, content_type="text/html", final_url=final_url)
+
+
+class DailyWorkflowProvider:
+    metadata = AIProviderMetadata(
+        provider="test",
+        model="daily-statusmatch",
+        region="local",
+        config_version="daily-statusmatch-v1",
+    )
+
+    def generate_structured(
+        self, *, system_prompt: str, user_prompt: str, output_model
+    ):
+        request = json.loads(user_prompt)
+        if output_model is StatusMatchProjectExtraction:
+            host = request["project_host"]
+            return output_model.model_validate(
+                {
+                    "identity": {
+                        "program": "Example Club",
+                        "summary": "Example Club status match",
+                    },
+                    "what_happened": {
+                        "value": "Example Club is accepting status-match applications",
+                        "evidence": [
+                            {"source": "HOME", "locator": "application heading"}
+                        ],
+                    },
+                    "action_link": {
+                        "value": f"https://{host}/",
+                        "evidence": [
+                            {"source": "HOME", "locator": "application form"}
+                        ],
+                    },
+                }
+            )
+        if output_model is Brief:
+            return output_model.model_validate(
+                {
+                    "fact_set_id": request["fact_set_id"],
+                    "title": "Example Club 开放会籍匹配",
+                    "title_fact_keys": ["what_happened"],
+                    "summary": "Example Club 正在接受会籍匹配申请。",
+                    "summary_fact_keys": ["what_happened"],
+                    "key_points": [],
+                    "caveats": [],
+                    "source_links": request["allowed_source_links"],
+                }
+            )
+        return output_model.model_validate(
+            {
+                "label": "NONE",
+                "confidence": 1,
+                "reason": "ordinary non-status article",
+                "event_hints": [],
+            }
+        )
 
 
 def _seed_watch(db_session, host="example.statusmatch.com"):
@@ -537,15 +596,9 @@ def test_daily_monitor_runs_even_when_gmail_collection_fails(session_factory) ->
     def unavailable_gmail(_source_id: str):
         raise PermissionError("simulated Gmail OAuth failure")
 
-    none_result = {
-        "label": "NONE",
-        "confidence": 1,
-        "reason": "test page is not processed as an event",
-        "event_hints": [],
-    }
     result = run_daily_cycle(
         session_factory,
-        SequenceAIProvider([none_result, none_result]),
+        DailyWorkflowProvider(),
         unavailable_gmail,
         source_ids=["status_services_mail"],
         statusmatch_fetcher=fetcher,
@@ -558,6 +611,7 @@ def test_daily_monitor_runs_even_when_gmail_collection_fails(session_factory) ->
     assert result.statusmatch_pages_checked == 2
     assert result.statusmatch_pages_changed == 0
     assert result.statusmatch_errors == ()
+    assert result.statusmatch_projects_succeeded == 1
 
 
 def test_daily_cycle_processes_changed_watch_pages_when_mail_source_not_selected(
@@ -588,15 +642,9 @@ def test_daily_cycle_processes_changed_watch_pages_when_mail_source_not_selected
                 content_type="text/plain",
             )
 
-    none_result = {
-        "label": "NONE",
-        "confidence": 1,
-        "reason": "not a status opportunity in this fixture",
-        "event_hints": [],
-    }
     result = run_daily_cycle(
         session_factory,
-        SequenceAIProvider([none_result, none_result, none_result]),
+        DailyWorkflowProvider(),
         lambda _source_id: OneFeedItem(),
         source_ids=["ffb_elite_status_feed"],
         statusmatch_fetcher=PageFetcher(_active_responses()),
@@ -605,5 +653,8 @@ def test_daily_cycle_processes_changed_watch_pages_when_mail_source_not_selected
 
     assert result.status == "SUCCEEDED"
     assert result.statusmatch_pages_changed == 2
-    assert result.documents_selected == 3
-    assert result.documents_succeeded == 3
+    assert result.statusmatch_projects_selected == 1
+    assert result.statusmatch_projects_succeeded == 1
+    assert result.statusmatch_project_model_calls == 2
+    assert result.documents_selected == 1
+    assert result.documents_succeeded == 1

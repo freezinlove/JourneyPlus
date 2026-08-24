@@ -63,6 +63,11 @@ _GENERIC_TERMS_APPLY_RE = re.compile(
     r"(?P<reference_term>适用)"
     r"(?=$|[。；!?！？\s])"
 )
+_REQUALIFICATION_FACT_RE = re.compile(
+    r"(?:重新达标|重新取得|续级|续期|requalif(?:y|ication)|"
+    r"retain\s+the\s+benefits?.{0,80}beyond)",
+    re.IGNORECASE,
+)
 _GROUNDING_EXCERPT_LIMIT = 160
 _INTERNAL_FACT_LABELS = {
     "application_routes": "申请路径",
@@ -229,6 +234,8 @@ def _correction_action(exc: Exception) -> str:
         return "完全删除对未知字段及其“未明确/未提供”状态的描述。"
     if "generic page-reference caveat" in message:
         return "删除“以活动页为准”“请查看官网”或“条款和费用适用”等通用兜底句，只保留已有具体事实。"
+    if "post-match requalification caveat" in message:
+        return "在限制/不确定性中明确写出 FactSet caveats 已记录的匹配到期后重新达标或续级要求。"
     return "严格按 known_fact_keys 与 allowed_source_links 修正上一版输出。"
 
 
@@ -551,6 +558,13 @@ class BriefGenerator:
                     fact_keys=keys,
                     match=generic_terms_match,
                 )
+        requalification = fact_set.caveats.value
+        if (
+            requalification is not None
+            and _REQUALIFICATION_FACT_RE.search(requalification) is not None
+            and not any("caveats" in keys for _, _, keys in claim_groups)
+        ):
+            raise ValueError("Brief omits an explicit post-match requalification caveat")
         allowed_links = {
             str(evidence.source_url).rstrip("/")
             for evidence in [

@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, aliased, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
@@ -95,6 +95,12 @@ def _candidate_document_rows(
     statement = (
         select(DocumentVersion.id, SourceItem.source_id)
         .join(SourceItem, SourceItem.id == DocumentVersion.source_item_id)
+        .where(
+            or_(
+                SourceItem.source_id != "status_services_mail",
+                ~SourceItem.external_id.startswith("statusmatch-page:"),
+            )
+        )
         .order_by(DocumentVersion.created_at.asc(), DocumentVersion.id.asc())
     )
     if source_id is not None:

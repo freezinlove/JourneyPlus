@@ -37,6 +37,10 @@ from journeyplus.statusmatch.service import (
     StatusMatchMonitoringSummary,
     monitor_statusmatch_watches,
 )
+from journeyplus.statusmatch.project_workflow import (
+    StatusMatchProjectProcessingSummary,
+    process_pending_statusmatch_projects,
+)
 
 
 LEASE_NAME = "daily-source-automation"
@@ -89,6 +93,12 @@ class DailyCycleSummary:
     statusmatch_pages_changed: int
     statusmatch_projects_archived: int
     statusmatch_errors: tuple[str, ...]
+    statusmatch_projects_selected: int
+    statusmatch_projects_succeeded: int
+    statusmatch_projects_failed: int
+    statusmatch_project_model_calls: int
+    statusmatch_project_errors: tuple[str, ...]
+    statusmatch_project_outputs: tuple[dict[str, Any], ...]
     backlog_count: int
     needs_review_count: int
 
@@ -173,6 +183,7 @@ def run_daily_cycle(
     processing_payload: dict[str, Any] = {}
     lifecycle_payload: dict[str, int] = {"scanned": 0, "updated": 0, "expired": 0}
     monitoring = StatusMatchMonitoringSummary()
+    project_processing = StatusMatchProjectProcessingSummary()
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
@@ -213,13 +224,21 @@ def run_daily_cycle(
             )
             source_summaries.append(summary)
 
-        processing_source_ids = list(selected_source_ids)
-        if monitoring.changed_document_version_ids:
-            processing_source_ids = list(
-                dict.fromkeys(
-                    [*processing_source_ids, "status_services_mail"]
-                )
+        try:
+            project_processing = process_pending_statusmatch_projects(
+                session_factory,
+                budgeted,
+                limit=resolved_limits.documents,
             )
+        except Exception as exc:
+            project_processing = StatusMatchProjectProcessingSummary(
+                selected=1,
+                attempted=1,
+                failed=1,
+                errors=(_safe_error(exc),),
+            )
+
+        processing_source_ids = list(selected_source_ids)
         try:
             processing = process_pending_documents(
                 session_factory,
@@ -237,6 +256,7 @@ def run_daily_cycle(
                 "events": processing.events,
                 "briefs": processing.briefs,
                 "statusmatch_monitoring": asdict(monitoring),
+                "statusmatch_project_processing": asdict(project_processing),
             }
         except Exception as exc:
             global_error = _safe_error(exc)
@@ -246,6 +266,7 @@ def run_daily_cycle(
                 "failed": 1,
                 "error": global_error,
                 "statusmatch_monitoring": asdict(monitoring),
+                "statusmatch_project_processing": asdict(project_processing),
             }
 
         with session_factory.begin() as session:
@@ -271,10 +292,12 @@ def run_daily_cycle(
                 item.status == RunStatus.FAILED for item in source_summaries
             )
             processing_failures = int(processing_payload.get("failed", 0))
+            project_failures = project_processing.failed
             run.status = (
                 RunStatus.SUCCEEDED
                 if not source_failures
                 and not processing_failures
+                and not project_failures
                 and not global_error
                 and not monitoring.errors
                 else RunStatus.FAILED
@@ -321,6 +344,14 @@ def run_daily_cycle(
         statusmatch_pages_changed=monitoring.pages_changed,
         statusmatch_projects_archived=monitoring.projects_archived,
         statusmatch_errors=monitoring.errors,
+        statusmatch_projects_selected=project_processing.selected,
+        statusmatch_projects_succeeded=project_processing.succeeded,
+        statusmatch_projects_failed=project_processing.failed,
+        statusmatch_project_model_calls=project_processing.model_calls,
+        statusmatch_project_errors=project_processing.errors,
+        statusmatch_project_outputs=tuple(
+            asdict(item) for item in project_processing.projects
+        ),
         backlog_count=backlog,
         needs_review_count=needs_review,
     )
@@ -684,6 +715,12 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         statusmatch_pages_changed=0,
         statusmatch_projects_archived=0,
         statusmatch_errors=(),
+        statusmatch_projects_selected=0,
+        statusmatch_projects_succeeded=0,
+        statusmatch_projects_failed=0,
+        statusmatch_project_model_calls=0,
+        statusmatch_project_errors=(),
+        statusmatch_project_outputs=(),
         backlog_count=0,
         needs_review_count=0,
     )

@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+import json
 from datetime import date
 
 from sqlalchemy import select
 
-from journeyplus.ai.provider import SequenceAIProvider
+from journeyplus.ai.provider import AIProviderMetadata, SequenceAIProvider
 from journeyplus.automation.initialization import (
     PUBLIC_FEED_SOURCE_IDS,
     mark_initialization_audit,
     run_mail_detail_initialization,
     run_public_initialization_window,
 )
-from journeyplus.contracts import DiscoveredItem, RawDocument
+from journeyplus.contracts import Brief, DiscoveredItem, RawDocument
 from journeyplus.models import CollectionRun
 from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.history import HistoricalFeedWindowAdapter
 from journeyplus.sources.registry import seed_sources
+from journeyplus.statusmatch.contracts import StatusMatchProjectExtraction
 
 
 class MappingFetcher:
@@ -66,14 +68,23 @@ class NamedMailDetailAdapter(MailDetailAdapter):
         return [
             DiscoveredItem(
                 source_id=self.source_id,
-                external_id=f"statusmatch-page:{self.name}.statusmatch.com:faq",
-                discovered_url=f"https://{self.name}.statusmatch.com/faq",
-                canonical_url=f"https://{self.name}.statusmatch.com/faq",
-                title=f"{self.name} StatusMatch FAQ",
+                external_id=(
+                    f"statusmatch-page:{self.name}.statusmatch.com:{page_kind}"
+                ),
+                discovered_url=url,
+                canonical_url=url,
+                title=f"{self.name} StatusMatch {page_kind}",
                 raw_metadata={
                     "document_role": "linked_statusmatch_page",
+                    "managed_statusmatch_snapshot": True,
+                    "project_host": f"{self.name}.statusmatch.com",
+                    "page_kind": page_kind,
                     "refresh_on_discovery": True,
                 },
+            )
+            for page_kind, url in (
+                ("activity", f"https://{self.name}.statusmatch.com/"),
+                ("faq", f"https://{self.name}.statusmatch.com/faq"),
             )
         ]
 
@@ -82,10 +93,70 @@ class NamedMailDetailAdapter(MailDetailAdapter):
             source_id=self.source_id,
             external_id=item.external_id,
             canonical_url=item.canonical_url,
-            body=f"Ordinary StatusMatch FAQ record for {self.name}",
-            content_type="text/plain",
+            body=(
+                "<html><body><h1>Apply for a Status Match today</h1>"
+                "<form><button>Continue</button></form></body></html>"
+                if item.raw_metadata["page_kind"] == "activity"
+                else "<html><body><h1>Frequently Asked Questions</h1>"
+                "<p>The match is open.</p></body></html>"
+            ),
+            content_type="text/html",
             metadata={"document_role": "linked_statusmatch_page"},
         )
+
+
+class InitializationProjectProvider:
+    metadata = AIProviderMetadata(
+        provider="test",
+        model="initialization-statusmatch",
+        region="local",
+        config_version="initialization-statusmatch-v1",
+    )
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def generate_structured(
+        self, *, system_prompt: str, user_prompt: str, output_model
+    ):
+        request = json.loads(user_prompt)
+        self.calls.append(output_model.__name__)
+        if output_model is StatusMatchProjectExtraction:
+            host = request["project_host"]
+            return output_model.model_validate(
+                {
+                    "identity": {
+                        "program": host.split(".", 1)[0],
+                        "summary": f"{host} status match",
+                    },
+                    "what_happened": {
+                        "value": "Current status-match applications are open",
+                        "evidence": [
+                            {"source": "HOME", "locator": "application heading"}
+                        ],
+                    },
+                    "action_link": {
+                        "value": f"https://{host}/",
+                        "evidence": [
+                            {"source": "HOME", "locator": "application form"}
+                        ],
+                    },
+                }
+            )
+        if output_model is Brief:
+            return output_model.model_validate(
+                {
+                    "fact_set_id": request["fact_set_id"],
+                    "title": "当前会籍匹配开放申请",
+                    "title_fact_keys": ["what_happened"],
+                    "summary": "当前项目正在接受会籍匹配申请。",
+                    "summary_fact_keys": ["what_happened"],
+                    "key_points": [],
+                    "caveats": [],
+                    "source_links": request["allowed_source_links"],
+                }
+            )
+        raise AssertionError(f"Unexpected output model: {output_model}")
 
 
 def _feed_xml(entries: list[tuple[str, str]]) -> str:
@@ -244,7 +315,7 @@ def test_mail_initialization_processes_only_documents_in_current_discovery(
             NamedMailDetailAdapter("deleted-message-project"),
             idempotency_key="stale-mail-project",
         )
-    provider = SequenceAIProvider([_none("current mailbox page")])
+    provider = InitializationProjectProvider()
 
     summary = run_mail_detail_initialization(
         session_factory,
@@ -255,8 +326,8 @@ def test_mail_initialization_processes_only_documents_in_current_discovery(
     assert summary.status == "AWAITING_AUDIT"
     assert summary.documents_selected == 1
     assert summary.backlog_count == 0
-    assert len(provider.calls) == 1
-    assert len(summary.sources[0].document_version_ids) == 1
+    assert len(provider.calls) == 2
+    assert len(summary.sources[0].document_version_ids) == 2
     assert (
         stale.current_document_version_ids[0]
         not in summary.sources[0].document_version_ids
@@ -288,7 +359,7 @@ def test_failed_mail_initialization_recollects_the_next_attempt(
         first_provider,
         lambda _source_id: NamedMailDetailAdapter("first-project"),
     )
-    second_provider = SequenceAIProvider([_none("second current page")])
+    second_provider = InitializationProjectProvider()
     second = run_mail_detail_initialization(
         session_factory,
         second_provider,
@@ -298,7 +369,7 @@ def test_failed_mail_initialization_recollects_the_next_attempt(
     assert first.status == "FAILED"
     assert second.status == "AWAITING_AUDIT"
     assert second.documents_selected == 1
-    assert len(second_provider.calls) == 1
+    assert len(second_provider.calls) == 2
     with session_factory() as session:
         keys = set(session.scalars(select(CollectionRun.idempotency_key)))
     assert any(

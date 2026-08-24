@@ -66,6 +66,36 @@ class VersionedDocumentAdapter:
         )
 
 
+class StatusMailAndManagedPageAdapter:
+    source_id = "status_services_mail"
+
+    def discover(self):
+        return [
+            DiscoveredItem(
+                source_id=self.source_id,
+                external_id="gmail-message-1",
+                discovered_url="https://mail.example/message-1",
+                canonical_url="https://mail.example/message-1",
+                title="StatusMatch discovery email",
+            ),
+            DiscoveredItem(
+                source_id=self.source_id,
+                external_id="statusmatch-page:example.statusmatch.com:activity",
+                discovered_url="https://example.statusmatch.com/",
+                canonical_url="https://example.statusmatch.com/",
+                title="Managed StatusMatch page",
+            ),
+        ]
+
+    def fetch(self, item):
+        return RawDocument(
+            source_id=self.source_id,
+            external_id=item.external_id,
+            canonical_url=item.canonical_url,
+            body=f"<article>{item.title}</article>",
+        )
+
+
 def _not_a_status_opportunity(reason: str) -> dict:
     return {
         "label": "NONE",
@@ -73,6 +103,33 @@ def _not_a_status_opportunity(reason: str) -> dict:
         "reason": reason,
         "event_hints": [],
     }
+
+
+def test_managed_statusmatch_pages_are_excluded_but_mail_remains_pending(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collect_manual(session, StatusMailAndManagedPageAdapter())
+
+    provider = SequenceAIProvider([])
+    summary = process_pending_documents(
+        session_factory,
+        provider,
+        source_id="status_services_mail",
+        limit=10,
+    )
+
+    assert summary.selected == 1
+    assert summary.succeeded == 1
+    assert len(provider.calls) == 0
+    with session_factory() as session:
+        assert pending_documents(
+            session,
+            provider,
+            source_id="status_services_mail",
+            limit=10,
+        ) == []
 
 
 def test_pending_processing_is_limited_and_idempotent(session_factory) -> None:

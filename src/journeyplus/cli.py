@@ -27,6 +27,7 @@ from journeyplus.sources.gmail_auth import (
 )
 from journeyplus.sources.registry import SOURCE_REGISTRY, seed_sources
 from journeyplus.sources.runtime import build_configured_adapter
+from journeyplus.statusmatch.audit import audit_statusmatch_projects
 
 
 SOURCE_IDS = [item.source_id for item in SOURCE_REGISTRY]
@@ -88,6 +89,16 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "automation-status",
         help="Report daily automation, source, backlog, failure, and review state",
+    )
+    statusmatch_audit = subparsers.add_parser(
+        "statusmatch-audit",
+        help="Refresh and audit selected managed StatusMatch projects",
+    )
+    statusmatch_audit.add_argument("hosts", nargs="+")
+    statusmatch_audit.add_argument(
+        "--no-refresh",
+        action="store_true",
+        help="Audit the stored current snapshot without fetching public pages",
     )
     initialize_mail = subparsers.add_parser(
         "initialize-mail-details",
@@ -183,6 +194,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(
             json.dumps(
                 asdict(automation_status(factory, provider)),
+                ensure_ascii=False,
+            )
+        )
+        return 0
+    if args.command == "statusmatch-audit":
+        provider = OpenAICompatibleProvider(settings)
+        print(
+            json.dumps(
+                audit_statusmatch_projects(
+                    factory,
+                    provider,
+                    hosts=args.hosts,
+                    refresh=not args.no_refresh,
+                ),
                 ensure_ascii=False,
             )
         )
