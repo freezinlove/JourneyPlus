@@ -258,9 +258,56 @@ class StatusEvent(Base, TimestampMixin):
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    archive_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    closure_document_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=True
+    )
     merged_into_id: Mapped[UUID | None] = mapped_column(ForeignKey("status_events.id"))
     current_fact_set_id: Mapped[UUID | None] = mapped_column(nullable=True)
     current_brief_id: Mapped[UUID | None] = mapped_column(nullable=True)
+
+
+class StatusMatchWatch(Base, TimestampMixin):
+    __tablename__ = "statusmatch_watches"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    host: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(30), default="PENDING", nullable=False)
+    current_event_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("status_events.id"), nullable=True
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class StatusMatchWatchPage(Base, TimestampMixin):
+    __tablename__ = "statusmatch_watch_pages"
+    __table_args__ = (
+        UniqueConstraint("watch_id", "page_kind"),
+        UniqueConstraint("canonical_url"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    watch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("statusmatch_watches.id", ondelete="CASCADE"), nullable=False
+    )
+    page_kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    canonical_url: Mapped[str] = mapped_column(Text, nullable=False)
+    current_document_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=True
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class EventRevision(Base, TimestampMixin):

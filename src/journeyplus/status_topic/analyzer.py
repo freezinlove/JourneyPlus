@@ -89,10 +89,7 @@ class StatusRelevanceAnalyzer:
             result = RelevanceResult(
                 label=DocumentLabel.NONE,
                 confidence=1,
-                reason=(
-                    "邮件仅用于发现项目活动链接；详细事实由已展开的活动首页和"
-                    "FAQ 独立处理。"
-                ),
+                reason=self._discovery_only_reason(document),
                 event_hints=[],
             )
             run.status = RunStatus.SUCCEEDED
@@ -212,7 +209,21 @@ class StatusRelevanceAnalyzer:
         if item is None or item.source_id != "status_services_mail":
             return False
         metadata = item.raw_metadata or {}
-        return metadata.get("document_role") != "linked_statusmatch_page"
+        return (
+            metadata.get("document_role") != "linked_statusmatch_page"
+            or metadata.get("skip_semantic_processing") is True
+        )
+
+    def _discovery_only_reason(self, document: DocumentVersion) -> str:
+        item = self._session.get(SourceItem, document.source_item_id)
+        if item is not None and (item.raw_metadata or {}).get(
+            "skip_semantic_processing"
+        ) is True:
+            return "页面已被确定性关闭规则处理并归档，不再创建新的活动语义记录。"
+        return (
+            "邮件仅用于发现项目活动链接；详细事实由已展开的活动首页和"
+            "FAQ 独立处理。"
+        )
 
 
 _EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE)

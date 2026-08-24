@@ -16,6 +16,7 @@ from journeyplus.lifecycle.service import (
     windows_non_overlapping,
 )
 from journeyplus.models import DocumentVersion, EventEvidence, StatusEvent
+from journeyplus.statusmatch.watchlist import watch_event_for_document
 
 
 class CandidateRetriever:
@@ -57,6 +58,12 @@ class CandidateRetriever:
                 .limit(self._candidate_pool_limit)
             )
         )
+        if document is not None:
+            watched_event = watch_event_for_document(self._session, document)
+            if watched_event is not None and all(
+                event.id != watched_event.id for event in candidates
+            ):
+                candidates.insert(0, watched_event)
         if document is not None and candidates:
             same_document_event_ids = set(
                 self._session.scalars(

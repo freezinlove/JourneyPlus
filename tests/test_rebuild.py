@@ -21,8 +21,10 @@ from journeyplus.models import (
     Source,
     SourceItem,
     StatusEvent,
+    StatusMatchWatch,
 )
 from journeyplus.sources.registry import seed_sources
+from journeyplus.statusmatch.watchlist import ensure_statusmatch_watch
 
 
 def _seed_raw_and_derived(session_factory) -> None:
@@ -79,6 +81,8 @@ def _seed_raw_and_derived(session_factory) -> None:
         )
         session.add(event)
         session.flush()
+        watch = ensure_statusmatch_watch(session, "example.statusmatch.com")
+        watch.current_event_id = event.id
         session.add(
             EventEvidence(
                 event_id=event.id,
@@ -152,6 +156,8 @@ def test_reset_removes_only_rebuildable_derived_data(session_factory) -> None:
         assert session.scalar(select(func.count()).select_from(FactSetRecord)) == 0
         assert session.scalar(select(func.count()).select_from(BriefRecord)) == 0
         assert session.scalar(select(func.count()).select_from(JobRun)) == 0
+        watch = session.scalar(select(StatusMatchWatch))
+        assert watch is not None and watch.current_event_id is None
 
 
 def test_reset_refuses_active_automation_or_missing_confirmation(

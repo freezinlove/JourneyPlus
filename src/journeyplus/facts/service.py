@@ -31,6 +31,10 @@ from journeyplus.models import (
     FactSetRecord,
     StatusEvent,
 )
+from journeyplus.statusmatch.watchlist import (
+    current_watch_documents,
+    watch_for_event,
+)
 
 
 FACT_PROMPT_VERSION = "fact-consolidation-v14"
@@ -134,6 +138,7 @@ class FactConsolidator:
         self._max_attempts = max_attempts
 
     def consolidate(self, event: StatusEvent) -> FactConsolidation:
+        snapshot_replacement = watch_for_event(self._session, event.id) is not None
         materials = self._materials(event)
         if not materials:
             raise ValueError("Cannot consolidate facts without event evidence")
@@ -317,10 +322,14 @@ class FactConsolidator:
                     for item in materials
                     if _is_deadline_extension(item.revision)
                 }
-                fact_set = self._reconcile(
-                    current_fact_set,
-                    candidate,
-                    deadline_extension_document_ids=extension_document_ids,
+                fact_set = (
+                    candidate
+                    if snapshot_replacement
+                    else self._reconcile(
+                        current_fact_set,
+                        candidate,
+                        deadline_extension_document_ids=extension_document_ids,
+                    )
                 )
                 self._validate_evidence(fact_set, event, allowed_ids, allowed_urls)
                 self._validate_region_claims(fact_set, material_bodies)
@@ -420,13 +429,26 @@ class FactConsolidator:
         return FactConsolidation(run, record, fact_set, False)
 
     def _materials(self, event: StatusEvent) -> list[ScopedMaterial]:
+        watch = watch_for_event(self._session, event.id)
+        current_document_ids = (
+            [document.id for document in current_watch_documents(self._session, watch)]
+            if watch is not None
+            else None
+        )
         rows = list(self._session.execute(
             select(EventEvidence, DocumentVersion)
             .join(
                 DocumentVersion,
                 EventEvidence.document_version_id == DocumentVersion.id,
             )
-            .where(EventEvidence.event_id == event.id)
+            .where(
+                EventEvidence.event_id == event.id,
+                *(
+                    [EventEvidence.document_version_id.in_(current_document_ids)]
+                    if current_document_ids
+                    else []
+                ),
+            )
             .order_by(
                 DocumentVersion.fetched_at.asc(),
                 EventEvidence.hint_index.asc(),

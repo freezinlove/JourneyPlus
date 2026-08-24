@@ -26,13 +26,17 @@ from journeyplus.operations import (
     pending_document_count,
     process_pending_documents,
 )
-from journeyplus.sources.base import SourceAdapter
+from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
 from journeyplus.sources.collection import (
     CollectionSummary,
     automatically_scheduled_source_ids,
     collect_manual,
 )
 from journeyplus.sources.registry import SOURCE_REGISTRY, seed_sources
+from journeyplus.statusmatch.service import (
+    StatusMatchMonitoringSummary,
+    monitor_statusmatch_watches,
+)
 
 
 LEASE_NAME = "daily-source-automation"
@@ -80,6 +84,11 @@ class DailyCycleSummary:
     lifecycle_scanned: int
     lifecycle_updated: int
     lifecycle_expired: int
+    statusmatch_projects_checked: int
+    statusmatch_pages_checked: int
+    statusmatch_pages_changed: int
+    statusmatch_projects_archived: int
+    statusmatch_errors: tuple[str, ...]
     backlog_count: int
     needs_review_count: int
 
@@ -145,6 +154,7 @@ def run_daily_cycle(
     source_ids: list[str] | tuple[str, ...] | None = None,
     lease_duration: timedelta = timedelta(hours=1),
     owner_id: str | None = None,
+    statusmatch_fetcher: Fetcher | None = None,
 ) -> DailyCycleSummary:
     resolved_limits = limits or AutomationLimits()
     current = _as_utc(now or datetime.now(UTC))
@@ -162,6 +172,7 @@ def run_daily_cycle(
     source_summaries: list[SourceCycleSummary] = []
     processing_payload: dict[str, Any] = {}
     lifecycle_payload: dict[str, int] = {"scanned": 0, "updated": 0, "expired": 0}
+    monitoring = StatusMatchMonitoringSummary()
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
@@ -179,6 +190,18 @@ def run_daily_cycle(
             )
             run_id = str(run.id)
 
+        try:
+            with session_factory.begin() as session:
+                monitoring = monitor_statusmatch_watches(
+                    session,
+                    statusmatch_fetcher or HttpxFetcher(),
+                    checked_at=current,
+                )
+        except Exception as exc:
+            monitoring = StatusMatchMonitoringSummary(
+                errors=(_safe_error(exc),)
+            )
+
         for source_id in selected_source_ids:
             summary = _run_source_collection(
                 session_factory,
@@ -190,11 +213,18 @@ def run_daily_cycle(
             )
             source_summaries.append(summary)
 
+        processing_source_ids = list(selected_source_ids)
+        if monitoring.changed_document_version_ids:
+            processing_source_ids = list(
+                dict.fromkeys(
+                    [*processing_source_ids, "status_services_mail"]
+                )
+            )
         try:
             processing = process_pending_documents(
                 session_factory,
                 budgeted,
-                source_ids=selected_source_ids,
+                source_ids=processing_source_ids,
                 limit=resolved_limits.documents,
             )
             processing_payload = {
@@ -206,6 +236,7 @@ def run_daily_cycle(
                 "status_opportunities": processing.status_opportunities,
                 "events": processing.events,
                 "briefs": processing.briefs,
+                "statusmatch_monitoring": asdict(monitoring),
             }
         except Exception as exc:
             global_error = _safe_error(exc)
@@ -214,6 +245,7 @@ def run_daily_cycle(
                 "succeeded": 0,
                 "failed": 1,
                 "error": global_error,
+                "statusmatch_monitoring": asdict(monitoring),
             }
 
         with session_factory.begin() as session:
@@ -222,7 +254,7 @@ def run_daily_cycle(
             backlog = pending_document_count(
                 session,
                 budgeted,
-                source_ids=selected_source_ids,
+                source_ids=processing_source_ids,
             )
             needs_review = int(
                 session.scalar(
@@ -241,7 +273,10 @@ def run_daily_cycle(
             processing_failures = int(processing_payload.get("failed", 0))
             run.status = (
                 RunStatus.SUCCEEDED
-                if not source_failures and not processing_failures and not global_error
+                if not source_failures
+                and not processing_failures
+                and not global_error
+                and not monitoring.errors
                 else RunStatus.FAILED
             )
             run.source_results = [asdict(item) for item in source_summaries]
@@ -281,6 +316,11 @@ def run_daily_cycle(
         lifecycle_scanned=lifecycle_payload["scanned"],
         lifecycle_updated=lifecycle_payload["updated"],
         lifecycle_expired=lifecycle_payload["expired"],
+        statusmatch_projects_checked=monitoring.projects_checked,
+        statusmatch_pages_checked=monitoring.pages_checked,
+        statusmatch_pages_changed=monitoring.pages_changed,
+        statusmatch_projects_archived=monitoring.projects_archived,
+        statusmatch_errors=monitoring.errors,
         backlog_count=backlog,
         needs_review_count=needs_review,
     )
@@ -639,6 +679,11 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         lifecycle_scanned=0,
         lifecycle_updated=0,
         lifecycle_expired=0,
+        statusmatch_projects_checked=0,
+        statusmatch_pages_checked=0,
+        statusmatch_pages_changed=0,
+        statusmatch_projects_archived=0,
+        statusmatch_errors=(),
         backlog_count=0,
         needs_review_count=0,
     )

@@ -14,6 +14,7 @@ from journeyplus.models import (
     EventRevision,
     StatusEvent,
 )
+from journeyplus.statusmatch.watchlist import associate_watch_event
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +147,11 @@ class EventAggregator:
             self._session.add(revision)
         if relationship_run is not None:
             relationship_run.event_id = event.id
+        associate_watch_event(
+            self._session,
+            document=document,
+            event=event,
+        )
         self._session.flush()
         return AggregationResult(event, created, needs_review)
 

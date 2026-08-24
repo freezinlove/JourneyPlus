@@ -4,7 +4,6 @@ import base64
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any, Protocol
-from urllib.parse import urlsplit
 
 import httpx
 
@@ -12,9 +11,9 @@ from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.sources.base import Fetcher, HttpxFetcher
 from journeyplus.sources.statusmatch_links import (
     extract_statusmatch_project_links,
-    is_project_statusmatch_host,
-    statusmatch_project_page_urls,
 )
+from journeyplus.statusmatch.watchlist import statusmatch_page_item
+from journeyplus.statusmatch.fetching import fetch_statusmatch_page
 
 
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
@@ -78,6 +77,19 @@ class GmailStatusServicesAdapter:
         self._project_fetcher = project_fetcher or HttpxFetcher()
         self._message_cache: dict[str, dict[str, Any]] = {}
         self._label_id: str | None = None
+        self._successful_message_ids: set[str] = set()
+        self._watched_hosts: set[str] = set()
+
+    def configure_incremental_discovery(
+        self,
+        *,
+        successful_message_ids: set[str],
+        watched_hosts: set[str],
+    ) -> None:
+        self._successful_message_ids = set(successful_message_ids)
+        self._watched_hosts = {
+            host.casefold().rstrip(".") for host in watched_hosts
+        }
 
     def discover(self) -> list[DiscoveredItem]:
         label_id = self._resolve_label_id()
@@ -85,6 +97,8 @@ class GmailStatusServicesAdapter:
         projects: dict[str, set[str]] = {}
         for reference in self._client.list_messages(label_id=label_id, query=QUERY):
             message_id = str(reference["id"])
+            if message_id in self._successful_message_ids:
+                continue
             message = self._client.get_message(message_id)
             headers = _headers(message)
             label_ids = set(message.get("labelIds", []))
@@ -125,21 +139,26 @@ class GmailStatusServicesAdapter:
                 )
             )
         for host, labels in sorted(projects.items()):
-            for page_kind, url in statusmatch_project_page_urls(host):
+            if host in self._watched_hosts:
+                continue
+            for page_kind, url in (
+                ("activity", f"https://{host}/"),
+                ("faq", f"https://{host}/faq"),
+            ):
+                item = statusmatch_page_item(
+                    host=host,
+                    page_kind=page_kind,
+                    canonical_url=url,
+                    refresh=True,
+                )
                 results.append(
-                    DiscoveredItem(
-                        source_id=self.source_id,
-                        external_id=f"statusmatch-page:{host}:{page_kind}",
-                        discovered_url=url,
-                        canonical_url=url,
-                        title=f"{host} StatusMatch {page_kind}",
-                        raw_metadata={
-                            "document_role": "linked_statusmatch_page",
-                            "page_kind": page_kind,
-                            "project_host": host,
-                            "link_labels": sorted(labels),
-                            "refresh_on_discovery": True,
-                        },
+                    item.model_copy(
+                        update={
+                            "raw_metadata": {
+                                **item.raw_metadata,
+                                "link_labels": sorted(labels),
+                            }
+                        }
                     )
                 )
         return results
@@ -171,39 +190,7 @@ class GmailStatusServicesAdapter:
         )
 
     def _fetch_statusmatch_page(self, item: DiscoveredItem) -> RawDocument:
-        requested = urlsplit(item.canonical_url)
-        requested_host = (requested.hostname or "").casefold()
-        if not is_project_statusmatch_host(requested_host):
-            raise PermissionError("Linked page is outside project StatusMatch hosts")
-        response = self._project_fetcher.get(item.canonical_url)
-        final = urlsplit(response.final_url)
-        final_host = (final.hostname or "").casefold()
-        if (
-            final.scheme.casefold() != "https"
-            or final_host != requested_host
-            or not is_project_statusmatch_host(final_host)
-        ):
-            raise PermissionError("StatusMatch page redirected outside its project host")
-        if "html" not in response.content_type.casefold():
-            raise ValueError("StatusMatch page did not return HTML")
-        if len(response.body.encode("utf-8")) > 2_000_000:
-            raise ValueError("StatusMatch page exceeded the 2 MB safety limit")
-        return RawDocument(
-            source_id=self.source_id,
-            external_id=item.external_id,
-            canonical_url=item.canonical_url,
-            body=response.body,
-            content_type=response.content_type,
-            storage_mode="permitted_snapshot",
-            metadata={
-                "content_strategy": "statusmatch_page",
-                "document_role": "linked_statusmatch_page",
-                "page_kind": item.raw_metadata.get("page_kind"),
-                "project_host": requested_host,
-                "final_url": response.final_url,
-                "title": item.title,
-            },
-        )
+        return fetch_statusmatch_page(item, self._project_fetcher)
 
     def _resolve_label_id(self) -> str:
         if self._label_id:

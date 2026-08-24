@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
-from journeyplus.content.cleaner import lightly_clean
+from journeyplus.content.cleaner import PARSER_VERSION, lightly_clean
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.models import DocumentVersion, SourceItem
 
@@ -48,14 +49,14 @@ class IngestionService:
                 published_at=item.published_at,
                 observed_at=item.observed_at,
                 discovery_fingerprint=item.discovery_fingerprint,
-                raw_metadata=item.raw_metadata,
+                raw_metadata={**item.raw_metadata, **raw.metadata},
             )
             self._session.add(source_item)
             self._session.flush()
         else:
             source_item.title = item.title or source_item.title
             source_item.observed_at = item.observed_at
-            source_item.raw_metadata = item.raw_metadata
+            source_item.raw_metadata = {**item.raw_metadata, **raw.metadata}
             source_item.discovery_fingerprint = item.discovery_fingerprint
 
         cleaned = lightly_clean(raw)
@@ -111,6 +112,58 @@ class IngestionService:
             .order_by(DocumentVersion.created_at.desc(), DocumentVersion.id.desc())
             .limit(1)
         )
+
+    def reparse_outdated_snapshots(
+        self,
+        *,
+        source_id: str,
+    ) -> list[IngestionResult]:
+        latest = aliased(DocumentVersion)
+        latest_document_id = (
+            select(latest.id)
+            .where(latest.source_item_id == SourceItem.id)
+            .order_by(latest.created_at.desc(), latest.id.desc())
+            .limit(1)
+            .correlate(SourceItem)
+            .scalar_subquery()
+        )
+        rows = list(
+            self._session.execute(
+                select(SourceItem, DocumentVersion)
+                .join(DocumentVersion, DocumentVersion.id == latest_document_id)
+                .where(
+                    SourceItem.source_id == source_id,
+                    DocumentVersion.parser_version != PARSER_VERSION,
+                    DocumentVersion.raw_body.is_not(None),
+                )
+            )
+        )
+        results: list[IngestionResult] = []
+        for source_item, document in rows:
+            item = DiscoveredItem(
+                source_id=source_item.source_id,
+                external_id=source_item.external_id,
+                discovered_url=source_item.discovered_url,
+                canonical_url=source_item.canonical_url,
+                title=source_item.title,
+                published_at=source_item.published_at,
+                observed_at=datetime.now(UTC),
+                discovery_fingerprint=source_item.discovery_fingerprint,
+                raw_metadata=source_item.raw_metadata or {},
+            )
+            raw = RawDocument(
+                source_id=source_item.source_id,
+                external_id=source_item.external_id,
+                canonical_url=document.canonical_url,
+                body=document.raw_body or "",
+                content_type=document.content_type,
+                storage_mode=document.storage_mode,
+                metadata=source_item.raw_metadata or {},
+            )
+            result = self.ingest(item, raw)
+            if result.new_version:
+                results.append(result)
+        return results
 
     def _find_item(self, item: DiscoveredItem) -> SourceItem | None:
         by_id = self._session.scalar(

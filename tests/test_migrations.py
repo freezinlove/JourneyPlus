@@ -4,7 +4,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 
 
 def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) -> None:
@@ -33,6 +33,8 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "automation_runs",
         "source_automation_states",
         "initialization_runs",
+        "statusmatch_watches",
+        "statusmatch_watch_pages",
     } <= tables
 
 
@@ -185,4 +187,98 @@ def test_document_parser_version_constraint_round_trips_on_sqlite(
         for constraint in inspect(engine).get_unique_constraints("document_versions")
     }
     assert ("source_item_id", "raw_hash") in downgraded
+    engine.dispose()
+
+
+def test_statusmatch_monitoring_migration_backfills_complete_page_pairs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'statusmatch-watch.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    command.upgrade(config, "0005_document_parser_versions")
+    engine = create_engine(database_url)
+    now = "2026-08-24 00:00:00+00:00"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO sources
+                    (id, name, adapter_type, discovery_config, access_policy,
+                     collection_cadence, automatic_scheduling, enabled,
+                     created_at, updated_at)
+                VALUES
+                    ('status_services_mail', 'StatusMatch Mail', 'gmail', '{}', '{}',
+                     'P1D', 0, 1, :now, :now)
+                """
+            ),
+            {"now": now},
+        )
+        for index, kind in enumerate(("activity", "faq"), start=1):
+            item_id = f"{index:032x}"
+            document_id = f"{index + 10:032x}"
+            url = (
+                "https://example.statusmatch.com/"
+                if kind == "activity"
+                else "https://example.statusmatch.com/faq"
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO source_items
+                        (id, source_id, external_id, discovered_url, canonical_url,
+                         title, published_at, observed_at, discovery_fingerprint,
+                         raw_metadata, created_at, updated_at)
+                    VALUES
+                        (:id, 'status_services_mail', :external_id, :url, :url,
+                         '', NULL, :now, NULL, '{}', :now, :now)
+                    """
+                ),
+                {
+                    "id": item_id,
+                    "external_id": (
+                        f"statusmatch-page:example.statusmatch.com:{kind}"
+                    ),
+                    "url": url,
+                    "now": now,
+                },
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO document_versions
+                        (id, source_item_id, canonical_url, raw_body, normalized_body,
+                         content_type, storage_mode, raw_hash, normalized_hash,
+                         parser_version, fetched_at, duplicate_of_id,
+                         created_at, updated_at)
+                    VALUES
+                        (:id, :source_item_id, :url, '<html></html>', 'body',
+                         'text/html', 'test', :raw_hash, :normalized_hash,
+                         'test', :now, NULL, :now, :now)
+                    """
+                ),
+                {
+                    "id": document_id,
+                    "source_item_id": item_id,
+                    "url": url,
+                    "raw_hash": f"{index:064x}",
+                    "normalized_hash": f"{index + 10:064x}",
+                    "now": now,
+                },
+            )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        assert connection.scalar(text("SELECT count(*) FROM statusmatch_watches")) == 1
+        assert connection.scalar(
+            text("SELECT count(*) FROM statusmatch_watch_pages")
+        ) == 2
+        assert connection.scalar(
+            text(
+                "SELECT count(*) FROM statusmatch_watch_pages "
+                "WHERE current_document_version_id IS NOT NULL"
+            )
+        ) == 2
     engine.dispose()

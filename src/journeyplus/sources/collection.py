@@ -11,6 +11,15 @@ from journeyplus.content.service import IngestionService
 from journeyplus.contracts import RunStatus
 from journeyplus.models import CollectionRun, Source
 from journeyplus.sources.base import SourceAdapter
+from journeyplus.statusmatch.service import finalize_statusmatch_watch
+from journeyplus.statusmatch.watchlist import (
+    ensure_statusmatch_watch,
+    record_statusmatch_page_error,
+    record_statusmatch_page_result,
+    statusmatch_page_identity,
+    successful_gmail_message_ids,
+    watched_statusmatch_hosts,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,6 +69,14 @@ def collect_manual(
     run.started_at = datetime.now(UTC)
     session.flush()
     try:
+        configure_incremental = getattr(
+            adapter, "configure_incremental_discovery", None
+        )
+        if callable(configure_incremental):
+            configure_incremental(
+                successful_message_ids=successful_gmail_message_ids(session),
+                watched_hosts=watched_statusmatch_hosts(session),
+            )
         discovered_items = adapter.discover()
         items = (
             discovered_items[:max_items]
@@ -67,18 +84,49 @@ def collect_manual(
             else discovered_items
         )
         ingestion = IngestionService(session)
-        document_version_ids: list[str] = []
-        current_document_version_ids: list[str] = []
+        reparsed = ingestion.reparse_outdated_snapshots(
+            source_id=adapter.source_id
+        )
+        document_version_ids: list[str] = [
+            str(result.document_version.id) for result in reparsed
+        ]
+        current_document_version_ids: list[str] = [
+            str(result.document_version.id) for result in reparsed
+        ]
+        touched_statusmatch_hosts: set[str] = set()
         for item in items:
-            if not ingestion.should_fetch(item):
-                current = ingestion.current_document(item)
-                if current is not None:
-                    current_document_version_ids.append(str(current.id))
+            managed_page = item.raw_metadata.get("managed_statusmatch_snapshot") is True
+            if managed_page:
+                host, _ = statusmatch_page_identity(item)
+                ensure_statusmatch_watch(session, host)
+                touched_statusmatch_hosts.add(host)
+            try:
+                if not ingestion.should_fetch(item):
+                    current = ingestion.current_document(item)
+                    if current is not None:
+                        current_document_version_ids.append(str(current.id))
+                    continue
+                result = ingestion.ingest(item, adapter.fetch(item))
+            except Exception as exc:
+                if not managed_page:
+                    raise
+                record_statusmatch_page_error(
+                    session,
+                    item=item,
+                    error=exc,
+                )
                 continue
-            result = ingestion.ingest(item, adapter.fetch(item))
+            if managed_page:
+                record_statusmatch_page_result(
+                    session,
+                    item=item,
+                    result=result,
+                )
             current_document_version_ids.append(str(result.document_version.id))
             if result.new_version:
                 document_version_ids.append(str(result.document_version.id))
+        for host in sorted(touched_statusmatch_hosts):
+            finalize_statusmatch_watch(session, host)
         run.status = RunStatus.SUCCEEDED
         run.discovered_count = len(discovered_items)
         run.document_count = len(document_version_ids)

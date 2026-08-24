@@ -24,6 +24,7 @@ from journeyplus.models import (
     SourceAutomationState,
     SourceItem,
     StatusEvent,
+    StatusMatchWatch,
 )
 
 
@@ -77,8 +78,10 @@ def reset_membership_derived_data(
                 DocumentVersion,
                 CollectionRun,
                 GoldCaseRecord,
+                StatusMatchWatch,
             )
         }
+        session.execute(update(StatusMatchWatch).values(current_event_id=None))
         session.execute(update(StatusEvent).values(merged_into_id=None))
         deleted: dict[str, int] = {}
         for model in (
