@@ -10,6 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
+from journeyplus.article_operations import (
+    pending_article_documents,
+    process_pending_articles,
+)
 from journeyplus.automation.service import (
     AutomationLimits,
     BudgetedAIProvider,
@@ -24,7 +28,6 @@ from journeyplus.models import (
     InitializationRun,
     SourceItem,
 )
-from journeyplus.operations import pending_document_count, process_pending_documents
 from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
 from journeyplus.sources.collection import CollectionSummary, collect_manual
 from journeyplus.sources.feed import FeedAdapter
@@ -50,11 +53,7 @@ from journeyplus.statusmatch.articles import (
 
 MAIL_SOURCE_ID = "status_services_mail"
 PUBLIC_FEED_SOURCE_IDS = (
-    "ffb_elite_status_feed",
-    "awardwallet_elite_status_feed",
     "loyaltylobby_feed",
-    "frequentmiler_elite_status_feed",
-    "verylvke_feed",
 )
 INITIALIZATION_START = date(2026, 7, 15)
 INITIALIZATION_END = date(2026, 8, 22)
@@ -316,21 +315,13 @@ def _run_initialization(
                 "failed": 0,
                 "stopped_early": False,
                 "status_opportunities": 0,
-                "events": 0,
+                "opportunities": 0,
                 "briefs": 0,
             }
-            if generic_limit > 0:
-                processing = process_pending_documents(
+            if generic_limit > 0 and batch_type == "PUBLIC_WINDOW":
+                processing = process_pending_articles(
                     session_factory,
                     budgeted,
-                    source_id=(
-                        MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None
-                    ),
-                    source_ids=(
-                        list(source_ids)
-                        if batch_type == "PUBLIC_WINDOW"
-                        else None
-                    ),
                     document_ids=current_document_ids,
                     published_from=published_from,
                     published_until=published_until,
@@ -361,7 +352,7 @@ def _run_initialization(
                 ),
                 "stopped_early": generic_payload["stopped_early"],
                 "status_opportunities": generic_payload["status_opportunities"],
-                "events": generic_payload["events"],
+                "opportunities": generic_payload["opportunities"],
                 "briefs": generic_payload["briefs"],
                 "statusmatch_projects": asdict(project_processing),
                 "statusmatch_article_discovery": asdict(article_discovery),
@@ -376,14 +367,19 @@ def _run_initialization(
 
         with session_factory.begin() as session:
             published_from, published_until = _window_bounds(start, end)
-            backlog = pending_document_count(
-                session,
-                budgeted,
-                source_id=MAIL_SOURCE_ID if batch_type == "MAIL_DETAILS" else None,
-                source_ids=list(source_ids) if batch_type == "PUBLIC_WINDOW" else None,
-                document_ids=current_document_ids,
-                published_from=published_from,
-                published_until=published_until,
+            backlog = (
+                len(
+                    pending_article_documents(
+                        session,
+                        budgeted,
+                        document_ids=current_document_ids,
+                        published_from=published_from,
+                        published_until=published_until,
+                        limit=None,
+                    )
+                )
+                if batch_type == "PUBLIC_WINDOW"
+                else 0
             )
             if batch_type == "MAIL_DETAILS":
                 backlog += pending_statusmatch_project_count(

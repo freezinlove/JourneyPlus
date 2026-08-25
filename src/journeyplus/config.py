@@ -26,6 +26,8 @@ class Settings:
     automation_document_limit: int = 20
     automation_model_call_limit: int = 100
     automation_lease_seconds: int = 3600
+    generic_article_pipeline: str = "v2"
+    generic_title_drop_enabled: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -64,6 +66,12 @@ class Settings:
             automation_lease_seconds=_positive_env_int(
                 "JOURNEYPLUS_AUTOMATION_LEASE_SECONDS", 3600
             ),
+            generic_article_pipeline=_choice_env(
+                "JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE", "v2", {"v1", "v2"}
+            ),
+            generic_title_drop_enabled=_boolean_env(
+                "JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED", True
+            ),
         )
 
     def require_ai(self) -> "Settings":
@@ -97,3 +105,22 @@ def _positive_env_int(name: str, default: int) -> int:
     if value < 1:
         raise ValueError(f"{name} must be a positive integer")
     return value
+
+
+def _choice_env(name: str, default: str, choices: set[str]) -> str:
+    value = os.getenv(name, default).strip().casefold()
+    if value not in choices:
+        raise ValueError(f"{name} must be one of {sorted(choices)}")
+    return value
+
+
+def _boolean_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().casefold()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be a boolean")

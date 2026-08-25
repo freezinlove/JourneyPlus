@@ -437,11 +437,11 @@ def test_public_initialization_routes_linked_article_before_generic_documents(
 
     assert summary.status == "AWAITING_AUDIT"
     assert summary.backlog_count == 0
-    assert summary.documents_selected == 6
+    assert summary.documents_selected == 2
     assert provider.calls.count("StatusMatchProjectExtraction") == 1
     assert provider.calls.count("Brief") == 1
     assert provider.calls.count("StatusMatchArticleExtraction") == 1
-    assert provider.calls.count("RelevanceResult") == 4
+    assert provider.calls.count("RelevanceResult") == 0
     with session_factory() as session:
         route = session.scalar(select(StatusMatchArticleRoute))
         assert route is not None and route.project_host == host

@@ -200,13 +200,15 @@ def test_document_limit_leaves_visible_backlog(session_factory) -> None:
     assert result.documents_selected == 1
     assert result.backlog_count == 1
     status = automation_status(session_factory, provider)
-    assert status.backlog_count == 1
+    # Explicit legacy-source runs remain available for rollback, but the automatic
+    # backlog only reports currently opened LoyaltyLobby V2 work.
+    assert status.backlog_count == 0
     source = next(
         item for item in status.sources if item.source_id == "ffb_elite_status_feed"
     )
     assert source.collection_cadence == "P1D"
     assert not source.automatic_scheduling
-    assert source.pending_document_count == 1
+    assert source.pending_document_count == 0
 
 
 def test_daily_cycle_only_processes_selected_sources(session_factory) -> None:
@@ -231,13 +233,13 @@ def test_daily_cycle_only_processes_selected_sources(session_factory) -> None:
     assert result.backlog_count == 0
     assert len(provider.calls) == 1
     status = automation_status(session_factory, provider)
-    assert status.backlog_count == 1
+    assert status.backlog_count == 0
     awardwallet = next(
         item
         for item in status.sources
         if item.source_id == "awardwallet_elite_status_feed"
     )
-    assert awardwallet.pending_document_count == 1
+    assert awardwallet.pending_document_count == 0
 
 
 def test_automation_status_excludes_retired_source_backlog(session_factory) -> None:

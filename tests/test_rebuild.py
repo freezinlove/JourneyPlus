@@ -30,6 +30,8 @@ from journeyplus.statusmatch.watchlist import ensure_statusmatch_watch
 def _seed_raw_and_derived(session_factory) -> None:
     with session_factory.begin() as session:
         seed_sources(session)
+        for source in session.scalars(select(Source)):
+            source.automatic_scheduling = False
         session.add(
             Source(
                 id="ffb_status_match_catalog",

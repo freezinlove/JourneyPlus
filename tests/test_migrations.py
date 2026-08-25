@@ -45,6 +45,9 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "statusmatch_change_sets",
         "statusmatch_article_routes",
         "statusmatch_article_supplements",
+        "article_analyses",
+        "article_opportunities",
+        "article_briefs",
     } <= tables
 
 
@@ -77,6 +80,46 @@ def test_opportunity_type_migration_round_trips_on_sqlite(
     engine = create_engine(database_url)
     assert "opportunity_type" not in {
         column["name"] for column in inspect(engine).get_columns("status_events")
+    }
+    engine.dispose()
+
+
+def test_generic_article_v2_migration_round_trips_without_removing_v1_tables(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'article-v2.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0009_statusmatch_articles")
+    engine = create_engine(database_url)
+    before = set(inspect(engine).get_table_names())
+    assert "status_events" in before
+    assert "article_analyses" not in before
+    assert "mapping_claims" not in {
+        column["name"]
+        for column in inspect(engine).get_columns("statusmatch_article_supplements")
+    }
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    at_head = set(inspect(engine).get_table_names())
+    assert {"article_analyses", "article_opportunities", "article_briefs"} <= at_head
+    assert before <= at_head
+    assert "mapping_claims" in {
+        column["name"]
+        for column in inspect(engine).get_columns("statusmatch_article_supplements")
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0009_statusmatch_articles")
+    engine = create_engine(database_url)
+    after = set(inspect(engine).get_table_names())
+    assert before == after
+    assert "mapping_claims" not in {
+        column["name"]
+        for column in inspect(engine).get_columns("statusmatch_article_supplements")
     }
     engine.dispose()
 

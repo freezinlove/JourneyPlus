@@ -15,16 +15,24 @@ EXPECTED_IDS = {
 }
 
 
-def test_registry_has_exactly_six_daily_sources_with_scheduling_off(db_session) -> None:
+def test_registry_keeps_six_sources_but_only_opens_loyaltylobby_and_mail(db_session) -> None:
     assert {item.source_id for item in SOURCE_REGISTRY} == EXPECTED_IDS
     assert all(item.collection_cadence == "P1D" for item in SOURCE_REGISTRY)
-    assert all(not item.automatic_scheduling for item in SOURCE_REGISTRY)
-    assert all(item.enabled for item in SOURCE_REGISTRY)
+    assert {
+        item.source_id for item in SOURCE_REGISTRY if item.automatic_scheduling
+    } == {"loyaltylobby_feed", "status_services_mail"}
+    assert {item.source_id for item in SOURCE_REGISTRY if item.enabled} == {
+        "loyaltylobby_feed",
+        "status_services_mail",
+    }
 
     first = seed_sources(db_session)
     second = seed_sources(db_session)
     assert len(first) == len(second) == 6
-    assert automatically_scheduled_source_ids(db_session) == []
+    assert automatically_scheduled_source_ids(db_session) == [
+        "status_services_mail",
+        "loyaltylobby_feed",
+    ]
 
 
 def test_seeding_disables_a_retired_statusmatcher_record_without_deleting_it(

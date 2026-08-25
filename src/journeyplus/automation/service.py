@@ -11,6 +11,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
+from journeyplus.article_operations import (
+    GENERIC_PUBLIC_SOURCE_ID,
+    pending_article_count,
+    process_pending_articles,
+)
+from journeyplus.article_pipeline.lifecycle import advance_article_lifecycles
 from journeyplus.contracts import RunStatus
 from journeyplus.lifecycle.service import BEIJING_TZ, advance_lifecycles
 from journeyplus.models import (
@@ -18,6 +24,8 @@ from journeyplus.models import (
     AutomationRun,
     CollectionRun,
     JobRun,
+    ArticleAnalysisRecord,
+    DocumentVersion,
     Source,
     SourceAutomationState,
     StatusEvent,
@@ -96,6 +104,9 @@ class DailyCycleSummary:
     documents_succeeded: int
     documents_failed: int
     model_calls: int
+    generic_title_model_calls: int
+    generic_interpretation_model_calls: int
+    generic_brief_model_calls: int
     lifecycle_scanned: int
     lifecycle_updated: int
     lifecycle_expired: int
@@ -145,6 +156,12 @@ class AutomationStatusSummary:
     last_run_id: str | None
     last_run_day: str | None
     last_run_status: str | None
+    last_model_calls: int
+    last_generic_title_model_calls: int
+    last_generic_interpretation_model_calls: int
+    last_generic_brief_model_calls: int
+    last_statusmatch_project_model_calls: int
+    last_statusmatch_article_model_calls: int
     backlog_count: int
     failed_job_count: int
     needs_review_count: int
@@ -184,7 +201,11 @@ def run_daily_cycle(
     lease_duration: timedelta = timedelta(hours=1),
     owner_id: str | None = None,
     statusmatch_fetcher: Fetcher | None = None,
+    generic_pipeline_mode: str = "v2",
+    generic_title_drop_enabled: bool = True,
 ) -> DailyCycleSummary:
+    if generic_pipeline_mode not in {"v1", "v2"}:
+        raise ValueError("generic_pipeline_mode must be v1 or v2")
     resolved_limits = limits or AutomationLimits()
     current = _as_utc(now or datetime.now(UTC))
     day_bucket = current.astimezone(BEIJING_TZ).date()
@@ -294,20 +315,65 @@ def run_daily_cycle(
                     errors=(_safe_error(exc),),
                 )
 
-        processing_source_ids = list(selected_source_ids)
         generic_limit = max(
             remaining_after_projects - article_processing.attempted,
             0,
         )
         try:
-            if generic_limit:
-                processing = process_pending_documents(
+            if (
+                generic_limit
+                and GENERIC_PUBLIC_SOURCE_ID in selected_source_ids
+                and generic_pipeline_mode == "v2"
+            ):
+                processing = process_pending_articles(
                     session_factory,
                     budgeted,
-                    source_ids=processing_source_ids,
                     limit=generic_limit,
+                    title_drop_enabled=generic_title_drop_enabled,
                 )
                 generic_payload = asdict(processing)
+            elif generic_limit:
+                legacy_source_ids = [
+                    source_id
+                    for source_id in selected_source_ids
+                    if source_id != "status_services_mail"
+                ]
+                if legacy_source_ids:
+                    processing = process_pending_documents(
+                        session_factory,
+                        budgeted,
+                        source_ids=legacy_source_ids,
+                        limit=generic_limit,
+                    )
+                    legacy_payload = asdict(processing)
+                    generic_payload = {
+                        **legacy_payload,
+                        "title_dropped": 0,
+                        "body_processed": legacy_payload["attempted"],
+                        "opportunities": legacy_payload["events"],
+                        "model_calls": 0,
+                        "title_model_calls": 0,
+                        "interpretation_model_calls": 0,
+                        "brief_model_calls": 0,
+                    }
+                else:
+                    generic_payload = {
+                        "selected": 0,
+                        "attempted": 0,
+                        "succeeded": 0,
+                        "failed": 0,
+                        "stopped_early": False,
+                        "status_opportunities": 0,
+                        "title_dropped": 0,
+                        "body_processed": 0,
+                        "opportunities": 0,
+                        "briefs": 0,
+                        "model_calls": 0,
+                        "title_model_calls": 0,
+                        "interpretation_model_calls": 0,
+                        "brief_model_calls": 0,
+                        "documents": (),
+                    }
             else:
                 generic_payload = {
                     "selected": 0,
@@ -316,8 +382,15 @@ def run_daily_cycle(
                     "failed": 0,
                     "stopped_early": False,
                     "status_opportunities": 0,
-                    "events": 0,
+                    "title_dropped": 0,
+                    "body_processed": 0,
+                    "opportunities": 0,
                     "briefs": 0,
+                    "model_calls": 0,
+                    "title_model_calls": 0,
+                    "interpretation_model_calls": 0,
+                    "brief_model_calls": 0,
+                    "documents": (),
                 }
             processing_payload = {
                 "selected": generic_payload["selected"],
@@ -326,8 +399,15 @@ def run_daily_cycle(
                 "failed": generic_payload["failed"],
                 "stopped_early": generic_payload["stopped_early"],
                 "status_opportunities": generic_payload["status_opportunities"],
-                "events": generic_payload["events"],
+                "opportunities": generic_payload["opportunities"],
                 "briefs": generic_payload["briefs"],
+                "generic_model_calls": {
+                    "title_batches": generic_payload["title_model_calls"],
+                    "article_interpretation": generic_payload[
+                        "interpretation_model_calls"
+                    ],
+                    "article_briefs": generic_payload["brief_model_calls"],
+                },
                 "statusmatch_monitoring": asdict(monitoring),
                 "statusmatch_article_discovery": asdict(article_discovery),
                 "statusmatch_article_preparation": asdict(article_preparation),
@@ -351,12 +431,36 @@ def run_daily_cycle(
 
         with session_factory.begin() as session:
             lifecycle = advance_lifecycles(session, now=current)
-            lifecycle_payload = asdict(lifecycle)
-            backlog = pending_document_count(
-                session,
-                budgeted,
-                source_ids=processing_source_ids,
+            article_lifecycle = advance_article_lifecycles(session, now=current)
+            lifecycle_payload = {
+                "scanned": lifecycle.scanned + article_lifecycle.scanned,
+                "updated": lifecycle.updated + article_lifecycle.updated,
+                "expired": lifecycle.expired + article_lifecycle.expired,
+                "status_events": asdict(lifecycle),
+                "article_opportunities": asdict(article_lifecycle),
+            }
+            backlog = (
+                pending_article_count(
+                    session,
+                    budgeted,
+                    title_drop_enabled=generic_title_drop_enabled,
+                )
+                if generic_pipeline_mode == "v2"
+                else 0
             )
+            legacy_source_ids = [
+                source_id
+                for source_id in selected_source_ids
+                if source_id != "status_services_mail"
+                and (
+                    source_id != GENERIC_PUBLIC_SOURCE_ID
+                    or generic_pipeline_mode == "v1"
+                )
+            ]
+            if legacy_source_ids:
+                backlog += pending_document_count(
+                    session, budgeted, source_ids=legacy_source_ids
+                )
             backlog += pending_statusmatch_article_count(session, budgeted)
             needs_review = int(
                 session.scalar(
@@ -366,7 +470,12 @@ def run_daily_cycle(
                 )
                 or 0
             )
-            _refresh_pending_states(session, budgeted)
+            needs_review += _current_article_needs_review_count(session)
+            _refresh_pending_states(
+                session,
+                budgeted,
+                generic_title_drop_enabled=generic_title_drop_enabled,
+            )
             run = session.get(AutomationRun, run.id)
             assert run is not None
             source_failures = sum(
@@ -408,6 +517,7 @@ def run_daily_cycle(
     finally:
         release_automation_lease(session_factory, owner_id=owner, now=current)
 
+    generic_model_calls = processing_payload.get("generic_model_calls", {})
     return DailyCycleSummary(
         run_id=run_id,
         day_bucket=day_bucket.isoformat(),
@@ -420,6 +530,13 @@ def run_daily_cycle(
         documents_succeeded=int(processing_payload.get("succeeded", 0)),
         documents_failed=int(processing_payload.get("failed", 0)),
         model_calls=budgeted.calls,
+        generic_title_model_calls=int(generic_model_calls.get("title_batches", 0)),
+        generic_interpretation_model_calls=int(
+            generic_model_calls.get("article_interpretation", 0)
+        ),
+        generic_brief_model_calls=int(
+            generic_model_calls.get("article_briefs", 0)
+        ),
         lifecycle_scanned=lifecycle_payload["scanned"],
         lifecycle_updated=lifecycle_payload["updated"],
         lifecycle_expired=lifecycle_payload["expired"],
@@ -457,10 +574,17 @@ def run_daily_cycle(
 def automation_status(
     session_factory: sessionmaker[Session],
     provider: AIProvider,
+    *,
+    generic_title_drop_enabled: bool = True,
 ) -> AutomationStatusSummary:
     with session_factory.begin() as session:
         sources = seed_sources(session)
         _ensure_source_states(session, [source.id for source in sources])
+        _refresh_pending_states(
+            session,
+            provider,
+            generic_title_drop_enabled=generic_title_drop_enabled,
+        )
         lease = session.get(AutomationLease, LEASE_NAME)
         last_run = session.scalar(
             select(AutomationRun).order_by(AutomationRun.created_at.desc()).limit(1)
@@ -469,10 +593,10 @@ def automation_status(
             state.source_id: state
             for state in session.scalars(select(SourceAutomationState))
         }
-        backlog = pending_document_count(
+        backlog = pending_article_count(
             session,
             provider,
-            source_ids=[source.id for source in sources if source.enabled],
+            title_drop_enabled=generic_title_drop_enabled,
         )
         backlog += pending_statusmatch_article_count(session, provider)
         failed_jobs = int(
@@ -491,8 +615,17 @@ def automation_status(
             )
             or 0
         )
+        needs_review += _current_article_needs_review_count(session)
         source_results = tuple(
             _source_status(source, states[source.id]) for source in sources
+        )
+        processing = last_run.processing_result if last_run else {}
+        generic_calls = processing.get("generic_model_calls", {})
+        statusmatch_projects = processing.get(
+            "statusmatch_project_processing", {}
+        )
+        statusmatch_articles = processing.get(
+            "statusmatch_article_processing", {}
         )
         return AutomationStatusSummary(
             lease_owner=lease.owner_id if lease else None,
@@ -500,6 +633,22 @@ def automation_status(
             last_run_id=str(last_run.id) if last_run else None,
             last_run_day=last_run.day_bucket.isoformat() if last_run else None,
             last_run_status=last_run.status if last_run else None,
+            last_model_calls=last_run.model_calls if last_run else 0,
+            last_generic_title_model_calls=int(
+                generic_calls.get("title_batches", 0)
+            ),
+            last_generic_interpretation_model_calls=int(
+                generic_calls.get("article_interpretation", 0)
+            ),
+            last_generic_brief_model_calls=int(
+                generic_calls.get("article_briefs", 0)
+            ),
+            last_statusmatch_project_model_calls=int(
+                statusmatch_projects.get("model_calls", 0)
+            ),
+            last_statusmatch_article_model_calls=int(
+                statusmatch_articles.get("model_calls", 0)
+            ),
             backlog_count=backlog,
             failed_job_count=failed_jobs,
             needs_review_count=needs_review,
@@ -701,15 +850,78 @@ def _record_source_failure(
         state.last_new_document_count = 0
 
 
-def _refresh_pending_states(session: Session, provider: AIProvider) -> None:
+def _refresh_pending_states(
+    session: Session,
+    provider: AIProvider,
+    *,
+    generic_title_drop_enabled: bool,
+) -> None:
     source_ids = [item.source_id for item in SOURCE_REGISTRY]
     _ensure_source_states(session, source_ids)
     for source_id in source_ids:
         state = session.get(SourceAutomationState, source_id)
         assert state is not None
-        state.pending_document_count = pending_document_count(
-            session, provider, source_id=source_id
+        state.pending_document_count = (
+            pending_article_count(
+                session,
+                provider,
+                title_drop_enabled=generic_title_drop_enabled,
+            )
+            if source_id == GENERIC_PUBLIC_SOURCE_ID
+            else 0
         )
+
+
+def _current_article_needs_review_count(session: Session) -> int:
+    ranked_documents = (
+        select(
+            DocumentVersion.id.label("document_id"),
+            DocumentVersion.source_item_id.label("source_item_id"),
+            func.row_number()
+            .over(
+                partition_by=DocumentVersion.source_item_id,
+                order_by=(
+                    DocumentVersion.created_at.desc(),
+                    DocumentVersion.id.desc(),
+                ),
+            )
+            .label("document_rank"),
+        )
+        .subquery()
+    )
+    ranked_analyses = (
+        select(
+            ArticleAnalysisRecord.document_version_id.label("document_id"),
+            ArticleAnalysisRecord.status.label("status"),
+            func.row_number()
+            .over(
+                partition_by=ArticleAnalysisRecord.document_version_id,
+                order_by=(
+                    ArticleAnalysisRecord.created_at.desc(),
+                    ArticleAnalysisRecord.id.desc(),
+                ),
+            )
+            .label("analysis_rank"),
+        )
+        .subquery()
+    )
+    return int(
+        session.scalar(
+            select(func.count())
+            .select_from(ranked_documents)
+            .join(
+                ranked_analyses,
+                ranked_analyses.c.document_id
+                == ranked_documents.c.document_id,
+            )
+            .where(
+                ranked_documents.c.document_rank == 1,
+                ranked_analyses.c.analysis_rank == 1,
+                ranked_analyses.c.status == "NEEDS_REVIEW",
+            )
+        )
+        or 0
+    )
 
 
 def _source_state(session: Session, source_id: str) -> SourceAutomationState:
@@ -805,6 +1017,9 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         documents_succeeded=0,
         documents_failed=0,
         model_calls=0,
+        generic_title_model_calls=0,
+        generic_interpretation_model_calls=0,
+        generic_brief_model_calls=0,
         lifecycle_scanned=0,
         lifecycle_updated=0,
         lifecycle_expired=0,

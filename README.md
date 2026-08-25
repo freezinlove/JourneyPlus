@@ -1,6 +1,6 @@
 # JourneyPlus
 
-JourneyPlus 当前实现的是第一条纵向能力：从六组精选第三方来源发现“直接获得、升级或延长会籍”的机会，经轻量清洗、精确与语义去重、证据化事实整理后生成中文原创简报。
+JourneyPlus 当前实现的是第一条纵向能力：发现“直接获得、升级或延长会籍”的机会，经轻量清洗、证据化事实整理后生成中文原创简报。当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路，其他公开来源保留适配器和历史数据但关闭自动调度。
 
 第一版明确只处理会籍机会，文档标签只有 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`。一篇文档只有一个标签，但可包含多个会籍活动。第一版不处理买分、转分、积分票或积分房晚，项目不建设信用卡独立主题；信用卡只能作为会籍机会的资格条件出现。第一版也不包含个人资产、推荐、通知和自动报名。
 
@@ -11,9 +11,9 @@ uv sync --extra dev
 uv run alembic upgrade head
 uv run pytest
 uv run journeyplus seed-sources
-uv run journeyplus collect ffb_elite_status_feed --limit 1
-uv run journeyplus process-pending --source-id ffb_elite_status_feed --limit 1
-uv run journeyplus run-source ffb_elite_status_feed --limit 1
+uv run journeyplus collect loyaltylobby_feed --limit 10
+uv run journeyplus process-pending --source-id loyaltylobby_feed --limit 10
+uv run journeyplus run-source loyaltylobby_feed --limit 10
 uv run journeyplus run-daily
 uv run journeyplus automation-status
 uv run journeyplus initialize-mail-details
@@ -23,7 +23,7 @@ uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。六组来源都已配置 `P1D`（每天一次），但初始化逐批审核完成前 `automatic_scheduling` 保持关闭，因此不会自行运行来源任务，也尚未安装外部定时任务。
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前只有 LoyaltyLobby 通用来源和 StatusMatch 邮件专用来源启用每天一次的自动调度；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
 本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
 
@@ -33,7 +33,9 @@ uv run alembic upgrade head
 uv run journeyplus seed-sources
 ```
 
-`collect` 只负责采集与精确去重，`process-pending` 只处理数据库中的待分析文档，`run-source` 是依次调用两者的薄编排。`run-daily` 是供未来外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 显示租约、来源最后成功/失败、连续失败、积压、分析失败和待复核数量。当前自动标志关闭时，`run-daily` 不采集来源，但显式调用仍会处理既有积压并推进生命周期。
+`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用两者的薄编排。普通文章先批量只读标题，高置信度无关标题不读取正文；其余文章用一次正文调用完成最终分类、文档内机会拆分、事实和逐字证据提取，每个机会再以持久化事实生成一次简报。精确包含项目专属 `*.statusmatch.com` 链接的文章会在标题 AI 前转入 StatusMatch 第三方补充链路。当前不做跨文章候选召回、关系判断或合并。
+
+`run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目和第三方补充调用，便于发现调用预算回归。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 
 `initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日）；五个公开 Feed 会自动翻页直到覆盖窗口起点。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。
 
@@ -44,6 +46,8 @@ JOURNEYPLUS_AUTOMATION_SOURCE_ITEM_LIMIT=100
 JOURNEYPLUS_AUTOMATION_DOCUMENT_LIMIT=20
 JOURNEYPLUS_AUTOMATION_MODEL_CALL_LIMIT=100
 JOURNEYPLUS_AUTOMATION_LEASE_SECONDS=3600
+JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE=v2
+JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
 ```
 
 ## 配置
@@ -79,9 +83,9 @@ uv run journeyplus ai-smoke
 uv run python scripts/smoke_public_sources.py
 ```
 
-该命令只验证五个无需账号的公开来源是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail。
+该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；当前活动时效与自动化收尾契约位于 `openspec/changes/finish-status-opportunity-automation/`。
+第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；通用文章 V2 变更位于 `openspec/changes/simplify-generic-article-pipeline/`。
 
 ## 第一版已知限制
 

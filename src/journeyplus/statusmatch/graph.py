@@ -21,6 +21,12 @@ from journeyplus.models import (
     StatusEvent,
     StatusMatchWatch,
     StatusMatchWatchPage,
+    StatusMatchArticleSupplement,
+)
+from journeyplus.membership.contracts import (
+    MappingClaimStatus,
+    MembershipMappingClaim,
+    MembershipMappingLayer,
 )
 from journeyplus.statusmatch.graph_contracts import (
     AliasAmbiguity,
@@ -209,6 +215,44 @@ class MembershipGraphService:
 
     def build(self) -> GraphSnapshot:
         return self._build_state().snapshot
+
+    def candidate_mapping_layer(self) -> MembershipMappingLayer:
+        """Return non-official candidate/conflict claims without changing the main graph."""
+        return self._third_party_layer(
+            {MappingClaimStatus.CANDIDATE, MappingClaimStatus.CONFLICTING},
+            traversable=False,
+        )
+
+    def approved_mapping_layer(self) -> MembershipMappingLayer:
+        """Return the explicit, traversable approved third-party relation layer."""
+        return self._third_party_layer(
+            {MappingClaimStatus.APPROVED}, traversable=True
+        )
+
+    def _third_party_layer(
+        self,
+        statuses: set[MappingClaimStatus],
+        *,
+        traversable: bool,
+    ) -> MembershipMappingLayer:
+        claims: list[MembershipMappingClaim] = []
+        for supplement in self._session.scalars(
+            select(StatusMatchArticleSupplement).order_by(
+                StatusMatchArticleSupplement.created_at,
+                StatusMatchArticleSupplement.id,
+            )
+        ):
+            claims.extend(
+                claim
+                for raw in supplement.mapping_claims
+                if (claim := MembershipMappingClaim.model_validate(raw)).status
+                in statuses
+            )
+        return MembershipMappingLayer(
+            official=False,
+            traversable=traversable,
+            claims=claims,
+        )
 
     def tree(
         self,

@@ -19,6 +19,10 @@ from journeyplus.automation.initialization import (
     run_mail_detail_initialization,
     run_public_initialization_window,
 )
+from journeyplus.article_operations import (
+    GENERIC_PUBLIC_SOURCE_ID,
+    process_pending_articles,
+)
 from journeyplus.operations import process_pending_documents
 from journeyplus.review.api import create_review_app
 from journeyplus.sources.collection import collect_manual
@@ -253,12 +257,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
     if args.command == "process-pending":
+        if args.source_id not in {None, GENERIC_PUBLIC_SOURCE_ID}:
+            parser.error("通用 V2 链路当前只开放 loyaltylobby_feed")
         provider = OpenAICompatibleProvider(settings)
-        summary = process_pending_documents(
-            factory,
-            provider,
-            source_id=args.source_id,
-            limit=args.limit,
+        summary = (
+            process_pending_documents(
+                factory,
+                provider,
+                source_id=GENERIC_PUBLIC_SOURCE_ID,
+                limit=args.limit,
+            )
+            if settings.generic_article_pipeline == "v1"
+            else process_pending_articles(
+                factory,
+                provider,
+                limit=args.limit,
+                title_drop_enabled=settings.generic_title_drop_enabled,
+            )
         )
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0
@@ -284,6 +299,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             lease_duration=timedelta(
                 seconds=settings.automation_lease_seconds
             ),
+            generic_pipeline_mode=settings.generic_article_pipeline,
+            generic_title_drop_enabled=settings.generic_title_drop_enabled,
         )
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0
@@ -291,7 +308,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         provider = OpenAICompatibleProvider(settings)
         print(
             json.dumps(
-                asdict(automation_status(factory, provider)),
+                asdict(
+                    automation_status(
+                        factory,
+                        provider,
+                        generic_title_drop_enabled=(
+                            settings.generic_title_drop_enabled
+                        ),
+                    )
+                ),
                 ensure_ascii=False,
             )
         )
@@ -359,11 +384,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(asdict(collection), ensure_ascii=False))
         return 0
     assert provider is not None
-    processing = process_pending_documents(
-        factory,
-        provider,
-        source_id=args.source_id,
-        limit=args.limit,
+    if args.source_id != GENERIC_PUBLIC_SOURCE_ID:
+        parser.error("通用 V2 链路当前只开放 loyaltylobby_feed")
+    processing = (
+        process_pending_documents(
+            factory,
+            provider,
+            source_id=GENERIC_PUBLIC_SOURCE_ID,
+            limit=args.limit,
+        )
+        if settings.generic_article_pipeline == "v1"
+        else process_pending_articles(
+            factory,
+            provider,
+            limit=args.limit,
+            title_drop_enabled=settings.generic_title_drop_enabled,
+        )
     )
     print(
         json.dumps(

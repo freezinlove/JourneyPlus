@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.models import (
     AnalysisRun,
+    ArticleAnalysisRecord,
+    ArticleBriefRecord,
+    ArticleOpportunityRecord,
     AutomationLease,
     AutomationRun,
     BriefRecord,
@@ -85,6 +88,9 @@ def reset_membership_derived_data(
         session.execute(update(StatusEvent).values(merged_into_id=None))
         deleted: dict[str, int] = {}
         for model in (
+            ArticleBriefRecord,
+            ArticleOpportunityRecord,
+            ArticleAnalysisRecord,
             BriefRecord,
             FactSetRecord,
             EventRevision,

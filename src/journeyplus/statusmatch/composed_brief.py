@@ -15,6 +15,7 @@ from journeyplus.models import (
     StatusMatchArticleSupplement,
     StatusMatchWatch,
 )
+from journeyplus.membership.contracts import MembershipMappingClaim
 from journeyplus.statusmatch.article_contracts import (
     ComposedStatusMatchBrief,
     StatusMatchArticleHighlight,
@@ -110,6 +111,10 @@ def composed_statusmatch_brief(
                     highlights=[
                         StatusMatchArticleHighlight.model_validate(item)
                         for item in supplement.highlights
+                    ],
+                    mapping_claims=[
+                        MembershipMappingClaim.model_validate(item)
+                        for item in supplement.mapping_claims
                     ],
                 )
             )

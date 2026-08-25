@@ -19,6 +19,7 @@ from journeyplus.models import (
     StatusMatchArticleSupplement,
     StatusMatchWatch,
 )
+from journeyplus.membership.service import approve_third_party_mapping_claim
 from journeyplus.operations import pending_documents, process_pending_documents
 from journeyplus.review.api import create_review_app
 from journeyplus.sources.base import FetchResponse
@@ -34,6 +35,7 @@ from journeyplus.statusmatch.articles import (
     refresh_statusmatch_article_route_readiness,
 )
 from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
+from journeyplus.statusmatch.graph import MembershipGraphService
 from journeyplus.statusmatch.watchlist import ensure_statusmatch_watch
 from journeyplus.statusmatch.watchlist import delete_watch_only
 
@@ -211,6 +213,87 @@ def _highlight_response(quote: str = "This article adds a practical warning."):
             }
         ],
     }
+
+
+def test_single_supplement_call_extracts_candidate_mapping_without_changing_official_fact(
+    session_factory,
+) -> None:
+    quote = (
+        "Accor Live Limitless Gold members can match directly to Kenya Airways "
+        "Asante Rewards Platinum."
+    )
+
+    class MappingArticleAdapter(ArticleAdapter):
+        def fetch(self, item):
+            return RawDocument(
+                source_id=self.source_id,
+                external_id=item.external_id,
+                canonical_url=item.canonical_url,
+                body=(
+                    f"<article><p>{quote}</p>"
+                    f'<a href="https://{HOST}/">apply</a></article>'
+                ),
+                content_type="text/html",
+            )
+
+    with session_factory.begin() as session:
+        seed_sources(session)
+        collection = collect_manual(session, MappingArticleAdapter())
+        _watch, _event, fact, _brief = _seed_official_output(session)
+        original_fact = dict(fact.facts)
+        discover_statusmatch_article_routes(
+            session, document_ids=collection.current_document_version_ids
+        )
+        refresh_statusmatch_article_route_readiness(session)
+        fact_id = fact.id
+    provider = SequenceAIProvider(
+        [
+            {
+                "schema_version": "2",
+                "highlights": [],
+                "candidate_status_mappings": [
+                    {
+                        "source_program": "Accor Live Limitless",
+                        "source_tiers": ["Gold"],
+                        "target_tier": "Platinum",
+                        "availability": "AVAILABLE",
+                        "article_quote": quote,
+                    }
+                ],
+            }
+        ]
+    )
+
+    result = process_pending_statusmatch_articles(session_factory, provider)
+
+    assert result.succeeded == result.model_calls == 1
+    assert result.routes[0].mapping_claim_count == 1
+    with session_factory.begin() as session:
+        supplement = session.scalar(select(StatusMatchArticleSupplement))
+        assert supplement is not None
+        claim = supplement.mapping_claims[0]
+        assert claim["status"] == "CANDIDATE"
+        assert claim["provenance"]["source_type"] == "THIRD_PARTY"
+        assert claim["provenance"]["project_host"] == HOST
+        assert claim["mapping"]["evidence"][0]["document_version_id"] == str(
+            supplement.article_document_version_id
+        )
+        assert session.get(FactSetRecord, fact_id).facts == original_fact
+        composed = composed_statusmatch_brief(session, host=HOST)
+        assert len(composed.supplements[0].mapping_claims) == 1
+        graph = MembershipGraphService(session)
+        assert len(graph.candidate_mapping_layer().claims) == 1
+        approved = approve_third_party_mapping_claim(
+            session,
+            supplement_id=supplement.id,
+            claim_id=claim["claim_id"],
+            reason="人工核对文章原文后批准",
+        )
+        assert approved.status == "APPROVED"
+        assert graph.candidate_mapping_layer().claims == []
+        approved_layer = graph.approved_mapping_layer()
+        assert approved_layer.traversable and len(approved_layer.claims) == 1
+        assert session.get(FactSetRecord, fact_id).facts == original_fact
 
 
 def test_linked_article_routes_and_is_excluded_from_generic_workflow(

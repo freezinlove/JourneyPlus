@@ -43,6 +43,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         content_strategy="fetch_article",
         access_policy={"external_output": "original_brief_and_source_link"},
         collection_cadence="P1D",
+        enabled=False,
     ),
     SourceDefinition(
         source_id="awardwallet_elite_status_feed",
@@ -56,6 +57,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         content_strategy="fetch_article",
         access_policy={"external_output": "original_brief_and_source_link"},
         collection_cadence="P1D",
+        enabled=False,
     ),
     SourceDefinition(
         source_id="status_services_mail",
@@ -77,6 +79,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
             "secrets_in_logs": False,
         },
         collection_cadence="P1D",
+        automatic_scheduling=True,
     ),
     SourceDefinition(
         source_id="loyaltylobby_feed",
@@ -90,6 +93,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         content_strategy="feed_body_only",
         access_policy={"fetch_article_page": False},
         collection_cadence="P1D",
+        automatic_scheduling=True,
     ),
     SourceDefinition(
         source_id="frequentmiler_elite_status_feed",
@@ -102,6 +106,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         content_strategy="feed_body_only",
         access_policy={"fetch_article_page": False},
         collection_cadence="P1D",
+        enabled=False,
     ),
     SourceDefinition(
         source_id="verylvke_feed",
@@ -112,6 +117,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         content_strategy="feed_body_only_multi_hint",
         access_policy={"fetch_article_page": False},
         collection_cadence="P1D",
+        enabled=False,
     ),
 )
 

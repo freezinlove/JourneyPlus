@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -233,6 +234,97 @@ class AnalysisRun(Base, TimestampMixin):
     error: Mapped[str | None] = mapped_column(Text)
 
 
+class ArticleAnalysisRecord(Base, TimestampMixin):
+    """Immutable V2 interpretation of one source document version."""
+
+    __tablename__ = "article_analyses"
+    __table_args__ = (
+        UniqueConstraint("analysis_run_id"),
+        Index("ix_article_analyses_source_item_created", "source_item_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    source_item_id: Mapped[UUID] = mapped_column(
+        ForeignKey("source_items.id"), nullable=False
+    )
+    analysis_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("analysis_runs.id"), nullable=False
+    )
+    input_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    label: Mapped[str] = mapped_column(String(40), nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    content_signature: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class ArticleOpportunityRecord(Base, TimestampMixin):
+    """One independently readable opportunity extracted from a single article."""
+
+    __tablename__ = "article_opportunities"
+    __table_args__ = (
+        UniqueConstraint(
+            "analysis_id", "opportunity_index", name="uq_article_opportunity_index"
+        ),
+        Index("ix_article_opportunities_analysis_status", "analysis_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    analysis_id: Mapped[UUID] = mapped_column(
+        ForeignKey("article_analyses.id", ondelete="CASCADE"), nullable=False
+    )
+    opportunity_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    program: Mapped[str] = mapped_column(String(300), nullable=False)
+    target_status: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    application_start_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
+    application_deadline_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
+    application_start_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    application_deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    lifecycle_status: Mapped[str] = mapped_column(
+        String(30), default="UNKNOWN", nullable=False
+    )
+    action_links: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    facts: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    fact_signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), default="DRAFT", nullable=False)
+    current_brief_id: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+
+
+class ArticleBriefRecord(Base, TimestampMixin):
+    """Versioned brief generated only from an ArticleOpportunity fact snapshot."""
+
+    __tablename__ = "article_briefs"
+    __table_args__ = (
+        UniqueConstraint("opportunity_id", "version"),
+        UniqueConstraint(
+            "opportunity_id", "input_version", name="uq_article_brief_input"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    opportunity_id: Mapped[UUID] = mapped_column(
+        ForeignKey("article_opportunities.id", ondelete="CASCADE"), nullable=False
+    )
+    analysis_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("analysis_runs.id"), nullable=False
+    )
+    input_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), default="DRAFT", nullable=False)
+
+
 class StatusEvent(Base, TimestampMixin):
     __tablename__ = "status_events"
     __table_args__ = (
@@ -411,6 +503,9 @@ class StatusMatchArticleSupplement(Base, TimestampMixin):
     input_version: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
     highlights: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+    mapping_claims: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON, default=list, nullable=False
     )
 
