@@ -30,6 +30,18 @@ from journeyplus.sources.runtime import build_configured_adapter
 from journeyplus.statusmatch.audit import audit_statusmatch_projects
 from journeyplus.statusmatch.graph import MembershipGraphService
 from journeyplus.statusmatch.graph_contracts import TraversalLimits
+from journeyplus.statusmatch.article_workflow import (
+    process_pending_statusmatch_articles,
+)
+from journeyplus.statusmatch.articles import (
+    discover_statusmatch_article_routes,
+    prepare_statusmatch_article_projects,
+)
+from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
+from journeyplus.statusmatch.project_workflow import (
+    process_pending_statusmatch_projects,
+)
+from journeyplus.sources.base import HttpxFetcher
 
 
 SOURCE_IDS = [item.source_id for item in SOURCE_REGISTRY]
@@ -115,6 +127,17 @@ def build_parser() -> argparse.ArgumentParser:
         "statusmatch-graph-audit",
         help="Audit current StatusMatch graph fidelity and topology",
     )
+    statusmatch_articles = subparsers.add_parser(
+        "statusmatch-articles",
+        help="Discover, prepare, and process third-party StatusMatch-linked articles",
+    )
+    statusmatch_articles.add_argument("--source-id", choices=SOURCE_IDS)
+    statusmatch_articles.add_argument("--limit", type=_positive_int, default=20)
+    statusmatch_brief = subparsers.add_parser(
+        "statusmatch-brief",
+        help="Read an official StatusMatch brief with current third-party highlights",
+    )
+    statusmatch_brief.add_argument("host")
     initialize_mail = subparsers.add_parser(
         "initialize-mail-details",
         help="Expand all current Gmail activity links and wait for source audit",
@@ -187,6 +210,47 @@ def main(argv: Sequence[str] | None = None) -> int:
         with session_scope(factory) as session:
             result = MembershipGraphService(session).audit()
             print(result.model_dump_json())
+        return 0
+    if args.command == "statusmatch-brief":
+        with session_scope(factory) as session:
+            result = composed_statusmatch_brief(session, host=args.host)
+            print(result.model_dump_json())
+        return 0
+    if args.command == "statusmatch-articles":
+        provider = OpenAICompatibleProvider(settings)
+        source_ids = [args.source_id] if args.source_id else None
+        with session_scope(factory) as session:
+            discovery = discover_statusmatch_article_routes(
+                session, source_ids=source_ids
+            )
+            preparation = prepare_statusmatch_article_projects(
+                session,
+                HttpxFetcher(),
+                hosts=list(discovery.project_hosts),
+            )
+        projects = process_pending_statusmatch_projects(
+            factory,
+            provider,
+            hosts=list(discovery.project_hosts) or None,
+            limit=args.limit,
+        )
+        articles = process_pending_statusmatch_articles(
+            factory,
+            provider,
+            hosts=list(discovery.project_hosts) or None,
+            limit=args.limit,
+        )
+        print(
+            json.dumps(
+                {
+                    "discovery": asdict(discovery),
+                    "preparation": asdict(preparation),
+                    "official_projects": asdict(projects),
+                    "articles": asdict(articles),
+                },
+                ensure_ascii=False,
+            )
+        )
         return 0
     if args.command == "process-pending":
         provider = OpenAICompatibleProvider(settings)

@@ -345,6 +345,76 @@ class StatusMatchChangeSet(Base, TimestampMixin):
     )
 
 
+class StatusMatchArticleRoute(Base, TimestampMixin):
+    __tablename__ = "statusmatch_article_routes"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id",
+            "project_host",
+            name="uq_statusmatch_article_route_document_host",
+        ),
+        Index("ix_statusmatch_article_routes_event_status", "event_id", "status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    project_host: Mapped[str] = mapped_column(String(255), nullable=False)
+    project_url: Mapped[str] = mapped_column(Text, nullable=False)
+    event_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("status_events.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        String(40), default="DISCOVERED", nullable=False
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class StatusMatchArticleSupplement(Base, TimestampMixin):
+    __tablename__ = "statusmatch_article_supplements"
+    __table_args__ = (
+        UniqueConstraint(
+            "route_id",
+            "fact_set_id",
+            "brief_id",
+            "input_version",
+            name="uq_statusmatch_article_supplement_input",
+        ),
+        Index(
+            "ix_statusmatch_article_supplements_event_fact",
+            "event_id",
+            "fact_set_id",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    route_id: Mapped[UUID] = mapped_column(
+        ForeignKey("statusmatch_article_routes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_id: Mapped[UUID] = mapped_column(
+        ForeignKey("status_events.id"), nullable=False
+    )
+    article_document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    fact_set_id: Mapped[UUID] = mapped_column(
+        ForeignKey("fact_sets.id"), nullable=False
+    )
+    brief_id: Mapped[UUID] = mapped_column(
+        ForeignKey("briefs.id"), nullable=False
+    )
+    analysis_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("analysis_runs.id"), nullable=False
+    )
+    input_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(40), nullable=False)
+    highlights: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+
+
 class EventRevision(Base, TimestampMixin):
     __tablename__ = "event_revisions"
     __table_args__ = (

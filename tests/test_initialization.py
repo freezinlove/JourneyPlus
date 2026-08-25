@@ -13,7 +13,13 @@ from journeyplus.automation.initialization import (
     run_public_initialization_window,
 )
 from journeyplus.contracts import Brief, DiscoveredItem, RawDocument
-from journeyplus.models import CollectionRun
+from journeyplus.models import (
+    AnalysisRun,
+    CollectionRun,
+    InitializationRun,
+    StatusMatchArticleRoute,
+    StatusMatchArticleSupplement,
+)
 from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.feed import FeedAdapter
@@ -157,6 +163,38 @@ class InitializationProjectProvider:
                 }
             )
         raise AssertionError(f"Unexpected output model: {output_model}")
+
+
+class InitializationArticleProvider(InitializationProjectProvider):
+    def generate_structured(
+        self, *, system_prompt: str, user_prompt: str, output_model
+    ):
+        if output_model.__name__ == "StatusMatchArticleExtraction":
+            self.calls.append(output_model.__name__)
+            return output_model.model_validate(
+                {
+                    "highlights": [
+                        {
+                            "kind": "FACTUAL_DETAIL",
+                            "text": "文章额外说明申请获批后会显示数字会籍卡。",
+                            "article_quote": (
+                                "Approved members receive a digital membership card."
+                            ),
+                            "novelty_reason": (
+                                "当前官方 FactSet 与简报均未提及数字会籍卡。"
+                            ),
+                        }
+                    ]
+                }
+            )
+        if output_model.__name__ == "RelevanceResult":
+            self.calls.append(output_model.__name__)
+            return output_model.model_validate(_none("ordinary initialization item"))
+        return super().generate_structured(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            output_model=output_model,
+        )
 
 
 def _feed_xml(entries: list[tuple[str, str]]) -> str:
@@ -332,6 +370,97 @@ def test_mail_initialization_processes_only_documents_in_current_discovery(
         stale.current_document_version_ids[0]
         not in summary.sources[0].document_version_ids
     )
+
+
+def test_public_initialization_routes_linked_article_before_generic_documents(
+    session_factory,
+) -> None:
+    host = "initialization-article.statusmatch.com"
+    with session_factory.begin() as session:
+        seed_sources(session)
+        session.add(
+            InitializationRun(
+                batch_key="initialization:mail-details",
+                batch_type="MAIL_DETAILS",
+                status="PASSED",
+                audit_status="PASSED",
+            )
+        )
+
+    def feed_factory(source_id: str):
+        base = f"https://example.com/{source_id}/feed/"
+        body = (
+            f'<a href="https://{host}/">official project</a>'
+            "<p>Approved members receive a digital membership card.</p>"
+            if source_id == "loyaltylobby_feed"
+            else f"Ordinary historical news {source_id}"
+        )
+        xml = f"""<?xml version='1.0'?><rss version='2.0'><channel>
+        <item><title>{source_id}-inside</title>
+        <link>https://example.com/{source_id}-inside</link>
+        <guid>{source_id}-inside</guid>
+        <pubDate>Wed, 15 Jul 2026 00:00:00 +0000</pubDate>
+        <description><![CDATA[{body}]]></description></item>
+        <item><title>{source_id}-older</title>
+        <link>https://example.com/{source_id}-older</link>
+        <guid>{source_id}-older</guid>
+        <pubDate>Tue, 14 Jul 2026 00:00:00 +0000</pubDate>
+        <description><![CDATA[older]]></description></item>
+        </channel></rss>"""
+        return FeedAdapter(
+            source_id=source_id,
+            feed_url=base,
+            content_strategy="feed_body_only",
+            fetcher=MappingFetcher({base: xml}),
+        )
+
+    class StatusPageFetcher:
+        def get(self, url: str) -> FetchResponse:
+            body = (
+                "<html><body><h1>Apply for a Status Match today</h1>"
+                "<form><input type='text'><button>Continue</button></form>"
+                "</body></html>"
+                if not url.endswith("/faq")
+                else "<html><body><h1>FAQ</h1><p>Applications are open.</p></body></html>"
+            )
+            return FetchResponse(body=body, content_type="text/html", final_url=url)
+
+    provider = InitializationArticleProvider()
+    summary = run_public_initialization_window(
+        session_factory,
+        provider,
+        feed_factory,
+        start=date(2026, 7, 15),
+        end=date(2026, 7, 16),
+        statusmatch_fetcher=StatusPageFetcher(),
+    )
+
+    assert summary.status == "AWAITING_AUDIT"
+    assert summary.backlog_count == 0
+    assert summary.documents_selected == 6
+    assert provider.calls.count("StatusMatchProjectExtraction") == 1
+    assert provider.calls.count("Brief") == 1
+    assert provider.calls.count("StatusMatchArticleExtraction") == 1
+    assert provider.calls.count("RelevanceResult") == 4
+    with session_factory() as session:
+        route = session.scalar(select(StatusMatchArticleRoute))
+        assert route is not None and route.project_host == host
+        assert session.scalar(select(StatusMatchArticleSupplement)) is not None
+        assert not list(
+            session.scalars(
+                select(AnalysisRun).where(
+                    AnalysisRun.document_version_id == route.document_version_id,
+                    AnalysisRun.stage.in_(
+                        (
+                            "STATUS_RELEVANCE",
+                            "EVENT_RELATIONSHIP",
+                            "FACT_CONSOLIDATION",
+                            "BRIEF_GENERATION",
+                        )
+                    ),
+                )
+            )
+        )
 
 
 def test_failed_mail_initialization_recollects_the_next_attempt(

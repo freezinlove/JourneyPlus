@@ -11,6 +11,7 @@ from journeyplus.contracts import ReviewAction
 from journeyplus.review.service import ReviewService
 from journeyplus.statusmatch.graph import MembershipGraphService
 from journeyplus.statusmatch.graph_contracts import TraversalLimits
+from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
 
 
 class ReviewRequest(BaseModel):
@@ -57,6 +58,18 @@ def create_review_app(
                     max_branches=max_branches,
                 ),
             ).model_dump(mode="json")
+
+    @app.get("/internal/statusmatch/projects/{host}/brief")
+    def statusmatch_project_brief(host: str):
+        try:
+            with session_factory.begin() as session:
+                return composed_statusmatch_brief(
+                    session, host=host
+                ).model_dump(mode="json")
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/internal/review/events/{event_id}")
     def full_chain(event_id: UUID):

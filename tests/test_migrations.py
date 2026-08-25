@@ -43,6 +43,8 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "statusmatch_watches",
         "statusmatch_watch_pages",
         "statusmatch_change_sets",
+        "statusmatch_article_routes",
+        "statusmatch_article_supplements",
     } <= tables
 
 
@@ -340,4 +342,51 @@ def test_statusmatch_project_changeset_migration_round_trips_on_sqlite(
     command.downgrade(config, "0006_statusmatch_monitoring")
     engine = create_engine(database_url)
     assert "statusmatch_change_sets" not in set(inspect(engine).get_table_names())
+    engine.dispose()
+
+
+def test_statusmatch_article_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'statusmatch-articles.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0008_statusmatch_changeset")
+    engine = create_engine(database_url)
+    assert "statusmatch_article_routes" not in set(inspect(engine).get_table_names())
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    assert {
+        "statusmatch_article_routes",
+        "statusmatch_article_supplements",
+    } <= set(inspector.get_table_names())
+    assert (
+        "document_version_id",
+        "project_host",
+    ) in {
+        tuple(item["column_names"])
+        for item in inspector.get_unique_constraints("statusmatch_article_routes")
+    }
+    assert (
+        "route_id",
+        "fact_set_id",
+        "brief_id",
+        "input_version",
+    ) in {
+        tuple(item["column_names"])
+        for item in inspector.get_unique_constraints(
+            "statusmatch_article_supplements"
+        )
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0008_statusmatch_changeset")
+    engine = create_engine(database_url)
+    tables = set(inspect(engine).get_table_names())
+    assert "statusmatch_article_routes" not in tables
+    assert "statusmatch_article_supplements" not in tables
     engine.dispose()

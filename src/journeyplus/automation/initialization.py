@@ -25,7 +25,7 @@ from journeyplus.models import (
     SourceItem,
 )
 from journeyplus.operations import pending_document_count, process_pending_documents
-from journeyplus.sources.base import SourceAdapter
+from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
 from journeyplus.sources.collection import CollectionSummary, collect_manual
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.history import HistoricalFeedWindowAdapter
@@ -34,6 +34,17 @@ from journeyplus.statusmatch.project_workflow import (
     StatusMatchProjectProcessingSummary,
     pending_statusmatch_project_count,
     process_pending_statusmatch_projects,
+)
+from journeyplus.statusmatch.article_workflow import (
+    StatusMatchArticleProcessingSummary,
+    pending_statusmatch_article_count,
+    process_pending_statusmatch_articles,
+)
+from journeyplus.statusmatch.articles import (
+    ArticleProjectPreparationSummary,
+    ArticleRouteDiscoverySummary,
+    discover_statusmatch_article_routes,
+    prepare_statusmatch_article_projects,
 )
 
 
@@ -92,6 +103,7 @@ def run_mail_detail_initialization(
     *,
     limits: AutomationLimits | None = None,
     now: datetime | None = None,
+    statusmatch_fetcher: Fetcher | None = None,
 ) -> InitializationSummary:
     return _run_initialization(
         session_factory,
@@ -104,6 +116,7 @@ def run_mail_detail_initialization(
         end=None,
         limits=limits or AutomationLimits(source_items_per_source=500),
         now=now,
+        statusmatch_fetcher=statusmatch_fetcher,
     )
 
 
@@ -116,6 +129,7 @@ def run_public_initialization_window(
     end: date,
     limits: AutomationLimits | None = None,
     now: datetime | None = None,
+    statusmatch_fetcher: Fetcher | None = None,
 ) -> InitializationSummary:
     _validate_window(start, end)
     batch_key = f"initialization:{start.isoformat()}:{end.isoformat()}"
@@ -130,6 +144,7 @@ def run_public_initialization_window(
         end=end,
         limits=limits or AutomationLimits(source_items_per_source=500),
         now=now,
+        statusmatch_fetcher=statusmatch_fetcher,
     )
 
 
@@ -167,6 +182,7 @@ def _run_initialization(
     end: date | None,
     limits: AutomationLimits,
     now: datetime | None,
+    statusmatch_fetcher: Fetcher | None,
 ) -> InitializationSummary:
     current = _as_utc(now or datetime.now(UTC))
     owner = f"initialization-{uuid4().hex}"
@@ -183,6 +199,9 @@ def _run_initialization(
     processing_payload: dict[str, Any] = {}
     budgeted = BudgetedAIProvider(provider, limits.model_calls)
     project_processing = StatusMatchProjectProcessingSummary()
+    article_discovery = ArticleRouteDiscoverySummary()
+    article_preparation = ArticleProjectPreparationSummary()
+    article_processing = StatusMatchArticleProcessingSummary()
     project_hosts: tuple[str, ...] = ()
     backlog = 0
     error: str | None = None
@@ -246,6 +265,20 @@ def _run_initialization(
                 project_hosts = _statusmatch_hosts_for_documents(
                     session, current_document_ids
                 )
+        elif not source_failed:
+            with session_factory.begin() as session:
+                article_discovery = discover_statusmatch_article_routes(
+                    session,
+                    source_ids=list(source_ids),
+                    document_ids=current_document_ids,
+                )
+                article_preparation = prepare_statusmatch_article_projects(
+                    session,
+                    statusmatch_fetcher or HttpxFetcher(),
+                    hosts=list(article_discovery.project_hosts),
+                    checked_at=current,
+                )
+            project_hosts = article_discovery.project_hosts
         if source_failed:
             error = "one or more initialization sources failed"
             processing_payload = {
@@ -263,7 +296,19 @@ def _run_initialization(
                     hosts=project_hosts,
                     limit=limits.documents,
                 )
-            generic_limit = limits.documents - project_processing.attempted
+            article_limit = limits.documents - project_processing.attempted
+            if article_limit > 0:
+                article_processing = process_pending_statusmatch_articles(
+                    session_factory,
+                    budgeted,
+                    limit=article_limit,
+                    hosts=project_hosts or None,
+                )
+            generic_limit = (
+                limits.documents
+                - project_processing.attempted
+                - article_processing.attempted
+            )
             generic_payload: dict[str, Any] = {
                 "selected": 0,
                 "attempted": 0,
@@ -295,20 +340,33 @@ def _run_initialization(
                 generic_payload = asdict(processing)
             processing_payload = {
                 "selected": (
-                    project_processing.selected + generic_payload["selected"]
+                    project_processing.selected
+                    + article_processing.selected
+                    + generic_payload["selected"]
                 ),
                 "attempted": (
-                    project_processing.attempted + generic_payload["attempted"]
+                    project_processing.attempted
+                    + article_processing.attempted
+                    + generic_payload["attempted"]
                 ),
                 "succeeded": (
-                    project_processing.succeeded + generic_payload["succeeded"]
+                    project_processing.succeeded
+                    + article_processing.succeeded
+                    + generic_payload["succeeded"]
                 ),
-                "failed": project_processing.failed + generic_payload["failed"],
+                "failed": (
+                    project_processing.failed
+                    + article_processing.failed
+                    + generic_payload["failed"]
+                ),
                 "stopped_early": generic_payload["stopped_early"],
                 "status_opportunities": generic_payload["status_opportunities"],
                 "events": generic_payload["events"],
                 "briefs": generic_payload["briefs"],
                 "statusmatch_projects": asdict(project_processing),
+                "statusmatch_article_discovery": asdict(article_discovery),
+                "statusmatch_article_preparation": asdict(article_preparation),
+                "statusmatch_articles": asdict(article_processing),
                 "generic_documents": generic_payload,
             }
             if processing_payload["failed"]:
@@ -332,6 +390,12 @@ def _run_initialization(
                     session,
                     budgeted,
                     hosts=project_hosts,
+                )
+            else:
+                backlog += pending_statusmatch_article_count(
+                    session,
+                    budgeted,
+                    hosts=project_hosts or None,
                 )
             run = session.get(InitializationRun, UUID(run_id))
             assert run is not None

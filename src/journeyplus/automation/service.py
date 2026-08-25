@@ -37,6 +37,17 @@ from journeyplus.statusmatch.service import (
     StatusMatchMonitoringSummary,
     monitor_statusmatch_watches,
 )
+from journeyplus.statusmatch.article_workflow import (
+    StatusMatchArticleProcessingSummary,
+    pending_statusmatch_article_count,
+    process_pending_statusmatch_articles,
+)
+from journeyplus.statusmatch.articles import (
+    ArticleProjectPreparationSummary,
+    ArticleRouteDiscoverySummary,
+    discover_statusmatch_article_routes,
+    prepare_statusmatch_article_projects,
+)
 from journeyplus.statusmatch.project_workflow import (
     StatusMatchProjectProcessingSummary,
     process_pending_statusmatch_projects,
@@ -99,6 +110,14 @@ class DailyCycleSummary:
     statusmatch_project_model_calls: int
     statusmatch_project_errors: tuple[str, ...]
     statusmatch_project_outputs: tuple[dict[str, Any], ...]
+    statusmatch_article_routes_created: int
+    statusmatch_article_hosts_fetched: tuple[str, ...]
+    statusmatch_articles_selected: int
+    statusmatch_articles_succeeded: int
+    statusmatch_articles_failed: int
+    statusmatch_article_model_calls: int
+    statusmatch_article_errors: tuple[str, ...]
+    statusmatch_article_outputs: tuple[dict[str, Any], ...]
     backlog_count: int
     needs_review_count: int
 
@@ -184,6 +203,9 @@ def run_daily_cycle(
     lifecycle_payload: dict[str, int] = {"scanned": 0, "updated": 0, "expired": 0}
     monitoring = StatusMatchMonitoringSummary()
     project_processing = StatusMatchProjectProcessingSummary()
+    article_discovery = ArticleRouteDiscoverySummary()
+    article_preparation = ArticleProjectPreparationSummary()
+    article_processing = StatusMatchArticleProcessingSummary()
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
@@ -225,6 +247,21 @@ def run_daily_cycle(
             source_summaries.append(summary)
 
         try:
+            with session_factory.begin() as session:
+                article_discovery = discover_statusmatch_article_routes(
+                    session,
+                    source_ids=list(selected_source_ids),
+                )
+                article_preparation = prepare_statusmatch_article_projects(
+                    session,
+                    statusmatch_fetcher or HttpxFetcher(),
+                    hosts=list(article_discovery.project_hosts),
+                    checked_at=current,
+                )
+        except Exception as exc:
+            global_error = _safe_error(exc)
+
+        try:
             project_processing = process_pending_statusmatch_projects(
                 session_factory,
                 budgeted,
@@ -238,25 +275,65 @@ def run_daily_cycle(
                 errors=(_safe_error(exc),),
             )
 
+        remaining_after_projects = max(
+            resolved_limits.documents - project_processing.attempted,
+            0,
+        )
+        if remaining_after_projects:
+            try:
+                article_processing = process_pending_statusmatch_articles(
+                    session_factory,
+                    budgeted,
+                    limit=remaining_after_projects,
+                )
+            except Exception as exc:
+                article_processing = StatusMatchArticleProcessingSummary(
+                    selected=1,
+                    attempted=1,
+                    failed=1,
+                    errors=(_safe_error(exc),),
+                )
+
         processing_source_ids = list(selected_source_ids)
+        generic_limit = max(
+            remaining_after_projects - article_processing.attempted,
+            0,
+        )
         try:
-            processing = process_pending_documents(
-                session_factory,
-                budgeted,
-                source_ids=processing_source_ids,
-                limit=resolved_limits.documents,
-            )
+            if generic_limit:
+                processing = process_pending_documents(
+                    session_factory,
+                    budgeted,
+                    source_ids=processing_source_ids,
+                    limit=generic_limit,
+                )
+                generic_payload = asdict(processing)
+            else:
+                generic_payload = {
+                    "selected": 0,
+                    "attempted": 0,
+                    "succeeded": 0,
+                    "failed": 0,
+                    "stopped_early": False,
+                    "status_opportunities": 0,
+                    "events": 0,
+                    "briefs": 0,
+                }
             processing_payload = {
-                "selected": processing.selected,
-                "attempted": processing.attempted,
-                "succeeded": processing.succeeded,
-                "failed": processing.failed,
-                "stopped_early": processing.stopped_early,
-                "status_opportunities": processing.status_opportunities,
-                "events": processing.events,
-                "briefs": processing.briefs,
+                "selected": generic_payload["selected"],
+                "attempted": generic_payload["attempted"],
+                "succeeded": generic_payload["succeeded"],
+                "failed": generic_payload["failed"],
+                "stopped_early": generic_payload["stopped_early"],
+                "status_opportunities": generic_payload["status_opportunities"],
+                "events": generic_payload["events"],
+                "briefs": generic_payload["briefs"],
                 "statusmatch_monitoring": asdict(monitoring),
+                "statusmatch_article_discovery": asdict(article_discovery),
+                "statusmatch_article_preparation": asdict(article_preparation),
                 "statusmatch_project_processing": asdict(project_processing),
+                "statusmatch_article_processing": asdict(article_processing),
+                "generic_documents": generic_payload,
             }
         except Exception as exc:
             global_error = _safe_error(exc)
@@ -266,7 +343,10 @@ def run_daily_cycle(
                 "failed": 1,
                 "error": global_error,
                 "statusmatch_monitoring": asdict(monitoring),
+                "statusmatch_article_discovery": asdict(article_discovery),
+                "statusmatch_article_preparation": asdict(article_preparation),
                 "statusmatch_project_processing": asdict(project_processing),
+                "statusmatch_article_processing": asdict(article_processing),
             }
 
         with session_factory.begin() as session:
@@ -277,6 +357,7 @@ def run_daily_cycle(
                 budgeted,
                 source_ids=processing_source_ids,
             )
+            backlog += pending_statusmatch_article_count(session, budgeted)
             needs_review = int(
                 session.scalar(
                     select(func.count())
@@ -293,13 +374,16 @@ def run_daily_cycle(
             )
             processing_failures = int(processing_payload.get("failed", 0))
             project_failures = project_processing.failed
+            article_failures = article_processing.failed
             run.status = (
                 RunStatus.SUCCEEDED
                 if not source_failures
                 and not processing_failures
                 and not project_failures
+                and not article_failures
                 and not global_error
                 and not monitoring.errors
+                and not article_preparation.monitoring.errors
                 else RunStatus.FAILED
             )
             run.source_results = [asdict(item) for item in source_summaries]
@@ -352,6 +436,19 @@ def run_daily_cycle(
         statusmatch_project_outputs=tuple(
             asdict(item) for item in project_processing.projects
         ),
+        statusmatch_article_routes_created=article_discovery.routes_created,
+        statusmatch_article_hosts_fetched=article_preparation.hosts_fetched,
+        statusmatch_articles_selected=article_processing.selected,
+        statusmatch_articles_succeeded=article_processing.succeeded,
+        statusmatch_articles_failed=article_processing.failed,
+        statusmatch_article_model_calls=article_processing.model_calls,
+        statusmatch_article_errors=(
+            *article_preparation.monitoring.errors,
+            *article_processing.errors,
+        ),
+        statusmatch_article_outputs=tuple(
+            asdict(item) for item in article_processing.routes
+        ),
         backlog_count=backlog,
         needs_review_count=needs_review,
     )
@@ -377,6 +474,7 @@ def automation_status(
             provider,
             source_ids=[source.id for source in sources if source.enabled],
         )
+        backlog += pending_statusmatch_article_count(session, provider)
         failed_jobs = int(
             session.scalar(
                 select(func.count())
@@ -721,6 +819,14 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         statusmatch_project_model_calls=0,
         statusmatch_project_errors=(),
         statusmatch_project_outputs=(),
+        statusmatch_article_routes_created=0,
+        statusmatch_article_hosts_fetched=(),
+        statusmatch_articles_selected=0,
+        statusmatch_articles_succeeded=0,
+        statusmatch_articles_failed=0,
+        statusmatch_article_model_calls=0,
+        statusmatch_article_errors=(),
+        statusmatch_article_outputs=(),
         backlog_count=0,
         needs_review_count=0,
     )

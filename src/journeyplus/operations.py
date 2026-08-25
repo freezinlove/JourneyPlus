@@ -19,6 +19,7 @@ from journeyplus.contracts import DocumentLabel
 from journeyplus.facts.service import FACT_PROMPT_VERSION, FACT_SCHEMA_VERSION
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import DocumentVersion, JobRun, SourceItem
+from journeyplus.statusmatch.articles import is_third_party_statusmatch_article
 from journeyplus.status_topic.analyzer import (
     STATUS_RELEVANCE_PROMPT_VERSION,
     STATUS_RELEVANCE_SCHEMA_VERSION,
@@ -148,6 +149,14 @@ def _pending_document_rows(
         published_from=published_from,
         published_until=published_until,
     )
+    candidates = [
+        (document_id, item_source_id)
+        for document_id, item_source_id in candidates
+        if (
+            (document := session.get(DocumentVersion, document_id)) is not None
+            and not is_third_party_statusmatch_article(session, document)
+        )
+    ]
     keys = [
         workflow_idempotency_key(document_id, provider)
         for document_id, _ in candidates
