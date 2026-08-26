@@ -39,6 +39,8 @@ uv run journeyplus seed-sources
 
 `run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目和第三方补充调用，便于发现调用预算回归。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 
+当前已使用 Codex 本地自动化在每天 09:00 调用该单轮入口；任务只使用当前两条自动来源，并在运行前确保 Docker PostgreSQL 可用。配置、来源边界和检查方式见 [每日自动化 Codex 运维说明](doc/daily-automation-codex.md)。
+
 `initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 是保留的 LoyaltyLobby 历史回放入口，只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日），不会采集或处理已关闭的其他公开来源。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。当前产品验收以 Gmail 公开详情页审核和受控真实 LoyaltyLobby V2 批次为准，不要求跑完全部旧窗口。
 
 默认单轮上限可通过环境变量调整：
@@ -91,7 +93,7 @@ uv run python scripts/smoke_public_sources.py
 
 ## 第一版已知限制
 
-- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，其他公开来源保持关闭。外部每日定时任务与至少三个北京时间自然日的连续观察仍属于上线验收阶段。
+- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，其他公开来源保持关闭。Codex 本地每日任务已经启用，后续运行结果按常规运维观察，不构成当前 OpenSpec 变更的未完成项。
 - LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
 - 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。

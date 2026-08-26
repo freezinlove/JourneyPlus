@@ -116,14 +116,3 @@
 #### Scenario: 用户批准从原始材料重建派生数据
 - **WHEN** 初始化审核失败且用户明确批准清理旧结果重新生成
 - **THEN** 系统先创建并验证 PostgreSQL 备份，只删除可从现有原始文档重建的分析、事件、事实、简报、任务和初始化状态，保留来源、SourceItem、DocumentVersion、CollectionRun、Gmail OAuth 与原始正文，然后使用新版本规则重新处理
-
-### Requirement: 自动化观察通过后才能开始下一主题
-系统 MUST 在完整测试和严格 OpenSpec 校验通过、LoyaltyLobby 与 StatusMatch/GetStatus Gmail 各自真实采集成功、Gmail 详情页和受控真实 LoyaltyLobby 批次审核通过，且自动单轮连续观察至少三个北京时间自然日没有重复业务数据、未隔离故障、无证据输出或额外通用关系/事实 AI 调用后，才把会籍主题标记为可维护并开始下一个主题。
-
-#### Scenario: 观察期出现重复业务记录
-- **WHEN** 自动运行观察期间发现同一材料重复创建文章机会、StatusMatch 项目产物或简报
-- **THEN** 会籍主题不得完成，必须修复并重新开始观察
-
-#### Scenario: 观察期无阻塞问题
-- **WHEN** 完成门槛全部满足
-- **THEN** 会籍主题进入维护状态，项目可以开始买分或转分主题
