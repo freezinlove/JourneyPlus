@@ -15,9 +15,7 @@ from sqlalchemy.orm import Session, aliased, sessionmaker
 from journeyplus.ai.provider import AIProvider
 from journeyplus.contracts import (
     AnalysisStage,
-    EvidenceRef,
     RunStatus,
-    StatusMapping,
 )
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import (
@@ -32,12 +30,6 @@ from journeyplus.models import (
     StatusMatchArticleSupplement,
     StatusMatchWatch,
 )
-from journeyplus.membership.contracts import (
-    MembershipMappingClaim,
-    MembershipMappingProvenance,
-    MappingSourceType,
-)
-from journeyplus.membership.reconciliation import compare_with_official_mappings
 from journeyplus.statusmatch.article_contracts import (
     StatusMatchArticleExtraction,
 )
@@ -55,8 +47,7 @@ SYSTEM_PROMPT = """你只处理一篇已经由程序中的精确 *.statusmatch.c
 第三方文章。不要分类，不要判断关系，不要创建活动，也不要修改官网事实。输入中的
 OFFICIAL_FACT_SET 和 OFFICIAL_BRIEF 是当前官网 HOME+FAQ 的完整权威整理。
 
-一次输出两类彼此独立的结果：补充关注点 highlights，以及文章直接明确陈述的
-candidate_status_mappings。逐条比较，不要因为文章后半部分转载了官网 FAQ 就把整篇判为无新增。
+只输出补充关注点 highlights。逐条比较，不要因为文章后半部分转载了官网 FAQ 就把整篇判为无新增。
 
 关注点允许两类：FACTUAL_DETAIL 是官方整理没有保存的明确实用细节；EDITORIAL_OBSERVATION 是
 文章作者明确表达、对判断是否值得申请有实际帮助的观察，text 必须清楚写成“文章作者认为/提醒”
@@ -81,12 +72,8 @@ FAQ 或整份名单，不得为了凑满上限而增加低价值内容。优先�
 行政细节只有会显著改变申请决策时才保留。每条 text 只能忠实翻译或概括该条 article_quote，
 不得从文章其他段落拼入额外结论；例如摘录只说“系统即时可验证”时不得添加“无需等待实体卡”。
 
-candidate_status_mappings 只提取 ARTICLE 逐字直接陈述的原项目/原等级到当前绑定目标项目某个
-目标等级的关系。必须包含 source_program、source_tiers、target_tier、availability、conditions、
-article_quote、conflict、conflict_note。article_quote 必须是一段不超过 300 字符、同时足以支持
-这条直接关系的连续原文。不要根据两条关系推导第三条，不要把“可能继续匹配”的策略猜测当成关系，
-不要因为 OFFICIAL_FACT_SET 已有相同关系就省略文章中的直接声明。UNAVAILABLE 不列 source_tiers；
-CONDITIONAL 必须给 conditions。若没有完整直接关系则输出空数组。只输出严格 JSON。"""
+会籍匹配表述只有在构成相对官方产物的新颖、实用关注点时才可按上述 highlights 规则处理；
+不要输出候选映射、审核状态或图关系。只输出严格 JSON。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -263,19 +250,7 @@ class StatusMatchArticleWorkflow:
         analysis.result = extraction.model_dump(mode="json")
         analysis.status = RunStatus.SUCCEEDED
         analysis.error = None
-        mapping_claims = _materialize_mapping_claims(
-            extraction=extraction,
-            route=route,
-            document=document,
-            item=item,
-            event=event,
-            fact=fact,
-        )
-        status = (
-            "SUCCEEDED"
-            if extraction.highlights or mapping_claims
-            else "NO_NOVEL_HIGHLIGHTS"
-        )
+        status = "SUCCEEDED" if extraction.highlights else "NO_NOVEL_HIGHLIGHTS"
         supplement = StatusMatchArticleSupplement(
             route_id=route.id,
             event_id=event.id,
@@ -289,7 +264,9 @@ class StatusMatchArticleWorkflow:
                 highlight.model_dump(mode="json")
                 for highlight in extraction.highlights
             ],
-            mapping_claims=[claim.model_dump(mode="json") for claim in mapping_claims],
+            # Kept empty for backward database compatibility. Linked articles are
+            # highlights-only and never contribute membership graph claims.
+            mapping_claims=[],
         )
         self._session.add(supplement)
         route.status = status
@@ -355,8 +332,7 @@ class StatusMatchArticleWorkflow:
                 "maximum_highlights": 4,
                 "article_quote_must_be_exact": True,
                 "omit_if_covered_by_either_official_input": True,
-                "candidate_mapping_quote_must_be_exact_and_direct": True,
-                "never_infer_multi_hop_mapping": True,
+                "never_output_membership_mapping_claims": True,
             },
         }
         last_error: Exception | None = None
@@ -368,8 +344,8 @@ class StatusMatchArticleWorkflow:
                     "required_action": (
                         "删除重复或无依据内容；article_quote 必须逐字取自 ARTICLE body，"
                         "每段不超过 300 字符，总数不超过 4；不要复制整段 FAQ 或名单，"
-                        "不要引用 HOME、FAQ、OFFICIAL_FACT_SET 或 OFFICIAL_BRIEF。"
-                        "候选关系必须是一段 ARTICLE 原文直接支持的单跳映射，不得推导多跳。"
+                        "不要引用 HOME、FAQ、OFFICIAL_FACT_SET 或 OFFICIAL_BRIEF，"
+                        "不要输出候选会籍映射或图关系。"
                     ),
                 }
             try:
@@ -544,30 +520,6 @@ def _validate_extraction(
             article_quote=highlight.article_quote,
             index=index,
         )
-    mapping_keys: set[tuple[str, tuple[str, ...], str]] = set()
-    for index, mapping in enumerate(extraction.candidate_status_mappings):
-        quote = _comparison_text(mapping.article_quote)
-        if len(quote) < 8 or quote not in body:
-            raise ValueError(
-                f"candidate mapping {index} article_quote is not present in ARTICLE body"
-            )
-        required_terms = [
-            mapping.source_program,
-            *mapping.source_tiers,
-            mapping.target_tier,
-        ]
-        if any(_comparison_text(term) not in quote for term in required_terms):
-            raise ValueError(
-                f"candidate mapping {index} quote does not directly name its mapping"
-            )
-        key = (
-            _comparison_text(mapping.source_program),
-            tuple(sorted(_comparison_text(item) for item in mapping.source_tiers)),
-            _comparison_text(mapping.target_tier),
-        )
-        if key in mapping_keys:
-            raise ValueError(f"candidate mapping {index} duplicates an earlier mapping")
-        mapping_keys.add(key)
 
 
 def _validate_qualifier_fidelity(
@@ -683,73 +635,9 @@ def _result(
         supplement_id=str(supplement.id),
         status=supplement.status,
         highlight_count=len(supplement.highlights),
-        mapping_claim_count=len(supplement.mapping_claims),
+        mapping_claim_count=0,
         model_calls=model_calls,
     )
-
-
-def _materialize_mapping_claims(
-    *,
-    extraction: StatusMatchArticleExtraction,
-    route: StatusMatchArticleRoute,
-    document: DocumentVersion,
-    item: SourceItem,
-    event: StatusEvent,
-    fact: FactSetRecord,
-) -> list[MembershipMappingClaim]:
-    if not extraction.candidate_status_mappings:
-        return []
-    official = [
-        StatusMapping.model_validate(item)
-        for item in fact.facts.get("status_mappings", [])
-    ]
-    claims: list[MembershipMappingClaim] = []
-    for extracted in extraction.candidate_status_mappings:
-        mapping = StatusMapping(
-            source_program=extracted.source_program,
-            source_tiers=extracted.source_tiers,
-            target_tier=extracted.target_tier,
-            availability=extracted.availability,
-            conditions=extracted.conditions,
-            evidence=[
-                EvidenceRef(
-                    document_version_id=document.id,
-                    source_url=item.canonical_url,
-                    locator=extracted.article_quote,
-                )
-            ],
-            conflict=extracted.conflict,
-            conflict_note=extracted.conflict_note,
-        )
-        comparison_status, comparison_note = compare_with_official_mappings(
-            mapping, official
-        )
-        signature_payload = {
-            "route_id": str(route.id),
-            "mapping": mapping.model_dump(mode="json"),
-        }
-        claim_id = hashlib.sha256(
-            json.dumps(signature_payload, sort_keys=True).encode()
-        ).hexdigest()
-        claims.append(
-            MembershipMappingClaim(
-                claim_id=claim_id,
-                target_program=event.program,
-                mapping=mapping,
-                provenance=MembershipMappingProvenance(
-                    source_type=MappingSourceType.THIRD_PARTY,
-                    document_version_id=document.id,
-                    source_url=item.canonical_url,
-                    route_id=route.id,
-                    project_host=route.project_host,
-                    target_event_id=event.id,
-                    compared_fact_set_id=fact.id,
-                ),
-                status=comparison_status,
-                comparison_note=comparison_note,
-            )
-        )
-    return claims
 
 
 def _safe_error(exc: Exception) -> str:

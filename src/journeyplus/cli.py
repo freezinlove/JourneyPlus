@@ -4,7 +4,7 @@ import argparse
 import json
 from collections.abc import Sequence
 from dataclasses import asdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from journeyplus.config import Settings
 from journeyplus.db import create_session_factory, engine_from_settings, session_scope
@@ -21,7 +21,10 @@ from journeyplus.automation.initialization import (
 )
 from journeyplus.article_operations import (
     GENERIC_PUBLIC_SOURCE_ID,
+    archive_article_mapping,
+    extend_article_mapping,
     process_pending_articles,
+    restore_article_mapping,
 )
 from journeyplus.operations import process_pending_documents
 from journeyplus.review.api import create_review_app
@@ -33,7 +36,8 @@ from journeyplus.sources.registry import SOURCE_REGISTRY, seed_sources
 from journeyplus.sources.runtime import build_configured_adapter
 from journeyplus.statusmatch.audit import audit_statusmatch_projects
 from journeyplus.statusmatch.graph import MembershipGraphService
-from journeyplus.statusmatch.graph_contracts import TraversalLimits
+from journeyplus.membership.contracts import UnifiedTraversalLimits
+from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.statusmatch.article_workflow import (
     process_pending_statusmatch_articles,
 )
@@ -63,6 +67,13 @@ def _iso_date(value: str) -> date:
         return date.fromisoformat(value)
     except ValueError as exc:
         raise argparse.ArgumentTypeError("must be YYYY-MM-DD") from exc
+
+
+def _iso_datetime(value: str) -> datetime:
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an ISO 8601 datetime") from exc
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -108,6 +119,29 @@ def build_parser() -> argparse.ArgumentParser:
         "automation-status",
         help="Report daily automation, source, backlog, failure, and review state",
     )
+    article_archive = subparsers.add_parser(
+        "article-mapping-archive",
+        help="Soft-archive one ordinary article mapping contribution",
+    )
+    article_archive.add_argument("opportunity_id")
+    article_archive.add_argument("--reason", required=True)
+    article_archive.add_argument("--actor", default="operator")
+    article_restore = subparsers.add_parser(
+        "article-mapping-restore",
+        help="Restore an ordinary article mapping contribution",
+    )
+    article_restore.add_argument("opportunity_id")
+    article_restore.add_argument("--visibility-until", type=_iso_datetime)
+    article_restore.add_argument("--reason", required=True)
+    article_restore.add_argument("--actor", default="operator")
+    article_extend = subparsers.add_parser(
+        "article-mapping-extend",
+        help="Extend an ordinary article mapping contribution to a future time",
+    )
+    article_extend.add_argument("opportunity_id")
+    article_extend.add_argument("visibility_until", type=_iso_datetime)
+    article_extend.add_argument("--reason", required=True)
+    article_extend.add_argument("--actor", default="operator")
     statusmatch_audit = subparsers.add_parser(
         "statusmatch-audit",
         help="Refresh and audit selected managed StatusMatch projects",
@@ -120,7 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     statusmatch_graph = subparsers.add_parser(
         "statusmatch-graph",
-        help="Expand a current membership as a bounded StatusMatch tree",
+        help="Expand a current membership as a bounded unified membership tree",
     )
     statusmatch_graph.add_argument("program")
     statusmatch_graph.add_argument("tier")
@@ -130,6 +164,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser(
         "statusmatch-graph-audit",
         help="Audit current StatusMatch graph fidelity and topology",
+    )
+    subparsers.add_parser(
+        "membership-graph-audit",
+        help="Audit the unified official and ordinary-article membership graph",
     )
     statusmatch_articles = subparsers.add_parser(
         "statusmatch-articles",
@@ -196,18 +234,68 @@ def main(argv: Sequence[str] | None = None) -> int:
             sources = seed_sources(session)
             print(json.dumps({"seeded": [source.id for source in sources]}))
         return 0
+    if args.command in {
+        "article-mapping-archive",
+        "article-mapping-restore",
+        "article-mapping-extend",
+    }:
+        with session_scope(factory) as session:
+            if args.command == "article-mapping-archive":
+                result = archive_article_mapping(
+                    session,
+                    opportunity_id=args.opportunity_id,
+                    reason=args.reason,
+                    actor=args.actor,
+                )
+            elif args.command == "article-mapping-restore":
+                result = restore_article_mapping(
+                    session,
+                    opportunity_id=args.opportunity_id,
+                    visibility_until_at=args.visibility_until,
+                    reason=args.reason,
+                    actor=args.actor,
+                )
+            else:
+                result = extend_article_mapping(
+                    session,
+                    opportunity_id=args.opportunity_id,
+                    visibility_until_at=args.visibility_until,
+                    reason=args.reason,
+                    actor=args.actor,
+                )
+            print(
+                json.dumps(
+                    {
+                        "opportunity_id": str(result.id),
+                        "visibility_until_at": result.visibility_until_at.isoformat(),
+                        "visibility_policy": result.visibility_policy,
+                        "archived_at": (
+                            result.archived_at.isoformat()
+                            if result.archived_at is not None
+                            else None
+                        ),
+                        "archive_reason": result.archive_reason,
+                    }
+                )
+            )
+        return 0
     if args.command == "statusmatch-graph":
-        limits = TraversalLimits(
+        limits = UnifiedTraversalLimits(
             max_depth=args.max_depth,
             max_nodes=args.max_nodes,
             max_branches=args.max_branches,
         )
         with session_scope(factory) as session:
-            result = MembershipGraphService(session).tree(
+            result = UnifiedMembershipTreeService(session).tree(
                 args.program,
                 args.tier,
                 limits=limits,
             )
+            print(result.model_dump_json())
+        return 0
+    if args.command == "membership-graph-audit":
+        with session_scope(factory) as session:
+            result = UnifiedMembershipTreeService(session).audit()
             print(result.model_dump_json())
         return 0
     if args.command == "statusmatch-graph-audit":

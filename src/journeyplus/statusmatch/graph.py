@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from hashlib import sha256
 from typing import Iterable
 from uuid import UUID
 
@@ -21,12 +20,20 @@ from journeyplus.models import (
     StatusEvent,
     StatusMatchWatch,
     StatusMatchWatchPage,
-    StatusMatchArticleSupplement,
 )
-from journeyplus.membership.contracts import (
-    MappingClaimStatus,
-    MembershipMappingClaim,
-    MembershipMappingLayer,
+from journeyplus.membership.normalization import (
+    certainty_rank as _certainty_rank,
+    display_text as _display_text,
+    display_tier as _display_tier,
+    group_by_source,
+    normalize_key as _normalize_key,
+    normalize_tier as _normalize_tier,
+    resolve_alias,
+    stable_id as _stable_id,
+)
+from journeyplus.membership.traversal import (
+    TraversalCounters,
+    expand_bounded_tree,
 )
 from journeyplus.statusmatch.graph_contracts import (
     AliasAmbiguity,
@@ -49,8 +56,6 @@ from journeyplus.statusmatch.graph_contracts import (
 )
 
 
-_SPACE_RE = re.compile(r"\s+")
-_NON_WORD_RE = re.compile(r"[^\w+]+", re.UNICODE)
 _WILDCARD_PROGRAM_RE = re.compile(r"^\s*(?:all|any|every)\b", re.IGNORECASE)
 _WILDCARD_TIER_RE = re.compile(
     r"\b(?:all|any|every)\b.*\b(?:tier|tiers|status|level|levels|membership)\b",
@@ -118,39 +123,19 @@ class _ProgramRegistry:
         )
 
     def resolve(self, raw_program: str) -> str:
-        label = _display_text(raw_program)
-        normalized = _normalize_key(label)
-        candidates = set(self.target_aliases.get(normalized, set()))
-        best_score: tuple[int, int] | None = None
-        suffix_candidates: set[str] = set()
-        if not candidates:
-            raw_tokens = normalized.split()
-            for alias, keys in self.target_aliases.items():
-                alias_tokens = alias.split()
-                if not _distinctive_alias(alias_tokens):
-                    continue
-                if len(alias_tokens) > len(raw_tokens):
-                    continue
-                if raw_tokens[-len(alias_tokens) :] != alias_tokens:
-                    continue
-                score = (len(alias_tokens), len(alias))
-                if best_score is None or score > best_score:
-                    best_score = score
-                    suffix_candidates = set(keys)
-                elif score == best_score:
-                    suffix_candidates.update(keys)
-            candidates = suffix_candidates
+        resolution = resolve_alias(raw_program, self.target_aliases)
+        candidates = set(resolution.candidates)
         if len(candidates) == 1:
             key = next(iter(candidates))
         else:
-            key = normalized
+            key = resolution.normalized
             if len(candidates) > 1:
-                self.ambiguities[label].update(candidates)
+                self.ambiguities[resolution.label].update(candidates)
         record = self.records.setdefault(
             key,
-            _ProgramRecord(key=key, label=label),
+            _ProgramRecord(key=key, label=resolution.label),
         )
-        record.aliases.add(label)
+        record.aliases.add(resolution.label)
         return key
 
     def add_category(self, program_key: str, category: ProgramCategory) -> None:
@@ -189,15 +174,6 @@ class _GraphState:
     rules: list[MembershipRule]
 
 
-@dataclass(slots=True)
-class _TreeCounters:
-    occurrences: int = 1
-    expanded: int = 0
-    cycles: int = 0
-    cross_references: int = 0
-    truncated: int = 0
-
-
 @dataclass(frozen=True, slots=True)
 class _Outgoing:
     source_node_id: str
@@ -215,44 +191,6 @@ class MembershipGraphService:
 
     def build(self) -> GraphSnapshot:
         return self._build_state().snapshot
-
-    def candidate_mapping_layer(self) -> MembershipMappingLayer:
-        """Return non-official candidate/conflict claims without changing the main graph."""
-        return self._third_party_layer(
-            {MappingClaimStatus.CANDIDATE, MappingClaimStatus.CONFLICTING},
-            traversable=False,
-        )
-
-    def approved_mapping_layer(self) -> MembershipMappingLayer:
-        """Return the explicit, traversable approved third-party relation layer."""
-        return self._third_party_layer(
-            {MappingClaimStatus.APPROVED}, traversable=True
-        )
-
-    def _third_party_layer(
-        self,
-        statuses: set[MappingClaimStatus],
-        *,
-        traversable: bool,
-    ) -> MembershipMappingLayer:
-        claims: list[MembershipMappingClaim] = []
-        for supplement in self._session.scalars(
-            select(StatusMatchArticleSupplement).order_by(
-                StatusMatchArticleSupplement.created_at,
-                StatusMatchArticleSupplement.id,
-            )
-        ):
-            claims.extend(
-                claim
-                for raw in supplement.mapping_claims
-                if (claim := MembershipMappingClaim.model_validate(raw)).status
-                in statuses
-            )
-        return MembershipMappingLayer(
-            official=False,
-            traversable=traversable,
-            claims=claims,
-        )
 
     def tree(
         self,
@@ -595,15 +533,14 @@ class MembershipGraphService:
             unavailable_mapping_count=unavailable_mapping_count,
             alias_ambiguities=registry.ambiguity_models(),
         )
-        edges_by_source: dict[str, list[MembershipEdge]] = defaultdict(list)
-        for edge in edges:
-            edges_by_source[edge.source_node_id].append(edge)
         return _GraphState(
             snapshot=snapshot,
             registry=registry,
             identities=identities,
             nodes=nodes,
-            edges_by_source=dict(edges_by_source),
+            edges_by_source=group_by_source(
+                edges, lambda edge: edge.source_node_id
+            ),
             rules=rules,
         )
 
@@ -701,16 +638,50 @@ class MembershipGraphService:
         root: MembershipNode,
         limits: TraversalLimits,
     ) -> MembershipTree:
-        counters = _TreeCounters()
-        expanded: set[str] = set()
-        root_tree = self._expand_node(
-            state,
-            root,
+        counters = TraversalCounters()
+        nodes = {**state.nodes, root.id: root}
+
+        def make_node(
+            node_id: str,
+            node_state: str,
+            children: list[MembershipTreeEdge],
+            omitted_count: int,
+        ) -> MembershipTreeNode:
+            return MembershipTreeNode(
+                node=nodes[node_id],
+                state=TreeNodeState(node_state),
+                children=children,
+                omitted_count=omitted_count,
+            )
+
+        def make_edge(
+            source_id: str,
+            target_id: str,
+            relation: _Outgoing,
+            child: MembershipTreeNode,
+        ) -> MembershipTreeEdge:
+            return MembershipTreeEdge(
+                source_node_id=source_id,
+                target_node_id=target_id,
+                certainties=list(relation.certainties),
+                claims=list(relation.claims),
+                derived_from_rule=relation.derived_from_rule,
+                conditional=relation.conditional,
+                conflict=relation.conflict,
+                child=child,
+            )
+
+        root_tree = expand_bounded_tree(
+            root.id,
             depth=0,
             ancestors={root.id},
-            expanded=expanded,
+            expanded=set(),
             counters=counters,
             limits=limits,
+            outgoing=lambda node_id: self._outgoing(state, nodes[node_id]),
+            target_id=lambda relation: relation.target_node_id,
+            make_node=make_node,
+            make_edge=make_edge,
         )
         return MembershipTree(
             root=root_tree,
@@ -720,92 +691,6 @@ class MembershipGraphService:
             cycle_count=counters.cycles,
             cross_reference_count=counters.cross_references,
             truncated_count=counters.truncated,
-        )
-
-    def _expand_node(
-        self,
-        state: _GraphState,
-        node: MembershipNode,
-        *,
-        depth: int,
-        ancestors: set[str],
-        expanded: set[str],
-        counters: _TreeCounters,
-        limits: TraversalLimits,
-    ) -> MembershipTreeNode:
-        outgoing = self._outgoing(state, node)
-        if not outgoing:
-            expanded.add(node.id)
-            return MembershipTreeNode(node=node, state=TreeNodeState.LEAF)
-        if depth >= limits.max_depth:
-            counters.truncated += len(outgoing)
-            return MembershipTreeNode(
-                node=node,
-                state=TreeNodeState.DEPTH_LIMIT,
-                omitted_count=len(outgoing),
-            )
-
-        expanded.add(node.id)
-        counters.expanded += 1
-        selected = outgoing[: limits.max_branches]
-        branch_omitted = len(outgoing) - len(selected)
-        if branch_omitted:
-            counters.truncated += branch_omitted
-        children: list[MembershipTreeEdge] = []
-        node_limit_omitted = 0
-        for index, outgoing_edge in enumerate(selected):
-            if counters.occurrences >= limits.max_nodes:
-                node_limit_omitted = len(selected) - index
-                counters.truncated += node_limit_omitted
-                break
-            target = state.nodes[outgoing_edge.target_node_id]
-            counters.occurrences += 1
-            if target.id in ancestors:
-                counters.cycles += 1
-                child = MembershipTreeNode(node=target, state=TreeNodeState.CYCLE)
-            elif target.id in expanded:
-                counters.cross_references += 1
-                child = MembershipTreeNode(
-                    node=target,
-                    state=TreeNodeState.CROSS_REFERENCE,
-                )
-            else:
-                child = self._expand_node(
-                    state,
-                    target,
-                    depth=depth + 1,
-                    ancestors={*ancestors, target.id},
-                    expanded=expanded,
-                    counters=counters,
-                    limits=limits,
-                )
-            children.append(
-                MembershipTreeEdge(
-                    source_node_id=node.id,
-                    target_node_id=target.id,
-                    certainties=list(outgoing_edge.certainties),
-                    claims=list(outgoing_edge.claims),
-                    derived_from_rule=outgoing_edge.derived_from_rule,
-                    conditional=outgoing_edge.conditional,
-                    conflict=outgoing_edge.conflict,
-                    child=child,
-                )
-            )
-
-        if node_limit_omitted:
-            state_value = TreeNodeState.NODE_LIMIT
-            omitted = branch_omitted + node_limit_omitted
-        elif branch_omitted:
-            state_value = TreeNodeState.BRANCH_LIMIT
-            omitted = branch_omitted
-        else:
-            state_value = TreeNodeState.EXPANDED
-            omitted = 0
-        return MembershipTreeNode(
-            node=node,
-            state=state_value,
-            children=children,
-            omitted_count=omitted,
         )
 
     @staticmethod
@@ -1061,44 +946,3 @@ def _target_program_category(value: str) -> ProgramCategory:
 def _single_category(values: set[ProgramCategory]) -> ProgramCategory:
     concrete = {value for value in values if value != ProgramCategory.UNKNOWN}
     return next(iter(concrete)) if len(concrete) == 1 else ProgramCategory.UNKNOWN
-
-
-def _distinctive_alias(tokens: list[str]) -> bool:
-    return len(tokens) >= 2 or (len(tokens) == 1 and len(tokens[0]) >= 6)
-
-
-def _display_text(value: str) -> str:
-    return _SPACE_RE.sub(" ", value).strip()
-
-
-def _display_tier(value: str) -> str:
-    displayed = _display_text(value)
-    tokens = displayed.split()
-    if len(tokens) > 1 and tokens[-1].casefold() == "status":
-        displayed = " ".join(tokens[:-1])
-    return displayed or "UNCERTAIN"
-
-
-def _normalize_key(value: str) -> str:
-    return _SPACE_RE.sub(" ", _NON_WORD_RE.sub(" ", value).casefold()).strip()
-
-
-def _normalize_tier(value: str) -> str:
-    normalized = _normalize_key(value)
-    tokens = normalized.split()
-    if len(tokens) > 1 and tokens[-1] == "status":
-        normalized = " ".join(tokens[:-1])
-    return normalized or "uncertain"
-
-
-def _stable_id(prefix: str, *values: str) -> str:
-    digest = sha256("\x1f".join(values).encode()).hexdigest()[:24]
-    return f"{prefix}:{digest}"
-
-
-def _certainty_rank(value: GraphCertainty) -> int:
-    return {
-        GraphCertainty.EXACT: 0,
-        GraphCertainty.WILDCARD: 1,
-        GraphCertainty.UNCERTAIN: 2,
-    }[value]

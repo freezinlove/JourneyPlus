@@ -270,6 +270,11 @@ class ArticleOpportunityRecord(Base, TimestampMixin):
             "analysis_id", "opportunity_index", name="uq_article_opportunity_index"
         ),
         Index("ix_article_opportunities_analysis_status", "analysis_id", "status"),
+        Index(
+            "ix_article_opportunities_visibility",
+            "visibility_until_at",
+            "archived_at",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
@@ -291,6 +296,14 @@ class ArticleOpportunityRecord(Base, TimestampMixin):
     lifecycle_status: Mapped[str] = mapped_column(
         String(30), default="UNKNOWN", nullable=False
     )
+    visibility_until_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    visibility_policy: Mapped[str] = mapped_column(String(40), nullable=False)
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    archive_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
     action_links: Mapped[list[dict[str, Any]]] = mapped_column(
         JSON, default=list, nullable=False
     )

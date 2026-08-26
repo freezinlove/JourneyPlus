@@ -13,7 +13,7 @@
 LoyaltyLobby DocumentVersion
           │
           ├─ 精确项目专属 *.statusmatch.com
-          │       └─ StatusMatch 第三方补充（原有一次 AI，同时提取候选映射）
+          │       └─ StatusMatch 第三方补充（至多一次 AI，只生成 highlights）
           │
           └─ 普通文章
                   ├─ 批量标题筛选（只传 ID + 标题）
@@ -47,7 +47,10 @@ V2 使用独立的 `ArticleAnalysisRecord`、`ArticleOpportunityRecord`、`Artic
 
 每个机会保留稳定 ID、SourceItem、DocumentVersion、canonical URL、发布时间、项目、目标等级、摘要、活动窗口、行动链接、完整事实、逐字证据、正文签名和事实签名。以后需要跨来源分组时，可以把最新成功 ArticleOpportunity 作为只读输入另建投影；当前表中没有 `group_id`、候选、关系类型或关系置信度字段。
 
-StatusMatch 第三方候选映射使用中立 `membership` 契约和独立 provenance。候选状态分为 `CORROBORATED / CANDIDATE / CONFLICTING / REJECTED / APPROVED`；默认官方图仍只读取 ACTIVE 项目的当前官方 FactSet，未批准的第三方声明不会进入主图。批准和拒绝是显式人工操作，且不会修改官方 FactSet。
+StatusMatch 关联文章只补充 highlights，不提取或审批第三方映射，也不修改官方 FactSet、Brief 或图。
+普通文章 FactSet 中具有逐字证据的直接等级映射可作为来源中立贡献进入统一树；没有明确截止日期时，
+该贡献从发布时间起严格可见 180 天。完整生命周期、用户/管理员合同和回滚说明见
+[统一会籍匹配树与普通文章映射生命周期](unified-membership-tree.md)。
 
 ## CLI 与回滚
 
@@ -57,6 +60,8 @@ uv run journeyplus process-pending --source-id loyaltylobby_feed --limit 100
 uv run journeyplus run-source loyaltylobby_feed --limit 100
 uv run journeyplus run-daily
 uv run journeyplus automation-status
+uv run journeyplus statusmatch-graph "ClubAvolta" "Gold"
+uv run journeyplus membership-graph-audit
 ```
 
 默认使用 V2 并启用标题 DROP：
@@ -88,7 +93,8 @@ JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
 
 同批真实原文还在隔离的内存数据库中运行了旧 V1 作为影子基线。V1 同样得到 2 个正例、2 个机会和 2 个简报，但使用 15 次调用：10 次全文分类、1 次关系判断、2 次 AI 事实整理、2 次简报，用户输入约 374,718 字符。V2 冷启动只需 6 次，用户输入约 47,682 字符；10 篇文章的正文总量为 326,076 字符，V2 只向正文模型发送 3 篇、25,986 字符。调用数减少 60%，提交给正文模型的正文量减少约 92%，同时去掉了全部通用关系和二次事实 AI。V1 影子库在进程结束后即丢弃，未写入业务 PostgreSQL。
 
-8 月 24 日样本没有项目专属 `*.statusmatch.com` 链接，因此另用 8 月 3 日真实文章《Kenya Airways SkyTeam Elite Plus Platinum Match For ALL Accor Gold, Platinum & Diamond》补测。正文包含 `https://kenya-airways.statusmatch.com/`，确定性路由已创建且通用 V2 实测 `selected=0, model_calls=0`。
+8 月 24 日样本没有项目专属 `*.statusmatch.com` 链接，因此另用 8 月 3 日真实文章《Kenya Airways SkyTeam Elite Plus Platinum Match For ALL Accor Gold, Platinum & Diamond》补测。正文包含 `https://kenya-airways.statusmatch.com/`，确定性路由已创建且通用 V2 实测 `selected=0, model_calls=0`。当前关联文只生成 highlights，对统一树零贡献；详见
+[2026-08-26 统一会籍树真实验收](unified-membership-tree-real-validation-2026-08-26.md)。
 
 自动化测试另外覆盖一篇正文含两个独立项目和行动入口的场景：一次正文调用生成两个隔离机会，再分别生成两个简报，总调用为 1 个标题批次 + 1 个正文 + 2 个简报；第二次完整运行为 0 调用。
 
@@ -98,6 +104,9 @@ JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
 uv run alembic upgrade head
 uv run pytest -q
 openspec validate simplify-generic-article-pipeline --strict
+openspec validate unify-membership-mapping-tree --strict
 ```
 
-SQLite 已验证 `0009 → 0010 → 0009` 往返；PostgreSQL 也在一次性隔离数据库中验证 `0009 → 0010 → 0009 → 0010`，随后删除测试库，开发库已升级到 `0010_generic_article_v2`。迁移只新增 V2 表和第三方 `mapping_claims` 字段，不删除旧来源、DocumentVersion、V1 事件、FactSet 或 Brief。
+SQLite 已验证 `0009 → 0010 → 0009` 以及 `0010 → 0011 → 0010` 往返；开发 PostgreSQL 已升级到
+`0011_mapping_visibility`。`0011` 只为普通 ArticleOpportunity 新增映射可见期和软归档字段/索引，
+不删除旧来源、DocumentVersion、V1 事件、FactSet、Brief 或历史 `mapping_claims`。

@@ -183,6 +183,19 @@ def test_graph_preserves_exact_conditional_and_unavailable_mapping_facts(
     snapshot = service.build()
     audit = service.audit()
 
+    # Official-only topology regression snapshot: exact and conditional claims
+    # continue to aggregate onto the same direct edge.
+    assert [
+        (
+            item.source_node_id,
+            item.target_node_id,
+            tuple(str(value) for value in item.certainties),
+            item.conditional,
+        )
+        for item in snapshot.edges
+    ] == [
+        ("alpha club::gold", "beta club::gold", ("EXACT",), True),
+    ]
     assert len(snapshot.edges) == 1
     edge = snapshot.edges[0]
     assert len(edge.claims) == 2
@@ -360,10 +373,27 @@ def test_category_wildcard_and_uncertain_rules_are_explicit(db_session) -> None:
     )
 
     service = MembershipGraphService(db_session)
+    snapshot = service.build()
     airline = service.tree("Alpha Air", "Gold")
     hotel = service.tree("Example Hotel", "Gold")
     target_only_airline = service.tree("Example Air Rewards", "Gold")
 
+    # Official-only topology regression snapshot: wildcard and uncertain
+    # mappings remain explicit rules instead of invented concrete edges.
+    rule_snapshot = [
+        (
+            item.source_program_key,
+            str(item.source_category),
+            item.source_tier_key,
+            item.target_node_id,
+            str(item.certainty),
+        )
+        for item in snapshot.rules
+    ]
+    assert sorted(rule_snapshot, key=repr) == sorted([
+        (None, "AIRLINE", None, "club avolta::gold", "WILDCARD"),
+        ("alpha air", "UNKNOWN", None, "example air rewards::silver", "UNCERTAIN"),
+    ], key=repr)
     airline_targets = {
         edge.child.node.id: edge for edge in airline.root.children
     }
@@ -433,12 +463,23 @@ def test_tree_is_multihop_finite_and_marks_cycles_and_cross_references(
     )
 
     service = MembershipGraphService(db_session)
+    snapshot = service.build()
     tree = service.tree(
         "A Club",
         "Gold",
         limits=TraversalLimits(max_depth=5, max_nodes=20, max_branches=10),
     )
 
+    # Official-only topology regression snapshot: multi-hop traversal does not
+    # persist a transitive A -> C edge, and the A <-> B cycle remains intact.
+    assert sorted(
+        (item.source_node_id, item.target_node_id) for item in snapshot.edges
+    ) == [
+        ("a club::gold", "b club::gold"),
+        ("a club::gold", "c club::gold"),
+        ("b club::gold", "a club::gold"),
+        ("b club::gold", "c club::gold"),
+    ]
     assert [edge.child.node.id for edge in tree.root.children] == [
         "b club::gold",
         "c club::gold",

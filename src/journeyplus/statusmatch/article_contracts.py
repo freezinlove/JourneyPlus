@@ -5,9 +5,9 @@ from enum import StrEnum
 from uuid import UUID
 
 from pydantic import Field, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from journeyplus.contracts import MappingAvailability, StrictModel
-from journeyplus.membership.contracts import MembershipMappingClaim
 
 
 class StatusMatchArticleHighlightKind(StrEnum):
@@ -32,8 +32,13 @@ class StatusMatchArticleExtraction(StrictModel):
     highlights: list[StatusMatchArticleHighlight] = Field(
         default_factory=list, max_length=4
     )
-    candidate_status_mappings: list[StatusMatchArticleCandidateMapping] = Field(
-        default_factory=list, max_length=100
+    candidate_status_mappings: SkipJsonSchema[
+        list[StatusMatchArticleCandidateMapping]
+    ] = Field(
+        default_factory=list,
+        max_length=100,
+        exclude=True,
+        description="Legacy persisted-input compatibility; never consumed or emitted",
     )
 
 
@@ -81,7 +86,6 @@ class StatusMatchSupplementView(StrictModel):
     brief_id: UUID
     status: str
     highlights: list[StatusMatchArticleHighlight] = Field(default_factory=list)
-    mapping_claims: list[MembershipMappingClaim] = Field(default_factory=list)
 
 
 class StatusMatchArticleRouteView(StrictModel):

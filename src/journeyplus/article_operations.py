@@ -26,6 +26,10 @@ from journeyplus.article_pipeline.screening import (
     TITLE_SCREEN_SCHEMA_VERSION,
     BatchTitleScreener,
 )
+from journeyplus.article_pipeline.visibility import (
+    ArticleArchiveReason,
+    ArticleVisibilityPolicy,
+)
 from journeyplus.contracts import DocumentLabel
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import (
@@ -33,8 +37,10 @@ from journeyplus.models import (
     ArticleOpportunityRecord,
     DocumentVersion,
     JobRun,
+    ReviewDecision,
     SourceItem,
 )
+from journeyplus.lifecycle.service import BEIJING_TZ, as_beijing
 from journeyplus.statusmatch.articles import is_third_party_statusmatch_article
 
 
@@ -382,6 +388,152 @@ def latest_successful_article_analysis(
         )
         .order_by(ArticleAnalysisRecord.created_at.desc(), ArticleAnalysisRecord.id.desc())
         .limit(1)
+    )
+
+
+def archive_article_mapping(
+    session: Session,
+    *,
+    opportunity_id: UUID | str,
+    reason: str,
+    actor: str = "operator",
+    now: datetime | None = None,
+) -> ArticleOpportunityRecord:
+    opportunity = _article_opportunity(session, opportunity_id)
+    current = as_beijing(now or datetime.now(BEIJING_TZ))
+    before = _visibility_audit_payload(opportunity)
+    opportunity.archived_at = current
+    opportunity.archive_reason = ArticleArchiveReason.MANUAL
+    _record_visibility_decision(
+        session,
+        opportunity=opportunity,
+        action="ARCHIVE_ARTICLE_MAPPING",
+        actor=actor,
+        reason=reason,
+        before=before,
+    )
+    session.flush()
+    return opportunity
+
+
+def restore_article_mapping(
+    session: Session,
+    *,
+    opportunity_id: UUID | str,
+    visibility_until_at: datetime | None = None,
+    reason: str,
+    actor: str = "operator",
+    now: datetime | None = None,
+) -> ArticleOpportunityRecord:
+    opportunity = _article_opportunity(session, opportunity_id)
+    current = as_beijing(now or datetime.now(BEIJING_TZ))
+    before = _visibility_audit_payload(opportunity)
+    requested_until = (
+        as_beijing(visibility_until_at)
+        if visibility_until_at is not None
+        else as_beijing(opportunity.visibility_until_at)
+    )
+    if requested_until <= current:
+        raise ValueError(
+            "Restoring an expired article mapping requires a future visibility time"
+        )
+    if visibility_until_at is not None:
+        opportunity.visibility_until_at = requested_until
+        opportunity.visibility_policy = ArticleVisibilityPolicy.MANUAL_OVERRIDE
+    opportunity.archived_at = None
+    opportunity.archive_reason = None
+    _record_visibility_decision(
+        session,
+        opportunity=opportunity,
+        action="RESTORE_ARTICLE_MAPPING",
+        actor=actor,
+        reason=reason,
+        before=before,
+    )
+    session.flush()
+    return opportunity
+
+
+def extend_article_mapping(
+    session: Session,
+    *,
+    opportunity_id: UUID | str,
+    visibility_until_at: datetime,
+    reason: str,
+    actor: str = "operator",
+    now: datetime | None = None,
+) -> ArticleOpportunityRecord:
+    opportunity = _article_opportunity(session, opportunity_id)
+    current = as_beijing(now or datetime.now(BEIJING_TZ))
+    requested_until = as_beijing(visibility_until_at)
+    if requested_until <= current:
+        raise ValueError("Article mapping extension must end in the future")
+    before = _visibility_audit_payload(opportunity)
+    opportunity.visibility_until_at = requested_until
+    opportunity.visibility_policy = ArticleVisibilityPolicy.MANUAL_OVERRIDE
+    opportunity.archived_at = None
+    opportunity.archive_reason = None
+    _record_visibility_decision(
+        session,
+        opportunity=opportunity,
+        action="EXTEND_ARTICLE_MAPPING",
+        actor=actor,
+        reason=reason,
+        before=before,
+    )
+    session.flush()
+    return opportunity
+
+
+def _article_opportunity(
+    session: Session, opportunity_id: UUID | str
+) -> ArticleOpportunityRecord:
+    opportunity = session.get(ArticleOpportunityRecord, UUID(str(opportunity_id)))
+    if opportunity is None:
+        raise LookupError("Article opportunity was not found")
+    return opportunity
+
+
+def _visibility_audit_payload(
+    opportunity: ArticleOpportunityRecord,
+) -> dict[str, str | None]:
+    return {
+        "visibility_until_at": (
+            opportunity.visibility_until_at.isoformat()
+            if opportunity.visibility_until_at is not None
+            else None
+        ),
+        "visibility_policy": opportunity.visibility_policy,
+        "archived_at": (
+            opportunity.archived_at.isoformat()
+            if opportunity.archived_at is not None
+            else None
+        ),
+        "archive_reason": opportunity.archive_reason,
+    }
+
+
+def _record_visibility_decision(
+    session: Session,
+    *,
+    opportunity: ArticleOpportunityRecord,
+    action: str,
+    actor: str,
+    reason: str,
+    before: dict[str, str | None],
+) -> None:
+    session.add(
+        ReviewDecision(
+            action=action,
+            entity_type="article_opportunity",
+            entity_id=opportunity.id,
+            reason=reason,
+            actor=actor,
+            payload={
+                "before": before,
+                "after": _visibility_audit_payload(opportunity),
+            },
+        )
     )
 
 

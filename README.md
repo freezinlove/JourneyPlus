@@ -33,7 +33,7 @@ uv run alembic upgrade head
 uv run journeyplus seed-sources
 ```
 
-`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用两者的薄编排。普通文章先批量只读标题，高置信度无关标题不读取正文；其余文章用一次正文调用完成最终分类、文档内机会拆分、事实和逐字证据提取，每个机会再以持久化事实生成一次简报。精确包含项目专属 `*.statusmatch.com` 链接的文章会在标题 AI 前转入 StatusMatch 第三方补充链路。当前不做跨文章候选召回、关系判断或合并。
+`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用两者的薄编排。普通文章先批量只读标题，高置信度无关标题不读取正文；其余文章用一次正文调用完成最终分类、文档内机会拆分、事实和逐字证据提取，每个机会再以持久化事实生成一次简报。精确包含项目专属 `*.statusmatch.com` 链接的文章会在标题 AI 前转入 StatusMatch 第三方补充链路，只生成相对官方产物的新 highlights。普通文章中有逐字证据的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。当前不做跨文章候选召回、关系判断或合并，树构建和生命周期也不调用 AI。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)。
 
 `run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目和第三方补充调用，便于发现调用预算回归。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 

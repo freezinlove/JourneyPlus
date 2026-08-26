@@ -9,8 +9,9 @@ from sqlalchemy.orm import Session, sessionmaker
 from journeyplus.ai.provider import AIProvider
 from journeyplus.contracts import ReviewAction
 from journeyplus.review.service import ReviewService
+from journeyplus.membership.contracts import UnifiedTraversalLimits
+from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.statusmatch.graph import MembershipGraphService
-from journeyplus.statusmatch.graph_contracts import TraversalLimits
 from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
 
 
@@ -49,15 +50,20 @@ def create_review_app(
         max_branches: int = Query(default=20, ge=1, le=100),
     ):
         with session_factory.begin() as session:
-            return MembershipGraphService(session).tree(
+            return UnifiedMembershipTreeService(session).tree(
                 program,
                 tier,
-                limits=TraversalLimits(
+                limits=UnifiedTraversalLimits(
                     max_depth=max_depth,
                     max_nodes=max_nodes,
                     max_branches=max_branches,
                 ),
             ).model_dump(mode="json")
+
+    @app.get("/internal/membership/graph/audit")
+    def unified_membership_graph_audit():
+        with session_factory.begin() as session:
+            return UnifiedMembershipTreeService(session).audit().model_dump(mode="json")
 
     @app.get("/internal/statusmatch/projects/{host}/brief")
     def statusmatch_project_brief(host: str):

@@ -66,3 +66,36 @@ def test_candidate_retrieval_has_no_vector_database_dependency() -> None:
     }
     forbidden = ("pinecone", "qdrant", "chromadb", "weaviate", "pgvector")
     assert not any(name.startswith(forbidden) for name in imports)
+
+
+def test_statusmatch_and_article_workflows_do_not_depend_on_each_other() -> None:
+    root = Path(__file__).parents[1] / "src" / "journeyplus"
+    for path in (root / "statusmatch").glob("*.py"):
+        imported = imported_journeyplus_modules(path)
+        assert "article_pipeline" not in imported, path
+        assert "article_operations" not in imported, path
+    for path in (root / "article_pipeline").glob("*.py"):
+        assert "statusmatch" not in imported_journeyplus_modules(path), path
+
+
+def test_unified_membership_contracts_are_source_neutral() -> None:
+    root = Path(__file__).parents[1] / "src" / "journeyplus" / "membership"
+    for filename in ("contracts.py", "normalization.py", "traversal.py"):
+        imported = imported_journeyplus_modules(root / filename)
+        assert "statusmatch" not in imported
+        assert "article_pipeline" not in imported
+
+
+def test_only_unified_read_layer_combines_mapping_adapters() -> None:
+    root = Path(__file__).parents[1] / "src" / "journeyplus"
+    consumers: list[Path] = []
+    for path in root.rglob("*.py"):
+        if path.name == "contributions.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        if (
+            "StatusMatchOfficialContributionAdapter" in text
+            and "OrdinaryArticleContributionAdapter" in text
+        ):
+            consumers.append(path.relative_to(root))
+    assert consumers == [Path("membership/unified.py")]

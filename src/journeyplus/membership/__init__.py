@@ -1,15 +1,15 @@
-"""Source-neutral membership mapping claims and reconciliation."""
+"""Source-neutral membership mapping contracts and unified read projection."""
 
 from journeyplus.membership.contracts import (
-    MappingClaimStatus,
-    MappingSourceType,
-    MembershipMappingClaim,
-    MembershipMappingProvenance,
+    MappingContributionSource,
+    MembershipMappingContribution,
+    UnifiedMembershipAudit,
+    UnifiedMembershipTree,
 )
 
 __all__ = [
-    "MappingClaimStatus",
-    "MappingSourceType",
-    "MembershipMappingClaim",
-    "MembershipMappingProvenance",
+    "MappingContributionSource",
+    "MembershipMappingContribution",
+    "UnifiedMembershipAudit",
+    "UnifiedMembershipTree",
 ]

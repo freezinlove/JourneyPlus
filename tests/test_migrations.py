@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from alembic import command
@@ -123,6 +124,140 @@ def test_generic_article_v2_migration_round_trips_without_removing_v1_tables(
     }
     engine.dispose()
 
+
+def test_article_mapping_visibility_migration_backfills_and_round_trips(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'mapping-visibility.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    command.upgrade(config, "0010_generic_article_v2")
+    engine = create_engine(database_url)
+    published = datetime(2026, 8, 24, 10, tzinfo=UTC)
+    collected = datetime(2026, 8, 25, 3, tzinfo=UTC)
+    explicit_deadline = datetime(2026, 9, 30, 23, 59, tzinfo=UTC)
+    with engine.begin() as connection:
+        for suffix, item_id, analysis_id, opportunity_id, deadline in (
+            ("default", "1" * 32, "2" * 32, "3" * 32, None),
+            ("explicit", "4" * 32, "5" * 32, "6" * 32, explicit_deadline),
+        ):
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO source_items (
+                        id, source_id, external_id, discovered_url, canonical_url,
+                        title, published_at, observed_at, raw_metadata, created_at,
+                        updated_at
+                    ) VALUES (
+                        :id, 'loyaltylobby_feed', :external_id, :url, :url,
+                        :title, :published_at, :observed_at, '{}', :created_at,
+                        :updated_at
+                    )
+                    """
+                ),
+                {
+                    "id": item_id,
+                    "external_id": suffix,
+                    "url": f"https://loyaltylobby.com/{suffix}/",
+                    "title": suffix,
+                    "published_at": published if suffix == "default" else None,
+                    "observed_at": collected,
+                    "created_at": collected,
+                    "updated_at": collected,
+                },
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO article_analyses (
+                        id, document_version_id, source_item_id, analysis_run_id,
+                        input_version, label, confidence, reason, status,
+                        content_signature, created_at, updated_at
+                    ) VALUES (
+                        :id, :document_id, :source_item_id, :run_id, 'v1',
+                        'STATUS_OPPORTUNITY', 1.0, 'fixture', 'SUCCEEDED',
+                        :signature, :created_at, :updated_at
+                    )
+                    """
+                ),
+                {
+                    "id": analysis_id,
+                    "document_id": "7" * 32 if suffix == "default" else "8" * 32,
+                    "source_item_id": item_id,
+                    "run_id": "9" * 32 if suffix == "default" else "a" * 32,
+                    "signature": suffix * 8,
+                    "created_at": collected,
+                    "updated_at": collected,
+                },
+            )
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO article_opportunities (
+                        id, analysis_id, opportunity_index, program, target_status,
+                        summary, application_start_raw, application_deadline_raw,
+                        application_start_at, application_deadline_at,
+                        lifecycle_status, action_links, facts, fact_signature,
+                        status, current_brief_id, created_at, updated_at
+                    ) VALUES (
+                        :id, :analysis_id, 0, 'Target Club', 'Gold', 'fixture',
+                        NULL, NULL, NULL, :deadline, 'UNKNOWN', '[]', '{}',
+                        :signature, 'DRAFT', NULL, :created_at, :updated_at
+                    )
+                    """
+                ),
+                {
+                    "id": opportunity_id,
+                    "analysis_id": analysis_id,
+                    "deadline": deadline,
+                    "signature": suffix * 8,
+                    "created_at": collected,
+                    "updated_at": collected,
+                },
+            )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("article_opportunities")
+    }
+    assert {
+        "visibility_until_at",
+        "visibility_policy",
+        "archived_at",
+        "archive_reason",
+    } <= columns
+    with engine.connect() as connection:
+        rows = connection.execute(
+            text(
+                "SELECT id, visibility_until_at, visibility_policy "
+                "FROM article_opportunities ORDER BY id"
+            )
+        ).mappings().all()
+    assert rows[0]["visibility_policy"] == "DEFAULT_180_DAYS"
+    assert datetime.fromisoformat(rows[0]["visibility_until_at"]) == (
+        published.replace(tzinfo=None) + timedelta(days=180)
+    )
+    assert rows[1]["visibility_policy"] == "EXPLICIT_DEADLINE"
+    assert datetime.fromisoformat(rows[1]["visibility_until_at"]) == (
+        explicit_deadline.replace(tzinfo=None)
+    )
+    engine.dispose()
+
+    command.downgrade(config, "0010_generic_article_v2")
+    engine = create_engine(database_url)
+    downgraded = {
+        column["name"]
+        for column in inspect(engine).get_columns("article_opportunities")
+    }
+    assert "visibility_until_at" not in downgraded
+    assert "mapping_claims" in {
+        column["name"]
+        for column in inspect(engine).get_columns("statusmatch_article_supplements")
+    }
+    engine.dispose()
 
 def test_status_event_lifecycle_migration_round_trips_on_sqlite(
     tmp_path: Path, monkeypatch

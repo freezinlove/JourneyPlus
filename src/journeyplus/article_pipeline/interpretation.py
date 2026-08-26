@@ -20,6 +20,7 @@ from journeyplus.article_pipeline.contracts import (
     EvidenceQuote,
     ExtractedFactField,
 )
+from journeyplus.article_pipeline.visibility import calculate_mapping_visibility
 from journeyplus.contracts import (
     AnalysisStage,
     ApplicationRoute,
@@ -223,6 +224,21 @@ class ArticleInterpreter:
         self._session.flush()
         records: list[ArticleOpportunityRecord] = []
         for extracted in interpretation.opportunities:
+            application_start_at = (
+                normalize_event_time(extracted.application_start.value, end_of_day=False)
+                if not extracted.application_start.conflict
+                else None
+            )
+            application_deadline_at = (
+                normalize_event_time(extracted.deadline.value, end_of_day=True)
+                if not extracted.deadline.conflict
+                else None
+            )
+            visibility_until_at, visibility_policy = calculate_mapping_visibility(
+                application_deadline_at=application_deadline_at,
+                published_at=item.published_at,
+                first_collected_at=item.created_at,
+            )
             record = ArticleOpportunityRecord(
                 id=uuid5(
                     NAMESPACE_URL,
@@ -240,6 +256,10 @@ class ArticleInterpreter:
                 summary=extracted.summary,
                 application_start_raw=extracted.application_start.value,
                 application_deadline_raw=extracted.deadline.value,
+                application_start_at=application_start_at,
+                application_deadline_at=application_deadline_at,
+                visibility_until_at=visibility_until_at,
+                visibility_policy=visibility_policy,
                 status="DRAFT",
                 facts={},
                 fact_signature="",
@@ -250,16 +270,6 @@ class ArticleInterpreter:
             facts_json = facts.model_dump(mode="json")
             record.facts = facts_json
             record.fact_signature = _json_signature(facts_json)
-            record.application_start_at = (
-                normalize_event_time(extracted.application_start.value, end_of_day=False)
-                if not extracted.application_start.conflict
-                else None
-            )
-            record.application_deadline_at = (
-                normalize_event_time(extracted.deadline.value, end_of_day=True)
-                if not extracted.deadline.conflict
-                else None
-            )
             record.lifecycle_status = calculate_lifecycle(
                 record.application_start_at, record.application_deadline_at
             )

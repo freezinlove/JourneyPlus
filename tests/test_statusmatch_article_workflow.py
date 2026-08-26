@@ -12,6 +12,7 @@ from journeyplus.cli import build_parser
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.models import (
     AnalysisRun,
+    ArticleOpportunityRecord,
     BriefRecord,
     FactSetRecord,
     StatusEvent,
@@ -19,7 +20,8 @@ from journeyplus.models import (
     StatusMatchArticleSupplement,
     StatusMatchWatch,
 )
-from journeyplus.membership.service import approve_third_party_mapping_claim
+from journeyplus.membership.contracts import MappingContributionSource
+from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.operations import pending_documents, process_pending_documents
 from journeyplus.review.api import create_review_app
 from journeyplus.sources.base import FetchResponse
@@ -215,7 +217,7 @@ def _highlight_response(quote: str = "This article adds a practical warning."):
     }
 
 
-def test_single_supplement_call_extracts_candidate_mapping_without_changing_official_fact(
+def test_single_supplement_call_ignores_legacy_candidate_mapping_and_preserves_official_fact(
     session_factory,
 ) -> None:
     quote = (
@@ -267,32 +269,30 @@ def test_single_supplement_call_extracts_candidate_mapping_without_changing_offi
     result = process_pending_statusmatch_articles(session_factory, provider)
 
     assert result.succeeded == result.model_calls == 1
-    assert result.routes[0].mapping_claim_count == 1
+    assert result.routes[0].mapping_claim_count == 0
+    assert result.routes[0].status == "NO_NOVEL_HIGHLIGHTS"
     with session_factory.begin() as session:
         supplement = session.scalar(select(StatusMatchArticleSupplement))
         assert supplement is not None
-        claim = supplement.mapping_claims[0]
-        assert claim["status"] == "CANDIDATE"
-        assert claim["provenance"]["source_type"] == "THIRD_PARTY"
-        assert claim["provenance"]["project_host"] == HOST
-        assert claim["mapping"]["evidence"][0]["document_version_id"] == str(
-            supplement.article_document_version_id
-        )
+        assert supplement.mapping_claims == []
+        assert session.scalar(
+            select(func.count()).select_from(ArticleOpportunityRecord)
+        ) == 0
         assert session.get(FactSetRecord, fact_id).facts == original_fact
         composed = composed_statusmatch_brief(session, host=HOST)
-        assert len(composed.supplements[0].mapping_claims) == 1
-        graph = MembershipGraphService(session)
-        assert len(graph.candidate_mapping_layer().claims) == 1
-        approved = approve_third_party_mapping_claim(
-            session,
-            supplement_id=supplement.id,
-            claim_id=claim["claim_id"],
-            reason="人工核对文章原文后批准",
+        assert not hasattr(composed.supplements[0], "mapping_claims")
+        supplement.mapping_claims = [
+            {"status": "CANDIDATE", "legacy_id": "candidate"},
+            {"status": "CONFLICTING", "legacy_id": "conflicting"},
+            {"status": "APPROVED", "legacy_id": "approved"},
+        ]
+        session.flush()
+        unified = UnifiedMembershipTreeService(session).audit()
+        assert all(
+            contribution.source == MappingContributionSource.STATUSMATCH_OFFICIAL
+            for edge in unified.edges
+            for contribution in edge.contributions
         )
-        assert approved.status == "APPROVED"
-        assert graph.candidate_mapping_layer().claims == []
-        approved_layer = graph.approved_mapping_layer()
-        assert approved_layer.traversable and len(approved_layer.claims) == 1
         assert session.get(FactSetRecord, fact_id).facts == original_fact
 
 
