@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from journeyplus.content.service import IngestionService
 from journeyplus.contracts import RunStatus
-from journeyplus.models import CollectionRun, Source
+from journeyplus.models import CollectionRun, Source, SourceAutomationState
 from journeyplus.sources.base import SourceAdapter
 from journeyplus.statusmatch.service import finalize_statusmatch_watch
 from journeyplus.statusmatch.watchlist import (
@@ -69,13 +69,24 @@ def collect_manual(
     run.started_at = datetime.now(UTC)
     session.flush()
     try:
+        source_state: SourceAutomationState | None = None
+        configure_feed_incremental = getattr(
+            adapter, "configure_feed_incremental_discovery", None
+        )
+        if callable(configure_feed_incremental):
+            source_state = _source_automation_state(session, adapter.source_id)
+            configure_feed_incremental(
+                discovery_cursor=source_state.discovery_cursor
+            )
         configure_incremental = getattr(
             adapter, "configure_incremental_discovery", None
         )
         if callable(configure_incremental):
+            source_state = _source_automation_state(session, adapter.source_id)
             configure_incremental(
                 successful_message_ids=successful_gmail_message_ids(session),
                 watched_hosts=watched_statusmatch_hosts(session),
+                discovery_cursor=source_state.discovery_cursor,
             )
         discovered_items = adapter.discover()
         items = (
@@ -83,6 +94,15 @@ def collect_manual(
             if max_items is not None
             else discovered_items
         )
+        fully_considered = len(items) == len(discovered_items)
+        if (
+            not fully_considered
+            and getattr(adapter, "requires_complete_cursor_batch", False)
+        ):
+            raise RuntimeError(
+                "Incremental cursor batch exceeds max_items; increase the source "
+                "item limit so the cursor can advance without dropping discoveries"
+            )
         ingestion = IngestionService(session)
         reparsed = ingestion.reparse_outdated_snapshots(
             source_id=adapter.source_id
@@ -127,6 +147,19 @@ def collect_manual(
                 document_version_ids.append(str(result.document_version.id))
         for host in sorted(touched_statusmatch_hosts):
             finalize_statusmatch_watch(session, host)
+        cursor_after_collection = getattr(
+            adapter, "discovery_cursor_after_collection", None
+        )
+        if callable(cursor_after_collection):
+            source_state = source_state or _source_automation_state(
+                session, adapter.source_id
+            )
+            next_cursor = cursor_after_collection(
+                considered_items=items,
+                fully_considered=fully_considered,
+            )
+            if next_cursor is not None:
+                source_state.discovery_cursor = next_cursor
         run.status = RunStatus.SUCCEEDED
         run.discovered_count = len(discovered_items)
         run.document_count = len(document_version_ids)
@@ -159,3 +192,14 @@ def automatically_scheduled_source_ids(session: Session) -> list[str]:
             )
         )
     )
+
+
+def _source_automation_state(
+    session: Session, source_id: str
+) -> SourceAutomationState:
+    state = session.get(SourceAutomationState, source_id)
+    if state is None:
+        state = SourceAutomationState(source_id=source_id)
+        session.add(state)
+        session.flush()
+    return state

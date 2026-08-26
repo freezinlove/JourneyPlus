@@ -50,6 +50,45 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "article_opportunities",
         "article_briefs",
     } <= tables
+    columns = {
+        column["name"]
+        for column in inspect(create_engine(database_url)).get_columns(
+            "source_automation_states"
+        )
+    }
+    assert "discovery_cursor" in columns
+
+
+def test_source_discovery_cursor_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'cursor.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0011_mapping_visibility")
+    engine = create_engine(database_url)
+    assert "discovery_cursor" not in {
+        column["name"]
+        for column in inspect(engine).get_columns("source_automation_states")
+    }
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    assert "discovery_cursor" in {
+        column["name"]
+        for column in inspect(engine).get_columns("source_automation_states")
+    }
+    engine.dispose()
+
+    command.downgrade(config, "0011_mapping_visibility")
+    engine = create_engine(database_url)
+    assert "discovery_cursor" not in {
+        column["name"]
+        for column in inspect(engine).get_columns("source_automation_states")
+    }
+    engine.dispose()
 
 
 def test_opportunity_type_migration_round_trips_on_sqlite(

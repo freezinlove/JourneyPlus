@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from zoneinfo import ZoneInfo
 
 import feedparser
 
@@ -22,15 +23,114 @@ class FeedAdapter:
         content_strategy: str,
         fetcher: Fetcher,
         extra_drop_params: set[str] | None = None,
+        incremental_baseline_date: str | date | None = None,
+        incremental_timezone: str = "Asia/Shanghai",
+        incremental_max_pages: int = 100,
     ) -> None:
         self.source_id = source_id
         self.feed_url = feed_url
         self.content_strategy = content_strategy
         self._fetcher = fetcher
         self._extra_drop_params = extra_drop_params or set()
+        self._incremental_baseline_date = _optional_date(
+            incremental_baseline_date
+        )
+        self._incremental_timezone = ZoneInfo(incremental_timezone)
+        if incremental_max_pages < 1:
+            raise ValueError("incremental_max_pages must be positive")
+        self._incremental_max_pages = incremental_max_pages
+        self._incremental_cursor: str | None = None
+        self._incremental_configured = False
+        self._observed_head_external_id: str | None = None
+
+    def configure_feed_incremental_discovery(
+        self, *, discovery_cursor: str | None
+    ) -> None:
+        self._incremental_cursor = discovery_cursor
+        self._incremental_configured = True
 
     def discover(self) -> list[DiscoveredItem]:
+        if (
+            self._incremental_baseline_date is not None
+            and self._incremental_configured
+        ):
+            return self._discover_incremental()
         return self.discover_page(1)
+
+    def discovery_cursor_after_collection(
+        self,
+        *,
+        considered_items: list[DiscoveredItem],
+        fully_considered: bool,
+    ) -> str | None:
+        if not self._incremental_configured:
+            return None
+        if fully_considered:
+            return self._observed_head_external_id or self._incremental_cursor
+        if considered_items:
+            # Incremental discovery is returned oldest-first. Advancing only to the
+            # newest item actually processed preserves the unprocessed suffix.
+            return considered_items[-1].external_id
+        return self._incremental_cursor
+
+    def _discover_incremental(self) -> list[DiscoveredItem]:
+        results: list[DiscoveredItem] = []
+        seen_external_ids: set[str] = set()
+        page_signatures: set[tuple[str, ...]] = set()
+        boundary_reached = False
+        self._observed_head_external_id = None
+
+        for page in range(1, self._incremental_max_pages + 1):
+            page_items = self.discover_page(page)
+            if not page_items:
+                boundary_reached = True
+                break
+            signature = tuple(item.external_id for item in page_items)
+            if signature in page_signatures:
+                raise RuntimeError(
+                    "Feed pagination repeated a page before reaching the "
+                    "incremental boundary"
+                )
+            page_signatures.add(signature)
+            if self._observed_head_external_id is None:
+                self._observed_head_external_id = page_items[0].external_id
+
+            for item in page_items:
+                if item.external_id == self._incremental_cursor:
+                    boundary_reached = True
+                    break
+                if item.external_id in seen_external_ids:
+                    continue
+                seen_external_ids.add(item.external_id)
+                if self._incremental_cursor is None and not self._after_baseline(item):
+                    boundary_reached = True
+                    break
+                results.append(item)
+            if boundary_reached:
+                break
+
+        if not boundary_reached:
+            raise RuntimeError(
+                "Feed incremental boundary was not reached within "
+                f"{self._incremental_max_pages} pages"
+            )
+
+        # Oldest-first makes a collection limit safe: every successful partial run
+        # advances a contiguous boundary without skipping newer discoveries.
+        results.reverse()
+        return results
+
+    def _after_baseline(self, item: DiscoveredItem) -> bool:
+        published_at = item.published_at
+        if published_at is None:
+            return True
+        if published_at.tzinfo is None:
+            published_at = published_at.replace(tzinfo=UTC)
+        assert self._incremental_baseline_date is not None
+        return (
+            published_at.astimezone(self._incremental_timezone).date()
+            > self._incremental_baseline_date
+        )
 
     def discover_page(self, page: int) -> list[DiscoveredItem]:
         if page < 1:
@@ -123,6 +223,12 @@ def _published_at(entry: Any) -> datetime | None:
         return result
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _optional_date(value: str | date | None) -> date | None:
+    if value is None or isinstance(value, date):
+        return value
+    return date.fromisoformat(value)
 
 
 def _feed_page_url(feed_url: str, page: int) -> str:

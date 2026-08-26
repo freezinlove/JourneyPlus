@@ -150,6 +150,7 @@ class SourceAutomationState(Base, TimestampMixin):
     source_id: Mapped[str] = mapped_column(
         ForeignKey("sources.id"), primary_key=True
     )
+    discovery_cursor: Mapped[str | None] = mapped_column(String(500), nullable=True)
     last_day_bucket: Mapped[date | None] = mapped_column(Date, nullable=True)
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

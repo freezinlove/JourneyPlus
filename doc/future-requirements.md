@@ -5,7 +5,7 @@
 ## 活动时效、过期状态与归档
 
 - 记录日期：2026-08-21
-- 状态：已由 `finish-status-opportunity-automation` 阶段四、五设计并实现，等待真实来源联调和自动运行接入
+- 状态：已由 `finish-status-opportunity-automation` 阶段四、五设计并实现，当前 LoyaltyLobby 与 StatusMatch/GetStatus Gmail 真实联调已完成，等待外部每日调度、至少三个北京时间自然日的连续观察和最终维护交接
 
 ### 用户意图
 

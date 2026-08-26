@@ -35,9 +35,11 @@ uv run journeyplus seed-sources
 
 `collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用两者的薄编排。普通文章先批量只读标题，高置信度无关标题不读取正文；其余文章用一次正文调用完成最终分类、文档内机会拆分、事实和逐字证据提取，每个机会再以持久化事实生成一次简报。精确包含项目专属 `*.statusmatch.com` 链接的文章会在标题 AI 前转入 StatusMatch 第三方补充链路，只生成相对官方产物的新 highlights。普通文章中有逐字证据的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。当前不做跨文章候选召回、关系判断或合并，树构建和生命周期也不调用 AI。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)。
 
+两个当前来源都使用持久化增量边界。LoyaltyLobby 在尚无游标时只追赶北京时间 `2026-08-24` 全天之后的文章，分页读到该基线后停止；成功采集后保存最新连续处理的 Feed GUID，后续只分页到上次 GUID，不再从 8 月 24 日重扫。若单轮上限不足，条目按从旧到新处理并只推进到已处理位置，避免跳过中间文章。Gmail 首次运行或 History 游标过期时只做一次当前标签与专用别名的全量 message ID 对账，随后使用持久化 Gmail History ID 读取新增邮件或后加标签的邮件；游标只有在整批采集成功后才推进。正文哈希与规范化哈希继续作为最终入库幂等保护，而不是发现游标的替代品。
+
 `run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目和第三方补充调用，便于发现调用预算回归。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 
-`initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日）；五个公开 Feed 会自动翻页直到覆盖窗口起点。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。
+`initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 是保留的 LoyaltyLobby 历史回放入口，只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日），不会采集或处理已关闭的其他公开来源。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。当前产品验收以 Gmail 公开详情页审核和受控真实 LoyaltyLobby V2 批次为准，不要求跑完全部旧窗口。
 
 默认单轮上限可通过环境变量调整：
 
@@ -73,7 +75,7 @@ uv run journeyplus ai-smoke
 5. 将下载文件保存为 `.secrets/google-oauth-client.json`（下载后的原始文件名需要改成这个名称）。这个文件包含客户端密钥，不要发送给别人或提交 Git。
 6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 `kirikoomiku@gmail.com` 并同意只读授权。
 7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
-8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。适配器会检查邮件中的文字、按钮和图片链接，本地解开 StatusMatch 跟踪包装，只访问去重后的项目专属 HTTPS 活动首页与 `/faq`；不会请求包含收件人参数的跟踪中转地址。
+8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。首次成功会保存 Gmail History ID，后续只读取 History 中新增或后加标签的邮件；游标过期时自动做全量 message ID 对账。适配器会检查新邮件中的文字、按钮和图片链接，本地解开 StatusMatch 跟踪包装，只访问去重后的项目专属 HTTPS 活动首页与 `/faq`；不会请求包含收件人参数的跟踪中转地址。
 
 本项目的 OAuth Audience 已在 2026-08-23 确认为 Production，当前只读刷新令牌已通过四封合规邮件的发现、清洗、完整分析和重复采集验证。若以后重新创建 OAuth 项目，Testing 状态的 External 测试用户授权可能较快失效，长期自动运行前仍须重新确认发布状态和刷新令牌。
 
@@ -89,7 +91,8 @@ uv run python scripts/smoke_public_sources.py
 
 ## 第一版已知限制
 
-- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；Gmail 详情页与受控历史初始化全部审核通过前不会安装外部定时任务，也不会打开六组来源的自动标志。
+- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，其他公开来源保持关闭。外部每日定时任务与至少三个北京时间自然日的连续观察仍属于上线验收阶段。
+- LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
 - 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。

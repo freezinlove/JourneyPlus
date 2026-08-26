@@ -22,6 +22,11 @@ def build_adapter(
             content_strategy=definition.content_strategy,
             fetcher=resolved_fetcher,
             extra_drop_params=set(config.get("strip_query_params", [])),
+            incremental_baseline_date=config.get("incremental_baseline_date"),
+            incremental_timezone=str(
+                config.get("incremental_timezone", "Asia/Shanghai")
+            ),
+            incremental_max_pages=int(config.get("incremental_max_pages", 100)),
         )
     if definition.adapter_type == "gmail":
         if gmail_client is None:

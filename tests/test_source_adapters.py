@@ -5,6 +5,7 @@ import zlib
 from pathlib import Path
 from urllib.parse import urlencode
 
+import httpx
 import pytest
 
 from journeyplus.sources.base import FetchResponse
@@ -13,7 +14,9 @@ from journeyplus.sources.gmail import (
     GMAIL_READONLY_SCOPE,
     QUERY,
     RECIPIENT_ALIAS,
+    GmailHistoryCursorExpired,
     GmailStatusServicesAdapter,
+    HttpGmailClient,
 )
 from journeyplus.sources.registry import get_source_definition
 
@@ -95,6 +98,74 @@ class FakeGmailClient:
 
     def get_message(self, message_id: str):
         return self.messages[message_id]
+
+
+class FakeGmailRestClient:
+    def __init__(self, responses: list[httpx.Response]) -> None:
+        self.responses = responses
+        self.calls: list[tuple[str, list[tuple[str, str]]]] = []
+
+    def get(self, path: str, *, params):
+        self.calls.append((path, list(params)))
+        return self.responses.pop(0)
+
+
+def _gmail_http_response(status_code: int, payload: dict) -> httpx.Response:
+    return httpx.Response(
+        status_code,
+        json=payload,
+        request=httpx.Request("GET", "https://gmail.googleapis.com/test"),
+    )
+
+
+def test_http_gmail_history_paginates_and_deduplicates_message_changes() -> None:
+    rest = FakeGmailRestClient(
+        [
+            _gmail_http_response(
+                200,
+                {
+                    "historyId": "110",
+                    "nextPageToken": "next",
+                    "history": [
+                        {
+                            "messagesAdded": [{"message": {"id": "message-1"}}],
+                            "labelsAdded": [
+                                {"message": {"id": "message-1"}},
+                                {"message": {"id": "message-2"}},
+                            ],
+                        }
+                    ],
+                },
+            ),
+            _gmail_http_response(200, {"historyId": "120"}),
+        ]
+    )
+    client = HttpGmailClient("test-token")
+    client._client.close()
+    client._client = rest  # type: ignore[assignment]
+
+    messages, cursor = client.list_history_messages(
+        start_history_id="100", label_id="Label_123"
+    )
+
+    assert [message["id"] for message in messages] == ["message-1", "message-2"]
+    assert cursor == "120"
+    assert rest.calls[0][0] == "/history"
+    assert ("historyTypes", "messageAdded") in rest.calls[0][1]
+    assert ("historyTypes", "labelAdded") in rest.calls[0][1]
+    assert ("pageToken", "next") in rest.calls[1][1]
+
+
+def test_http_gmail_history_maps_404_to_expired_cursor() -> None:
+    rest = FakeGmailRestClient([_gmail_http_response(404, {"error": "expired"})])
+    client = HttpGmailClient("test-token")
+    client._client.close()
+    client._client = rest  # type: ignore[assignment]
+
+    with pytest.raises(GmailHistoryCursorExpired):
+        client.list_history_messages(
+            start_history_id="stale", label_id="Label_123"
+        )
 
 
 def _gmail_message(

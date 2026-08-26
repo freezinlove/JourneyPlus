@@ -98,15 +98,19 @@ Gmail 适配器 MUST 检查邮件 HTML 中所有文字链接、按钮和仅图�
 
 ## MODIFIED Requirements
 
-### Requirement: 六组精选来源通过统一适配契约接入
-系统 MUST 支持 Frequent Flyer Bonuses 博客、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行六组来源。实施使用的稳定 `source_id`、完整 URL、正文策略、访问限制和默认状态 MUST 来自同一来源注册表，不得在业务模块另行猜测或散落配置。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。StatusMatcher 与 Frequent Flyer Bonuses 会籍汇总列表 MUST 不存在于正式注册表、CLI可选来源或自动调度范围。
+### Requirement: 来源注册兼容与当前运行范围必须分离
+系统 MUST 在统一来源注册表中保留 Frequent Flyer Bonuses 博客、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的适配器、稳定 `source_id`、完整 URL、正文策略、访问限制及历史兼容。当前产品 MUST 只启用 `loyaltylobby_feed` 通用文章链路和 `status_services_mail` 专用项目链路；其他四个公开来源 MUST 保持 `enabled=false`、`automatic_scheduling=false`，不得进入当前通用处理。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。StatusMatcher 与 Frequent Flyer Bonuses 会籍汇总列表 MUST 不存在于正式注册表、CLI 可选来源或自动调度范围。
 
 #### Scenario: 注册表成为唯一来源配置输入
 - **WHEN** 系统初始化会籍来源配置
-- **THEN** 它导入六条来源记录及其入口和策略，其中 StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 StatusMatcher 或 FFB 会籍汇总列表
+- **THEN** 它导入六条兼容来源记录及其入口和策略，其中只有 LoyaltyLobby 与 StatusMatch/GetStatus Gmail 启用，StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 StatusMatcher 或 FFB 会籍汇总列表
 
-#### Scenario: 目录或Feed条目继续获取正文
-- **WHEN** Feed、栏目页或目录页只提供文章入口
+#### Scenario: 自动运行选择当前来源
+- **WHEN** 每日单轮选择到期来源和待处理文档
+- **THEN** 通用处理只选择 LoyaltyLobby，StatusMatch/GetStatus Gmail 只进入专用链路，其他四个公开来源的历史积压不被读取或计数
+
+#### Scenario: 关闭来源仍可保留适配器契约
+- **WHEN** FFB Feed、AwardWallet、Frequent Miler 或很旅行的 Feed、栏目页或目录页只提供文章入口
 - **THEN** 对应适配器发现稳定条目标识和正文地址，并按该来源配置获取正文或Feed内全文
 
 #### Scenario: 邮件保持只读和幂等
@@ -125,61 +129,21 @@ Gmail 适配器 MUST 检查邮件 HTML 中所有文字链接、按钮和仅图�
 - **WHEN** LoyaltyLobby、Frequent Miler 或很旅行的 Feed 条目已提供允许使用的正文
 - **THEN** 适配器直接使用Feed正文，并遵守注册表中禁止或无需继续请求文章页的策略
 
-### Requirement: 跨材料语义去重形成现实事件
-系统 MUST 将来源内容重复与现实事件重复作为两个不同问题处理。候选召回 MUST 使用项目名称包含关系、显著名称词重叠、运行时从材料提取的行动链接、现有事件语义和可用申请窗口缩小候选范围，并 MUST 排除已归档、生命周期为 `EXPIRED` 或可靠截止时间已过的事件。`EventRelationshipAnalyzer` MUST 对调用方传入的关闭事件执行相同防守性过滤，并返回 `SAME_EVENT`、`UPDATE_OF`、`DIFFERENT_EVENT` 或 `UNCERTAIN`，同时返回结构化布尔字段 `deadline_extension`；该字段只有在候选尚未超过原截止时间且未归档、正文明确说明截止时间延期且关系为 `UPDATE_OF` 时才可为 `true`。确定性聚合器据此更新事件关系。普通行动链接只作为临时召回信号，不得新增为事件身份字段；召回相似只代表候选资格，不得直接合并。相同的项目专属 `*.statusmatch.com` 子域同时与新提示及唯一候选的项目身份相符且不存在已知非重叠窗口时，MAY 作为确定性的 `SAME_EVENT` 强信号；路径、查询参数和地区入口差异本身不得强制拆分。同页其他活动的链接、不同项目子域、后续非重叠活动窗口或关闭的候选事件 MUST 阻止该强信号误合并。申请窗口 MUST NOT 作为唯一事件键，候选召回 MUST 不依赖向量数据库。
+### Requirement: 当前通用文章保持文章级独立，StatusMatch 关系只在专用链路内处理
+LoyaltyLobby 新文档 MUST 使用文章级 V2，每个文档版本产生独立、可审计的文章分析和零个或多个 `ArticleOpportunity`，MUST NOT 召回 `StatusEvent` 候选、调用通用关系 AI、返回 `SAME_EVENT / UPDATE_OF` 或跨文章协调事实。旧 V1 事件、关系、证据和 FactSet MUST 保留用于历史审计和回滚，但 MUST NOT 接收新的 LoyaltyLobby 自动处理结果。精确包含项目专属 `*.statusmatch.com` 链接的 LoyaltyLobby 文章 MUST 路由到 StatusMatch 第三方补充链路；StatusMatch Gmail 发现的同域首页与 `/faq` MAY 在专用项目链路中按项目主机组成同一官方项目，但邮件本身不得成为业务材料。
 
-#### Scenario: 多来源报道聚合到同一事件
-- **WHEN** 两篇不同来源的材料描述同一会籍获取活动且窗口相同、重叠或一方未知
-- **THEN** 系统将两份材料关联到同一个 `StatusEvent`，并各自保留来源证据
+#### Scenario: 两篇 LoyaltyLobby 文章报道同一活动
+- **WHEN** 两篇新文章描述同一会籍机会
+- **THEN** 系统分别保存文章级机会，不调用关系 AI 或自动合并为共享 `StatusEvent`，以后如需跨文章分组必须另建只读投影
 
-#### Scenario: 截止时间到达前宣布延期形成事件修订
-- **WHEN** 原活动尚未超过截止时间且未归档，新材料明确说明已有活动延长截止时间
-- **THEN** 系统将它标为 `UPDATE_OF`、设置 `deadline_extension=true`、关联同一事件并保留旧版本
-
-#### Scenario: 截止时间到达后才出现延期材料
-- **WHEN** 原活动已经超过可靠截止时间或已经归档，后来材料写明 OFFER EXTENDED、重开或新的截止时间
-- **THEN** 旧活动不得进入候选，系统返回 `DIFFERENT_EVENT` 并创建新事件，旧事件保持归档
-
-#### Scenario: 同品牌出现新的非重叠活动期次
-- **WHEN** 新材料描述已结束活动之后的新申请窗口且没有明确延期语义
-- **THEN** 系统返回 `DIFFERENT_EVENT` 并创建新事件，旧事件保持独立
-
-#### Scenario: 同品牌同期不同活动保持分离
-- **WHEN** 同一项目在重叠窗口内存在不同企业专场、地区专场或不同获取机制
-- **THEN** 系统根据现有语义和完整材料把它们识别为不同事件
-
-#### Scenario: 无法确定关系时不自动误合并
-- **WHEN** 活动语义和窗口仍不足以确认关系
-- **THEN** 系统返回 `UNCERTAIN`、建立人工复核项并在复核前保持材料和事件分离
-
-#### Scenario: 新证据刷新候选召回文本
-- **WHEN** 新材料被关联到已有事件并补充当前活动描述
-- **THEN** 系统刷新事件当前摘要或搜索文本，使后续召回不只依赖首篇材料
-
-#### Scenario: 项目全称与简称不同
-- **WHEN** 材料使用 Kenya Airways 与 Kenya Airways Asante Rewards、Alaska Airlines 与 Alaska Airlines Atmos Rewards 或 Flying Blue 与 Air France KLM Flying Blue 等不同名称
-- **THEN** 候选召回把可能的同项目事件交给关系模型，但不因名称包含或词重叠自动合并
-
-#### Scenario: 中英文项目名没有词面重叠
-- **WHEN** 很旅行使用 `马来西亚航空`、Gmail 展开的详细页使用 `Malaysia Airlines Enrich`，但两份材料都包含或来自 `enrich.statusmatch.com`
-- **THEN** 关系层使用项目专属子域将两份材料聚合，数据库不增加行动链接身份字段
-
-#### Scenario: 同一项目专属子域使用不同路径
-- **WHEN** Flying Blue 英国入口使用 `flyingblue.statusmatch.com/ba/`，通用入口使用同一子域根路径
-- **THEN** 关系层把子域作为强关系信号并聚合为同一活动，不因路径、查询参数或目标地区不同拆分
-
-#### Scenario: 多活动文档不得串用子域
-- **WHEN** 一篇文档同时描述 Malaysia Airlines Enrich 与 Garuda Gold Privilege，只有前者使用 `enrich.statusmatch.com`
-- **THEN** 该子域只能关联 Enrich 提示，不得把 Garuda 活动合并进 Enrich 事件
-
-#### Scenario: 不同项目子域保持分离
-- **WHEN** 两份详细材料分别来自 `kmrewards.statusmatch.com` 与 `kenya-airways.statusmatch.com`
-- **THEN** 两者不得因同属 StatusMatch 平台而召回或合并
-
-#### Scenario: 同一命名授予计划存在国家入口
-- **WHEN** Best Western Service Rewards 对美国和加拿大军人分别提供注册入口但授予机制相同
-- **THEN** 系统把两份材料聚合为同一现实活动，不仅因国家和注册链接不同而拆分
+#### Scenario: LoyaltyLobby 文章精确链接 StatusMatch 项目
+- **WHEN** 文章包含具体项目专属 `*.statusmatch.com` 链接
+- **THEN** 系统在通用标题筛选前将文章路由到 StatusMatch 第三方补充链路，不生成通用文章机会，也不修改官方 FactSet
 
 #### Scenario: 同一邮件发现同域首页和 FAQ
 - **WHEN** StatusMatch 邮件链接已规范化到项目专属子域且系统取得同域首页与 `/faq`
-- **THEN** 邮件只完成发现；关系层使用两个公开页面共有的项目主机聚合现实活动，不将邮件加入该事件
+- **THEN** 邮件只完成发现；专用项目链路使用两个公开页面共有的项目主机组成同一官方项目，不将邮件加入业务证据
+
+#### Scenario: 数据库已有旧 V1 事件
+- **WHEN** 升级后的数据库保留旧的跨文章事件、关系、事实与简报
+- **THEN** 这些数据继续可审计和回滚读取，但当前 LoyaltyLobby 自动处理不追加新证据或修改其关系

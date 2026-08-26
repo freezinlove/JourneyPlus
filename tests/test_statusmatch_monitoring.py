@@ -17,6 +17,7 @@ from journeyplus.models import (
     DocumentVersion,
     EventEvidence,
     FactSetRecord,
+    SourceAutomationState,
     SourceItem,
     StatusEvent,
     StatusMatchWatch,
@@ -24,7 +25,11 @@ from journeyplus.models import (
 )
 from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
-from journeyplus.sources.gmail import GmailStatusServicesAdapter, RECIPIENT_ALIAS
+from journeyplus.sources.gmail import (
+    GmailHistoryCursorExpired,
+    GmailStatusServicesAdapter,
+    RECIPIENT_ALIAS,
+)
 from journeyplus.sources.registry import seed_sources
 from journeyplus.statusmatch.service import monitor_statusmatch_watches
 from journeyplus.statusmatch.contracts import StatusMatchProjectExtraction
@@ -363,6 +368,30 @@ class CountingGmailClient:
         }
 
 
+class HistoryGmailClient(CountingGmailClient):
+    def __init__(self):
+        super().__init__()
+        self.profile_history_id = "100"
+        self.history: dict[str, tuple[list[str], str] | Exception] = {}
+        self.list_calls = 0
+        self.history_calls: list[tuple[str, str]] = []
+
+    def list_messages(self, *, label_id: str, query: str):
+        self.list_calls += 1
+        return super().list_messages(label_id=label_id, query=query)
+
+    def get_profile_history_id(self) -> str:
+        return self.profile_history_id
+
+    def list_history_messages(self, *, start_history_id: str, label_id: str):
+        self.history_calls.append((start_history_id, label_id))
+        configured = self.history[start_history_id]
+        if isinstance(configured, Exception):
+            raise configured
+        message_ids, next_history_id = configured
+        return [{"id": value} for value in message_ids], next_history_id
+
+
 def test_gmail_reads_only_unseen_messages_and_ignores_watched_hosts(db_session) -> None:
     seed_sources(db_session)
     gmail = CountingGmailClient()
@@ -382,6 +411,94 @@ def test_gmail_reads_only_unseen_messages_and_ignores_watched_hosts(db_session) 
         "https://example.statusmatch.com/",
         "https://example.statusmatch.com/faq",
     ]
+
+
+def test_gmail_uses_history_cursor_after_initial_full_reconciliation(
+    db_session,
+) -> None:
+    seed_sources(db_session)
+    gmail = HistoryGmailClient()
+    page_fetcher = PageFetcher(_active_responses())
+    adapter = GmailStatusServicesAdapter(gmail, project_fetcher=page_fetcher)
+
+    first = collect_manual(db_session, adapter, idempotency_key="gmail:history:first")
+    state = db_session.get(SourceAutomationState, "status_services_mail")
+
+    assert first.new_versions == 3
+    assert state is not None
+    assert state.discovery_cursor == "100"
+    assert gmail.list_calls == 1
+    assert gmail.history_calls == []
+
+    gmail.message_ids.append("message-2")
+    gmail.history["100"] = (["message-2"], "110")
+    second = collect_manual(
+        db_session, adapter, idempotency_key="gmail:history:second"
+    )
+
+    assert second.discovered == 1
+    assert second.new_versions == 1
+    assert state.discovery_cursor == "110"
+    assert gmail.list_calls == 1
+    assert gmail.history_calls == [("100", "Label_123")]
+    assert gmail.get_calls == ["message-1", "message-2"]
+
+
+def test_gmail_expired_history_cursor_falls_back_to_full_id_reconciliation(
+    db_session,
+) -> None:
+    seed_sources(db_session)
+    gmail = HistoryGmailClient()
+    gmail.profile_history_id = "210"
+    gmail.history["stale"] = GmailHistoryCursorExpired("stale")
+    state = SourceAutomationState(
+        source_id="status_services_mail", discovery_cursor="stale"
+    )
+    db_session.add(state)
+    db_session.flush()
+
+    summary = collect_manual(
+        db_session,
+        GmailStatusServicesAdapter(
+            gmail, project_fetcher=PageFetcher(_active_responses())
+        ),
+        idempotency_key="gmail:history:fallback",
+    )
+
+    assert summary.new_versions == 3
+    assert gmail.history_calls == [("stale", "Label_123")]
+    assert gmail.list_calls == 1
+    assert state.discovery_cursor == "210"
+
+
+def test_gmail_does_not_advance_history_cursor_when_discovery_fails(
+    db_session,
+    monkeypatch,
+) -> None:
+    seed_sources(db_session)
+    gmail = HistoryGmailClient()
+    gmail.history["100"] = (["broken-message"], "110")
+    state = SourceAutomationState(
+        source_id="status_services_mail", discovery_cursor="100"
+    )
+    db_session.add(state)
+    db_session.flush()
+
+    def fail_message_fetch(_message_id: str):
+        raise RuntimeError("temporary Gmail read failure")
+
+    monkeypatch.setattr(gmail, "get_message", fail_message_fetch)
+
+    with pytest.raises(RuntimeError, match="temporary Gmail read failure"):
+        collect_manual(
+            db_session,
+            GmailStatusServicesAdapter(
+                gmail, project_fetcher=PageFetcher(_active_responses())
+            ),
+            idempotency_key="gmail:history:failed",
+        )
+
+    assert state.discovery_cursor == "100"
 
 
 def test_removed_watch_requires_a_genuinely_new_message_to_reonboard(db_session) -> None:

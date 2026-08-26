@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import journeyplus.cli as cli
 import pytest
+from sqlalchemy import select
 
 from journeyplus.config import Settings
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.cli import build_parser
+from journeyplus.models import SourceAutomationState, SourceItem
+from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
+from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.registry import seed_sources
 
 
@@ -131,6 +135,124 @@ def test_manual_collection_can_limit_fetched_items(db_session) -> None:
     assert summary.considered == 1
     assert summary.new_versions == 1
     assert adapter.fetch_count == 1
+
+
+class PagedFeedFetcher:
+    def __init__(self, responses: dict[str, str]) -> None:
+        self.responses = responses
+        self.calls: list[str] = []
+
+    def get(self, url: str) -> FetchResponse:
+        self.calls.append(url)
+        return FetchResponse(
+            body=self.responses[url],
+            content_type="application/rss+xml",
+            final_url=url,
+        )
+
+
+def _feed_xml(entries: list[tuple[str, str]]) -> str:
+    items = "".join(
+        (
+            "<item>"
+            f"<guid>{external_id}</guid>"
+            f"<link>https://example.com/{external_id}</link>"
+            f"<title>{external_id}</title>"
+            f"<pubDate>{published_at}</pubDate>"
+            f"<description><![CDATA[<p>{external_id} body</p>]]></description>"
+            "</item>"
+        )
+        for external_id, published_at in entries
+    )
+    return f"<?xml version='1.0'?><rss version='2.0'><channel>{items}</channel></rss>"
+
+
+def _incremental_loyalty_adapter(fetcher: PagedFeedFetcher) -> FeedAdapter:
+    return FeedAdapter(
+        source_id="loyaltylobby_feed",
+        feed_url="https://loyaltylobby.com/feed/",
+        content_strategy="feed_body_only",
+        fetcher=fetcher,
+        incremental_baseline_date="2026-08-24",
+        incremental_timezone="Asia/Shanghai",
+        incremental_max_pages=5,
+    )
+
+
+def test_loyalty_incremental_cursor_advances_without_skipping_limited_items(
+    db_session,
+) -> None:
+    seed_sources(db_session)
+    first_fetcher = PagedFeedFetcher(
+        {
+            "https://loyaltylobby.com/feed/": _feed_xml(
+                [
+                    ("new-3", "Wed, 26 Aug 2026 02:00:00 +0000"),
+                    ("new-2", "Tue, 25 Aug 2026 02:00:00 +0000"),
+                ]
+            ),
+            "https://loyaltylobby.com/feed/?paged=2": _feed_xml(
+                [
+                    ("new-1", "Mon, 24 Aug 2026 16:00:00 +0000"),
+                    ("baseline", "Mon, 24 Aug 2026 15:59:00 +0000"),
+                ]
+            ),
+        }
+    )
+
+    first = collect_manual(
+        db_session,
+        _incremental_loyalty_adapter(first_fetcher),
+        idempotency_key="loyalty:first-incremental",
+        max_items=2,
+    )
+
+    state = db_session.get(SourceAutomationState, "loyaltylobby_feed")
+    assert first.discovered == 3
+    assert first.considered == 2
+    assert state is not None
+    assert state.discovery_cursor == "new-2"
+    assert set(
+        db_session.scalars(
+            select(SourceItem.external_id).where(
+                SourceItem.source_id == "loyaltylobby_feed"
+            )
+        )
+    ) == {"new-1", "new-2"}
+
+    second_fetcher = PagedFeedFetcher(
+        {
+            "https://loyaltylobby.com/feed/": _feed_xml(
+                [
+                    ("new-4", "Wed, 26 Aug 2026 03:00:00 +0000"),
+                    ("new-3", "Wed, 26 Aug 2026 02:00:00 +0000"),
+                    ("new-2", "Tue, 25 Aug 2026 02:00:00 +0000"),
+                ]
+            )
+        }
+    )
+    second = collect_manual(
+        db_session,
+        _incremental_loyalty_adapter(second_fetcher),
+        idempotency_key="loyalty:second-incremental",
+        max_items=2,
+    )
+
+    assert second.discovered == 2
+    assert second.considered == 2
+    assert state.discovery_cursor == "new-4"
+    assert set(
+        db_session.scalars(
+            select(SourceItem.external_id).where(
+                SourceItem.source_id == "loyaltylobby_feed"
+            )
+        )
+    ) == {"new-1", "new-2", "new-3", "new-4"}
+    assert first_fetcher.calls == [
+        "https://loyaltylobby.com/feed/",
+        "https://loyaltylobby.com/feed/?paged=2",
+    ]
+    assert second_fetcher.calls == ["https://loyaltylobby.com/feed/"]
 
 
 def test_manual_collection_cli_has_no_scheduler_command() -> None:

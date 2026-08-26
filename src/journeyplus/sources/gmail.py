@@ -31,6 +31,10 @@ class GmailClient(Protocol):
     def get_message(self, message_id: str) -> dict[str, Any]: ...
 
 
+class GmailHistoryCursorExpired(RuntimeError):
+    """The saved Gmail history ID is no longer available from Gmail."""
+
+
 class HttpGmailClient:
     """Minimal Gmail REST client using an externally managed readonly token."""
 
@@ -63,6 +67,52 @@ class HttpGmailClient:
             if not page_token:
                 return messages
 
+    def get_profile_history_id(self) -> str:
+        response = self._client.get("/profile")
+        response.raise_for_status()
+        history_id = str(response.json().get("historyId") or "")
+        if not history_id:
+            raise ValueError("Gmail profile did not contain a historyId")
+        return history_id
+
+    def list_history_messages(
+        self, *, start_history_id: str, label_id: str
+    ) -> tuple[list[dict[str, Any]], str]:
+        messages: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        page_token: str | None = None
+        latest_history_id = start_history_id
+        while True:
+            params: list[tuple[str, str]] = [
+                ("startHistoryId", start_history_id),
+                ("labelId", label_id),
+                ("historyTypes", "messageAdded"),
+                ("historyTypes", "labelAdded"),
+                ("maxResults", "500"),
+            ]
+            if page_token:
+                params.append(("pageToken", page_token))
+            response = self._client.get("/history", params=params)
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                if response.status_code == 404:
+                    raise GmailHistoryCursorExpired(start_history_id) from exc
+                raise
+            payload = response.json()
+            latest_history_id = str(payload.get("historyId") or latest_history_id)
+            for history in payload.get("history", []):
+                for group in ("messagesAdded", "labelsAdded"):
+                    for change in history.get(group, []):
+                        message = dict(change.get("message") or {})
+                        message_id = str(message.get("id") or "")
+                        if message_id and message_id not in seen:
+                            seen.add(message_id)
+                            messages.append(message)
+            page_token = payload.get("nextPageToken")
+            if not page_token:
+                return messages, latest_history_id
+
     def get_message(self, message_id: str) -> dict[str, Any]:
         response = self._client.get(f"/messages/{message_id}", params={"format": "full"})
         response.raise_for_status()
@@ -79,23 +129,39 @@ class GmailStatusServicesAdapter:
         self._label_id: str | None = None
         self._successful_message_ids: set[str] = set()
         self._watched_hosts: set[str] = set()
+        self._history_id: str | None = None
+        self._pending_history_id: str | None = None
+        self.requires_complete_cursor_batch = False
 
     def configure_incremental_discovery(
         self,
         *,
         successful_message_ids: set[str],
         watched_hosts: set[str],
+        discovery_cursor: str | None = None,
     ) -> None:
         self._successful_message_ids = set(successful_message_ids)
         self._watched_hosts = {
             host.casefold().rstrip(".") for host in watched_hosts
         }
+        self._history_id = discovery_cursor
+
+    def discovery_cursor_after_collection(
+        self,
+        *,
+        considered_items: list[DiscoveredItem],
+        fully_considered: bool,
+    ) -> str | None:
+        del considered_items
+        if not fully_considered:
+            return self._history_id
+        return self._pending_history_id or self._history_id
 
     def discover(self) -> list[DiscoveredItem]:
         label_id = self._resolve_label_id()
         results: list[DiscoveredItem] = []
         projects: dict[str, set[str]] = {}
-        for reference in self._client.list_messages(label_id=label_id, query=QUERY):
+        for reference in self._message_references(label_id):
             message_id = str(reference["id"])
             if message_id in self._successful_message_ids:
                 continue
@@ -162,6 +228,35 @@ class GmailStatusServicesAdapter:
                     )
                 )
         return results
+
+    def _message_references(self, label_id: str) -> list[dict[str, Any]]:
+        get_profile_history_id = getattr(
+            self._client, "get_profile_history_id", None
+        )
+        list_history_messages = getattr(
+            self._client, "list_history_messages", None
+        )
+        supports_history = callable(get_profile_history_id) and callable(
+            list_history_messages
+        )
+        self.requires_complete_cursor_batch = supports_history
+        self._pending_history_id = None
+        if supports_history and self._history_id:
+            try:
+                references, next_history_id = list_history_messages(
+                    start_history_id=self._history_id,
+                    label_id=label_id,
+                )
+            except GmailHistoryCursorExpired:
+                pass
+            else:
+                self._pending_history_id = next_history_id
+                return references
+        if supports_history:
+            # Capture the history ID before the full reconciliation. Events that
+            # race with the list are replayed on the next incremental run.
+            self._pending_history_id = get_profile_history_id()
+        return self._client.list_messages(label_id=label_id, query=QUERY)
 
     def fetch(self, item: DiscoveredItem) -> RawDocument:
         if item.raw_metadata.get("document_role") == "linked_statusmatch_page":
