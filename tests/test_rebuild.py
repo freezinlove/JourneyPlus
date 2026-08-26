@@ -150,7 +150,7 @@ def test_reset_removes_only_rebuildable_derived_data(session_factory) -> None:
     assert summary.deleted["status_events"] == 1
     assert summary.deleted["analysis_runs"] == 1
     with session_factory() as session:
-        assert session.scalar(select(func.count()).select_from(Source)) == 7
+        assert session.scalar(select(func.count()).select_from(Source)) == 8
         assert session.scalar(select(func.count()).select_from(SourceItem)) == 1
         assert session.scalar(select(func.count()).select_from(DocumentVersion)) == 1
         assert session.scalar(select(func.count()).select_from(CollectionRun)) == 1

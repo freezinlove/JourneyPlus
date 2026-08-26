@@ -25,6 +25,7 @@
 
 - `loyaltylobby_feed`
 - `status_services_mail`
+- `awardwallet_buy_points_page`（固定单页、确定性结构解析、零 AI）
 
 以下公开来源保留适配器与历史数据，但 `enabled=false`、`automatic_scheduling=false`：
 
@@ -33,7 +34,7 @@
 - `frequentmiler_elite_status_feed`
 - `verylvke_feed`
 
-旧 `statusmatcher_reports` 和 `ffb_status_match_catalog` 在播种时会被强制关闭、清空采集周期，且不在正式注册表和 CLI 来源范围内。自动化提示同时明确禁止定向运行或启用这六条关闭/旧来源。
+旧 `statusmatcher_reports` 和 `ffb_status_match_catalog` 在播种时会被强制关闭、清空采集周期，且不在正式注册表和 CLI 来源范围内。自动化提示同时明确禁止定向运行或启用这些关闭/旧来源。
 
 ## 运维
 

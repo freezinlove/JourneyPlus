@@ -99,3 +99,18 @@ def test_only_unified_read_layer_combines_mapping_adapters() -> None:
         ):
             consumers.append(path.relative_to(root))
     assert consumers == [Path("membership/unified.py")]
+
+
+def test_buy_points_domain_does_not_import_membership_or_article_business_layers() -> None:
+    root = Path(__file__).parents[1] / "src" / "journeyplus" / "buy_points"
+    forbidden = {
+        "article_operations",
+        "article_pipeline",
+        "briefs",
+        "facts",
+        "membership",
+        "statusmatch",
+        "status_topic",
+    }
+    for path in root.glob("*.py"):
+        assert not (imported_journeyplus_modules(path) & forbidden), path

@@ -19,6 +19,7 @@ from journeyplus.sources.gmail import (
     HttpGmailClient,
 )
 from journeyplus.sources.registry import get_source_definition
+from journeyplus.sources.single_page import SinglePageAdapter
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -38,6 +39,45 @@ class FakeFetcher:
             body, final_url = configured, url
         content_type = "application/rss+xml" if body.startswith("<?xml") else "text/html"
         return FetchResponse(body=body, content_type=content_type, final_url=final_url)
+
+
+def test_single_page_adapter_discovers_and_fetches_only_the_configured_page() -> None:
+    definition = get_source_definition("awardwallet_buy_points_page")
+    page_url = str(definition.discovery_config["page_url"])
+    fetcher = FakeFetcher({page_url: "<html><article>offers</article></html>"})
+    adapter = build_adapter("awardwallet_buy_points_page", fetcher=fetcher)
+
+    items = adapter.discover()
+    raw = adapter.fetch(items[0])
+
+    assert isinstance(adapter, SinglePageAdapter)
+    assert len(items) == 1
+    assert items[0].canonical_url == page_url
+    assert items[0].raw_metadata["refresh_on_discovery"] is True
+    assert fetcher.calls == [page_url]
+    assert raw.canonical_url == page_url
+    assert raw.metadata["content_strategy"] == "fetch_article"
+
+
+@pytest.mark.parametrize(
+    "final_url",
+    [
+        "https://awardwallet.com/news/different-page/",
+        "https://external.example/current-promotions-buy-points-miles/",
+    ],
+)
+def test_single_page_adapter_rejects_final_url_outside_host_path(
+    final_url: str,
+) -> None:
+    definition = get_source_definition("awardwallet_buy_points_page")
+    page_url = str(definition.discovery_config["page_url"])
+    adapter = build_adapter(
+        "awardwallet_buy_points_page",
+        fetcher=FakeFetcher({page_url: ("<html>offers</html>", final_url)}),
+    )
+
+    with pytest.raises(ValueError, match="left the configured URL"):
+        adapter.fetch(adapter.discover()[0])
 
 
 @pytest.mark.parametrize(

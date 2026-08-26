@@ -17,6 +17,12 @@ from journeyplus.article_operations import (
     process_pending_articles,
 )
 from journeyplus.article_pipeline.lifecycle import advance_article_lifecycles
+from journeyplus.buy_points.operations import (
+    BuyPointsProcessingSummary,
+    pending_buy_points_count,
+    process_pending_buy_points,
+)
+from journeyplus.buy_points.service import BUY_POINTS_SOURCE_ID
 from journeyplus.contracts import RunStatus
 from journeyplus.lifecycle.service import BEIJING_TZ, advance_lifecycles
 from journeyplus.models import (
@@ -107,6 +113,12 @@ class DailyCycleSummary:
     generic_title_model_calls: int
     generic_interpretation_model_calls: int
     generic_brief_model_calls: int
+    buy_points_selected: int
+    buy_points_succeeded: int
+    buy_points_failed: int
+    buy_points_reused: int
+    buy_points_latest_offer_count: int
+    buy_points_diagnostics: tuple[str, ...]
     lifecycle_scanned: int
     lifecycle_updated: int
     lifecycle_expired: int
@@ -160,6 +172,12 @@ class AutomationStatusSummary:
     last_generic_title_model_calls: int
     last_generic_interpretation_model_calls: int
     last_generic_brief_model_calls: int
+    last_buy_points_selected: int
+    last_buy_points_succeeded: int
+    last_buy_points_failed: int
+    last_buy_points_reused: int
+    last_buy_points_latest_offer_count: int
+    last_buy_points_diagnostics: tuple[str, ...]
     last_statusmatch_project_model_calls: int
     last_statusmatch_article_model_calls: int
     backlog_count: int
@@ -227,6 +245,16 @@ def run_daily_cycle(
     article_discovery = ArticleRouteDiscoverySummary()
     article_preparation = ArticleProjectPreparationSummary()
     article_processing = StatusMatchArticleProcessingSummary()
+    buy_points_processing = BuyPointsProcessingSummary(
+        selected=0,
+        attempted=0,
+        succeeded=0,
+        failed=0,
+        reused=0,
+        latest_offer_count=0,
+        diagnostics=(),
+        documents=(),
+    )
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
@@ -266,6 +294,12 @@ def run_daily_cycle(
                 now=current,
             )
             source_summaries.append(summary)
+
+        if BUY_POINTS_SOURCE_ID in selected_source_ids:
+            buy_points_processing = process_pending_buy_points(
+                session_factory,
+                limit=resolved_limits.documents,
+            )
 
         try:
             with session_factory.begin() as session:
@@ -336,7 +370,8 @@ def run_daily_cycle(
                 legacy_source_ids = [
                     source_id
                     for source_id in selected_source_ids
-                    if source_id != "status_services_mail"
+                    if source_id
+                    not in {"status_services_mail", BUY_POINTS_SOURCE_ID}
                 ]
                 if legacy_source_ids:
                     processing = process_pending_documents(
@@ -413,6 +448,7 @@ def run_daily_cycle(
                 "statusmatch_article_preparation": asdict(article_preparation),
                 "statusmatch_project_processing": asdict(project_processing),
                 "statusmatch_article_processing": asdict(article_processing),
+                "buy_points_processing": asdict(buy_points_processing),
                 "generic_documents": generic_payload,
             }
         except Exception as exc:
@@ -427,6 +463,7 @@ def run_daily_cycle(
                 "statusmatch_article_preparation": asdict(article_preparation),
                 "statusmatch_project_processing": asdict(project_processing),
                 "statusmatch_article_processing": asdict(article_processing),
+                "buy_points_processing": asdict(buy_points_processing),
             }
 
         with session_factory.begin() as session:
@@ -452,6 +489,7 @@ def run_daily_cycle(
                 source_id
                 for source_id in selected_source_ids
                 if source_id != "status_services_mail"
+                and source_id != BUY_POINTS_SOURCE_ID
                 and (
                     source_id != GENERIC_PUBLIC_SOURCE_ID
                     or generic_pipeline_mode == "v1"
@@ -461,6 +499,7 @@ def run_daily_cycle(
                 backlog += pending_document_count(
                     session, budgeted, source_ids=legacy_source_ids
                 )
+            backlog += pending_buy_points_count(session)
             backlog += pending_statusmatch_article_count(session, budgeted)
             needs_review = int(
                 session.scalar(
@@ -484,12 +523,14 @@ def run_daily_cycle(
             processing_failures = int(processing_payload.get("failed", 0))
             project_failures = project_processing.failed
             article_failures = article_processing.failed
+            buy_points_failures = buy_points_processing.failed
             run.status = (
                 RunStatus.SUCCEEDED
                 if not source_failures
                 and not processing_failures
                 and not project_failures
                 and not article_failures
+                and not buy_points_failures
                 and not global_error
                 and not monitoring.errors
                 and not article_preparation.monitoring.errors
@@ -537,6 +578,12 @@ def run_daily_cycle(
         generic_brief_model_calls=int(
             generic_model_calls.get("article_briefs", 0)
         ),
+        buy_points_selected=buy_points_processing.selected,
+        buy_points_succeeded=buy_points_processing.succeeded,
+        buy_points_failed=buy_points_processing.failed,
+        buy_points_reused=buy_points_processing.reused,
+        buy_points_latest_offer_count=buy_points_processing.latest_offer_count,
+        buy_points_diagnostics=buy_points_processing.diagnostics,
         lifecycle_scanned=lifecycle_payload["scanned"],
         lifecycle_updated=lifecycle_payload["updated"],
         lifecycle_expired=lifecycle_payload["expired"],
@@ -599,6 +646,7 @@ def automation_status(
             title_drop_enabled=generic_title_drop_enabled,
         )
         backlog += pending_statusmatch_article_count(session, provider)
+        backlog += pending_buy_points_count(session)
         failed_jobs = int(
             session.scalar(
                 select(func.count())
@@ -627,6 +675,7 @@ def automation_status(
         statusmatch_articles = processing.get(
             "statusmatch_article_processing", {}
         )
+        buy_points = processing.get("buy_points_processing", {})
         return AutomationStatusSummary(
             lease_owner=lease.owner_id if lease else None,
             lease_expires_at=_iso(lease.expires_at) if lease else None,
@@ -642,6 +691,16 @@ def automation_status(
             ),
             last_generic_brief_model_calls=int(
                 generic_calls.get("article_briefs", 0)
+            ),
+            last_buy_points_selected=int(buy_points.get("selected", 0)),
+            last_buy_points_succeeded=int(buy_points.get("succeeded", 0)),
+            last_buy_points_failed=int(buy_points.get("failed", 0)),
+            last_buy_points_reused=int(buy_points.get("reused", 0)),
+            last_buy_points_latest_offer_count=int(
+                buy_points.get("latest_offer_count", 0)
+            ),
+            last_buy_points_diagnostics=tuple(
+                buy_points.get("diagnostics", ())
             ),
             last_statusmatch_project_model_calls=int(
                 statusmatch_projects.get("model_calls", 0)
@@ -868,6 +927,8 @@ def _refresh_pending_states(
                 title_drop_enabled=generic_title_drop_enabled,
             )
             if source_id == GENERIC_PUBLIC_SOURCE_ID
+            else pending_buy_points_count(session)
+            if source_id == BUY_POINTS_SOURCE_ID
             else 0
         )
 
@@ -1020,6 +1081,12 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         generic_title_model_calls=0,
         generic_interpretation_model_calls=0,
         generic_brief_model_calls=0,
+        buy_points_selected=0,
+        buy_points_succeeded=0,
+        buy_points_failed=0,
+        buy_points_reused=0,
+        buy_points_latest_offer_count=0,
+        buy_points_diagnostics=(),
         lifecycle_scanned=0,
         lifecycle_updated=0,
         lifecycle_expired=0,

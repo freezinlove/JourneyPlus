@@ -10,28 +10,35 @@ EXPECTED_IDS = {
     "awardwallet_elite_status_feed",
     "status_services_mail",
     "loyaltylobby_feed",
+    "awardwallet_buy_points_page",
     "frequentmiler_elite_status_feed",
     "verylvke_feed",
 }
 
 
-def test_registry_keeps_six_sources_but_only_opens_loyaltylobby_and_mail(db_session) -> None:
+def test_registry_keeps_seven_sources_and_opens_three_automatic_paths(db_session) -> None:
     assert {item.source_id for item in SOURCE_REGISTRY} == EXPECTED_IDS
     assert all(item.collection_cadence == "P1D" for item in SOURCE_REGISTRY)
     assert {
         item.source_id for item in SOURCE_REGISTRY if item.automatic_scheduling
-    } == {"loyaltylobby_feed", "status_services_mail"}
+    } == {
+        "loyaltylobby_feed",
+        "status_services_mail",
+        "awardwallet_buy_points_page",
+    }
     assert {item.source_id for item in SOURCE_REGISTRY if item.enabled} == {
         "loyaltylobby_feed",
         "status_services_mail",
+        "awardwallet_buy_points_page",
     }
 
     first = seed_sources(db_session)
     second = seed_sources(db_session)
-    assert len(first) == len(second) == 6
+    assert len(first) == len(second) == 7
     assert automatically_scheduled_source_ids(db_session) == [
         "status_services_mail",
         "loyaltylobby_feed",
+        "awardwallet_buy_points_page",
     ]
 
 
@@ -53,7 +60,7 @@ def test_seeding_disables_a_retired_statusmatcher_record_without_deleting_it(
 
     seeded = seed_sources(db_session)
 
-    assert len(seeded) == 6
+    assert len(seeded) == 7
     assert db_session.get(Source, "statusmatcher_reports") is retired
     assert retired.enabled is False
     assert retired.automatic_scheduling is False

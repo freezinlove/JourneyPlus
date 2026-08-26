@@ -5,6 +5,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import date, datetime, timedelta
+from uuid import UUID
 
 from journeyplus.config import Settings
 from journeyplus.db import create_session_factory, engine_from_settings, session_scope
@@ -25,6 +26,15 @@ from journeyplus.article_operations import (
     extend_article_mapping,
     process_pending_articles,
     restore_article_mapping,
+)
+from journeyplus.buy_points.operations import process_pending_buy_points
+from journeyplus.buy_points.service import (
+    BUY_POINTS_SOURCE_ID,
+    adjacent_buy_points_snapshot_diff,
+    buy_points_offer_history,
+    buy_points_snapshot_history,
+    current_buy_points_snapshot,
+    diff_buy_points_snapshots,
 )
 from journeyplus.operations import process_pending_documents
 from journeyplus.review.api import create_review_app
@@ -79,7 +89,7 @@ def _iso_datetime(value: str) -> datetime:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    subparsers.add_parser("seed-sources", help="Import or refresh the six sources")
+    subparsers.add_parser("seed-sources", help="Import or refresh configured sources")
     subparsers.add_parser(
         "gmail-authorize",
         help="Authorize kirikoomiku@gmail.com with gmail.readonly",
@@ -101,6 +111,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     process.add_argument("--source-id", choices=SOURCE_IDS)
     process.add_argument("--limit", type=_positive_int, default=10)
+    process_buy_points = subparsers.add_parser(
+        "process-buy-points",
+        help="Deterministically parse pending AwardWallet buy-points pages",
+    )
+    process_buy_points.add_argument("--limit", type=_positive_int, default=10)
+    subparsers.add_parser(
+        "buy-points-current",
+        help="Read the current successful structured buy-points snapshot",
+    )
+    buy_points_history = subparsers.add_parser(
+        "buy-points-history",
+        help="Read successful structured buy-points snapshot history",
+    )
+    buy_points_history.add_argument("--offer-key")
+    buy_points_history.add_argument("--limit", type=_positive_int, default=20)
+    buy_points_diff = subparsers.add_parser(
+        "buy-points-diff",
+        help="Diff two snapshots, or the two latest successful snapshots",
+    )
+    buy_points_diff.add_argument("--before")
+    buy_points_diff.add_argument("--after")
     run_source = subparsers.add_parser(
         "run-source",
         help="Thin orchestration: collect one source, then process its pending documents",
@@ -233,6 +264,49 @@ def main(argv: Sequence[str] | None = None) -> int:
         with session_scope(factory) as session:
             sources = seed_sources(session)
             print(json.dumps({"seeded": [source.id for source in sources]}))
+        return 0
+    if args.command == "process-buy-points":
+        summary = process_pending_buy_points(factory, limit=args.limit)
+        print(json.dumps(asdict(summary), ensure_ascii=False))
+        return 0
+    if args.command in {
+        "buy-points-current",
+        "buy-points-history",
+        "buy-points-diff",
+    }:
+        with session_scope(factory) as session:
+            if args.command == "buy-points-current":
+                result = current_buy_points_snapshot(session)
+                payload = result.model_dump(mode="json") if result else None
+            elif args.command == "buy-points-history":
+                payload = [
+                    item.model_dump(mode="json")
+                    for item in (
+                        buy_points_offer_history(
+                            session,
+                            args.offer_key,
+                            limit=args.limit,
+                        )
+                        if args.offer_key
+                        else buy_points_snapshot_history(
+                            session,
+                            limit=args.limit,
+                        )
+                    )
+                ]
+            else:
+                if bool(args.before) != bool(args.after):
+                    parser.error("--before and --after must be provided together")
+                if args.before and args.after:
+                    result = diff_buy_points_snapshots(
+                        session,
+                        UUID(args.before),
+                        UUID(args.after),
+                    )
+                else:
+                    result = adjacent_buy_points_snapshot_diff(session)
+                payload = result.model_dump(mode="json") if result else None
+        print(json.dumps(payload, ensure_ascii=False))
         return 0
     if args.command in {
         "article-mapping-archive",
@@ -457,7 +531,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0
     provider = (
-        OpenAICompatibleProvider(settings) if args.command == "run-source" else None
+        OpenAICompatibleProvider(settings)
+        if args.command == "run-source"
+        and args.source_id != BUY_POINTS_SOURCE_ID
+        else None
     )
     with session_scope(factory) as session:
         seed_sources(session)
@@ -470,6 +547,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "collect":
         print(json.dumps(asdict(collection), ensure_ascii=False))
+        return 0
+    if args.source_id == BUY_POINTS_SOURCE_ID:
+        processing = process_pending_buy_points(factory, limit=args.limit)
+        print(
+            json.dumps(
+                {"collection": asdict(collection), "processing": asdict(processing)},
+                ensure_ascii=False,
+            )
+        )
         return 0
     assert provider is not None
     if args.source_id != GENERIC_PUBLIC_SOURCE_ID:

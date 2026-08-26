@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -13,6 +14,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -212,6 +214,80 @@ class DocumentVersion(Base, TimestampMixin):
     duplicate_of_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("document_versions.id"), nullable=True
     )
+
+
+class BuyPointsSnapshotRecord(Base, TimestampMixin):
+    """Immutable deterministic parse of one AwardWallet page version."""
+
+    __tablename__ = "buy_points_snapshots"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_version_id",
+            "parser_version",
+            name="uq_buy_points_snapshot_document_parser",
+        ),
+        Index(
+            "ix_buy_points_snapshots_source_parser_created",
+            "source_item_id",
+            "parser_version",
+            "created_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source_item_id: Mapped[UUID] = mapped_column(
+        ForeignKey("source_items.id"), nullable=False
+    )
+    document_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=False
+    )
+    parser_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    page_title: Mapped[str] = mapped_column(Text, nullable=False)
+    page_modified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    advertised_offer_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    parsed_offer_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    offers_signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    diagnostics: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSON, default=list, nullable=False
+    )
+
+
+class BuyPointsOfferRecord(Base, TimestampMixin):
+    """One immutable offer row inside a buy-points snapshot."""
+
+    __tablename__ = "buy_points_offers"
+    __table_args__ = (
+        UniqueConstraint(
+            "snapshot_id", "offer_key", name="uq_buy_points_offer_snapshot_key"
+        ),
+        Index("ix_buy_points_offers_offer_key_snapshot", "offer_key", "snapshot_id"),
+        Index("ix_buy_points_offers_snapshot", "snapshot_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    snapshot_id: Mapped[UUID] = mapped_column(
+        ForeignKey("buy_points_snapshots.id", ondelete="CASCADE"), nullable=False
+    )
+    offer_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    category: Mapped[str] = mapped_column(String(30), nullable=False)
+    program_name: Mapped[str] = mapped_column(String(500), nullable=False)
+    offer_text: Mapped[str] = mapped_column(Text, nullable=False)
+    offer_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    max_percent: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
+    purchase_rate_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    purchase_rate_cents: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 4), nullable=True
+    )
+    deadline_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    deadline_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    posting_time_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    detail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    top_pick: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    material_signature: Mapped[str] = mapped_column(String(64), nullable=False)
+    evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 
 
 class AnalysisRun(Base, TimestampMixin):

@@ -16,11 +16,13 @@ class ContentExtractionError(ValueError):
 _ARTICLE_SELECTORS = {
     "ffb_elite_status_feed": ".entry-content",
     "awardwallet_elite_status_feed": "article",
+    "awardwallet_buy_points_page": "article",
 }
 
 _ARTICLE_TITLE_SELECTORS = {
     "ffb_elite_status_feed": "h1.entry-title",
     "awardwallet_elite_status_feed": "h1.page-learn__hero-title",
+    "awardwallet_buy_points_page": "h1.page-learn__hero-title",
 }
 
 _SOURCE_EXCLUDED_SELECTORS = {
@@ -31,6 +33,15 @@ _SOURCE_EXCLUDED_SELECTORS = {
         "#jp-relatedposts",
     ),
     "awardwallet_elite_status_feed": (
+        "#preDisclosure",
+        "#notAvailableOfferOnSite",
+        "#ftoc",
+        ".adwrap",
+        ".adwrap-pre",
+        ".compare-cards-wrap",
+        "p.remark",
+    ),
+    "awardwallet_buy_points_page": (
         "#preDisclosure",
         "#notAvailableOfferOnSite",
         "#ftoc",

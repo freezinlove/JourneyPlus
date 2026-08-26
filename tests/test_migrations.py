@@ -607,3 +607,65 @@ def test_statusmatch_article_migration_round_trips_on_sqlite(
     assert "statusmatch_article_routes" not in tables
     assert "statusmatch_article_supplements" not in tables
     engine.dispose()
+
+
+def test_buy_points_migration_round_trips_without_touching_existing_tables(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'buy-points.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    command.upgrade(config, "0012_discovery_cursor")
+    engine = create_engine(database_url)
+    before_tables = set(inspect(engine).get_table_names())
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO sources
+                    (id, name, adapter_type, discovery_config, access_policy,
+                     collection_cadence, automatic_scheduling, enabled,
+                     created_at, updated_at)
+                VALUES
+                    ('preserved', 'Preserved', 'test', '{}', '{}', 'P1D', 0, 1,
+                     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """
+            )
+        )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    assert {"buy_points_snapshots", "buy_points_offers"} <= set(
+        inspector.get_table_names()
+    )
+    assert (
+        "document_version_id",
+        "parser_version",
+    ) in {
+        tuple(item["column_names"])
+        for item in inspector.get_unique_constraints("buy_points_snapshots")
+    }
+    assert ("snapshot_id", "offer_key") in {
+        tuple(item["column_names"])
+        for item in inspector.get_unique_constraints("buy_points_offers")
+    }
+    assert {
+        "ix_buy_points_offers_offer_key_snapshot",
+        "ix_buy_points_offers_snapshot",
+    } <= {item["name"] for item in inspector.get_indexes("buy_points_offers")}
+    engine.dispose()
+
+    command.downgrade(config, "0012_discovery_cursor")
+    engine = create_engine(database_url)
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    assert "buy_points_snapshots" not in tables
+    assert "buy_points_offers" not in tables
+    assert before_tables <= tables
+    with engine.connect() as connection:
+        assert connection.scalar(
+            text("SELECT COUNT(*) FROM sources WHERE id = 'preserved'")
+        ) == 1
+    engine.dispose()

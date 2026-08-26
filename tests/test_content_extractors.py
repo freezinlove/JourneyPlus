@@ -96,6 +96,39 @@ def test_awardwallet_article_removes_template_modules_but_keeps_editorial_text()
     assert "Popular posts" not in cleaned
 
 
+def test_buy_points_article_cleanup_keeps_offer_tables_and_removes_modules() -> None:
+    cleaned = lightly_clean(
+        _raw(
+            source_id="awardwallet_buy_points_page",
+            strategy="fetch_article",
+            title="Buy Points Promotions",
+            url=(
+                "https://awardwallet.com/news/"
+                "current-promotions-buy-points-miles/"
+            ),
+            body="""
+                <html><body><header>Navigation</header><article>
+                  <div id="preDisclosure">Advertiser disclosure</div>
+                  <div id="ftoc">Table of contents</div>
+                  <h2 id="Buy_Miles_Promotions_From_Airlines">Airlines</h2>
+                  <div class="purchase-times purchase-times--date">
+                    <div class="pt-row">Southwest 50% discount</div>
+                  </div>
+                  <div class="compare-cards-wrap">Credit card widget</div>
+                </article><footer>Footer</footer></body></html>
+            """,
+        )
+    ).normalized_body
+
+    assert cleaned.startswith("# Buy Points Promotions")
+    assert "Southwest 50% discount" in cleaned
+    assert "Advertiser disclosure" not in cleaned
+    assert "Table of contents" not in cleaned
+    assert "Credit card widget" not in cleaned
+    assert "Navigation" not in cleaned
+    assert "Footer" not in cleaned
+
+
 @pytest.mark.parametrize(
     ("source_id", "tail"),
     [

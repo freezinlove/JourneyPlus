@@ -1,8 +1,8 @@
 # JourneyPlus
 
-JourneyPlus 当前实现的是第一条纵向能力：发现“直接获得、升级或延长会籍”的机会，经轻量清洗、证据化事实整理后生成中文原创简报。当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路，其他公开来源保留适配器和历史数据但关闭自动调度。
+JourneyPlus 的主纵向能力是发现“直接获得、升级或延长会籍”的机会，经轻量清洗、证据化事实整理后生成中文原创简报。当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。项目另有一条完全独立、零 AI 的买分/买里程优惠链路，只跟踪 AwardWallet 的固定汇总页并结构化保存活动快照；其他公开来源保留适配器和历史数据但关闭自动调度。
 
-第一版明确只处理会籍机会，文档标签只有 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`。一篇文档只有一个标签，但可包含多个会籍活动。第一版不处理买分、转分、积分票或积分房晚，项目不建设信用卡独立主题；信用卡只能作为会籍机会的资格条件出现。第一版也不包含个人资产、推荐、通知和自动报名。
+会籍链路的文档标签仍只有 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`。一篇文档只有一个标签，但可包含多个会籍活动。买分活动不会进入这些标签、会籍事件、FactSet、简报或会籍图；它只进入买分专属快照表。项目仍不处理转分、积分票、积分房晚或信用卡独立主题，也不包含个人资产、个性化推荐、通知和自动报名。
 
 ## 本地开发
 
@@ -14,6 +14,11 @@ uv run journeyplus seed-sources
 uv run journeyplus collect loyaltylobby_feed --limit 10
 uv run journeyplus process-pending --source-id loyaltylobby_feed --limit 10
 uv run journeyplus run-source loyaltylobby_feed --limit 10
+uv run journeyplus run-source awardwallet_buy_points_page --limit 1
+uv run journeyplus process-buy-points --limit 10
+uv run journeyplus buy-points-current
+uv run journeyplus buy-points-history --limit 20
+uv run journeyplus buy-points-diff
 uv run journeyplus run-daily
 uv run journeyplus automation-status
 uv run journeyplus initialize-mail-details
@@ -23,7 +28,7 @@ uv run journeyplus gmail-authorize
 uv run journeyplus review-api
 ```
 
-自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前只有 LoyaltyLobby 通用来源和 StatusMatch 邮件专用来源启用每天一次的自动调度；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源是 LoyaltyLobby 通用文章、StatusMatch 邮件专用来源和 AwardWallet 买分固定页；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
 本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
 
@@ -33,13 +38,13 @@ uv run alembic upgrade head
 uv run journeyplus seed-sources
 ```
 
-`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用两者的薄编排。普通文章先批量只读标题，高置信度无关标题不读取正文；其余文章用一次正文调用完成最终分类、文档内机会拆分、事实和逐字证据提取，每个机会再以持久化事实生成一次简报。精确包含项目专属 `*.statusmatch.com` 链接的文章会在标题 AI 前转入 StatusMatch 第三方补充链路，只生成相对官方产物的新 highlights。普通文章中有逐字证据的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。当前不做跨文章候选召回、关系判断或合并，树构建和生命周期也不调用 AI。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)。
+`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用采集和对应处理器的薄编排。AwardWallet 来源路由到 `process-buy-points`，即使没有 AI 凭证也可运行；其余普通文章处理规则保持不变。普通文章中有逐字证据的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)，买分字段、状态、排障与回滚见 [买分优惠监控运维说明](doc/buy-points-monitoring.md)。
 
-两个当前来源都使用持久化增量边界。LoyaltyLobby 在尚无游标时只追赶北京时间 `2026-08-24` 全天之后的文章，分页读到该基线后停止；成功采集后保存最新连续处理的 Feed GUID，后续只分页到上次 GUID，不再从 8 月 24 日重扫。若单轮上限不足，条目按从旧到新处理并只推进到已处理位置，避免跳过中间文章。Gmail 首次运行或 History 游标过期时只做一次当前标签与专用别名的全量 message ID 对账，随后使用持久化 Gmail History ID 读取新增邮件或后加标签的邮件；游标只有在整批采集成功后才推进。正文哈希与规范化哈希继续作为最终入库幂等保护，而不是发现游标的替代品。
+LoyaltyLobby 和 Gmail 使用持久化增量边界。AwardWallet 买分页每轮只发现同一个稳定条目并重新请求唯一 canonical URL，不跟随正文中的详情或购买链接；正文哈希与规范化哈希保证内容不变时复用 `DocumentVersion`，内容变化时才形成新版本和不可变买分快照。
 
-`run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目和第三方补充调用，便于发现调用预算回归。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
+`run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目、第三方补充和买分确定性处理统计；买分阶段不会增加任何模型调用计数。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 
-当前已使用 Codex 本地自动化在每天 09:00 调用该单轮入口；任务只使用当前两条自动来源，并在运行前确保 Docker PostgreSQL 可用。配置、来源边界和检查方式见 [每日自动化 Codex 运维说明](doc/daily-automation-codex.md)。
+当前已使用 Codex 本地自动化在每天 09:00 调用该单轮入口；入口从数据库选择当前三条自动来源，并在运行前确保 Docker PostgreSQL 可用。配置、来源边界和检查方式见 [每日自动化 Codex 运维说明](doc/daily-automation-codex.md)。
 
 `initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 是保留的 LoyaltyLobby 历史回放入口，只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日），不会采集或处理已关闭的其他公开来源。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。当前产品验收以 Gmail 公开详情页审核和受控真实 LoyaltyLobby V2 批次为准，不要求跑完全部旧窗口。
 
@@ -89,11 +94,11 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；通用文章 V2 变更位于 `openspec/changes/simplify-generic-article-pipeline/`。
+第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；通用文章 V2 变更位于 `openspec/changes/simplify-generic-article-pipeline/`；买分固定页监控变更位于 `openspec/changes/track-awardwallet-buy-points-promotions/`。
 
 ## 第一版已知限制
 
-- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，其他公开来源保持关闭。Codex 本地每日任务已经启用，后续运行结果按常规运维观察，不构成当前 OpenSpec 变更的未完成项。
+- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路、StatusMatch/GetStatus Gmail 专用链路和 AwardWallet 买分固定页被自动选择，其他公开来源保持关闭。
 - LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
 - 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。

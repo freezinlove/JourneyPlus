@@ -12,6 +12,7 @@ from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.registry import seed_sources
+from journeyplus.sources.single_page import SinglePageAdapter
 
 
 class OneItemAdapter:
@@ -110,6 +111,46 @@ def test_refreshable_linked_page_is_refetched_but_only_versions_changes(
     assert unchanged.new_versions == 0
     assert changed.new_versions == 1
     assert adapter.fetch_count == 3
+
+
+def test_single_page_collection_refetches_but_versions_only_content_changes(
+    db_session,
+) -> None:
+    class MutableFetcher:
+        def __init__(self) -> None:
+            self.body = "<html><article>Version one</article></html>"
+            self.calls = 0
+
+        def get(self, url: str) -> FetchResponse:
+            self.calls += 1
+            return FetchResponse(
+                body=self.body,
+                content_type="text/html",
+                final_url=url,
+            )
+
+    seed_sources(db_session)
+    fetcher = MutableFetcher()
+    adapter = SinglePageAdapter(
+        source_id="awardwallet_buy_points_page",
+        page_url=(
+            "https://awardwallet.com/news/"
+            "current-promotions-buy-points-miles/"
+        ),
+        external_id="current-promotions-buy-points-miles",
+        content_strategy="fetch_article",
+        fetcher=fetcher,
+    )
+
+    first = collect_manual(db_session, adapter, idempotency_key="buy:first")
+    unchanged = collect_manual(db_session, adapter, idempotency_key="buy:second")
+    fetcher.body = "<html><article>Version two</article></html>"
+    changed = collect_manual(db_session, adapter, idempotency_key="buy:third")
+
+    assert first.new_versions == 1
+    assert unchanged.new_versions == 0
+    assert changed.new_versions == 1
+    assert fetcher.calls == 3
 
 
 def test_manual_collection_can_limit_fetched_items(db_session) -> None:

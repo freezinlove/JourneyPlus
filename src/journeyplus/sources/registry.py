@@ -99,6 +99,30 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         automatic_scheduling=True,
     ),
     SourceDefinition(
+        source_id="awardwallet_buy_points_page",
+        name="AwardWallet Buy Points and Miles Promotions",
+        adapter_type="single_page",
+        human_url=(
+            "https://awardwallet.com/news/"
+            "current-promotions-buy-points-miles/"
+        ),
+        discovery_config={
+            "page_url": (
+                "https://awardwallet.com/news/"
+                "current-promotions-buy-points-miles/"
+            ),
+            "external_id": "current-promotions-buy-points-miles",
+            "title": "Current Promotions for Buying Points and Miles",
+        },
+        content_strategy="fetch_article",
+        access_policy={
+            "follow_page_links": False,
+            "external_output": "structured_offers_and_source_link",
+        },
+        collection_cadence="P1D",
+        automatic_scheduling=True,
+    ),
+    SourceDefinition(
         source_id="frequentmiler_elite_status_feed",
         name="Frequent Miler Elite Status",
         adapter_type="feed",

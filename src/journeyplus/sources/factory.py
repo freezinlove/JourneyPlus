@@ -4,6 +4,7 @@ from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.gmail import GmailClient, GmailStatusServicesAdapter
 from journeyplus.sources.registry import get_source_definition
+from journeyplus.sources.single_page import SinglePageAdapter
 
 
 def build_adapter(
@@ -33,5 +34,14 @@ def build_adapter(
             raise ValueError("A GmailClient is required for status_services_mail")
         return GmailStatusServicesAdapter(
             gmail_client, project_fetcher=resolved_fetcher
+        )
+    if definition.adapter_type == "single_page":
+        return SinglePageAdapter(
+            source_id=source_id,
+            page_url=str(config["page_url"]),
+            external_id=str(config["external_id"]),
+            content_strategy=definition.content_strategy,
+            fetcher=resolved_fetcher,
+            title=str(config.get("title") or ""),
         )
     raise NotImplementedError(definition.adapter_type)

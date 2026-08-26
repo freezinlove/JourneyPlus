@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlalchemy import func, select
 
@@ -15,14 +16,20 @@ from journeyplus.automation.service import (
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.models import (
     AutomationRun,
+    BuyPointsOfferRecord,
+    BuyPointsSnapshotRecord,
     CollectionRun,
     DocumentVersion,
     Source,
     SourceAutomationState,
     StatusEvent,
 )
+from journeyplus.buy_points.service import current_buy_points_snapshot
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.registry import seed_sources
+
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 class SyntheticAdapter:
@@ -50,6 +57,172 @@ class SyntheticAdapter:
             body=f"Ordinary points news {item.external_id}",
             content_type="text/plain",
         )
+
+
+class BuyPointsSyntheticAdapter:
+    source_id = "awardwallet_buy_points_page"
+
+    def __init__(self, body: str | None = None) -> None:
+        self.body = body or (
+            FIXTURES / "awardwallet_buy_points.html"
+        ).read_text()
+
+    def discover(self):
+        url = (
+            "https://awardwallet.com/news/"
+            "current-promotions-buy-points-miles/"
+        )
+        return [
+            DiscoveredItem(
+                source_id=self.source_id,
+                external_id="current-promotions-buy-points-miles",
+                discovered_url=url,
+                canonical_url=url,
+                title="Current Promotions",
+                raw_metadata={
+                    "refresh_on_discovery": True,
+                    "content_strategy": "fetch_article",
+                },
+            )
+        ]
+
+    def fetch(self, item):
+        return RawDocument(
+            source_id=self.source_id,
+            external_id=item.external_id,
+            canonical_url=item.canonical_url,
+            body=self.body,
+            content_type="text/html",
+            metadata={
+                "content_strategy": "fetch_article",
+                "title": item.title,
+            },
+        )
+
+
+def test_daily_buy_points_stage_is_deterministic_and_zero_ai(
+    session_factory,
+) -> None:
+    provider = SequenceAIProvider([])
+    now = datetime(2026, 8, 26, 2, tzinfo=UTC)
+
+    first = run_daily_cycle(
+        session_factory,
+        provider,
+        lambda source_id: BuyPointsSyntheticAdapter(),
+        source_ids=["awardwallet_buy_points_page"],
+        now=now,
+    )
+    second = run_daily_cycle(
+        session_factory,
+        provider,
+        lambda source_id: BuyPointsSyntheticAdapter(),
+        source_ids=["awardwallet_buy_points_page"],
+        now=now + timedelta(hours=1),
+    )
+
+    assert first.status == "SUCCEEDED"
+    assert first.buy_points_selected == first.buy_points_succeeded == 1
+    assert first.buy_points_failed == first.buy_points_reused == 0
+    assert first.buy_points_latest_offer_count == 4
+    assert first.documents_selected == 0
+    assert first.model_calls == len(provider.calls) == 0
+    assert second.sources[0].reused is True
+    assert second.buy_points_selected == 0
+    assert second.buy_points_latest_offer_count == 4
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(BuyPointsSnapshotRecord)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(BuyPointsOfferRecord)
+        ) == 4
+        state = session.get(
+            SourceAutomationState, "awardwallet_buy_points_page"
+        )
+        run = session.scalar(select(AutomationRun))
+        assert state is not None and state.pending_document_count == 0
+        assert run is not None
+        assert run.processing_result["buy_points_processing"][
+            "latest_offer_count"
+        ] == 4
+
+    status = automation_status(session_factory, provider)
+    assert status.last_buy_points_latest_offer_count == 4
+    assert status.last_model_calls == 0
+
+
+def test_buy_points_parse_failure_isolated_from_generic_processing(
+    session_factory,
+) -> None:
+    provider = SequenceAIProvider([_none("ordinary news")])
+    invalid = (
+        FIXTURES / "awardwallet_buy_points.html"
+    ).read_text().replace("4 Current", "99 Current", 1)
+
+    result = run_daily_cycle(
+        session_factory,
+        provider,
+        lambda source_id: (
+            BuyPointsSyntheticAdapter(invalid)
+            if source_id == "awardwallet_buy_points_page"
+            else SyntheticAdapter(source_id)
+        ),
+        source_ids=["awardwallet_buy_points_page", "ffb_elite_status_feed"],
+        now=datetime(2026, 8, 26, 4, tzinfo=UTC),
+    )
+
+    assert result.status == "FAILED"
+    assert result.buy_points_failed == 1
+    assert result.documents_succeeded == 1
+    assert result.model_calls == len(provider.calls) == 1
+    assert result.backlog_count == 1
+    with session_factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(BuyPointsSnapshotRecord)
+        ) == 0
+        buy_state = session.get(
+            SourceAutomationState, "awardwallet_buy_points_page"
+        )
+        generic_state = session.get(
+            SourceAutomationState, "ffb_elite_status_feed"
+        )
+        assert buy_state is not None and buy_state.pending_document_count == 1
+        assert generic_state is not None and generic_state.consecutive_failures == 0
+
+
+def test_buy_points_fetch_failure_keeps_previous_successful_snapshot(
+    session_factory,
+) -> None:
+    provider = SequenceAIProvider([])
+    first = run_daily_cycle(
+        session_factory,
+        provider,
+        lambda source_id: BuyPointsSyntheticAdapter(),
+        source_ids=["awardwallet_buy_points_page"],
+        now=datetime(2026, 8, 26, 6, tzinfo=UTC),
+    )
+
+    def failing_factory(source_id: str):
+        raise ConnectionError("simulated AwardWallet fetch failure")
+
+    failed = run_daily_cycle(
+        session_factory,
+        provider,
+        failing_factory,
+        source_ids=["awardwallet_buy_points_page"],
+        now=datetime(2026, 8, 27, 6, tzinfo=UTC),
+    )
+
+    assert first.buy_points_succeeded == 1
+    assert failed.status == "FAILED"
+    assert failed.sources[0].status == "FAILED"
+    assert failed.buy_points_selected == 0
+    assert failed.buy_points_latest_offer_count == 4
+    assert failed.model_calls == 0
+    with session_factory() as session:
+        current = current_buy_points_snapshot(session)
+        assert current is not None and current.parsed_offer_count == 4
 
 
 def _none(reason: str) -> dict:
