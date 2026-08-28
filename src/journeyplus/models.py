@@ -246,7 +246,6 @@ class BuyPointsSnapshotRecord(Base, TimestampMixin):
     page_modified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    advertised_offer_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parsed_offer_count: Mapped[int] = mapped_column(Integer, nullable=False)
     offers_signature: Mapped[str] = mapped_column(String(64), nullable=False)
     diagnostics: Mapped[list[dict[str, Any]]] = mapped_column(
@@ -276,16 +275,11 @@ class BuyPointsOfferRecord(Base, TimestampMixin):
     offer_text: Mapped[str] = mapped_column(Text, nullable=False)
     offer_kind: Mapped[str] = mapped_column(String(30), nullable=False)
     max_percent: Mapped[Decimal] = mapped_column(Numeric(8, 3), nullable=False)
-    purchase_rate_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    purchase_rate_cents: Mapped[Decimal | None] = mapped_column(
-        Numeric(10, 4), nullable=True
-    )
     deadline_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
     deadline_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     posting_time_raw: Mapped[str | None] = mapped_column(String(200), nullable=True)
     detail_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     action_url: Mapped[str | None] = mapped_column(Text, nullable=True)
-    top_pick: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     material_signature: Mapped[str] = mapped_column(String(64), nullable=False)
     evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
 

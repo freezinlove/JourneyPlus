@@ -91,6 +91,16 @@ def test_run_source_and_read_commands_work_without_ai_credentials(
     current = json.loads(capsys.readouterr().out)
     assert current["parsed_offer_count"] == 4
     assert len(current["offers"]) == 4
+    assert "advertised_offer_count" not in current
+    assert "purchase_url" in current["offers"][0]
+    assert {
+        "offer_text",
+        "evidence",
+        "purchase_rate_raw",
+        "purchase_rate_cents",
+        "top_pick",
+        "action_url",
+    }.isdisjoint(current["offers"][0])
 
     assert cli.main(["buy-points-history", "--limit", "5"]) == 0
     history = json.loads(capsys.readouterr().out)

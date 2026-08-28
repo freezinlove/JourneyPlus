@@ -655,6 +655,16 @@ def test_buy_points_migration_round_trips_without_touching_existing_tables(
         "ix_buy_points_offers_offer_key_snapshot",
         "ix_buy_points_offers_snapshot",
     } <= {item["name"] for item in inspector.get_indexes("buy_points_offers")}
+    assert "advertised_offer_count" not in {
+        item["name"] for item in inspector.get_columns("buy_points_snapshots")
+    }
+    assert {
+        "purchase_rate_raw",
+        "purchase_rate_cents",
+        "top_pick",
+    }.isdisjoint(
+        item["name"] for item in inspector.get_columns("buy_points_offers")
+    )
     engine.dispose()
 
     command.downgrade(config, "0012_discovery_cursor")

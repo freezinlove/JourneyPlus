@@ -98,7 +98,7 @@ def test_snapshot_materialization_is_immutable_idempotent_and_versioned(
     upgraded, upgraded_reused = materialize_buy_points_snapshot(
         db_session,
         document,
-        parser_version="awardwallet-buy-points-v2",
+        parser_version="awardwallet-buy-points-v3",
     )
 
     assert first_reused is upgraded_reused is False
@@ -199,7 +199,7 @@ def test_zero_snapshot_produces_removed_and_reverse_added_diff(db_session) -> No
 def test_pending_processing_is_source_scoped_zero_ai_and_preserves_old_view(
     session_factory,
 ) -> None:
-    invalid = _fixture().replace("4 Current", "99 Current", 1)
+    invalid = _fixture().replace("8/26/26", "tomorrow", 1)
     with session_factory.begin() as session:
         seed_sources(session)
         good_document = _add_document(session, _fixture())

@@ -158,7 +158,7 @@ def test_buy_points_parse_failure_isolated_from_generic_processing(
     provider = SequenceAIProvider([_none("ordinary news")])
     invalid = (
         FIXTURES / "awardwallet_buy_points.html"
-    ).read_text().replace("4 Current", "99 Current", 1)
+    ).read_text().replace("8/26/26", "tomorrow", 1)
 
     result = run_daily_cycle(
         session_factory,

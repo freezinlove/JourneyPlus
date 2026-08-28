@@ -24,7 +24,7 @@ from journeyplus.content.urls import canonicalize_url
 AWARDWALLET_BUY_POINTS_URL = (
     "https://awardwallet.com/news/current-promotions-buy-points-miles/"
 )
-BUY_POINTS_PARSER_VERSION = "awardwallet-buy-points-v1"
+BUY_POINTS_PARSER_VERSION = "awardwallet-buy-points-v2"
 
 SECTION_IDS: tuple[tuple[str, BuyPointsCategory], ...] = (
     ("Buy_Miles_Promotions_From_Airlines", BuyPointsCategory.AIRLINE),
@@ -33,12 +33,7 @@ SECTION_IDS: tuple[tuple[str, BuyPointsCategory], ...] = (
 )
 
 _SPACE_RE = re.compile(r"\s+")
-_COUNT_RE = re.compile(r"^\s*(\d+)\s+Current\b", re.IGNORECASE)
 _PERCENT_RE = re.compile(r"(?<!\d)(\d+(?:\.\d+)?)\s*%")
-_RATE_RE = re.compile(
-    r"(?<!\d)(\d+(?:\.\d+)?)\s*(?:¢|cents?)(?:\s*/?\s*(?:point|mile))?",
-    re.IGNORECASE,
-)
 
 
 class BuyPointsParseError(ValueError):
@@ -57,7 +52,6 @@ def parse_awardwallet_buy_points(
     page_title = _required_text(
         tree.css_first("h1"), "page title", max_length=1000
     )
-    advertised_count = _advertised_count(page_title)
     page_modified_at = _page_modified_at(tree)
     diagnostics: list[BuyPointsDiagnostic] = []
     offers: list[ParsedBuyPointsOffer] = []
@@ -95,37 +89,12 @@ def parse_awardwallet_buy_points(
             "Duplicate stable offer identity: " + ", ".join(duplicate_keys)
         )
 
-    top_table = tree.css_first("#tablepress-1310")
-    if top_table is None:
-        diagnostics.append(
-            BuyPointsDiagnostic(
-                code="TOP_TABLE_ABSENT",
-                message=(
-                    "Optional top-offers table was absent; the complete main inventory "
-                    "was parsed without top-pick enrichment."
-                ),
-            )
-        )
-    else:
-        offers = _enrich_top_offers(top_table, offers, page_url=page_url)
-
     parsed_count = len(offers)
-    if advertised_count is not None and advertised_count != parsed_count:
-        raise BuyPointsParseError(
-            f"Advertised offer count {advertised_count} does not match parsed count "
-            f"{parsed_count}"
-        )
-    if parsed_count == 0 and advertised_count != 0:
-        raise BuyPointsParseError(
-            "Zero parsed offers require an explicit zero-count title signal"
-        )
-
     signatures = sorted(item.material_signature for item in offers)
     offers_signature = _sha256_json(signatures)
     return ParsedBuyPointsPage(
         page_title=page_title,
         page_modified_at=page_modified_at,
-        advertised_offer_count=advertised_count,
         section_counts=section_counts,
         parsed_offer_count=parsed_count,
         offers_signature=offers_signature,
@@ -185,128 +154,17 @@ def _parse_main_row(
         "offer_text": offer_text,
         "offer_kind": offer_kind.value,
         "max_percent": str(max_percent),
-        "purchase_rate_raw": None,
-        "purchase_rate_cents": None,
         "deadline_raw": deadline_raw,
         "deadline_date": deadline_date.isoformat() if deadline_date else None,
         "posting_time_raw": posting_time_raw,
         "detail_url": detail_url,
         "action_url": action_url,
-        "top_pick": False,
     }
     return ParsedBuyPointsOffer(
         **material,
         material_signature=_sha256_json(material),
         evidence=evidence,
     )
-
-
-def _enrich_top_offers(
-    table: Node,
-    offers: list[ParsedBuyPointsOffer],
-    *,
-    page_url: str,
-) -> list[ParsedBuyPointsOffer]:
-    enriched = list(offers)
-    for row_index, row in enumerate(table.css("tbody tr"), start=1):
-        cells = row.css("td")
-        if len(cells) < 5:
-            raise BuyPointsParseError(
-                f"Top offers row {row_index} does not contain five columns"
-            )
-        program_text = _required_text(
-            cells[0], f"top offers row {row_index} program", max_length=500
-        )
-        promotion_text = _required_text(
-            cells[1], f"top offers row {row_index} promotion", max_length=1000
-        )
-        _parse_offer_terms(promotion_text, context=f"top offers row {row_index}")
-        purchase_rate_raw = _required_text(
-            cells[2], f"top offers row {row_index} purchase rate", max_length=200
-        )
-        purchase_rate_cents = _parse_purchase_rate(
-            purchase_rate_raw, context=f"top offers row {row_index} purchase rate"
-        )
-        top_deadline = _optional_text(cells[3], max_length=200)
-        _parse_optional_date(
-            top_deadline, context=f"top offers row {row_index} deadline"
-        )
-        action_href_raw = _first_href(cells[4])
-        action_url = _absolute_url(action_href_raw, page_url=page_url)
-
-        candidates: list[int] = []
-        if action_url is not None:
-            action_identity = _url_identity(action_url)
-            candidates = [
-                index
-                for index, offer in enumerate(enriched)
-                if offer.action_url is not None
-                and _url_identity(str(offer.action_url)) == action_identity
-            ]
-        if not candidates:
-            normalized_program = _normalize_program(program_text)
-            candidates = [
-                index
-                for index, offer in enumerate(enriched)
-                if _normalize_program(offer.program_name) == normalized_program
-            ]
-        if len(candidates) != 1:
-            reason = "unmatched" if not candidates else "ambiguous"
-            raise BuyPointsParseError(
-                f"Top offers row {row_index} is {reason}: {program_text}"
-            )
-
-        index = candidates[0]
-        existing = enriched[index]
-        if existing.top_pick:
-            raise BuyPointsParseError(
-                f"Top offers row {row_index} duplicates main offer {existing.offer_key}"
-            )
-        evidence = existing.evidence.model_copy(
-            update={
-                "top_program_text": program_text,
-                "purchase_rate_text": purchase_rate_raw,
-            }
-        )
-        material = _offer_material(existing)
-        material.update(
-            {
-                "purchase_rate_raw": purchase_rate_raw,
-                "purchase_rate_cents": str(purchase_rate_cents),
-                "top_pick": True,
-            }
-        )
-        enriched[index] = existing.model_copy(
-            update={
-                "purchase_rate_raw": purchase_rate_raw,
-                "purchase_rate_cents": purchase_rate_cents,
-                "top_pick": True,
-                "material_signature": _sha256_json(material),
-                "evidence": evidence,
-            }
-        )
-    return enriched
-
-
-def _offer_material(offer: ParsedBuyPointsOffer) -> dict[str, object]:
-    return {
-        "offer_key": offer.offer_key,
-        "category": offer.category.value,
-        "program_name": offer.program_name,
-        "offer_text": offer.offer_text,
-        "offer_kind": offer.offer_kind.value,
-        "max_percent": str(offer.max_percent),
-        "purchase_rate_raw": offer.purchase_rate_raw,
-        "purchase_rate_cents": (
-            str(offer.purchase_rate_cents) if offer.purchase_rate_cents else None
-        ),
-        "deadline_raw": offer.deadline_raw,
-        "deadline_date": offer.deadline_date.isoformat() if offer.deadline_date else None,
-        "posting_time_raw": offer.posting_time_raw,
-        "detail_url": str(offer.detail_url) if offer.detail_url else None,
-        "action_url": str(offer.action_url) if offer.action_url else None,
-        "top_pick": offer.top_pick,
-    }
 
 
 def _parse_offer_terms(
@@ -323,16 +181,6 @@ def _parse_offer_terms(
             f"{context} must contain one bonus/discount kind and a percentage: {text}"
         )
     return next(iter(kinds)), max(percentages)
-
-
-def _parse_purchase_rate(text: str, *, context: str) -> Decimal:
-    matches = list(_RATE_RE.finditer(text))
-    if len(matches) != 1:
-        raise BuyPointsParseError(f"{context} is not a supported cents rate: {text}")
-    value = _decimal(matches[0].group(1), context=context)
-    if value <= 0:
-        raise BuyPointsParseError(f"{context} must be positive: {text}")
-    return value
 
 
 def _parse_optional_date(value: str | None, *, context: str) -> date | None:
@@ -359,11 +207,6 @@ def _page_modified_at(tree: HTMLParser) -> datetime | None:
         raise BuyPointsParseError(
             f"article:modified_time is not ISO 8601: {value}"
         ) from exc
-
-
-def _advertised_count(title: str) -> int | None:
-    match = _COUNT_RE.search(title)
-    return int(match.group(1)) if match else None
 
 
 def _next_purchase_table(anchor: Node) -> Node | None:
