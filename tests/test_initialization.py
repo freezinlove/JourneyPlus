@@ -173,18 +173,8 @@ class InitializationArticleProvider(InitializationProjectProvider):
             self.calls.append(output_model.__name__)
             return output_model.model_validate(
                 {
-                    "highlights": [
-                        {
-                            "kind": "FACTUAL_DETAIL",
-                            "text": "文章额外说明申请获批后会显示数字会籍卡。",
-                            "article_quote": (
-                                "Approved members receive a digital membership card."
-                            ),
-                            "novelty_reason": (
-                                "当前官方 FactSet 与简报均未提及数字会籍卡。"
-                            ),
-                        }
-                    ]
+                    "schema_version": "3",
+                    "highlights": ["文章额外说明申请获批后会显示数字会籍卡。"],
                 }
             )
         if output_model.__name__ == "RelevanceResult":

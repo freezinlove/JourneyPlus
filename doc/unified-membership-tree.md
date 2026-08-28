@@ -58,8 +58,9 @@ uv run journeyplus article-mapping-extend OPPORTUNITY_ID 2027-03-01T00:00:00+08:
 - 不修改官方 FactSet、Brief、event、watch 或图；
 - 相同 DocumentVersion、官方 FactSet、Brief、模型、提示词和 Schema 重跑为 0 次 AI 调用。
 
-历史数据库中的 `candidate_status_mappings` 输入和 `mapping_claims` 列仅为读取兼容保留，当前输出、
-CLI/API 和任何图服务都不消费它们。
+每条 `highlight` 只保存中文概括文本，不保存原文摘录、类型或新颖性理由。`mapping_claims` 列仅为
+数据库兼容保留并始终为空；正常简报、CLI/API 和任何图服务都不输出或消费它。文章路由 ID、
+处理状态和错误只留在后台运行记录中，不进入正常简报。
 
 ## 查询与审计
 

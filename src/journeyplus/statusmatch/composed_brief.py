@@ -17,8 +17,6 @@ from journeyplus.models import (
 )
 from journeyplus.statusmatch.article_contracts import (
     ComposedStatusMatchBrief,
-    StatusMatchArticleHighlight,
-    StatusMatchArticleRouteView,
     StatusMatchSupplementView,
 )
 
@@ -77,40 +75,20 @@ def composed_statusmatch_brief(
         brief_id=brief.id,
     )
     supplement_by_route = {supplement.route_id: supplement for supplement in supplements}
-    route_views: list[StatusMatchArticleRouteView] = []
     supplement_views: list[StatusMatchSupplementView] = []
     for route in routes:
         document, item = _route_material(session, route)
         supplement = supplement_by_route.get(route.id)
-        dynamic_status = route.status
-        if route.status in {"SUCCEEDED", "NO_NOVEL_HIGHLIGHTS"} and supplement is None:
-            dynamic_status = "PENDING_RECOMPARE"
-        route_views.append(
-            StatusMatchArticleRouteView(
-                route_id=route.id,
-                article_document_version_id=document.id,
-                article_title=item.title,
-                article_url=item.canonical_url,
-                project_host=route.project_host,
-                status=dynamic_status,
-                error=route.last_error,
-            )
-        )
         if supplement is not None:
+            highlights = _highlight_texts(supplement.highlights)
+            if not highlights:
+                continue
             supplement_views.append(
                 StatusMatchSupplementView(
-                    supplement_id=supplement.id,
-                    article_document_version_id=document.id,
                     article_title=item.title,
                     article_url=item.canonical_url,
                     article_published_at=item.published_at,
-                    fact_set_id=fact.id,
-                    brief_id=brief.id,
-                    status=supplement.status,
-                    highlights=[
-                        StatusMatchArticleHighlight.model_validate(item)
-                        for item in supplement.highlights
-                    ],
+                    highlights=highlights,
                 )
             )
     return ComposedStatusMatchBrief(
@@ -121,8 +99,22 @@ def composed_statusmatch_brief(
         official_brief_id=brief.id,
         official_brief=brief.content,
         supplements=supplement_views,
-        routes=route_views,
     )
+
+
+def _highlight_texts(value: list[object]) -> list[str]:
+    """Read current strings and legacy highlight objects without exposing metadata."""
+    highlights: list[str] = []
+    for item in value:
+        if isinstance(item, str):
+            text = item
+        elif isinstance(item, dict):
+            text = item.get("text")
+        else:
+            text = None
+        if isinstance(text, str) and (normalized := " ".join(text.split())):
+            highlights.append(normalized)
+    return highlights
 
 
 def _latest_routes_for_event(

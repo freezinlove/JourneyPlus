@@ -87,6 +87,7 @@ def _add_article_mapping(
         normalized_hash=digest,
         parser_version="unified-test-v1",
         fetched_at=first_collected_at,
+        created_at=first_collected_at,
     )
     session.add(document)
     session.flush()
@@ -100,6 +101,7 @@ def _add_article_mapping(
         reason="direct mapping",
         status="SUCCEEDED",
         content_signature=digest,
+        created_at=first_collected_at,
     )
     session.add(analysis)
     session.flush()

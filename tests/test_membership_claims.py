@@ -4,29 +4,21 @@ from journeyplus.statusmatch.article_contracts import StatusMatchArticleExtracti
 from journeyplus.statusmatch.article_workflow import _validate_extraction
 
 
-def test_legacy_candidate_mapping_is_accepted_but_excluded_and_ignored() -> None:
-    body = "Program A Gold maps directly to Program B Platinum."
+def test_article_extraction_only_contains_highlight_text() -> None:
     extraction = StatusMatchArticleExtraction.model_validate(
         {
-            "schema_version": "2",
-            "highlights": [],
-            "candidate_status_mappings": [
-                {
-                    "source_program": "Program A",
-                    "source_tiers": ["Gold"],
-                    "target_tier": "Program C Diamond",
-                    "availability": "AVAILABLE",
-                    "article_quote": body,
-                }
-            ]
+            "schema_version": "3",
+            "highlights": ["  文章提醒这项权益存在使用限制。  "],
         }
     )
 
-    _validate_extraction(extraction, body)
+    _validate_extraction(extraction)
 
-    assert len(extraction.candidate_status_mappings) == 1
-    assert "candidate_status_mappings" not in extraction.model_dump(mode="json")
-    assert (
-        "candidate_status_mappings"
-        not in StatusMatchArticleExtraction.model_json_schema()["properties"]
-    )
+    assert extraction.model_dump(mode="json") == {
+        "schema_version": "3",
+        "highlights": ["文章提醒这项权益存在使用限制。"],
+    }
+    assert set(StatusMatchArticleExtraction.model_json_schema()["properties"]) == {
+        "schema_version",
+        "highlights",
+    }

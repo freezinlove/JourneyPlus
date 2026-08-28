@@ -28,7 +28,6 @@ from journeyplus.sources.base import FetchResponse
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.registry import seed_sources
 from journeyplus.statusmatch.article_workflow import (
-    _validate_qualifier_fidelity,
     process_pending_statusmatch_articles,
 )
 from journeyplus.statusmatch.articles import (
@@ -203,21 +202,16 @@ def _seed_official_output(session):
     return watch, event, fact, brief
 
 
-def _highlight_response(quote: str = "This article adds a practical warning."):
+def _highlight_response(
+    highlight: str = "文章额外提醒了一项实际注意事项。",
+):
     return {
-        "schema_version": "1",
-        "highlights": [
-            {
-                "kind": "FACTUAL_DETAIL",
-                "text": "文章额外提醒了一项实际注意事项。",
-                "article_quote": quote,
-                "novelty_reason": "当前官方 FactSet 和简报都没有提到这项提醒。",
-            }
-        ],
+        "schema_version": "3",
+        "highlights": [highlight],
     }
 
 
-def test_single_supplement_call_ignores_legacy_candidate_mapping_and_preserves_official_fact(
+def test_single_supplement_call_preserves_official_fact(
     session_factory,
 ) -> None:
     quote = (
@@ -251,17 +245,8 @@ def test_single_supplement_call_ignores_legacy_candidate_mapping_and_preserves_o
     provider = SequenceAIProvider(
         [
             {
-                "schema_version": "2",
+                "schema_version": "3",
                 "highlights": [],
-                "candidate_status_mappings": [
-                    {
-                        "source_program": "Accor Live Limitless",
-                        "source_tiers": ["Gold"],
-                        "target_tier": "Platinum",
-                        "availability": "AVAILABLE",
-                        "article_quote": quote,
-                    }
-                ],
             }
         ]
     )
@@ -280,7 +265,7 @@ def test_single_supplement_call_ignores_legacy_candidate_mapping_and_preserves_o
         ) == 0
         assert session.get(FactSetRecord, fact_id).facts == original_fact
         composed = composed_statusmatch_brief(session, host=HOST)
-        assert not hasattr(composed.supplements[0], "mapping_claims")
+        assert composed.supplements == []
         supplement.mapping_claims = [
             {"status": "CANDIDATE", "legacy_id": "candidate"},
             {"status": "CONFLICTING", "legacy_id": "conflicting"},
@@ -471,7 +456,7 @@ def test_historical_route_is_not_moved_to_a_later_watch_generation(
     assert route.event_id != new_event.id
 
 
-def test_highlight_processing_validates_evidence_and_is_idempotent(
+def test_highlight_processing_retries_duplicates_and_is_idempotent(
     session_factory,
 ) -> None:
     with session_factory.begin() as session:
@@ -483,7 +468,10 @@ def test_highlight_processing_validates_evidence_and_is_idempotent(
         refresh_statusmatch_article_route_readiness(session)
     provider = SequenceAIProvider(
         [
-            _highlight_response("not present in the article at all"),
+            {
+                "schema_version": "3",
+                "highlights": ["重复关注点。", "重复关注点。"],
+            },
             _highlight_response(),
         ]
     )
@@ -531,7 +519,7 @@ def test_zero_highlight_is_successful_and_composed_without_polluting_official(
         brief = session.get(BriefRecord, composed.official_brief_id)
         assert fact is not None and fact.facts == original_fact
         assert brief is not None and brief.content == original_brief
-        assert composed.supplements[0].highlights == []
+        assert composed.supplements == []
 
 
 def test_composed_brief_is_exposed_by_review_api_and_cli_parser(
@@ -554,7 +542,15 @@ def test_composed_brief_is_exposed_by_review_api_and_cli_parser(
 
     assert response.status_code == 200
     assert response.json()["project_host"] == HOST
-    assert len(response.json()["supplements"][0]["highlights"]) == 1
+    supplement = response.json()["supplements"][0]
+    assert set(supplement) == {
+        "article_title",
+        "article_url",
+        "article_published_at",
+        "highlights",
+    }
+    assert supplement["highlights"] == ["文章额外提醒了一项实际注意事项。"]
+    assert "routes" not in response.json()
     assert build_parser().parse_args(
         ["statusmatch-articles", "--source-id", "loyaltylobby_feed"]
     ).command == "statusmatch-articles"
@@ -658,28 +654,4 @@ def test_official_version_change_creates_new_current_supplement(
             select(func.count()).select_from(StatusMatchArticleSupplement)
         ) == 2
         composed = composed_statusmatch_brief(session, event_id=event_id)
-        assert len(composed.supplements) == 1
-        assert composed.supplements[0].status == "NO_NOVEL_HIGHLIGHTS"
-
-
-def test_qualifier_guard_rejects_business_day_and_missing_bank_condition() -> None:
-    import pytest
-
-    with pytest.raises(ValueError, match="depending on"):
-        _validate_qualifier_fidelity(
-            highlight_text="退款通常会在 7 个工作日内到账。",
-            article_quote=(
-                "Refunds are processed immediately and will reflect on your card "
-                "statement usually within 7 days, depending on your bank."
-            ),
-            index=0,
-        )
-    with pytest.raises(ValueError, match="business days"):
-        _validate_qualifier_fidelity(
-            highlight_text="退款通常视银行而定，会在 7 个工作日内到账。",
-            article_quote=(
-                "Refunds are processed immediately and will reflect on your card "
-                "statement usually within 7 days, depending on your bank."
-            ),
-            index=0,
-        )
+        assert composed.supplements == []
