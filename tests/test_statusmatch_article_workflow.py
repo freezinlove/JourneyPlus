@@ -190,7 +190,22 @@ def _seed_official_output(session):
         fact_set_id=fact.id,
         version=1,
         schema_version="1",
-        content={"title": "Kenya Airways 开放会籍匹配", "summary": "Accor 会员可申请。"},
+        content={
+            "schema_version": "1",
+            "fact_set_id": str(fact.id),
+            "title": "Kenya Airways 开放会籍匹配",
+            "title_fact_keys": ["what_happened"],
+            "summary": "Accor 会员可申请。",
+            "summary_fact_keys": ["what_happened"],
+            "key_points": [
+                {
+                    "text": "符合条件的 Accor 会员可以申请。",
+                    "fact_keys": ["what_happened"],
+                }
+            ],
+            "caveats": [],
+            "source_links": [],
+        },
     )
     session.add(brief)
     session.flush()
@@ -506,6 +521,8 @@ def test_zero_highlight_is_successful_and_composed_without_polluting_official(
         )
         refresh_statusmatch_article_route_readiness(session)
         event_id = event.id
+        fact_id = fact.id
+        brief_id = brief.id
     provider = SequenceAIProvider(
         [{"schema_version": "1", "highlights": []}]
     )
@@ -515,8 +532,8 @@ def test_zero_highlight_is_successful_and_composed_without_polluting_official(
     assert result.routes[0].status == "NO_NOVEL_HIGHLIGHTS"
     with session_factory() as session:
         composed = composed_statusmatch_brief(session, event_id=event_id)
-        fact = session.get(FactSetRecord, composed.official_fact_set_id)
-        brief = session.get(BriefRecord, composed.official_brief_id)
+        fact = session.get(FactSetRecord, fact_id)
+        brief = session.get(BriefRecord, brief_id)
         assert fact is not None and fact.facts == original_fact
         assert brief is not None and brief.content == original_brief
         assert composed.supplements == []
@@ -541,8 +558,18 @@ def test_composed_brief_is_exposed_by_review_api_and_cli_parser(
     )
 
     assert response.status_code == 200
-    assert response.json()["project_host"] == HOST
-    supplement = response.json()["supplements"][0]
+    payload = response.json()
+    assert set(payload) == {
+        "title",
+        "summary",
+        "key_points",
+        "caveats",
+        "source_links",
+        "supplements",
+    }
+    assert payload["title"] == "Kenya Airways 开放会籍匹配"
+    assert payload["key_points"] == ["符合条件的 Accor 会员可以申请。"]
+    supplement = payload["supplements"][0]
     assert set(supplement) == {
         "article_title",
         "article_url",
@@ -550,7 +577,12 @@ def test_composed_brief_is_exposed_by_review_api_and_cli_parser(
         "highlights",
     }
     assert supplement["highlights"] == ["文章额外提醒了一项实际注意事项。"]
-    assert "routes" not in response.json()
+    with session_factory() as session:
+        stored = session.scalar(select(BriefRecord))
+        assert stored is not None
+        assert stored.content["fact_set_id"]
+        assert stored.content["title_fact_keys"] == ["what_happened"]
+        assert stored.content["key_points"][0]["fact_keys"] == ["what_happened"]
     assert build_parser().parse_args(
         ["statusmatch-articles", "--source-id", "loyaltylobby_feed"]
     ).command == "statusmatch-articles"
@@ -636,7 +668,17 @@ def test_official_version_change_creates_new_current_supplement(
             fact_set_id=fact.id,
             version=1,
             schema_version="1",
-            content={"title": "Updated official brief"},
+            content={
+                "schema_version": "1",
+                "fact_set_id": str(fact.id),
+                "title": "Updated official brief",
+                "title_fact_keys": ["what_happened"],
+                "summary": "Updated official summary",
+                "summary_fact_keys": ["what_happened"],
+                "key_points": [],
+                "caveats": [],
+                "source_links": [],
+            },
         )
         session.add(brief)
         session.flush()

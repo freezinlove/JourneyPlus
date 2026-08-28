@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from journeyplus.contracts import Brief
 from journeyplus.models import (
     BriefRecord,
     DocumentVersion,
@@ -29,7 +30,6 @@ def composed_statusmatch_brief(
 ) -> ComposedStatusMatchBrief:
     if (host is None) == (event_id is None):
         raise ValueError("exactly one of host or event_id is required")
-    normalized_host: str
     if host is not None:
         normalized_host = host.casefold().rstrip(".")
         watch = session.scalar(
@@ -42,20 +42,6 @@ def composed_statusmatch_brief(
         event = session.get(StatusEvent, UUID(str(event_id)))
         if event is None:
             raise LookupError(f"StatusMatch event {event_id} was not found")
-        watch = session.scalar(
-            select(StatusMatchWatch).where(StatusMatchWatch.current_event_id == event.id)
-        )
-        normalized_host = (
-            watch.host
-            if watch is not None
-            else session.scalar(
-                select(StatusMatchArticleRoute.project_host)
-                .where(StatusMatchArticleRoute.event_id == event.id)
-                .order_by(StatusMatchArticleRoute.created_at.asc())
-                .limit(1)
-            )
-            or "archived-statusmatch-project"
-        )
     if (
         event is None
         or event.current_fact_set_id is None
@@ -91,13 +77,13 @@ def composed_statusmatch_brief(
                     highlights=highlights,
                 )
             )
+    brief_payload = Brief.model_validate(brief.content)
     return ComposedStatusMatchBrief(
-        project_host=normalized_host,
-        event_id=event.id,
-        event_archived=event.archived_at is not None,
-        official_fact_set_id=fact.id,
-        official_brief_id=brief.id,
-        official_brief=brief.content,
+        title=brief_payload.title,
+        summary=brief_payload.summary,
+        key_points=[point.text for point in brief_payload.key_points],
+        caveats=[point.text for point in brief_payload.caveats],
+        source_links=brief_payload.source_links,
         supplements=supplement_views,
     )
 

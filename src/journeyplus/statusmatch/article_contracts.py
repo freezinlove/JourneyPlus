@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated
-from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import Field, HttpUrl, field_validator
 
 from journeyplus.contracts import StrictModel
 
 
 StatusMatchArticleHighlight = Annotated[str, Field(min_length=1, max_length=1000)]
+StatusMatchBriefPoint = Annotated[str, Field(min_length=1, max_length=500)]
 
 
 class StatusMatchArticleExtraction(StrictModel):
@@ -32,10 +32,9 @@ class StatusMatchSupplementView(StrictModel):
 
 
 class ComposedStatusMatchBrief(StrictModel):
-    project_host: str
-    event_id: UUID
-    event_archived: bool
-    official_fact_set_id: UUID
-    official_brief_id: UUID
-    official_brief: dict
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(min_length=1, max_length=600)
+    key_points: list[StatusMatchBriefPoint] = Field(default_factory=list, max_length=10)
+    caveats: list[StatusMatchBriefPoint] = Field(default_factory=list, max_length=10)
+    source_links: list[HttpUrl] = Field(default_factory=list, max_length=30)
     supplements: list[StatusMatchSupplementView] = Field(default_factory=list)
