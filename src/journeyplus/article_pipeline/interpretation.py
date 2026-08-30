@@ -53,7 +53,11 @@ SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输�
 
 若是 STATUS_OPPORTUNITY，按现实活动输出 opportunities。同一活动的不同目标等级、价格档、资格映射不拆分；不同目标忠诚度项目且有各自独立行动入口才拆分。每个机会提取完整事实、分别有证据的申请路径和会籍对应关系。不要跨机会串日期或条件。
 
-每个非空事实都必须附带文章中的短原文 quote，quote 必须能在 normalized_body 中按空白归一化后逐字找到；不得使用常识补猜。文章没有明确说明的字段保持 null/空数组。application_start/deadline 只能摘录当前活动申请窗口，不能用发布时间或会籍有效期代替。action_link 只能使用正文中出现的链接。
+每个非空事实都必须附带文章中的短原文 quote，单条 quote 不得超过 480 个字符，
+不得复制整段或整表；quote 必须能在 normalized_body 中按空白归一化后逐字找到，
+不得使用常识补猜。文章没有明确说明的字段保持 null/空数组。
+application_start/deadline 只能摘录当前活动申请窗口，不能用发布时间或会籍有效期代替。
+action_link 只能使用正文中出现的链接。
 
 status_mappings 只表示“已有某项目的明确会籍等级，可对应到目标会籍等级”的等级映射；积分转换来源、信用卡或普通会员资格属于申请路径，不是会籍映射。AVAILABLE/CONDITIONAL 映射必须列出至少一个 source_tier。
 
@@ -96,13 +100,22 @@ class ArticleInterpreter:
         existing = self._session.scalar(
             select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
         )
-        if existing is not None and existing.result:
-            interpretation = ArticleInterpretation.model_validate(existing.result)
-            persisted = self._session.scalar(
+        persisted = (
+            self._session.scalar(
                 select(ArticleAnalysisRecord).where(
                     ArticleAnalysisRecord.analysis_run_id == existing.id
                 )
             )
+            if existing is not None
+            else None
+        )
+        if (
+            existing is not None
+            and existing.result
+            and existing.status != RunStatus.FAILED
+            and (persisted is None or persisted.status != "NEEDS_REVIEW")
+        ):
+            interpretation = ArticleInterpretation.model_validate(existing.result)
             if persisted is None:
                 persisted, opportunities = self._materialize(
                     document, item, existing, interpretation
@@ -133,6 +146,10 @@ class ArticleInterpreter:
         )
         if existing is None:
             self._session.add(run)
+        else:
+            run.status = RunStatus.RUNNING
+            run.error = None
+            run.result = None
         self._session.flush()
 
         interpretation: ArticleInterpretation | None = None
@@ -204,24 +221,39 @@ class ArticleInterpreter:
         run: AnalysisRun,
         interpretation: ArticleInterpretation,
     ) -> tuple[ArticleAnalysisRecord, tuple[ArticleOpportunityRecord, ...]]:
-        analysis = ArticleAnalysisRecord(
-            id=uuid5(NAMESPACE_URL, f"journeyplus:article-analysis:{run.id}"),
-            document_version_id=document.id,
-            source_item_id=item.id,
-            analysis_run_id=run.id,
-            input_version=str(document.id),
-            label=interpretation.label,
-            confidence=interpretation.confidence,
-            reason=interpretation.reason,
-            status=(
-                "SUCCEEDED"
-                if run.status == RunStatus.SUCCEEDED
-                else "NEEDS_REVIEW"
-            ),
-            content_signature=document.normalized_hash,
+        analysis = self._session.scalar(
+            select(ArticleAnalysisRecord).where(
+                ArticleAnalysisRecord.analysis_run_id == run.id
+            )
         )
-        self._session.add(analysis)
+        if analysis is None:
+            analysis = ArticleAnalysisRecord(
+                id=uuid5(NAMESPACE_URL, f"journeyplus:article-analysis:{run.id}"),
+                document_version_id=document.id,
+                source_item_id=item.id,
+                analysis_run_id=run.id,
+                input_version=str(document.id),
+                content_signature=document.normalized_hash,
+            )
+            self._session.add(analysis)
+        analysis.label = interpretation.label
+        analysis.confidence = interpretation.confidence
+        analysis.reason = interpretation.reason
+        analysis.status = (
+            "SUCCEEDED" if run.status == RunStatus.SUCCEEDED else "NEEDS_REVIEW"
+        )
         self._session.flush()
+        existing_opportunities = tuple(
+            self._session.scalars(
+                select(ArticleOpportunityRecord).where(
+                    ArticleOpportunityRecord.analysis_id == analysis.id
+                )
+            )
+        )
+        if existing_opportunities:
+            raise ValueError(
+                "A review retry cannot replace already materialized opportunities"
+            )
         records: list[ArticleOpportunityRecord] = []
         for extracted in interpretation.opportunities:
             application_start_at = (
@@ -457,6 +489,7 @@ def _correction_action(exc: Exception) -> str:
             "source_tiers；积分转换项目不是会籍等级映射，应从 status_mappings 删除。"
             "conflict=false 时 conflict_note 必须为 null，存在 conflict_note 时 conflict"
             "必须为 true。未知事实用 null 或空对象。所有 quote 仍须逐字复制。"
+            "每条 quote 必须少于或等于 480 个字符，禁止复制整段或整表。"
         )
     return (
         "所有 evidence.quote 必须从 normalized_body 可见文字中连续逐字复制；"

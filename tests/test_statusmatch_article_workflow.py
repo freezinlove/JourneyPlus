@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 
 from journeyplus.ai.provider import AIProviderMetadata, SequenceAIProvider
-from journeyplus.automation.service import run_daily_cycle
+from journeyplus.automation.service import automation_status, run_daily_cycle
 from journeyplus.cli import build_parser
 from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.models import (
@@ -496,6 +496,8 @@ def test_highlight_processing_retries_duplicates_and_is_idempotent(
 
     assert first.succeeded == 1 and first.model_calls == 2
     assert first.routes[0].highlight_count == 1
+    assert first.routes[0].article_title == "Kenya Airways match"
+    assert first.routes[0].article_url == ARTICLE_URL
     assert second.selected == 0 and second.model_calls == 0
     assert len(provider.calls) == 2
     assert "correction" in provider.calls[1]["user_prompt"]
@@ -612,6 +614,10 @@ def test_daily_cycle_runs_article_branch_before_generic_workflow(
     assert result.statusmatch_projects_succeeded == 1
     assert result.statusmatch_articles_succeeded == 1
     assert result.statusmatch_article_model_calls == 1
+    assert result.statusmatch_article_outputs[0]["article_title"] == (
+        "Kenya Airways match"
+    )
+    assert result.statusmatch_article_outputs[0]["article_url"] == ARTICLE_URL
     assert result.documents_selected == 0
     assert provider.calls == [
         "StatusMatchProjectExtraction",
@@ -637,6 +643,10 @@ def test_daily_cycle_runs_article_branch_before_generic_workflow(
                 ),
             )
         ) == 0
+
+    status = automation_status(session_factory, provider)
+    assert status.last_statusmatch_articles_succeeded == 1
+    assert status.last_statusmatch_article_outputs[0]["article_url"] == ARTICLE_URL
 
 
 def test_official_version_change_creates_new_current_supplement(

@@ -212,6 +212,37 @@ def _none(reason: str = "not a status opportunity") -> dict:
     }
 
 
+class InitializationDropProvider:
+    metadata = AIProviderMetadata(
+        provider="test",
+        model="initialization-drop",
+        region="local",
+        config_version="initialization-drop-v1",
+    )
+
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def generate_structured(self, *, system_prompt, user_prompt, output_model):
+        request = json.loads(user_prompt)
+        self.calls.append({"model": output_model.__name__, "request": request})
+        if output_model.__name__ != "TitleScreenBatch":
+            raise AssertionError("Dropped initialization articles need no body call")
+        return output_model.model_validate(
+            {
+                "items": [
+                    {
+                        "document_version_id": item["document_version_id"],
+                        "decision": "DROP",
+                        "confidence": 0.99,
+                        "reason": "普通历史资讯",
+                    }
+                    for item in request["items"]
+                ]
+            }
+        )
+
+
 def test_historical_feed_paginates_until_window_is_covered() -> None:
     base = "https://example.com/feed/"
     fetcher = MappingFetcher(
@@ -250,7 +281,7 @@ def test_historical_feed_paginates_until_window_is_covered() -> None:
 
 
 def test_initialization_requires_audit_before_next_batch(session_factory) -> None:
-    provider = SequenceAIProvider([_none() for _ in range(20)])
+    provider = InitializationDropProvider()
 
     mail_details = run_mail_detail_initialization(
         session_factory,

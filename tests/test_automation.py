@@ -20,6 +20,7 @@ from journeyplus.models import (
     BuyPointsSnapshotRecord,
     CollectionRun,
     DocumentVersion,
+    JobRun,
     Source,
     SourceAutomationState,
     StatusEvent,
@@ -143,13 +144,27 @@ def test_daily_buy_points_stage_is_deterministic_and_zero_ai(
         run = session.scalar(select(AutomationRun))
         assert state is not None and state.pending_document_count == 0
         assert run is not None
+        assert run.finished_at is not None
+        assert run.started_at is not None
+        assert run.finished_at > run.started_at
         assert run.processing_result["buy_points_processing"][
             "latest_offer_count"
         ] == 4
+        session.add(
+            JobRun(
+                idempotency_key="superseded-historical-failure",
+                job_type="historical_test",
+                status="FAILED",
+            )
+        )
+        session.commit()
 
     status = automation_status(session_factory, provider)
     assert status.last_buy_points_latest_offer_count == 4
     assert status.last_model_calls == 0
+    assert status.failed_job_count == 0
+    assert status.historical_failed_job_count == 1
+    assert status.last_run_finished_at != status.last_run_started_at
 
 
 def test_buy_points_parse_failure_isolated_from_generic_processing(

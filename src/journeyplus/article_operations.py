@@ -30,7 +30,7 @@ from journeyplus.article_pipeline.visibility import (
     ArticleArchiveReason,
     ArticleVisibilityPolicy,
 )
-from journeyplus.contracts import DocumentLabel
+from journeyplus.contracts import DocumentLabel, RunStatus
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import (
     ArticleAnalysisRecord,
@@ -51,6 +51,8 @@ GENERIC_PUBLIC_SOURCE_ID = "loyaltylobby_feed"
 class ArticleDocumentProcessingResult:
     document_version_id: str
     source_id: str
+    article_title: str
+    article_url: str
     title_decision: str
     document_label: str | None
     opportunity_ids: tuple[str, ...] = ()
@@ -151,29 +153,42 @@ def pending_article_documents(
             and not is_third_party_statusmatch_article(session, document)
         )
     ]
-    completed = set(
-        session.scalars(
-            select(JobRun.idempotency_key).where(
-                JobRun.idempotency_key.in_(
-                    article_workflow_idempotency_key(
-                        item,
-                        provider,
-                        title_drop_enabled=title_drop_enabled,
-                    )
-                    for item in candidates
-                ),
-                JobRun.status == "SUCCEEDED",
+    completed = (
+        set(
+            session.scalars(
+                select(JobRun.idempotency_key).where(
+                    JobRun.idempotency_key.in_(
+                        article_workflow_idempotency_key(
+                            item,
+                            provider,
+                            title_drop_enabled=title_drop_enabled,
+                        )
+                        for item in candidates
+                    ),
+                    JobRun.status == "SUCCEEDED",
+                )
             )
         )
-    ) if candidates else set()
+        if candidates
+        else set()
+    )
+    needs_interpretation_retry = {
+        document_id
+        for document_id in candidates
+        if _document_analysis_needs_review(session, document_id)
+    }
     pending = [
         item
         for item in candidates
-        if article_workflow_idempotency_key(
-            item,
-            provider,
-            title_drop_enabled=title_drop_enabled,
-        ) not in completed
+        if (
+            article_workflow_idempotency_key(
+                item,
+                provider,
+                title_drop_enabled=title_drop_enabled,
+            )
+            not in completed
+            or item in needs_interpretation_retry
+        )
     ]
     return pending if limit is None else pending[:limit]
 
@@ -232,12 +247,36 @@ def process_pending_articles(
         screening_by_id = {
             outcome.result.document_version_id: outcome for outcome in screenings
         }
+        article_metadata: dict[UUID, tuple[str, str]] = {}
+        for document in documents:
+            assert document is not None
+            item = session.get(SourceItem, document.source_item_id)
+            if item is None:
+                raise LookupError("Article source item was not found")
+            article_metadata[document.id] = (item.title, item.canonical_url)
 
     runner = JobRunner(session_factory, max_attempts=1)
     results: list[ArticleDocumentProcessingResult] = []
     stopped_early = False
     for position, document_id in enumerate(selected):
         screening = screening_by_id[document_id]
+        article_title, article_url = article_metadata[document_id]
+        job_key = article_workflow_idempotency_key(
+            document_id,
+            runtime_provider,
+            title_drop_enabled=title_drop_enabled,
+        )
+        with session_factory.begin() as session:
+            if _document_analysis_needs_review(session, document_id):
+                prior_job = session.scalar(
+                    select(JobRun).where(JobRun.idempotency_key == job_key)
+                )
+                if prior_job is not None and prior_job.status == RunStatus.SUCCEEDED:
+                    prior_job.status = RunStatus.PENDING
+                    prior_job.error = (
+                        "Nested article interpretation needs a reliable retry"
+                    )
+                    prior_job.finished_at = None
 
         def operation(
             current_document_id: UUID = document_id,
@@ -253,6 +292,8 @@ def process_pending_articles(
                 return ArticleDocumentProcessingResult(
                     document_version_id=str(current_document_id),
                     source_id=GENERIC_PUBLIC_SOURCE_ID,
+                    article_title=article_title,
+                    article_url=article_url,
                     title_decision=effective_decision,
                     document_label=None,
                     reused_title_screen=current_screening.reused,
@@ -272,6 +313,17 @@ def process_pending_articles(
                 document_label = interpreted.interpretation.label
                 reused_interpretation = interpreted.reused
                 opportunity_ids = tuple(item.id for item in interpreted.opportunities)
+                interpretation_error = (
+                    (
+                        interpreted.run.error
+                        or "Article interpretation needs manual review"
+                    )
+                    if interpreted.run.status == RunStatus.FAILED
+                    else None
+                )
+
+            if interpretation_error is not None:
+                raise ValueError(interpretation_error)
 
             brief_ids: list[str] = []
             brief_errors: list[str] = []
@@ -308,6 +360,8 @@ def process_pending_articles(
             return ArticleDocumentProcessingResult(
                 document_version_id=str(current_document_id),
                 source_id=GENERIC_PUBLIC_SOURCE_ID,
+                article_title=article_title,
+                article_url=article_url,
                 title_decision=effective_decision,
                 document_label=document_label,
                 opportunity_ids=tuple(str(item) for item in opportunity_ids),
@@ -318,11 +372,7 @@ def process_pending_articles(
 
         try:
             result, skipped = runner.execute(
-                idempotency_key=article_workflow_idempotency_key(
-                    document_id,
-                    runtime_provider,
-                    title_drop_enabled=title_drop_enabled,
-                ),
+                idempotency_key=job_key,
                 job_type="generic_article_v2",
                 operation=operation,
                 serialize=asdict,
@@ -338,6 +388,8 @@ def process_pending_articles(
                 ArticleDocumentProcessingResult(
                     document_version_id=str(document_id),
                     source_id=GENERIC_PUBLIC_SOURCE_ID,
+                    article_title=article_title,
+                    article_url=article_url,
                     title_decision=screening.result.decision,
                     document_label=document_label,
                     opportunity_ids=opportunity_ids,
@@ -389,6 +441,22 @@ def latest_successful_article_analysis(
         .order_by(ArticleAnalysisRecord.created_at.desc(), ArticleAnalysisRecord.id.desc())
         .limit(1)
     )
+
+
+def _document_analysis_needs_review(
+    session: Session,
+    document_id: UUID,
+) -> bool:
+    status = session.scalar(
+        select(ArticleAnalysisRecord.status)
+        .where(ArticleAnalysisRecord.document_version_id == document_id)
+        .order_by(
+            ArticleAnalysisRecord.created_at.desc(),
+            ArticleAnalysisRecord.id.desc(),
+        )
+        .limit(1)
+    )
+    return status == "NEEDS_REVIEW"
 
 
 def archive_article_mapping(

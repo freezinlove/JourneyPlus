@@ -229,6 +229,8 @@ def test_title_failure_falls_through_to_body_and_shadow_detects_positive_drop(
 
     assert result.succeeded == result.body_processed == 1
     assert result.documents[0].title_decision == "NEEDS_BODY"
+    assert result.documents[0].article_title == "A surprising airline change"
+    assert result.documents[0].article_url == "https://loyaltylobby.com/unclear/"
     assert result.title_model_calls == result.interpretation_model_calls == 1
     with session_factory() as session:
         title_run = session.scalar(
@@ -290,6 +292,78 @@ def test_disabling_title_drop_reprocesses_prior_drop_without_recalling_title(
     assert inspected.title_model_calls == 0
     assert inspected.interpretation_model_calls == inspected.model_calls == 1
     assert repeated.selected == repeated.model_calls == 0
+
+
+def test_failed_interpretation_is_retryable_and_limits_internal_quotes(
+    session_factory,
+) -> None:
+    body = (
+        "Example Air offers a direct status match to Gold. "
+        "Apply at https://example-air.test/apply"
+    )
+    with session_factory.begin() as session:
+        _collect(session, [("quote-retry", "Example Air status match", body)])
+
+    class QuoteRetryProvider(V2Provider):
+        fail_interpretation = True
+
+        def generate_structured(self, *, system_prompt, user_prompt, output_model):
+            if (
+                output_model.__name__ == "ArticleInterpretation"
+                and self.fail_interpretation
+            ):
+                request = json.loads(user_prompt)
+                self.calls.append(
+                    {
+                        "model": output_model.__name__,
+                        "request": request,
+                        "prompt": system_prompt,
+                    }
+                )
+                return output_model.model_validate(
+                    {
+                        "label": "STATUS_OPPORTUNITY",
+                        "confidence": 0.99,
+                        "reason": "故意返回过长证据",
+                        "opportunities": [
+                            {
+                                "opportunity_index": 0,
+                                "program": "Example Air",
+                                "summary": "Example Air 会籍匹配",
+                                "what_happened": {
+                                    "value": "Example Air 会籍匹配",
+                                    "evidence": [{"quote": "x" * 481}],
+                                },
+                            }
+                        ],
+                    }
+                )
+            return super().generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                output_model=output_model,
+            )
+
+    provider = QuoteRetryProvider()
+    failed = process_pending_articles(session_factory, provider)
+
+    assert failed.failed == 1
+    assert failed.documents[0].document_label == "UNCERTAIN"
+    assert "480" in provider.calls[-1]["request"]["correction"]["required_action"]
+    with session_factory() as session:
+        analysis = session.scalar(select(ArticleAnalysisRecord))
+        assert analysis is not None and analysis.status == "NEEDS_REVIEW"
+        assert pending_article_documents(session, provider)
+
+    provider.fail_interpretation = False
+    recovered = process_pending_articles(session_factory, provider)
+
+    assert recovered.succeeded == recovered.briefs == 1
+    assert recovered.title_model_calls == 0
+    with session_factory() as session:
+        analyses = list(session.scalars(select(ArticleAnalysisRecord)))
+        assert len(analyses) == 1 and analyses[0].status == "SUCCEEDED"
+        assert pending_article_documents(session, provider) == []
 
 
 def test_identical_articles_remain_independent_without_relationship_stages(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -23,17 +23,19 @@ from journeyplus.buy_points.operations import (
     process_pending_buy_points,
 )
 from journeyplus.buy_points.service import BUY_POINTS_SOURCE_ID
-from journeyplus.contracts import RunStatus
+from journeyplus.contracts import DocumentLabel, RunStatus
 from journeyplus.lifecycle.service import BEIJING_TZ, advance_lifecycles
 from journeyplus.models import (
     AutomationLease,
     AutomationRun,
     CollectionRun,
+    FactSetRecord,
     JobRun,
     ArticleAnalysisRecord,
     DocumentVersion,
     Source,
     SourceAutomationState,
+    SourceItem,
     StatusEvent,
 )
 from journeyplus.operations import (
@@ -168,6 +170,8 @@ class AutomationStatusSummary:
     last_run_id: str | None
     last_run_day: str | None
     last_run_status: str | None
+    last_run_started_at: str | None
+    last_run_finished_at: str | None
     last_model_calls: int
     last_generic_title_model_calls: int
     last_generic_interpretation_model_calls: int
@@ -179,10 +183,19 @@ class AutomationStatusSummary:
     last_buy_points_latest_offer_count: int
     last_buy_points_diagnostics: tuple[str, ...]
     last_statusmatch_project_model_calls: int
+    last_statusmatch_projects_succeeded: int
+    last_statusmatch_project_outputs: tuple[dict[str, Any], ...]
     last_statusmatch_article_model_calls: int
+    last_statusmatch_articles_succeeded: int
+    last_statusmatch_article_outputs: tuple[dict[str, Any], ...]
+    last_generic_status_opportunities: int
+    last_generic_briefs: int
+    last_generic_status_article_outputs: tuple[dict[str, Any], ...]
     backlog_count: int
     failed_job_count: int
+    historical_failed_job_count: int
     needs_review_count: int
+    needs_review_outputs: tuple[dict[str, Any], ...]
     sources: tuple[SourceStatusSummary, ...]
 
 
@@ -543,7 +556,7 @@ def run_daily_cycle(
             run.backlog_count = backlog
             run.needs_review_count = needs_review
             run.error = global_error
-            run.finished_at = current
+            run.finished_at = _completion_time(current)
             final_status = run.status
     except Exception as exc:
         global_error = _safe_error(exc)
@@ -554,7 +567,7 @@ def run_daily_cycle(
                 if run is not None:
                     run.status = RunStatus.FAILED
                     run.error = global_error
-                    run.finished_at = current
+                    run.finished_at = _completion_time(current)
     finally:
         release_automation_lease(session_factory, owner_id=owner, now=current)
 
@@ -647,7 +660,7 @@ def automation_status(
         )
         backlog += pending_statusmatch_article_count(session, provider)
         backlog += pending_buy_points_count(session)
-        failed_jobs = int(
+        historical_failed_jobs = int(
             session.scalar(
                 select(func.count())
                 .select_from(JobRun)
@@ -676,12 +689,32 @@ def automation_status(
             "statusmatch_article_processing", {}
         )
         buy_points = processing.get("buy_points_processing", {})
+        generic_documents = processing.get("generic_documents", {})
+        statusmatch_article_outputs = _article_outputs_with_links(
+            session,
+            statusmatch_articles.get("routes", ()),
+        )
+        generic_status_article_outputs = _article_outputs_with_links(
+            session,
+            (
+                item
+                for item in generic_documents.get("documents", ())
+                if item.get("document_label")
+                == DocumentLabel.STATUS_OPPORTUNITY
+            ),
+        )
         return AutomationStatusSummary(
             lease_owner=lease.owner_id if lease else None,
             lease_expires_at=_iso(lease.expires_at) if lease else None,
             last_run_id=str(last_run.id) if last_run else None,
             last_run_day=last_run.day_bucket.isoformat() if last_run else None,
             last_run_status=last_run.status if last_run else None,
+            last_run_started_at=(
+                _iso(last_run.started_at) if last_run else None
+            ),
+            last_run_finished_at=(
+                _iso(_effective_run_finished_at(last_run)) if last_run else None
+            ),
             last_model_calls=last_run.model_calls if last_run else 0,
             last_generic_title_model_calls=int(
                 generic_calls.get("title_batches", 0)
@@ -705,12 +738,36 @@ def automation_status(
             last_statusmatch_project_model_calls=int(
                 statusmatch_projects.get("model_calls", 0)
             ),
+            last_statusmatch_projects_succeeded=int(
+                statusmatch_projects.get("succeeded", 0)
+            ),
+            last_statusmatch_project_outputs=tuple(
+                statusmatch_projects.get("projects", ())
+            ),
             last_statusmatch_article_model_calls=int(
                 statusmatch_articles.get("model_calls", 0)
             ),
+            last_statusmatch_articles_succeeded=int(
+                statusmatch_articles.get("succeeded", 0)
+            ),
+            last_statusmatch_article_outputs=statusmatch_article_outputs,
+            last_generic_status_opportunities=int(
+                generic_documents.get(
+                    "status_opportunities",
+                    processing.get("status_opportunities", 0),
+                )
+            ),
+            last_generic_briefs=int(
+                generic_documents.get("briefs", processing.get("briefs", 0))
+            ),
+            last_generic_status_article_outputs=(
+                generic_status_article_outputs
+            ),
             backlog_count=backlog,
-            failed_job_count=failed_jobs,
+            failed_job_count=_last_run_failure_count(last_run),
+            historical_failed_job_count=historical_failed_jobs,
             needs_review_count=needs_review,
+            needs_review_outputs=_needs_review_outputs(session),
             sources=source_results,
         )
 
@@ -983,6 +1040,192 @@ def _current_article_needs_review_count(session: Session) -> int:
         )
         or 0
     )
+
+
+def _article_outputs_with_links(
+    session: Session,
+    outputs: Iterable[dict[str, Any]],
+) -> tuple[dict[str, Any], ...]:
+    enriched: list[dict[str, Any]] = []
+    for output in outputs:
+        payload = dict(output)
+        document_id = payload.get("document_version_id")
+        try:
+            document = (
+                session.get(DocumentVersion, UUID(str(document_id)))
+                if document_id
+                else None
+            )
+        except ValueError:
+            document = None
+        item = (
+            session.get(SourceItem, document.source_item_id)
+            if document is not None
+            else None
+        )
+        if item is not None:
+            payload["article_title"] = item.title
+            payload["article_url"] = item.canonical_url
+        enriched.append(payload)
+    return tuple(enriched)
+
+
+def _needs_review_outputs(session: Session) -> tuple[dict[str, Any], ...]:
+    outputs: list[dict[str, Any]] = []
+    events = session.scalars(
+        select(StatusEvent)
+        .where(StatusEvent.status == "NEEDS_REVIEW")
+        .order_by(StatusEvent.updated_at.asc())
+    )
+    for event in events:
+        fact_set = (
+            session.get(FactSetRecord, event.current_fact_set_id)
+            if event.current_fact_set_id is not None
+            else None
+        )
+        outputs.append(
+            {
+                "kind": "official_source_conflict",
+                "program": event.program,
+                "conflicts": _fact_conflicts(fact_set.facts if fact_set else {}),
+            }
+        )
+
+    ranked_documents = (
+        select(
+            DocumentVersion.id.label("document_id"),
+            DocumentVersion.source_item_id.label("source_item_id"),
+            func.row_number()
+            .over(
+                partition_by=DocumentVersion.source_item_id,
+                order_by=(
+                    DocumentVersion.created_at.desc(),
+                    DocumentVersion.id.desc(),
+                ),
+            )
+            .label("document_rank"),
+        )
+        .subquery()
+    )
+    ranked_analyses = (
+        select(
+            ArticleAnalysisRecord.source_item_id.label("source_item_id"),
+            ArticleAnalysisRecord.document_version_id.label("document_id"),
+            ArticleAnalysisRecord.label.label("label"),
+            ArticleAnalysisRecord.confidence.label("confidence"),
+            ArticleAnalysisRecord.reason.label("reason"),
+            ArticleAnalysisRecord.status.label("status"),
+            ArticleAnalysisRecord.created_at.label("created_at"),
+            func.row_number()
+            .over(
+                partition_by=ArticleAnalysisRecord.document_version_id,
+                order_by=(
+                    ArticleAnalysisRecord.created_at.desc(),
+                    ArticleAnalysisRecord.id.desc(),
+                ),
+            )
+            .label("analysis_rank"),
+        )
+        .subquery()
+    )
+    rows = session.execute(
+        select(ranked_analyses, SourceItem)
+        .join(
+            ranked_documents,
+            ranked_documents.c.document_id == ranked_analyses.c.document_id,
+        )
+        .join(SourceItem, SourceItem.id == ranked_analyses.c.source_item_id)
+        .where(
+            ranked_documents.c.document_rank == 1,
+            ranked_analyses.c.analysis_rank == 1,
+            ranked_analyses.c.status == "NEEDS_REVIEW",
+        )
+        .order_by(ranked_analyses.c.created_at.asc())
+    )
+    for row in rows:
+        item = row.SourceItem
+        outputs.append(
+            {
+                "kind": "article_classification_review",
+                "article_title": item.title,
+                "article_url": item.canonical_url,
+                "label": row.label,
+                "confidence": row.confidence,
+                "reason": row.reason,
+            }
+        )
+    return tuple(outputs)
+
+
+def _fact_conflicts(
+    value: Any,
+    *,
+    path: str = "",
+) -> list[dict[str, Any]]:
+    conflicts: list[dict[str, Any]] = []
+    if isinstance(value, dict):
+        if value.get("conflict") is True:
+            detail = {
+                key: value[key]
+                for key in (
+                    "value",
+                    "alternatives",
+                    "conflict_note",
+                    "region",
+                    "scope",
+                    "eligibility",
+                    "cost",
+                )
+                if value.get(key) not in (None, [], "")
+            }
+            conflicts.append({"field": path or "facts", **detail})
+        for key, nested in value.items():
+            if key == "evidence":
+                continue
+            nested_path = f"{path}.{key}" if path else key
+            conflicts.extend(_fact_conflicts(nested, path=nested_path))
+    elif isinstance(value, list):
+        for index, nested in enumerate(value):
+            conflicts.extend(_fact_conflicts(nested, path=f"{path}[{index}]"))
+    return conflicts
+
+
+def _last_run_failure_count(last_run: AutomationRun | None) -> int:
+    if last_run is None:
+        return 0
+    processing = last_run.processing_result or {}
+    source_failures = sum(
+        item.get("status") == RunStatus.FAILED
+        for item in (last_run.source_results or ())
+    )
+    return source_failures + sum(
+        int(payload.get("failed", 0))
+        for payload in (
+            processing,
+            processing.get("statusmatch_project_processing", {}),
+            processing.get("statusmatch_article_processing", {}),
+            processing.get("buy_points_processing", {}),
+        )
+    )
+
+
+def _completion_time(started_at: datetime) -> datetime:
+    return max(
+        datetime.now(UTC),
+        _as_utc(started_at) + timedelta(microseconds=1),
+    )
+
+
+def _effective_run_finished_at(run: AutomationRun) -> datetime | None:
+    if run.finished_at is None:
+        return None
+    if (
+        run.started_at is not None
+        and _as_utc(run.finished_at) <= _as_utc(run.started_at)
+        and run.updated_at is not None
+    ):
+        return run.updated_at
+    return run.finished_at
 
 
 def _source_state(session: Session, source_id: str) -> SourceAutomationState:

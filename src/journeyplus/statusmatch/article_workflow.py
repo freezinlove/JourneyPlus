@@ -76,6 +76,8 @@ OFFICIAL_FACT_SET 和 OFFICIAL_BRIEF 是当前官网 HOME+FAQ 的完整权威整
 class StatusMatchArticleProcessingResult:
     route_id: str
     project_host: str
+    article_title: str
+    article_url: str
     event_id: str
     document_version_id: str
     fact_set_id: str
@@ -232,7 +234,7 @@ class StatusMatchArticleWorkflow:
         if existing is not None:
             route.status = existing.status
             route.last_error = None
-            return _result(route, event, document, fact, brief, existing, 0)
+            return _result(route, item, event, document, fact, brief, existing, 0)
 
         extraction, attempts, analysis = self._extract(
             route=route,
@@ -265,7 +267,16 @@ class StatusMatchArticleWorkflow:
         route.status = status
         route.last_error = None
         self._session.flush()
-        return _result(route, event, document, fact, brief, supplement, attempts)
+        return _result(
+            route,
+            item,
+            event,
+            document,
+            fact,
+            brief,
+            supplement,
+            attempts,
+        )
 
     def _extract(
         self,
@@ -541,6 +552,7 @@ def _comparison_text(value: str) -> str:
 
 def _result(
     route: StatusMatchArticleRoute,
+    item: SourceItem,
     event: StatusEvent,
     document: DocumentVersion,
     fact: FactSetRecord,
@@ -551,6 +563,8 @@ def _result(
     return StatusMatchArticleProcessingResult(
         route_id=str(route.id),
         project_host=route.project_host,
+        article_title=item.title,
+        article_url=item.canonical_url,
         event_id=str(event.id),
         document_version_id=str(document.id),
         fact_set_id=str(fact.id),
