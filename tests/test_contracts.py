@@ -131,7 +131,7 @@ def test_fact_set_has_unknown_application_start_by_default() -> None:
         what_happened=FactField(),
     )
 
-    assert facts.schema_version == "4"
+    assert facts.schema_version == "5"
     assert facts.application_start.value is None
     assert facts.application_routes == []
     assert facts.status_mappings == []

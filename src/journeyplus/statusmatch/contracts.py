@@ -5,7 +5,11 @@ from typing import Any
 
 from pydantic import Field, HttpUrl, field_validator, model_validator
 
-from journeyplus.contracts import MappingAvailability, StrictModel
+from journeyplus.contracts import (
+    MappingAvailability,
+    RoutePriceAvailability,
+    StrictModel,
+)
 
 
 class StatusMatchPageAlias(StrEnum):
@@ -33,11 +37,29 @@ class AliasedFactField(StrictModel):
         return self
 
 
+class AliasedRoutePrice(StrictModel):
+    target_tier: str | None = Field(default=None, max_length=200)
+    amount: float | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    availability: RoutePriceAvailability = RoutePriceAvailability.UNKNOWN
+    raw_text: str = Field(min_length=1, max_length=1000)
+    evidence: list[AliasedEvidenceRef] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def amount_and_availability_are_consistent(self) -> AliasedRoutePrice:
+        if self.amount is not None and self.currency is None:
+            raise ValueError("Numeric route prices require an ISO currency")
+        if self.availability == RoutePriceAvailability.UNAVAILABLE and self.amount is not None:
+            raise ValueError("Unavailable route prices cannot expose an amount")
+        return self
+
+
 class AliasedApplicationRoute(StrictModel):
     scope: str = Field(min_length=1, max_length=300)
     eligibility: str | None = Field(default=None, max_length=2000)
     region: str | None = Field(default=None, max_length=1000)
     cost: str | None = Field(default=None, max_length=1000)
+    prices: list[AliasedRoutePrice] = Field(default_factory=list, max_length=50)
     action_link: HttpUrl | None = None
     evidence: list[AliasedEvidenceRef] = Field(min_length=1, max_length=20)
     conflict: bool = False
@@ -53,6 +75,7 @@ class AliasedApplicationRoute(StrictModel):
                 self.eligibility,
                 self.region,
                 self.cost,
+                self.prices or None,
                 self.action_link,
             )
         ):

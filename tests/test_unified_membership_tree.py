@@ -18,7 +18,13 @@ from journeyplus.article_pipeline.visibility import (
     ArticleVisibilityPolicy,
     calculate_mapping_visibility,
 )
-from journeyplus.contracts import EvidenceRef, FactField, FactSet, StatusMapping
+from journeyplus.contracts import (
+    EvidenceRef,
+    FactField,
+    FactSet,
+    OpportunityKind,
+    StatusMapping,
+)
 from journeyplus.membership.contracts import (
     MappingContributionSource,
     UnifiedTreeNodeState,
@@ -126,6 +132,7 @@ def _add_article_mapping(
     )
     facts = FactSet(
         event_id=opportunity_id,
+        opportunity_kind=OpportunityKind.STATUS_MATCH,
         what_happened=FactField(value=quote, evidence=[evidence]),
         status_mappings=[mapping],
     )
@@ -723,6 +730,7 @@ def test_latest_successful_document_version_replaces_old_mapping_without_resetti
     )
     facts = FactSet(
         event_id=opportunity_id,
+        opportunity_kind=OpportunityKind.STATUS_MATCH,
         what_happened=FactField(value=new_quote, evidence=[evidence]),
         status_mappings=[
             StatusMapping(
@@ -768,3 +776,87 @@ def test_latest_successful_document_version_replaces_old_mapping_without_resetti
     assert len(new_tree.root.children) == 1
     assert new_until == first.visibility_until_at
     assert new_until == published + timedelta(days=180)
+
+
+def test_reachable_forest_expands_full_multiroot_graph_with_cycle_and_cross_reference(
+    db_session,
+) -> None:
+    now = datetime(2026, 8, 25, tzinfo=UTC)
+    created = []
+    for slug, source, source_tier, target, target_tier in (
+        ("a-b", "A Club", "Gold", "B Club", "Gold"),
+        ("a-c", "A Club", "Gold", "C Club", "Gold"),
+        ("b-d", "B Club", "Gold", "D Club", "Platinum"),
+        ("c-d", "C Club", "Gold", "D Club", "Platinum"),
+        ("d-a", "D Club", "Platinum", "A Club", "Gold"),
+    ):
+        opportunity, *_ = _add_article_mapping(
+            db_session,
+            external_id=slug,
+            source_program=source,
+            source_tier=source_tier,
+            target_program=target,
+            target_tier=target_tier,
+            published_at=now,
+            first_collected_at=now,
+        )
+        created.append(opportunity.id)
+
+    forest = UnifiedMembershipTreeService(db_session).reachable_forest(
+        ["a club::gold", "b club::gold"],
+        now=now + timedelta(days=1),
+    )
+
+    assert [root.node.id for root in forest.roots] == [
+        "a club::gold",
+        "b club::gold",
+    ]
+    assert forest.truncated_count == 0
+    assert forest.cycle_count == 1
+    assert forest.cross_reference_count >= 2
+    assert forest.roots[1].state == UnifiedTreeNodeState.CROSS_REFERENCE
+    a_children = forest.roots[0].children
+    assert [edge.target_node_id for edge in a_children] == [
+        "b club::gold",
+        "c club::gold",
+    ]
+    assert {item for edge in a_children for item in edge.opportunity_ids} <= set(created)
+    d_from_c = a_children[1].child.children[0].child
+    assert d_from_c.state == UnifiedTreeNodeState.CROSS_REFERENCE
+
+
+def test_reachable_forest_uses_only_explicit_technical_node_budget(db_session) -> None:
+    now = datetime(2026, 8, 25, tzinfo=UTC)
+    for index in range(6):
+        _add_article_mapping(
+            db_session,
+            external_id=f"long-chain-{index}",
+            source_program=f"Program {index}",
+            source_tier="Gold",
+            target_program=f"Program {index + 1}",
+            target_tier="Gold",
+            published_at=now,
+            first_collected_at=now,
+        )
+    service = UnifiedMembershipTreeService(db_session)
+
+    complete = service.reachable_forest(
+        ["program 0::gold"], now=now + timedelta(days=1)
+    )
+    limited = service.reachable_forest(
+        ["program 0::gold"],
+        technical_node_limit=3,
+        now=now + timedelta(days=1),
+    )
+
+    cursor = complete.roots[0]
+    depth = 0
+    while cursor.children:
+        depth += 1
+        cursor = cursor.children[0].child
+    assert depth == 6
+    assert complete.truncated_count == 0
+    assert limited.truncated_count == 1
+    assert limited.roots[0].children[0].child.children[0].child.state == (
+        UnifiedTreeNodeState.NODE_LIMIT
+    )

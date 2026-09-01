@@ -8,7 +8,7 @@ import pytest
 from sqlalchemy import func, select
 
 from journeyplus.ai.provider import AIProviderMetadata
-from journeyplus.contracts import Brief
+from journeyplus.contracts import Brief, FactSet, OpportunityKind
 from journeyplus.models import (
     AnalysisRun,
     BriefRecord,
@@ -228,6 +228,60 @@ def test_initial_project_uses_exactly_two_calls_without_generic_analysis(
             )
         )
         assert evidence_ids == page_ids
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        assert (
+            FactSet.model_validate(record.facts).opportunity_kind
+            == OpportunityKind.STATUS_MATCH
+        )
+
+
+def test_project_extracts_evidenced_route_prices_without_extra_model_stage(
+    session_factory,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/"] = ACTIVE_ACTIVITY.replace(
+        "</body>", "<p>Gold route fee is USD 99.</p></body>"
+    )
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    extraction = _extraction()
+    extraction["application_routes"][0].update(
+        {
+            "cost": "Gold route fee is USD 99",
+            "prices": [
+                {
+                    "target_tier": "Gold",
+                    "amount": 99,
+                    "currency": "USD",
+                    "availability": "AVAILABLE",
+                    "raw_text": "Gold route fee is USD 99",
+                    "evidence": [
+                        {
+                            "source": "HOME",
+                            "locator": "Gold route fee is USD 99",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    summary = process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([extraction])
+    )
+
+    assert summary.succeeded == 1
+    assert summary.model_calls == 2
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None
+        facts = FactSet.model_validate(record.facts)
+        assert facts.opportunity_kind == OpportunityKind.STATUS_MATCH
+        assert facts.application_routes[0].prices[0].currency == "USD"
+        assert facts.application_routes[0].prices[0].amount == 99
 
 
 def test_page_update_keeps_event_and_records_structured_changes(

@@ -1,8 +1,10 @@
 # JourneyPlus
 
-JourneyPlus 的主纵向能力是发现“直接获得、升级或延长会籍”的机会，经轻量清洗、证据化事实整理后生成中文原创简报。当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。项目另有一条完全独立、零 AI 的买分/买里程优惠链路，只跟踪 AwardWallet 的固定汇总页并结构化保存活动快照；其他公开来源保留适配器和历史数据但关闭自动调度。
+JourneyPlus 当前收敛为一个默认面向中国用户的个性化常旅客会籍匹配产品。用户从规范化目录选择自己已有的会籍，系统沿现有官方与普通文章映射图计算完整可达关系，匹配图对每个会籍只绘制一次并只展示离已有会籍最近的到达路径；产品同时展示匹配/挑战机会、分路线价格、原始证据和中文简报。中国地区只生成提示，不过滤、不阻止、不替换任何机会或价格。
 
-会籍链路的文档标签仍只有 `STATUS_OPPORTUNITY | NONE | UNCERTAIN`。一篇文档只有一个标签，但可包含多个会籍活动。买分活动不会进入这些标签、会籍事件、FactSet、简报或会籍图；它只进入买分专属快照表。项目仍不处理转分、积分票、积分房晚或信用卡独立主题，也不包含个人资产、个性化推荐、通知和自动报名。
+产品形态是 AI Workflow，不是多 Agent 系统：AI 只复用在现有正文事实提取与简报生成阶段；会籍目录、持有会籍、路径遍历、闭环处理、价格继承、地区提示和页面查询全部是确定性程序。机会事实只分为 `STATUS_MATCH | OTHER`：真正的会籍匹配、挑战、Fast Track 和临时会籍挑战属于前者，其他会籍相关机会属于后者。`OTHER` 仍照常生成并展示简报，只是不进入个性化匹配图。
+
+当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。原有买分/买里程链路继续保留历史、手工采集和查询能力，但已退出默认产品入口和自动调度。产品总方针见 [个性化常旅客会籍匹配产品总方针](doc/personalized-status-match-product-direction.md)，启动、接口、迁移和回滚见 [产品运维说明](doc/personalized-status-match-product-operations.md)。
 
 ## 本地开发
 
@@ -25,10 +27,13 @@ uv run journeyplus initialize-mail-details
 uv run journeyplus initialize-window --start 2026-07-15 --end 2026-07-16
 uv run journeyplus ai-smoke
 uv run journeyplus gmail-authorize
+uv run journeyplus product-api
 uv run journeyplus review-api
 ```
 
-自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源是 LoyaltyLobby 通用文章、StatusMatch 邮件专用来源和 AwardWallet 买分固定页；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
+打开 `http://127.0.0.1:8000/` 即可使用“我的会籍”“匹配图”“机会简报”和“机会详情”四个页面；接口文档位于 `http://127.0.0.1:8000/docs`。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
+
+自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源只有 LoyaltyLobby 通用文章和 StatusMatch 邮件专用来源。AwardWallet 买分来源仍为 `enabled=true`，但 `automatic_scheduling=false`；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
 本地 PostgreSQL 使用 Docker Compose，只绑定 `127.0.0.1`。当前默认端口为 `5433`，避免与其他本地项目的 PostgreSQL 冲突：
 
@@ -44,7 +49,7 @@ LoyaltyLobby 和 Gmail 使用持久化增量边界。AwardWallet 买分页每轮
 
 `run-daily` 是供外部定时器调用的单轮命令：它使用数据库租约和北京时间自然日幂等键，隔离来源失败，在上限内处理积压并推进生命周期。`automation-status` 分别显示标题批次、正文理解、文章简报、StatusMatch 项目、第三方补充和买分确定性处理统计；买分阶段不会增加任何模型调用计数。完整 V2 架构、回滚方式与真实验收记录见 [通用文章 V2 运维说明](doc/generic-article-v2.md)。
 
-当前已使用 Codex 本地自动化在每天 09:00 调用该单轮入口；入口从数据库选择当前三条自动来源，并在运行前确保 Docker PostgreSQL 可用。配置、来源边界和检查方式见 [每日自动化 Codex 运维说明](doc/daily-automation-codex.md)。
+当前已使用 Codex 本地自动化在每天 09:00 调用该单轮入口；入口从数据库选择当前两条自动来源，并在运行前确保 Docker PostgreSQL 可用。若旧运维记录仍写三条来源，以数据库 `automatic_scheduling` 和本说明为准。配置与检查方式见 [每日自动化 Codex 运维说明](doc/daily-automation-codex.md)。
 
 `initialize-mail-details` 从当前合规 Gmail 邮件中发现并去重项目专属 StatusMatch 链接，读取每个项目的活动首页与 `/faq`，完成处理后等待逐页原文审核。`initialize-window` 是保留的 LoyaltyLobby 历史回放入口，只接受从 `2026-07-15` 到 `2026-08-22` 的固定两日窗口（最后一批为单日），不会采集或处理已关闭的其他公开来源。每批成功后状态停在 `AWAITING_AUDIT`，前一批原文审核没有显式通过时，下一批会被数据库阶段门拒绝；命令本身不会连续推进多个批次。当前产品验收以 Gmail 公开详情页审核和受控真实 LoyaltyLobby V2 批次为准，不要求跑完全部旧窗口。
 
@@ -94,15 +99,15 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-第一版流水线 OpenSpec 位于 `openspec/changes/build-status-opportunity-pipeline-v1/`；通用文章 V2 变更位于 `openspec/changes/simplify-generic-article-pipeline/`；买分固定页监控变更位于 `openspec/changes/track-awardwallet-buy-points-promotions/`。
+当前产品收敛 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`。第一版流水线、通用文章 V2 和买分固定页监控的历史变更仍分别保留在原 OpenSpec 目录中，但范围冲突时以当前产品收敛变更为准。
 
 ## 第一版已知限制
 
-- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路、StatusMatch/GetStatus Gmail 专用链路和 AwardWallet 买分固定页被自动选择，其他公开来源保持关闭。
+- 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，买分保留手工运行，其他公开来源保持关闭。
 - LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
 - 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
-- 内部复核 API 默认只监听 `127.0.0.1`，第一版没有公开 UI、账号体系或远程部署配置。
+- 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。

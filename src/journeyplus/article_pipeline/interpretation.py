@@ -28,6 +28,7 @@ from journeyplus.contracts import (
     EvidenceRef,
     FactField,
     FactSet,
+    RoutePrice,
     RunStatus,
     StatusMapping,
 )
@@ -41,8 +42,8 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v8"
-ARTICLE_INTERPRETATION_SCHEMA_VERSION = "8"
+ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v9"
+ARTICLE_INTERPRETATION_SCHEMA_VERSION = "9"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输入这一篇文章，不搜索、不引用、不比较其他文章，也不判断文章间关系。
 
@@ -53,6 +54,12 @@ SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输�
 
 若是 STATUS_OPPORTUNITY，按现实活动输出 opportunities。同一活动的不同目标等级、价格档、资格映射不拆分；不同目标忠诚度项目且有各自独立行动入口才拆分。每个机会提取完整事实、分别有证据的申请路径和会籍对应关系。不要跨机会串日期或条件。
 
+每个 opportunity 必须输出 opportunity_kind，且只能为 STATUS_MATCH 或 OTHER。STATUS_MATCH
+是广义产品范围：直接会籍匹配、会籍挑战、Fast Track、先获得临时会籍再完成任务延长，以及
+通过公开合作方资格直接获得明确目标会籍。联名信用卡直接赠送会籍、双倍定级积分、精英夜、
+MQD、Status Credit 或其他只增加定级进度但不直接取得明确目标等级的活动必须为 OTHER。
+opportunity_kind 只控制个性化匹配，不影响本机会继续生成简报。
+
 每个非空事实都必须附带文章中的短原文 quote，单条 quote 不得超过 480 个字符，
 不得复制整段或整表；quote 必须能在 normalized_body 中按空白归一化后逐字找到，
 不得使用常识补猜。文章没有明确说明的字段保持 null/空数组。
@@ -62,6 +69,11 @@ action_link 只能使用正文中出现的链接。
 status_mappings 只表示“已有某项目的明确会籍等级，可对应到目标会籍等级”的等级映射；积分转换来源、信用卡或普通会员资格属于申请路径，不是会籍映射。AVAILABLE/CONDITIONAL 映射必须列出至少一个 source_tier。
 
 application_routes 只保存文章描述为当前可用的申请方法；previously、formerly、used to 等明确历史方法不能保存为当前路径。历史方法若放入 caveats，必须明确写成“此前曾使用、未确认当前仍可用”，绝不能改写成“如有问题仍可使用”的当前后备路径。普通限制条件属于 caveats，不要为了保存限制而把 route 标成 conflict。application_route 或 status_mapping 的 conflict 与 conflict_note 必须成对且只表示来源内部真实互斥：没有真实冲突时 conflict=false 且 conflict_note=null。
+
+每条 application_route 的 prices 按目标等级保存当前路线费用。每个 price 必须保留支持该价格的
+短原文证据和 raw_text；只有原文明确给出金额与币种时才填写 amount/currency。明确不可用的等级
+写 availability=UNAVAILABLE 且 amount=null。基础申请费与可选升级费没有明确总价时不得相加猜测。
+共同适用于所有路线的全局价格可以复制到各路线并绑定同一价格证据；原始 cost 文本始终保留。
 
 region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，两者 evidence.quote 都逐字复制包含完整范围的原句。只输出 JSON。"""
 
@@ -329,6 +341,14 @@ class ArticleInterpreter:
                     for index, route in enumerate(opportunity.application_routes)
                 ),
                 *(
+                    (
+                        f"application_routes[{route_index}].prices[{price_index}]",
+                        price.evidence,
+                    )
+                    for route_index, route in enumerate(opportunity.application_routes)
+                    for price_index, price in enumerate(route.prices)
+                ),
+                *(
                     (f"status_mappings[{index}]", mapping.evidence)
                     for index, mapping in enumerate(opportunity.status_mappings)
                 ),
@@ -405,6 +425,7 @@ class ArticleInterpreter:
         }
         return FactSet(
             event_id=opportunity_id,
+            opportunity_kind=extracted.opportunity_kind,
             **fields,
             application_routes=[
                 ApplicationRoute(
@@ -412,6 +433,17 @@ class ArticleInterpreter:
                     eligibility=route.eligibility,
                     region=route.region,
                     cost=route.cost,
+                    prices=[
+                        RoutePrice(
+                            target_tier=price.target_tier,
+                            amount=price.amount,
+                            currency=price.currency,
+                            availability=price.availability,
+                            raw_text=price.raw_text,
+                            evidence=evidence_refs(price.evidence),
+                        )
+                        for price in route.prices
+                    ],
                     action_link=route.action_link,
                     evidence=evidence_refs(route.evidence),
                     conflict=route.conflict,
@@ -567,6 +599,16 @@ def _remove_ungrounded_candidates(
             if action_link and action_link not in document.normalized_body:
                 route["action_link"] = None
                 discarded += 1
+            retained_prices = []
+            for price in route.get("prices") or []:
+                price_evidence = price.get("evidence") or []
+                price["evidence"] = [
+                    item for item in price_evidence if grounded(item["quote"])
+                ]
+                discarded += len(price_evidence) - len(price["evidence"])
+                if price["evidence"]:
+                    retained_prices.append(price)
+            route["prices"] = retained_prices
             if any(
                 re.search(
                     r"\b(?:previously|formerly|used\s+to)\b",
@@ -577,9 +619,12 @@ def _remove_ungrounded_candidates(
             ):
                 discarded += len(route["evidence"])
                 continue
-            if route["evidence"] and any(
-                route.get(key) is not None
-                for key in ("eligibility", "region", "cost", "action_link")
+            if route["evidence"] and (
+                any(
+                    route.get(key) is not None
+                    for key in ("eligibility", "region", "cost", "action_link")
+                )
+                or route["prices"]
             ):
                 retained_routes.append(route)
         opportunity["application_routes"] = retained_routes

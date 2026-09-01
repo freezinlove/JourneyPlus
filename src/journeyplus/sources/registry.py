@@ -120,7 +120,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
             "external_output": "structured_offers_and_source_link",
         },
         collection_cadence="P1D",
-        automatic_scheduling=True,
+        automatic_scheduling=False,
     ),
     SourceDefinition(
         source_id="frequentmiler_elite_status_feed",

@@ -38,6 +38,11 @@ from journeyplus.buy_points.service import (
 )
 from journeyplus.operations import process_pending_documents
 from journeyplus.review.api import create_review_app
+from journeyplus.product.api import create_product_app
+from journeyplus.product.startup import (
+    ProductDatabaseUnavailable,
+    prepare_product_database,
+)
 from journeyplus.sources.collection import collect_manual
 from journeyplus.sources.gmail_auth import (
     authorize_gmail,
@@ -101,6 +106,11 @@ def build_parser() -> argparse.ArgumentParser:
     review = subparsers.add_parser("review-api", help="Run the local internal review API")
     review.add_argument("--host", default="127.0.0.1")
     review.add_argument("--port", default=8001, type=int)
+    product = subparsers.add_parser(
+        "product-api", help="Run the personalized status-match product"
+    )
+    product.add_argument("--host", default="127.0.0.1")
+    product.add_argument("--port", default=8000, type=int)
     collect = subparsers.add_parser("collect", help="Manually collect one source")
     collect.add_argument("source_id", choices=SOURCE_IDS)
     collect.add_argument("--idempotency-key")
@@ -229,7 +239,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
     settings = Settings.from_env()
     if args.command == "gmail-authorize":
         account = authorize_gmail(settings)
@@ -247,7 +258,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = run_ai_smoke(settings)
         print(result.model_dump_json())
         return 0
-    factory = create_session_factory(engine_from_settings(settings))
+    engine = engine_from_settings(settings)
+    factory = create_session_factory(engine)
     if args.command == "review-api":
         import uvicorn
 
@@ -256,6 +268,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             provider = OpenAICompatibleProvider(settings)
         uvicorn.run(
             create_review_app(factory, ai_provider=provider),
+            host=args.host,
+            port=args.port,
+        )
+        return 0
+    if args.command == "product-api":
+        import uvicorn
+
+        try:
+            prepare_product_database(settings, engine)
+        except ProductDatabaseUnavailable as exc:
+            parser.error(str(exc))
+        uvicorn.run(
+            create_product_app(factory),
             host=args.host,
             port=args.port,
         )

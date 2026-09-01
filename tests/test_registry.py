@@ -16,7 +16,7 @@ EXPECTED_IDS = {
 }
 
 
-def test_registry_keeps_seven_sources_and_opens_three_automatic_paths(db_session) -> None:
+def test_registry_keeps_seven_sources_and_opens_two_automatic_paths(db_session) -> None:
     assert {item.source_id for item in SOURCE_REGISTRY} == EXPECTED_IDS
     assert all(item.collection_cadence == "P1D" for item in SOURCE_REGISTRY)
     assert {
@@ -24,7 +24,6 @@ def test_registry_keeps_seven_sources_and_opens_three_automatic_paths(db_session
     } == {
         "loyaltylobby_feed",
         "status_services_mail",
-        "awardwallet_buy_points_page",
     }
     assert {item.source_id for item in SOURCE_REGISTRY if item.enabled} == {
         "loyaltylobby_feed",
@@ -38,7 +37,6 @@ def test_registry_keeps_seven_sources_and_opens_three_automatic_paths(db_session
     assert automatically_scheduled_source_ids(db_session) == [
         "status_services_mail",
         "loyaltylobby_feed",
-        "awardwallet_buy_points_page",
     ]
 
 

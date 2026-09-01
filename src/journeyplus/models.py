@@ -53,6 +53,18 @@ class Source(Base, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
+class StatusHolding(Base, TimestampMixin):
+    __tablename__ = "status_holdings"
+    __table_args__ = (UniqueConstraint("program_key"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    program_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    tier_key: Mapped[str] = mapped_column(String(300), nullable=False)
+    program_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    tier_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
+    valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
 class CollectionRun(Base, TimestampMixin):
     __tablename__ = "collection_runs"
     __table_args__ = (UniqueConstraint("idempotency_key"),)

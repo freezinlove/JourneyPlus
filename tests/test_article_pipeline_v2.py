@@ -21,7 +21,7 @@ from journeyplus.article_pipeline.read_model import (
     latest_successful_article_view,
 )
 from journeyplus.article_pipeline.screening import BatchTitleScreener
-from journeyplus.contracts import DiscoveredItem, RawDocument
+from journeyplus.contracts import DiscoveredItem, FactSet, OpportunityKind, RawDocument
 from journeyplus.models import (
     AnalysisRun,
     ArticleAnalysisRecord,
@@ -120,6 +120,7 @@ class V2Provider:
                     "opportunities": [
                         {
                             "opportunity_index": 0,
+                            "opportunity_kind": "STATUS_MATCH",
                             "program": "Example Air",
                             "target_status_name": "Gold",
                             "summary": "Example Air 开放 Gold 会籍匹配",
@@ -202,7 +203,149 @@ def test_v2_batches_titles_omits_bodies_and_reuses_every_stage(session_factory) 
         view = latest_successful_article_view(session, match_item.id)
         assert view is not None and len(view.opportunities) == 1
         assert view.opportunities[0].brief is not None
+        assert (
+            FactSet.model_validate(view.opportunities[0].facts).opportunity_kind
+            == OpportunityKind.STATUS_MATCH
+        )
         assert session.scalar(select(func.count()).select_from(ArticleBriefRecord)) == 1
+
+
+def test_other_opportunity_still_generates_and_stores_a_brief(session_factory) -> None:
+    body = "A credit card grants complimentary Example Air Gold status."
+    with session_factory.begin() as session:
+        _collect(session, [("card-status", "Credit card elite benefit", body)])
+
+    class OtherProvider(V2Provider):
+        def generate_structured(self, *, system_prompt, user_prompt, output_model):
+            if output_model.__name__ == "ArticleInterpretation":
+                self.calls.append(
+                    {
+                        "model": output_model.__name__,
+                        "request": json.loads(user_prompt),
+                        "prompt": system_prompt,
+                    }
+                )
+                return output_model.model_validate(
+                    {
+                        "label": "STATUS_OPPORTUNITY",
+                        "confidence": 0.99,
+                        "reason": "正文是会籍相关机会，但不是匹配或挑战",
+                        "opportunities": [
+                            {
+                                "opportunity_index": 0,
+                                "opportunity_kind": "OTHER",
+                                "program": "Example Air",
+                                "target_status_name": "Gold",
+                                "summary": "信用卡赠送 Gold 会籍",
+                                    "what_happened": {
+                                        "value": body,
+                                        "evidence": [{"quote": body}],
+                                    },
+                                    "target_status": {
+                                        "value": "Gold",
+                                        "evidence": [{"quote": "Example Air Gold status"}],
+                                    },
+                            }
+                        ],
+                    }
+                )
+            return super().generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                output_model=output_model,
+            )
+
+    result = process_pending_articles(session_factory, OtherProvider())
+
+    assert result.opportunities == result.briefs == 1
+    with session_factory() as session:
+        opportunity = session.scalar(select(ArticleOpportunityRecord))
+        assert opportunity is not None
+        assert (
+            FactSet.model_validate(opportunity.facts).opportunity_kind
+            == OpportunityKind.OTHER
+        )
+        assert session.scalar(select(func.count()).select_from(ArticleBriefRecord)) == 1
+
+
+def test_article_interpretation_persists_evidenced_route_price(session_factory) -> None:
+    body = "Example Air offers a Gold status match. Gold route costs USD 99."
+    with session_factory.begin() as session:
+        _collect(session, [("priced-match", "Example Air status match", body)])
+
+    class PriceProvider(V2Provider):
+        def generate_structured(self, *, system_prompt, user_prompt, output_model):
+            if output_model.__name__ == "ArticleInterpretation":
+                self.calls.append(
+                    {
+                        "model": output_model.__name__,
+                        "request": json.loads(user_prompt),
+                        "prompt": system_prompt,
+                    }
+                )
+                return output_model.model_validate(
+                    {
+                        "label": "STATUS_OPPORTUNITY",
+                        "confidence": 0.99,
+                        "reason": "正文明确匹配与路线价格",
+                        "opportunities": [
+                            {
+                                "opportunity_index": 0,
+                                "opportunity_kind": "STATUS_MATCH",
+                                "program": "Example Air",
+                                "target_status_name": "Gold",
+                                "summary": "Example Air Gold 会籍匹配",
+                                    "what_happened": {
+                                        "value": "Example Air offers a Gold status match.",
+                                    "evidence": [
+                                        {"quote": "Example Air offers a Gold status match."}
+                                        ],
+                                    },
+                                    "target_status": {
+                                        "value": "Gold",
+                                        "evidence": [
+                                            {"quote": "Example Air offers a Gold status match."}
+                                        ],
+                                    },
+                                "application_routes": [
+                                    {
+                                        "scope": "Gold route",
+                                        "cost": "Gold route costs USD 99",
+                                        "prices": [
+                                            {
+                                                "target_tier": "Gold",
+                                                "amount": 99,
+                                                "currency": "USD",
+                                                "availability": "AVAILABLE",
+                                                "raw_text": "Gold route costs USD 99",
+                                                "evidence": [
+                                                    {"quote": "Gold route costs USD 99"}
+                                                ],
+                                            }
+                                        ],
+                                        "evidence": [
+                                            {"quote": "Gold route costs USD 99"}
+                                        ],
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                )
+            return super().generate_structured(
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                output_model=output_model,
+            )
+
+    result = process_pending_articles(session_factory, PriceProvider())
+
+    assert result.opportunities == result.briefs == 1
+    with session_factory() as session:
+        opportunity = session.scalar(select(ArticleOpportunityRecord))
+        assert opportunity is not None
+        price = FactSet.model_validate(opportunity.facts).application_routes[0].prices[0]
+        assert (price.currency, price.amount) == ("USD", 99)
 
 
 def test_title_failure_falls_through_to_body_and_shadow_detects_positive_drop(

@@ -1110,7 +1110,7 @@ def test_statusmatch_tier_table_is_structured_and_available_to_briefs(
 
     facts = FactConsolidator(db_session, fact_provider).consolidate(event)
 
-    assert facts.fact_set.schema_version == "4"
+    assert facts.fact_set.schema_version == "5"
     assert len(facts.fact_set.status_mappings) == 2
     assert facts.fact_set.status_mappings[0].source_tiers == ["Gold", "Platinum"]
     assert facts.fact_set.status_mappings[1].availability == "UNAVAILABLE"

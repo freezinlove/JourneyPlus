@@ -26,6 +26,11 @@ from journeyplus.models import (
     SourceItem,
     StatusMatchArticleRoute,
 )
+from journeyplus.opportunity_shaping import (
+    opportunity_kind_for_facts,
+    with_legacy_opportunity_kind,
+)
+from journeyplus.contracts import OpportunityKind
 from journeyplus.statusmatch.graph import MembershipGraphService
 from journeyplus.statusmatch.graph_contracts import GraphSnapshot
 
@@ -177,8 +182,28 @@ class OrdinaryArticleContributionAdapter:
                         )
                     )
                     continue
+                opportunity_kind = opportunity_kind_for_facts(
+                    opportunity.facts,
+                    summary=opportunity.summary,
+                    target_status=opportunity.target_status,
+                )
+                if opportunity_kind != OpportunityKind.STATUS_MATCH:
+                    excluded.append(
+                        _excluded(
+                            opportunity.id,
+                            "OTHER_OPPORTUNITY_KIND",
+                            "Opportunity is retained for briefs but excluded from personalized mappings",
+                        )
+                    )
+                    continue
                 try:
-                    facts = FactSet.model_validate(opportunity.facts)
+                    facts = FactSet.model_validate(
+                        with_legacy_opportunity_kind(
+                            opportunity.facts,
+                            summary=opportunity.summary,
+                            target_status=opportunity.target_status,
+                        )
+                    )
                 except Exception as exc:
                     excluded.append(
                         _excluded(

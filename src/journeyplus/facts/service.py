@@ -37,8 +37,8 @@ from journeyplus.statusmatch.watchlist import (
 )
 
 
-FACT_PROMPT_VERSION = "fact-consolidation-v14"
-FACT_SCHEMA_VERSION = "4"
+FACT_PROMPT_VERSION = "fact-consolidation-v15"
+FACT_SCHEMA_VERSION = "5"
 
 SYSTEM_PROMPT = """你只整理输入 event 指定的一个会籍获取事件。materials 保留完整正文，可能同时包含其他活动；linked_event_hint 只用于指出每份材料与当前事件相关的活动，不得混入其他活动的资格、费用、日期或结论。event、linked_event_hint 和 current_fact_set 都是整理上下文，不是事实证据；每个非空确定值仍必须绑定 materials 中真实存在的 document_version_id、对应 source_url 和简短正文证据定位。Gmail 邮件仅用于发现公开 StatusMatch 活动首页和 FAQ，绝不会进入 materials，也不得作为事实或引用来源。
 
@@ -916,6 +916,7 @@ class FactConsolidator:
     def _material_signature(fact_set: FactSet) -> str:
         return json.dumps(
             {
+                "opportunity_kind": fact_set.opportunity_kind,
                 "fields": {
                     name: {
                         "value": field.value,
@@ -931,6 +932,20 @@ class FactConsolidator:
                             "eligibility": route.eligibility,
                             "region": route.region,
                             "cost": route.cost,
+                            "prices": [
+                                {
+                                    "target_tier": price.target_tier,
+                                    "amount": (
+                                        str(price.amount)
+                                        if price.amount is not None
+                                        else None
+                                    ),
+                                    "currency": price.currency,
+                                    "availability": price.availability,
+                                    "raw_text": price.raw_text,
+                                }
+                                for price in route.prices
+                            ],
                             "action_link": (
                                 str(route.action_link)
                                 if route.action_link is not None
@@ -993,6 +1008,14 @@ class FactConsolidator:
                     url.rstrip("/") for url in allowed_urls
                 }:
                     raise ValueError("Application route cites a source URL outside the event")
+            for price in route.prices:
+                for evidence in price.evidence:
+                    if evidence.document_version_id not in allowed_ids:
+                        raise ValueError("Route price cites a document outside the event")
+                    if str(evidence.source_url).rstrip("/") not in {
+                        url.rstrip("/") for url in allowed_urls
+                    }:
+                        raise ValueError("Route price cites a source URL outside the event")
         seen_mappings: set[tuple[str, str]] = set()
         for mapping in fact_set.status_mappings:
             key = FactConsolidator._status_mapping_key(mapping)

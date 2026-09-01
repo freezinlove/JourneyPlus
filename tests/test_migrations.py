@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+import json
 from pathlib import Path
 
 from alembic import command
@@ -49,6 +50,7 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "article_analyses",
         "article_opportunities",
         "article_briefs",
+        "status_holdings",
     } <= tables
     columns = {
         column["name"]
@@ -57,6 +59,184 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         )
     }
     assert "discovery_cursor" in columns
+
+
+def test_personalized_match_migration_backfills_kind_prices_and_scheduler(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'personalized-match.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    command.upgrade(config, "0015_simple_buy_points")
+    engine = create_engine(database_url)
+    now = "2026-08-31 00:00:00"
+    evidence = [
+        {
+            "document_version_id": "a" * 32,
+            "source_url": "https://example.com/terms",
+            "locator": "price table",
+        }
+    ]
+    managed_facts = {
+        "schema_version": "4",
+        "event_id": "1" * 32,
+        "opportunity_kind": "OTHER",
+        "what_happened": {},
+        "cost": {"value": "Gold: USD 99; Platinum: EUR 149", "evidence": evidence},
+        "application_routes": [
+            {
+                "scope": "online",
+                "eligibility": "existing status",
+                "evidence": evidence,
+            }
+        ],
+    }
+    article_facts = {
+        "schema_version": "4",
+        "event_id": "4" * 32,
+        "what_happened": {
+            "value": "Credit card grants complimentary status",
+            "evidence": evidence,
+        },
+        "cost": {"value": "USD 199", "evidence": evidence},
+        "application_routes": [
+            {
+                "scope": "card application",
+                "eligibility": "cardholder",
+                "evidence": evidence,
+            }
+        ],
+        "status_mappings": [{"legacy": True}],
+    }
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO sources (
+                    id, name, adapter_type, discovery_config, access_policy,
+                    collection_cadence, automatic_scheduling, enabled,
+                    created_at, updated_at
+                ) VALUES (
+                    'awardwallet_buy_points_page', 'Buy points', 'buy_points',
+                    '{}', '{}', 'P1D', 1, 1, :now, :now
+                )
+                """
+            ),
+            {"now": now},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO status_events (
+                    id, created_from_key, program, summary, search_text, status,
+                    lifecycle_status, created_at, updated_at
+                ) VALUES (
+                    :id, 'managed-fixture', 'Target Club', 'Managed status match',
+                    'managed status match', 'CONFIRMED', 'ACTIVE', :now, :now
+                )
+                """
+            ),
+            {"id": "1" * 32, "now": now},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO fact_sets (
+                    id, event_id, version, schema_version, facts, has_conflicts,
+                    created_at, updated_at
+                ) VALUES (:id, :event_id, 1, '4', :facts, 0, :now, :now)
+                """
+            ),
+            {
+                "id": "2" * 32,
+                "event_id": "1" * 32,
+                "facts": json.dumps(managed_facts),
+                "now": now,
+            },
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO statusmatch_watches (
+                    id, host, status, current_event_id, created_at, updated_at
+                ) VALUES (:id, 'target.statusmatch.com', 'ACTIVE', :event_id, :now, :now)
+                """
+            ),
+            {"id": "3" * 32, "event_id": "1" * 32, "now": now},
+        )
+        connection.execute(
+            text(
+                """
+                INSERT INTO article_opportunities (
+                    id, analysis_id, opportunity_index, program, target_status,
+                    summary, lifecycle_status, visibility_until_at,
+                    visibility_policy, action_links, facts, fact_signature,
+                    status, created_at, updated_at
+                ) VALUES (
+                    :id, :analysis_id, 0, 'Card Rewards', 'Gold',
+                    'Credit card complimentary status', 'ACTIVE', :until,
+                    'DEFAULT_180_DAYS', '[]', :facts, :signature, 'DRAFT', :now, :now
+                )
+                """
+            ),
+            {
+                "id": "4" * 32,
+                "analysis_id": "5" * 32,
+                "until": "2027-02-27 00:00:00",
+                "facts": json.dumps(article_facts),
+                "signature": "0" * 64,
+                "now": now,
+            },
+        )
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    assert "status_holdings" in inspect(engine).get_table_names()
+    with engine.connect() as connection:
+        assert connection.scalar(
+            text(
+                "SELECT automatic_scheduling FROM sources "
+                "WHERE id = 'awardwallet_buy_points_page'"
+            )
+        ) == 0
+        stored_fact = json.loads(
+            connection.scalar(text("SELECT facts FROM fact_sets WHERE id = :id"), {"id": "2" * 32})
+        )
+        stored_article = json.loads(
+            connection.scalar(
+                text("SELECT facts FROM article_opportunities WHERE id = :id"),
+                {"id": "4" * 32},
+            )
+        )
+    assert stored_fact["schema_version"] == "5"
+    assert stored_fact["opportunity_kind"] == "STATUS_MATCH"
+    assert [item["currency"] for item in stored_fact["application_routes"][0]["prices"]] == [
+        "USD",
+        "EUR",
+    ]
+    assert stored_article["opportunity_kind"] == "OTHER"
+    assert stored_article["application_routes"][0]["prices"][0]["amount"] == 199.0
+    engine.dispose()
+
+    command.downgrade(config, "0015_simple_buy_points")
+    engine = create_engine(database_url)
+    assert "status_holdings" not in inspect(engine).get_table_names()
+    with engine.connect() as connection:
+        downgraded = json.loads(
+            connection.scalar(text("SELECT facts FROM fact_sets WHERE id = :id"), {"id": "2" * 32})
+        )
+        assert connection.scalar(
+            text(
+                "SELECT automatic_scheduling FROM sources "
+                "WHERE id = 'awardwallet_buy_points_page'"
+            )
+        ) == 1
+    assert "opportunity_kind" not in downgraded
+    assert "prices" not in downgraded["application_routes"][0]
+    engine.dispose()
+
+    command.upgrade(config, "head")
 
 
 def test_source_discovery_cursor_migration_round_trips_on_sqlite(

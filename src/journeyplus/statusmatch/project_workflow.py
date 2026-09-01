@@ -22,6 +22,8 @@ from journeyplus.contracts import (
     EvidenceRef,
     FactField,
     FactSet,
+    OpportunityKind,
+    RoutePrice,
     RunStatus,
     StatusMapping,
 )
@@ -61,8 +63,8 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v4"
-PROJECT_SCHEMA_VERSION = "1"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v5"
+PROJECT_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
 *.statusmatch.com host、HOME、FAQ 和关闭规则确认它是一个当前会籍匹配机会；不要再分类，
@@ -75,6 +77,9 @@ SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系
 可保留原文。FAQ 明确说明的匹配到期后重新达标/续级要求、每人限次和其他重要限制必须写入
 caveats；`requalify on merit` 只能表述为按项目正常规则重新达标，除非原文明示，不得擅自
 具体化为消费、入住或飞行。不同地区、资格、价格或入口组合应输出 application_routes。
+每条 application_route 的 prices 按目标等级保存当前路线价格，保留 raw_text 和证据别名；只有
+原文明确给出金额和币种时才填写 amount/currency。明确不可用的等级写 UNAVAILABLE 且不得填写
+可支付金额。基础申请费与可选升级费没有明确总价时不得相加猜测。原始 cost 文本始终保留。
 
 每条证据只能使用 source=HOME 或 source=FAQ，并提供简短 locator。不得输出数据库 UUID，
 不得把行动入口当成 source。HOME 是本项目申请入口；外部会员注册页不能替代它。
@@ -560,6 +565,7 @@ class StatusMatchProjectWorkflow:
         payload: dict[str, Any] = {
             "schema_version": FACT_SCHEMA_VERSION,
             "event_id": event.id,
+            "opportunity_kind": OpportunityKind.STATUS_MATCH,
             **{
                 name: _resolved_field(field, documents).model_dump(mode="json")
                 for name, field in extraction.fact_fields().items()
@@ -865,6 +871,20 @@ def _resolved_route(
         eligibility=item.eligibility,
         region=item.region,
         cost=item.cost,
+        prices=[
+            RoutePrice(
+                target_tier=price.target_tier,
+                amount=price.amount,
+                currency=price.currency,
+                availability=price.availability,
+                raw_text=price.raw_text,
+                evidence=[
+                    _resolved_evidence(value, documents)
+                    for value in price.evidence
+                ],
+            )
+            for price in item.prices
+        ],
         action_link=item.action_link,
         evidence=[_resolved_evidence(value, documents) for value in item.evidence],
         conflict=item.conflict,
@@ -1014,6 +1034,16 @@ def _route_material(route: ApplicationRoute) -> dict[str, Any]:
         "eligibility": route.eligibility,
         "region": route.region,
         "cost": route.cost,
+        "prices": [
+            {
+                "target_tier": price.target_tier,
+                "amount": str(price.amount) if price.amount is not None else None,
+                "currency": price.currency,
+                "availability": price.availability,
+                "raw_text": price.raw_text,
+            }
+            for price in route.prices
+        ],
         "action_link": str(route.action_link) if route.action_link else None,
         "conflict": route.conflict,
         "conflict_note": route.conflict_note,

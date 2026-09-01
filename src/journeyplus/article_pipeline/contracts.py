@@ -8,6 +8,8 @@ from pydantic import Field, HttpUrl, field_validator, model_validator
 from journeyplus.contracts import (
     DocumentLabel,
     MappingAvailability,
+    OpportunityKind,
+    RoutePriceAvailability,
     StrictModel,
 )
 
@@ -49,11 +51,29 @@ class ExtractedFactField(StrictModel):
         return self
 
 
+class ExtractedRoutePrice(StrictModel):
+    target_tier: str | None = Field(default=None, max_length=200)
+    amount: float | None = Field(default=None, ge=0)
+    currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    availability: RoutePriceAvailability = RoutePriceAvailability.UNKNOWN
+    raw_text: str = Field(min_length=1, max_length=1000)
+    evidence: list[EvidenceQuote] = Field(min_length=1, max_length=20)
+
+    @model_validator(mode="after")
+    def amount_and_availability_are_consistent(self) -> ExtractedRoutePrice:
+        if self.amount is not None and self.currency is None:
+            raise ValueError("Numeric route prices require an ISO currency")
+        if self.availability == RoutePriceAvailability.UNAVAILABLE and self.amount is not None:
+            raise ValueError("Unavailable route prices cannot expose an amount")
+        return self
+
+
 class ExtractedApplicationRoute(StrictModel):
     scope: str = Field(min_length=1, max_length=300)
     eligibility: str | None = Field(default=None, max_length=2000)
     region: str | None = Field(default=None, max_length=1000)
     cost: str | None = Field(default=None, max_length=1000)
+    prices: list[ExtractedRoutePrice] = Field(default_factory=list, max_length=50)
     action_link: HttpUrl | None = None
     evidence: list[EvidenceQuote] = Field(min_length=1, max_length=20)
     conflict: bool = False
@@ -63,7 +83,13 @@ class ExtractedApplicationRoute(StrictModel):
     def route_is_actionable_and_consistent(self) -> ExtractedApplicationRoute:
         if not any(
             value is not None
-            for value in (self.eligibility, self.region, self.cost, self.action_link)
+            for value in (
+                self.eligibility,
+                self.region,
+                self.cost,
+                self.prices or None,
+                self.action_link,
+            )
         ):
             raise ValueError("Application route requires at least one scoped detail")
         if self.conflict != (self.conflict_note is not None):
@@ -100,6 +126,7 @@ class ExtractedStatusMapping(StrictModel):
 
 class ArticleOpportunityExtraction(StrictModel):
     opportunity_index: int = Field(ge=0, le=19)
+    opportunity_kind: OpportunityKind = OpportunityKind.OTHER
     program: str = Field(min_length=1, max_length=300)
     target_status_name: str | None = Field(default=None, max_length=300)
     summary: str = Field(min_length=1, max_length=500)

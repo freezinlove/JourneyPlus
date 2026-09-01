@@ -124,6 +124,42 @@ class UnifiedMembershipTree(StrictModel):
     truncated_count: int = Field(ge=0)
 
 
+class MembershipCatalog(StrictModel):
+    schema_version: str = "1"
+    nodes: list[UnifiedMembershipNode] = Field(default_factory=list)
+
+
+class ReachableMembershipTreeNode(StrictModel):
+    node: UnifiedMembershipNode
+    state: UnifiedTreeNodeState
+    children: list[ReachableMembershipTreeEdge] = Field(default_factory=list)
+    omitted_count: int = Field(default=0, ge=0)
+
+
+class ReachableMembershipTreeEdge(StrictModel):
+    source_node_id: str = Field(min_length=1, max_length=700)
+    target_node_id: str = Field(min_length=1, max_length=700)
+    contribution_ids: list[str] = Field(default_factory=list)
+    opportunity_ids: list[UUID] = Field(default_factory=list)
+    certainties: list[ContributionCertainty] = Field(min_length=1, max_length=3)
+    conditions: list[str] = Field(default_factory=list, max_length=100)
+    derived_from_rule: bool = False
+    conditional: bool = False
+    conflict: bool = False
+    child: ReachableMembershipTreeNode
+
+
+class ReachableMembershipForest(StrictModel):
+    schema_version: str = "1"
+    roots: list[ReachableMembershipTreeNode] = Field(default_factory=list)
+    technical_node_limit: int = Field(ge=1)
+    occurrence_count: int = Field(ge=0)
+    expanded_node_count: int = Field(ge=0)
+    cycle_count: int = Field(ge=0)
+    cross_reference_count: int = Field(ge=0)
+    truncated_count: int = Field(ge=0)
+
+
 class UnifiedMembershipEdgeAudit(StrictModel):
     edge_id: str = Field(min_length=1, max_length=500)
     source_node_id: str = Field(min_length=1, max_length=700)
@@ -146,3 +182,4 @@ class UnifiedMembershipAudit(StrictModel):
 
 
 UnifiedMembershipTreeNode.model_rebuild()
+ReachableMembershipTreeNode.model_rebuild()
