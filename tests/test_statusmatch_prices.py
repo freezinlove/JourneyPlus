@@ -19,6 +19,7 @@ from journeyplus.facts.statusmatch_prices import (
     extract_statusmatch_price_routes,
     filter_redundant_statusmatch_narrative_routes,
     merge_statusmatch_application_routes,
+    statusmatch_current_document_body,
 )
 from journeyplus.models import DocumentVersion
 from journeyplus.statusmatch.fetching import scope_statusmatch_terms_html
@@ -151,6 +152,38 @@ def test_fee_tables_parse_group_rows_currency_direction_and_skip_history() -> No
     assert routes[2].prices[-1].availability == RoutePriceAvailability.UNAVAILABLE
     assert "Not Available for Brazil" in routes[2].prices[-1].raw_text
     assert all(price.amount != 999 for route in routes for price in route.prices)
+
+
+def test_current_document_body_removes_historical_fees_but_keeps_later_mapping() -> None:
+    html = """
+    <html><body><h1>Current Status Match</h1>
+    <p>Applications are currently open.</p>
+    <h3>Recently ended offers</h3>
+    <table>
+      <tr><th>Country/Region</th><th>Status Tier</th><th>Application Fee</th></tr>
+      <tr><td>China</td><td>Gold</td><td>USD 999</td></tr>
+    </table>
+    <ul class="list-inline"><li>Current mapping: Example Air Gold to Target Gold</li></ul>
+    </body></html>
+    """
+    document = _document("faq", html)
+
+    current_body = statusmatch_current_document_body(document)
+
+    assert "Applications are currently open" in current_body
+    assert "Recently ended offers" not in current_body
+    assert "China" not in current_body
+    assert "USD 999" not in current_body
+    assert "Current mapping: Example Air Gold to Target Gold" in current_body
+    assert "USD 999" in (document.raw_body or "")
+
+    documents = [
+        _document("activity", "Applications are open."),
+        document,
+        _document("terms", "Current project conditions."),
+    ]
+    result = apply_statusmatch_fee_policy(_facts(documents), documents)
+    assert result.cost.value == "免费"
 
 
 def test_fee_table_marks_unavailable_target_without_amount() -> None:

@@ -6,11 +6,13 @@ from uuid import UUID
 
 from selectolax.parser import HTMLParser, Node
 
+from journeyplus.content.cleaner import lightly_clean
 from journeyplus.contracts import (
     ApplicationRoute,
     EvidenceRef,
     FactField,
     FactSet,
+    RawDocument,
     RoutePrice,
     RoutePriceAvailability,
 )
@@ -129,6 +131,48 @@ def extract_statusmatch_price_routes(
     return merge_statusmatch_application_routes([], routes)
 
 
+def statusmatch_current_document_body(document: DocumentVersion) -> str:
+    """Build the current-only text view used by AI and fee-signal policy.
+
+    The persisted snapshot remains untouched. Only historical application-fee
+    tables below ``Recently ended offers`` are removed; later status-mapping
+    content stays available to the project workflow.
+    """
+    if document.raw_body:
+        tree = HTMLParser(document.raw_body)
+        root = tree.body or tree.root
+        if root is not None:
+            historical = False
+            changed = False
+            candidates = [
+                node
+                for node in root.traverse(include_text=False)
+                if node.tag in {"h1", "h2", "h3", "h4", "h5", "h6", "table"}
+            ]
+            for node in candidates:
+                if node.tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
+                    if _HISTORICAL_HEADING_RE.search(_text(node)):
+                        historical = True
+                        node.decompose()
+                        changed = True
+                    continue
+                if historical and _fee_header_index(_table_rows(node)) is not None:
+                    node.decompose()
+                    changed = True
+            if changed:
+                scoped = lightly_clean(
+                    RawDocument(
+                        source_id="status_services_mail",
+                        external_id=f"statusmatch-current:{document.id}",
+                        canonical_url=document.canonical_url,
+                        body=root.html,
+                        content_type="text/html",
+                    )
+                )
+                return scoped.normalized_body
+    return _remove_historical_fee_tables_from_markdown(document.normalized_body)
+
+
 def merge_statusmatch_application_routes(
     deterministic: list[ApplicationRoute],
     narrative: list[ApplicationRoute],
@@ -203,7 +247,7 @@ def apply_statusmatch_fee_policy(
 ) -> FactSet:
     """Normalize project-level fee meaning after closure has already been excluded."""
     text_by_document = {
-        document.id: " ".join(document.normalized_body.split())
+        document.id: " ".join(statusmatch_current_document_body(document).split())
         for document in documents
     }
     free_evidence = _signal_evidence(documents, text_by_document, _EXPLICIT_FREE_RE)
@@ -266,17 +310,8 @@ def _parse_fee_table(
     document_version_id: UUID,
     table_index: int,
 ) -> list[ApplicationRoute]:
-    rows = [[_text(cell) for cell in row.css("th, td")] for row in table.css("tr")]
-    rows = [row for row in rows if any(row)]
-    header_index = next(
-        (
-            index
-            for index, row in enumerate(rows[:4])
-            if any(_STATUS_HEADER_RE.search(cell) for cell in row)
-            and any(_FEE_HEADER_RE.search(cell) for cell in row)
-        ),
-        None,
-    )
+    rows = _table_rows(table)
+    header_index = _fee_header_index(rows)
     if header_index is None:
         return []
     header = rows[header_index]
@@ -401,6 +436,52 @@ def _parse_fee_table(
             )
         )
     return routes
+
+
+def _table_rows(table: Node) -> list[list[str]]:
+    rows = [[_text(cell) for cell in row.css("th, td")] for row in table.css("tr")]
+    return [row for row in rows if any(row)]
+
+
+def _fee_header_index(rows: list[list[str]]) -> int | None:
+    return next(
+        (
+            index
+            for index, row in enumerate(rows[:4])
+            if any(_STATUS_HEADER_RE.search(cell) for cell in row)
+            and any(_FEE_HEADER_RE.search(cell) for cell in row)
+        ),
+        None,
+    )
+
+
+def _remove_historical_fee_tables_from_markdown(value: str) -> str:
+    lines = value.splitlines()
+    result: list[str] = []
+    historical = False
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        heading = line.strip().strip("#*_ ")
+        if _HISTORICAL_HEADING_RE.fullmatch(heading):
+            historical = True
+            index += 1
+            continue
+        if historical and line.lstrip().startswith("|"):
+            end = index
+            while end < len(lines) and lines[end].lstrip().startswith("|"):
+                end += 1
+            block = lines[index:end]
+            joined = " ".join(block)
+            if _STATUS_HEADER_RE.search(joined) and _FEE_HEADER_RE.search(joined):
+                index = end
+                continue
+            result.extend(block)
+            index = end
+            continue
+        result.append(line)
+        index += 1
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(result)).strip()
 
 
 def _split_subset_unavailable_routes(

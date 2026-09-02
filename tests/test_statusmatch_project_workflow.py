@@ -12,6 +12,7 @@ from journeyplus.contracts import Brief, FactSet, OpportunityKind
 from journeyplus.models import (
     AnalysisRun,
     BriefRecord,
+    DocumentVersion,
     EventEvidence,
     FactSetRecord,
     JobRun,
@@ -303,6 +304,12 @@ def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
       <tr><td colspan="3">China</td></tr>
       <tr><td></td><td>Gold</td><td>USD 99</td></tr>
     </table>
+    <h3>Recently ended offers</h3>
+    <table>
+      <tr><th>Country/Region</th><th>Status Tier</th><th>Application Fee</th></tr>
+      <tr><td>Ended Region</td><td>Gold</td><td>USD 999</td></tr>
+    </table>
+    <ul class="list-inline"><li>Current mapping: Example Air Gold to Example Club Gold</li></ul>
     <h2>StatusMatch.Com Terms of Use</h2>
     <p>Standard membership is free and generic fees may apply.</p>
     </body></html>
@@ -320,7 +327,12 @@ def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
     request = provider.calls[0]["request"]
     assert request["deterministic_price_routes"]["count"] == 1
     assert "TERMS" in request["documents"]
-    assert "StatusMatch.Com Terms of Use" not in request["documents"]["TERMS"]["body"]
+    terms_ai_body = request["documents"]["TERMS"]["body"]
+    assert "StatusMatch.Com Terms of Use" not in terms_ai_body
+    assert "Recently ended offers" not in terms_ai_body
+    assert "Ended Region" not in terms_ai_body
+    assert "USD 999" not in terms_ai_body
+    assert "Current mapping: Example Air Gold to Example Club Gold" in terms_ai_body
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
         change_set = session.scalar(select(StatusMatchChangeSet))
@@ -330,6 +342,11 @@ def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
         assert facts.application_routes[0].prices[0].amount == 99
         assert facts.application_routes[0].prices[0].currency == "USD"
         assert change_set.terms_document_version_id is not None
+        stored_terms = session.get(
+            DocumentVersion, change_set.terms_document_version_id
+        )
+        assert stored_terms is not None
+        assert "USD 999" in (stored_terms.raw_body or "")
 
 
 def test_terms_only_update_reprocesses_project_snapshot(session_factory) -> None:

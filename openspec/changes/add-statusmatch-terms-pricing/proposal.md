@@ -7,7 +7,7 @@ JourneyPlus 当前只把 StatusMatch 项目的 HOME 与 FAQ 作为活动快照�
 - 将每个受管 `*.statusmatch.com` 活动项目的 HOME、FAQ、TERMS 定义为必选三页快照；HOME 是活动生命周期的权威来源，HOME 变为结束或候补名单模板时立即归档，无需等待 FAQ、TERMS 同步变化。
 - 在持久化、哈希和 AI 处理之前截断 TERMS 中 `StatusMatch.Com Terms of Use` 及其后的公共内容，公共内容不进入数据库。
 - 从 FAQ 与 TERMS 的当前项目内容中提取结构化申请路线和费用：标准费用表由程序逐行解析，文字费用由现有项目级 AI 调用补充。
-- 合并 FAQ 与 TERMS 的一致、互补和冲突费用；排除 `Recently ended offers` 下的历史费用。
+- 合并 FAQ 与 TERMS 的一致、互补和冲突费用；数据库保留 `Recently ended offers` 原文供审计，但其历史费用表不进入当前费用解析或 AI 输入。
 - 用明确的匹配申请费用语义判定免费或付费；既无金额也无收费语义时按产品规则判定免费，明确收费但无金额时保留“收费，金额未公布”。
 - 将最终路线费用用于机会简报和匹配树连线标签，同时保持地区仅提醒、不限制匹配路径。
 - 回填当前受管项目的 TERMS 快照并重新生成事实、简报和树状图费用。

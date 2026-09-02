@@ -43,6 +43,7 @@ from journeyplus.facts.statusmatch_prices import (
     extract_statusmatch_price_routes,
     filter_redundant_statusmatch_narrative_routes,
     merge_statusmatch_application_routes,
+    statusmatch_current_document_body,
 )
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.lifecycle.service import refresh_event_lifecycle
@@ -69,7 +70,7 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v12"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v13"
 PROJECT_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
@@ -529,11 +530,11 @@ class StatusMatchProjectWorkflow:
                 },
                 "FAQ": {
                     "source_url": faq.canonical_url,
-                    "body": faq.normalized_body,
+                    "body": statusmatch_current_document_body(faq),
                 },
                 "TERMS": {
                     "source_url": terms.canonical_url,
-                    "body": terms.normalized_body,
+                    "body": statusmatch_current_document_body(terms),
                 },
             },
             "previous_current_facts": (
