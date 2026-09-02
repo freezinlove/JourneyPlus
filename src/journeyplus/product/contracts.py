@@ -110,6 +110,7 @@ class BriefListItem(StrictModel):
     source_links: list[str] = Field(default_factory=list)
     published_at: datetime | None = None
     updated_at: datetime
+    path: list[str] | None = None
     reachable: bool = False
 
 

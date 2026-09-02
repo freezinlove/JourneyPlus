@@ -177,7 +177,7 @@ def _page(page: str, title: str, *, page_data: str = "") -> str:
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="个性化常旅客会籍匹配与挑战机会">
   <title>{title} · JourneyPlus</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20260902-single-column-briefs">
+  <link rel="stylesheet" href="/assets/app.css?v=20260902-brief-rows">
 </head>
 <body data-page="{page}" {page_data}>
   <header class="topbar">
@@ -188,6 +188,6 @@ def _page(page: str, title: str, *, page_data: str = "") -> str:
     <div class="loading-card"><span class="spinner"></span>正在读取当前数据…</div>
   </main>
   <footer>默认地区：中国 · 地区仅作提醒，不限制机会</footer>
-  <script src="/assets/app.js?v=20260902-single-column-briefs" defer></script>
+  <script src="/assets/app.js?v=20260902-brief-rows" defer></script>
 </body>
 </html>"""

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -54,12 +55,12 @@ class ProductBriefService:
         query: str | None = None,
         reachable_only: bool = False,
     ) -> BriefList:
-        reachable = {
-            item.opportunity_id
+        paths = {
+            item.opportunity_id: item.path
             for item in PersonalizedMatchService(self._session).read().opportunities
             if item.path is not None
         }
-        items = [*self._official_items(reachable), *self._article_items(reachable)]
+        items = [*self._official_items(paths), *self._article_items(paths)]
         if query:
             folded = query.casefold()
             items = [
@@ -78,7 +79,7 @@ class ProductBriefService:
             )
         )
 
-    def _official_items(self, reachable: set) -> list[BriefListItem]:
+    def _official_items(self, paths: dict[UUID, list[str]]) -> list[BriefListItem]:
         result: list[BriefListItem] = []
         events = self._session.scalars(
             select(StatusEvent).where(
@@ -111,12 +112,12 @@ class ProductBriefService:
                     brief=brief,
                     published_at=event.created_at,
                     updated_at=brief_record.updated_at,
-                    reachable=fact_record.id in reachable,
+                    path=paths.get(fact_record.id),
                 )
             )
         return result
 
-    def _article_items(self, reachable: set) -> list[BriefListItem]:
+    def _article_items(self, paths: dict[UUID, list[str]]) -> list[BriefListItem]:
         analyses = list(
             self._session.scalars(
                 select(ArticleAnalysisRecord)
@@ -169,7 +170,7 @@ class ProductBriefService:
                             else opportunity.created_at
                         ),
                         updated_at=brief_record.updated_at,
-                        reachable=opportunity.id in reachable,
+                        path=paths.get(opportunity.id),
                     )
                 )
         return result
@@ -186,7 +187,7 @@ def _brief_item(
     brief: Brief,
     published_at,
     updated_at,
-    reachable: bool,
+    path: list[str] | None,
 ) -> BriefListItem:
     return BriefListItem(
         opportunity_id=opportunity_id,
@@ -207,7 +208,8 @@ def _brief_item(
         source_links=[str(item) for item in brief.source_links],
         published_at=published_at,
         updated_at=updated_at,
-        reachable=reachable,
+        path=path,
+        reachable=path is not None,
     )
 
 
