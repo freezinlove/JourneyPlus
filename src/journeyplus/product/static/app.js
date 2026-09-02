@@ -101,16 +101,10 @@ async function holdingsPage() {
 }
 
 const GRAPH_CARD_WIDTH = 220;
-const GRAPH_CARD_HEIGHT = 116;
+const GRAPH_CARD_HEIGHT = 96;
 const GRAPH_HORIZONTAL_STEP = 248;
-const GRAPH_LEVEL_GAP = 64;
+const GRAPH_LEVEL_GAP = 58;
 const GRAPH_PADDING = 32;
-
-const membershipCategory = (categories = []) => {
-  if (categories.includes("AIRLINE")) return { icon: "✈", label: "航空会籍" };
-  if (categories.includes("HOTEL")) return { icon: "◆", label: "酒店会籍" };
-  return { icon: "◎", label: "常旅客会籍" };
-};
 
 function buildNearestMembershipTree(roots) {
   const nodeById = new Map();
@@ -221,26 +215,25 @@ function layoutMembershipForest(roots) {
 }
 
 function graphNodeCard(node, rootIds) {
-  const category = membershipCategory(node.node.categories);
   const isRoot = rootIds.has(node.nodeId);
-  const state = isRoot ? "我的起点" : node.children.length ? "有后续路径" : "本图终点";
-  const footer = node.children.length
-    ? `${node.children.length} 条最近下一跳`
-    : `距起点 ${node.depth} 跳`;
+  const kind = node.node.alliance
+    ? { icon: "✈", label: node.node.alliance }
+    : node.node.categories.includes("HOTEL")
+      ? { icon: "◆", label: "酒店会籍" }
+      : null;
+  const kindLine = kind
+    ? `<div class="membership-node__topline"><span class="membership-kind"><span aria-hidden="true">${kind.icon}</span>${escapeHtml(kind.label)}</span></div>`
+    : "";
   return `<article
       id="${node.id}"
-      class="membership-node${isRoot ? " is-root" : node.children.length ? "" : " is-terminal"}"
+      class="membership-node${isRoot ? " is-root" : ""}"
       style="left:${node.x}px;top:${node.y}px"
       role="treeitem"
-      aria-label="${escapeHtml(`${node.node.program} ${node.node.tier}，${state}`)}"
+      aria-label="${escapeHtml(`${node.node.program} ${node.node.tier}${node.node.alliance ? `，${node.node.alliance}` : ""}`)}"
     >
-      <div class="membership-node__topline">
-        <span class="membership-kind"><span aria-hidden="true">${category.icon}</span>${category.label}</span>
-        <span class="node-state">${escapeHtml(state)}</span>
-      </div>
+      ${kindLine}
       <h3>${escapeHtml(node.node.program)}</h3>
       <strong class="membership-tier">${escapeHtml(node.node.tier)}</strong>
-      <div class="membership-node__footer"><span>${escapeHtml(footer)}</span></div>
     </article>`;
 }
 
@@ -266,7 +259,7 @@ function renderMembershipGraph(roots, edgeFees = []) {
     const targetX = item.target.centerX;
     const targetY = item.target.y;
     const bendY = sourceY + (targetY - sourceY) * .5;
-    return `<path class="graph-link" d="M ${sourceX} ${sourceY} C ${sourceX} ${bendY}, ${targetX} ${bendY}, ${targetX} ${targetY}" marker-end="url(#graph-arrow)"/>`;
+    return `<path class="graph-link" d="M ${sourceX} ${sourceY} C ${sourceX} ${bendY}, ${targetX} ${bendY}, ${targetX} ${targetY}"/>`;
   }).join("");
   const cards = layout.nodes.map((item) => graphNodeCard(item, rootIds)).join("");
   const feeLabels = layout.edges.map((item) => graphFeeLabel(item, feeByEdge)).join("");
@@ -277,7 +270,6 @@ function renderMembershipGraph(roots, edgeFees = []) {
     html: `<div class="membership-graph" role="tree" aria-label="从已有会籍出发的最近匹配路径">
     <div class="membership-graph__canvas" style="width:${layout.width}px;height:${layout.height}px">
       <svg class="membership-graph__links" width="${layout.width}" height="${layout.height}" viewBox="0 0 ${layout.width} ${layout.height}" aria-hidden="true">
-        <defs><marker id="graph-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M 0 0 L 8 4 L 0 8 z"/></marker></defs>
         ${paths}
       </svg>
       ${feeLabels}${cards}
@@ -305,7 +297,7 @@ async function matchesPage() {
   const graph = payload.holdings.length ? `
     <section class="card graph-panel">
       <div class="graph-panel__heading"><div><h2>最近匹配路径</h2><p class="muted">${graphView.nodeCount} 个唯一会籍 · ${graphView.edgeCount} 条最近路径 · 最远 ${graphView.maxDepth} 跳</p></div><p class="graph-hint"><span aria-hidden="true">↔</span> 横向滚动查看全部分支</p></div>
-      <div class="graph-legend" aria-label="图例"><span><i class="legend-dot root"></i>我的会籍</span><span><i class="legend-dot available"></i>有后续路径</span><span><i class="legend-dot terminal"></i>本图终点</span><span><i class="legend-line"></i>最近路径</span><span><i class="legend-fee">USD</i>明确费用</span></div>
+      <div class="graph-legend" aria-label="图例"><span><i class="legend-dot root"></i>当前持有会籍</span><span><i class="legend-line"></i>最近路径</span><span><i class="legend-fee">USD</i>明确费用</span></div>
       ${graphView.html}
     </section>` : `<section class="empty"><h2>还没有可达图起点</h2><p>添加持有会籍后，系统会从它开始展开完整路径。下方仍保留没有来源会籍映射的公开匹配/挑战。</p><a class="button" href="/holdings">去添加会籍</a></section>`;
   const opportunities = `

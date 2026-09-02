@@ -7,6 +7,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from journeyplus.contracts import MappingAvailability
+from journeyplus.membership.alliances import airline_alliance
 from journeyplus.membership.contracts import (
     ContributionCertainty,
     ExcludedMappingContribution,
@@ -424,6 +425,13 @@ class UnifiedMembershipTreeService:
                 categories=[
                     MembershipProgramCategory(str(value)) for value in item.categories
                 ],
+                alliance=airline_alliance(item.program)
+                if MembershipProgramCategory.AIRLINE
+                in {
+                    MembershipProgramCategory(str(value))
+                    for value in item.categories
+                }
+                else None,
             )
             for item in snapshot.nodes
         }
@@ -534,13 +542,17 @@ def _ensure_node(
     node_id = f"{program_key}::{normalize_tier(tier_label)}"
     node = nodes.get(node_id)
     if node is None:
+        categories = sorted(record.categories, key=str)
         node = UnifiedMembershipNode(
             id=node_id,
             program_key=program_key,
             tier_key=normalize_tier(tier_label),
             program=record.label,
             tier=tier_label,
-            categories=sorted(record.categories, key=str),
+            categories=categories,
+            alliance=airline_alliance(record.label)
+            if MembershipProgramCategory.AIRLINE in categories
+            else None,
         )
         nodes[node_id] = node
     return node

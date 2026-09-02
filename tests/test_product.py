@@ -238,10 +238,20 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
     assert "graphEdgeLabel" not in app_script.text
     assert "有条件匹配" not in app_script.text
     assert "可继续匹配" not in app_script.text
+    assert "航空会籍" not in app_script.text
+    assert "酒店会籍" in app_script.text
+    assert "有后续路径" not in app_script.text
+    assert "本图终点" not in app_script.text
+    assert "距起点" not in app_script.text
+    assert "graph-arrow" not in app_script.text
+    assert "marker-end" not in app_script.text
     assert app_styles.status_code == 200
     assert ".membership-node" in app_styles.text
     assert ".graph-link" in app_styles.text
     assert ".graph-edge-label" not in app_styles.text
+    assert "border-left: 4px solid #4f9c78" not in app_styles.text
+    assert ".node-state" not in app_styles.text
+    assert ".membership-node__footer" not in app_styles.text
 
     catalog = client.get("/v1/membership-catalog", params={"q": "Source Club"})
     assert catalog.status_code == 200

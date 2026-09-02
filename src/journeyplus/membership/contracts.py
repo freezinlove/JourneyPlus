@@ -32,6 +32,12 @@ class MembershipProgramCategory(StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class AirlineAlliance(StrEnum):
+    STAR_ALLIANCE = "星空联盟"
+    SKYTEAM = "天合联盟"
+    ONEWORLD = "寰宇一家"
+
+
 class UnifiedTreeNodeState(StrEnum):
     EXPANDED = "EXPANDED"
     LEAF = "LEAF"
@@ -87,6 +93,7 @@ class UnifiedMembershipNode(StrictModel):
     program: str = Field(min_length=1, max_length=300)
     tier: str = Field(min_length=1, max_length=300)
     categories: list[MembershipProgramCategory] = Field(default_factory=list)
+    alliance: AirlineAlliance | None = None
 
 
 class UnifiedTraversalLimits(StrictModel):
