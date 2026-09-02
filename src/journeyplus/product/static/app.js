@@ -18,9 +18,9 @@ const api = async (url, options = {}) => {
   return payload;
 };
 
-const hero = (eyebrow, title, copy, action = "") => `
+const hero = (eyebrow, title, copy = "", action = "") => `
   <section class="hero">
-    <div><p class="eyebrow">${escapeHtml(eyebrow)}</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(copy)}</p></div>
+    <div><p class="eyebrow">${escapeHtml(eyebrow)}</p><h1>${escapeHtml(title)}</h1>${copy ? `<p>${escapeHtml(copy)}</p>` : ""}</div>
     ${action}
   </section>`;
 
@@ -339,16 +339,9 @@ async function briefsPage() {
   app.innerHTML = hero(
     "ALL BRIEFS",
     "机会简报",
-    "这里展示现有官方和普通文章的全部简报，包括 OTHER；类型只影响个性化匹配图，不影响简报生成与展示。",
-  ) + `<section class="card"><form id="brief-search" class="toolbar"><label>搜索<input id="brief-query" placeholder="项目、等级或关键词"></label><label><span>范围</span><span><input id="reachable-only" type="checkbox" style="width:auto;min-height:auto"> 仅当前可达</span></label><button>筛选</button></form></section><section id="brief-list" class="grid two" style="margin-top:1rem"></section>`;
-  const load = async () => {
-    const q = document.querySelector("#brief-query").value;
-    const only = document.querySelector("#reachable-only").checked;
-    const payload = await api(`/v1/briefs?q=${encodeURIComponent(q)}&reachable_only=${only}`);
-    document.querySelector("#brief-list").innerHTML = payload.items.map(briefCard).join("") || '<div class="empty"><h2>没有匹配的简报</h2><p>清空搜索条件后再试。</p></div>';
-  };
-  document.querySelector("#brief-search").addEventListener("submit", (event) => { event.preventDefault(); load().catch(showError); });
-  await load();
+  ) + `<section id="brief-list" class="grid brief-list"></section>`;
+  const payload = await api("/v1/briefs");
+  document.querySelector("#brief-list").innerHTML = payload.items.map(briefCard).join("") || '<div class="empty"><h2>暂无简报</h2><p>当前没有可展示的简报。</p></div>';
 }
 
 const advisoryText = (value) => ({

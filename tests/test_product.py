@@ -249,6 +249,12 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
     assert "距起点" not in app_script.text
     assert "graph-arrow" not in app_script.text
     assert "marker-end" not in app_script.text
+    assert 'id="brief-list" class="grid brief-list"' in app_script.text
+    assert 'api("/v1/briefs")' in app_script.text
+    assert "brief-search" not in app_script.text
+    assert "brief-query" not in app_script.text
+    assert "reachable-only" not in app_script.text
+    assert "这里展示现有官方和普通文章的全部简报" not in app_script.text
     assert app_styles.status_code == 200
     assert ".membership-node" in app_styles.text
     assert ".graph-link" in app_styles.text
@@ -256,6 +262,8 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
     assert "border-left: 4px solid #4f9c78" not in app_styles.text
     assert ".node-state" not in app_styles.text
     assert ".membership-node__footer" not in app_styles.text
+    assert ".brief-list { margin-top: 1rem; }" in app_styles.text
+    assert ".toolbar" not in app_styles.text
 
     catalog = client.get("/v1/membership-catalog", params={"q": "Source Club"})
     assert catalog.status_code == 200
