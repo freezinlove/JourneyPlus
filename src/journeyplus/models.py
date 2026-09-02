@@ -505,6 +505,7 @@ class StatusMatchChangeSet(Base, TimestampMixin):
             "event_id",
             "activity_document_version_id",
             "faq_document_version_id",
+            "terms_document_version_id",
             "to_fact_set_id",
             name="uq_statusmatch_change_sets_event_snapshot_fact",
         ),
@@ -526,6 +527,9 @@ class StatusMatchChangeSet(Base, TimestampMixin):
     )
     faq_document_version_id: Mapped[UUID] = mapped_column(
         ForeignKey("document_versions.id"), nullable=False
+    )
+    terms_document_version_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("document_versions.id"), nullable=True
     )
     kind: Mapped[str] = mapped_column(String(50), nullable=False)
     changes: Mapped[list[dict[str, Any]]] = mapped_column(

@@ -3,7 +3,7 @@
 ## 当前边界
 
 - 通用公开来源只有 `loyaltylobby_feed`。
-- `status_services_mail` 继续只服务 StatusMatch 官方 HOME + FAQ 项目链路。
+- `status_services_mail` 继续只服务 StatusMatch 官方 HOME + FAQ + TERMS 项目链路。
 - 其他公开来源的注册、适配器、原文和 V1 历史结果保留，但关闭启用和自动调度。
 - 当前不做跨文章候选召回、相似度、关系 AI、事件合并或跨来源事实协调，也不创建预留的分组表或空关联框架。
 

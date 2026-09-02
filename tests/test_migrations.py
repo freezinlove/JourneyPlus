@@ -713,6 +713,7 @@ def test_statusmatch_project_changeset_migration_round_trips_on_sqlite(
         "to_fact_set_id",
         "activity_document_version_id",
         "faq_document_version_id",
+        "terms_document_version_id",
         "kind",
         "changes",
     } <= {
@@ -727,6 +728,7 @@ def test_statusmatch_project_changeset_migration_round_trips_on_sqlite(
         "event_id",
         "activity_document_version_id",
         "faq_document_version_id",
+        "terms_document_version_id",
         "to_fact_set_id",
     ) in {
         tuple(constraint["column_names"])

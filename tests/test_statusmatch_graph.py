@@ -57,8 +57,13 @@ def _add_project(
     for kind, body in (
         ("activity", "<html><body><form>Apply</form></body></html>"),
         ("faq", faq_html or "<html><body>FAQ</body></html>"),
+        ("terms", "<html><body>Project terms</body></html>"),
     ):
-        url = f"https://{host}/" if kind == "activity" else f"https://{host}/faq"
+        url = (
+            f"https://{host}/"
+            if kind == "activity"
+            else f"https://{host}/{kind}"
+        )
         item = SourceItem(
             source_id="status_services_mail",
             external_id=f"graph-test:{host}:{kind}",
@@ -128,7 +133,7 @@ def _add_project(
     )
     session.add(watch)
     session.flush()
-    for kind in ("activity", "faq"):
+    for kind in ("activity", "faq", "terms"):
         session.add(
             StatusMatchWatchPage(
                 watch_id=watch.id,

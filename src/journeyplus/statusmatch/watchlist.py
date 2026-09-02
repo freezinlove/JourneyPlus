@@ -127,7 +127,7 @@ def record_statusmatch_page_result(
         watch.last_changed_at = current
     watch.last_checked_at = current
     watch.last_error = _watch_error(session, watch.id)
-    if _watch_has_both_documents(session, watch.id):
+    if _watch_has_complete_snapshot(session, watch.id):
         watch.status = "ACTIVE"
     session.flush()
 
@@ -147,6 +147,7 @@ def record_statusmatch_page_error(
     page.last_checked_at = current
     page.last_error = message
     watch.last_checked_at = current
+    watch.status = "PENDING"
     watch.last_error = message
     session.flush()
 
@@ -155,8 +156,12 @@ def statusmatch_page_identity(item: DiscoveredItem) -> tuple[str, str]:
     metadata = item.raw_metadata
     host = str(metadata.get("project_host") or "").casefold().rstrip(".")
     page_kind = str(metadata.get("page_kind") or "")
-    if not is_project_statusmatch_host(host) or page_kind not in {"activity", "faq"}:
-        raise ValueError("Item is not a managed StatusMatch activity or FAQ page")
+    if not is_project_statusmatch_host(host) or page_kind not in {
+        "activity",
+        "faq",
+        "terms",
+    }:
+        raise ValueError("Item is not a managed StatusMatch project page")
     return host, page_kind
 
 
@@ -270,6 +275,7 @@ def delete_watch_only(session: Session, watch: StatusMatchWatch) -> None:
         select(StatusMatchWatchPage).where(StatusMatchWatchPage.watch_id == watch.id)
     ):
         session.delete(page)
+    session.flush()
     session.delete(watch)
     session.flush()
 
@@ -290,7 +296,7 @@ def _watch_page(
     return page
 
 
-def _watch_has_both_documents(session: Session, watch_id: UUID) -> bool:
+def _watch_has_complete_snapshot(session: Session, watch_id: UUID) -> bool:
     pages = list(
         session.scalars(
             select(StatusMatchWatchPage).where(
@@ -299,7 +305,7 @@ def _watch_has_both_documents(session: Session, watch_id: UUID) -> bool:
         )
     )
     return (
-        {page.page_kind for page in pages} == {"activity", "faq"}
+        {page.page_kind for page in pages} == {"activity", "faq", "terms"}
         and all(page.current_document_version_id is not None for page in pages)
     )
 
@@ -329,6 +335,10 @@ def _source_item_page_identity(item: SourceItem) -> tuple[str, str] | None:
         host, page_kind = remainder.rsplit(":", 1)
     except ValueError:
         return None
-    if not is_project_statusmatch_host(host) or page_kind not in {"activity", "faq"}:
+    if not is_project_statusmatch_host(host) or page_kind not in {
+        "activity",
+        "faq",
+        "terms",
+    }:
         return None
     return host, page_kind

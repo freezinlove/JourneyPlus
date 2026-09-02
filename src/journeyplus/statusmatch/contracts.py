@@ -15,6 +15,7 @@ from journeyplus.contracts import (
 class StatusMatchPageAlias(StrEnum):
     HOME = "HOME"
     FAQ = "FAQ"
+    TERMS = "TERMS"
 
 
 class AliasedEvidenceRef(StrictModel):

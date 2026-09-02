@@ -19,6 +19,7 @@ from journeyplus.models import (
     StatusMatchArticleRoute,
     StatusMatchArticleSupplement,
     StatusMatchWatch,
+    StatusMatchWatchPage,
 )
 from journeyplus.membership.contracts import MappingContributionSource
 from journeyplus.membership.unified import UnifiedMembershipTreeService
@@ -37,6 +38,7 @@ from journeyplus.statusmatch.articles import (
 )
 from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
 from journeyplus.statusmatch.graph import MembershipGraphService
+from journeyplus.statusmatch.service import monitor_statusmatch_watches
 from journeyplus.statusmatch.watchlist import ensure_statusmatch_watch
 from journeyplus.statusmatch.watchlist import delete_watch_only
 
@@ -94,11 +96,20 @@ class PageFetcher:
 
     def get(self, url: str) -> FetchResponse:
         self.calls.append(url)
-        body = (
-            "<html><body><h1>Awaiting new offers</h1></body></html>"
-            if self.closed
-            else "<html><body><h1>Status Match</h1><p>Applications are open.</p></body></html>"
-        )
+        if self.closed:
+            body = "<html><body><h1>Awaiting new offers</h1></body></html>"
+        elif url.endswith("/terms"):
+            body = (
+                "<html><body><h1>Status Match Terms</h1>"
+                "<p>Applications are open.</p>"
+                "<h2>StatusMatch.Com Terms of Use</h2>"
+                "<p>Common terms.</p></body></html>"
+            )
+        else:
+            body = (
+                "<html><body><h1>Status Match</h1>"
+                "<p>Applications are open.</p></body></html>"
+            )
         return FetchResponse(body=body, content_type="text/html", final_url=url)
 
 
@@ -166,6 +177,7 @@ def _collect_article(session, *, linked: bool = True, external_id: str = "articl
 
 def _seed_official_output(session):
     watch = ensure_statusmatch_watch(session, HOST)
+    monitor_statusmatch_watches(session, PageFetcher(), hosts=[HOST])
     event = StatusEvent(
         created_from_key=f"statusmatch-watch:{watch.id}",
         program="Kenya Airways Asante Rewards",
@@ -175,13 +187,29 @@ def _seed_official_output(session):
     )
     session.add(event)
     session.flush()
+    faq_page = session.scalar(
+        select(StatusMatchWatchPage).where(
+            StatusMatchWatchPage.watch_id == watch.id,
+            StatusMatchWatchPage.page_kind == "faq",
+        )
+    )
+    assert faq_page is not None and faq_page.current_document_version_id is not None
+    evidence = {
+        "document_version_id": str(faq_page.current_document_version_id),
+        "source_url": faq_page.canonical_url,
+        "locator": "current FAQ",
+    }
     fact = FactSetRecord(
         event_id=event.id,
         version=1,
         schema_version="4",
         facts={
             "schema_version": "4",
-            "what_happened": {"value": "Eligible Accor members can match", "evidence": []},
+            "event_id": str(event.id),
+            "what_happened": {
+                "value": "Eligible Accor members can match",
+                "evidence": [evidence],
+            },
         },
     )
     session.add(fact)
@@ -376,7 +404,7 @@ def test_one_article_creates_independent_routes_for_multiple_hosts(
         }
 
 
-def test_unknown_project_fetches_both_pages_and_closed_project_is_terminal(
+def test_unknown_project_stops_after_closed_home_and_is_terminal(
     session_factory,
 ) -> None:
     with session_factory.begin() as session:
@@ -389,7 +417,7 @@ def test_unknown_project_fetches_both_pages_and_closed_project_is_terminal(
 
     assert summary.watches_created == 1
     assert summary.hosts_fetched == (HOST,)
-    assert len(fetcher.calls) == 2
+    assert fetcher.calls == [f"https://{HOST}/"]
     assert summary.closed_routes == 1
     with session_factory() as session:
         assert session.scalar(select(StatusMatchWatch)) is None

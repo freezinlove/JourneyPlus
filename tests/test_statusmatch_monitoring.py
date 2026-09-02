@@ -45,6 +45,10 @@ ACTIVE_ACTIVITY = """
 </body></html>
 """
 ACTIVE_FAQ = "<html><body><h1>Frequently Asked Questions</h1><p>The match is open.</p></body></html>"
+ACTIVE_TERMS = """
+<html><body><h1>Project Terms</h1><p>Current project-specific conditions.</p>
+<h2>StatusMatch.Com Terms of Use</h2><p>Common platform terms.</p></body></html>
+"""
 
 
 class PageFetcher:
@@ -130,6 +134,7 @@ def _active_responses(host="example.statusmatch.com"):
     return {
         f"https://{host}/": ACTIVE_ACTIVITY,
         f"https://{host}/faq": ACTIVE_FAQ,
+        f"https://{host}/terms": ACTIVE_TERMS,
     }
 
 
@@ -144,10 +149,10 @@ def test_monitor_persists_only_changed_page_versions(db_session) -> None:
     )
     changed = monitor_statusmatch_watches(db_session, fetcher)
 
-    assert first.pages_changed == 2
+    assert first.pages_changed == 3
     assert unchanged.pages_changed == 0
     assert changed.pages_changed == 1
-    assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 3
+    assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 4
     db_session.refresh(watch)
     assert watch.status == "ACTIVE"
     pages = list(
@@ -157,7 +162,7 @@ def test_monitor_persists_only_changed_page_versions(db_session) -> None:
             )
         )
     )
-    assert len(pages) == 2
+    assert len(pages) == 3
     assert all(page.last_checked_at is not None for page in pages)
 
 
@@ -166,7 +171,8 @@ def test_monitor_fetch_failure_keeps_watch_and_never_closes(db_session) -> None:
     responses = _active_responses()
     responses["https://example.statusmatch.com/"] = RuntimeError("HTTP 503")
 
-    result = monitor_statusmatch_watches(db_session, PageFetcher(responses))
+    fetcher = PageFetcher(responses)
+    result = monitor_statusmatch_watches(db_session, fetcher)
 
     assert result.projects_archived == 0
     assert len(result.errors) == 1
@@ -180,6 +186,7 @@ def test_monitor_fetch_failure_keeps_watch_and_never_closes(db_session) -> None:
     assert page is not None and "HTTP 503" in (page.last_error or "")
     db_session.refresh(watch)
     assert "HTTP 503" in (watch.last_error or "")
+    assert fetcher.calls == ["https://example.statusmatch.com/"]
 
 
 @pytest.mark.parametrize(
@@ -217,9 +224,8 @@ def test_waitlist_closes_watch_but_preserves_documents(db_session) -> None:
                 """,
                 "https://example.statusmatch.com/waitlist.php",
             ),
-            "https://example.statusmatch.com/faq": (
-                "<html><body>This offer has expired and is no longer available.</body></html>"
-            ),
+            "https://example.statusmatch.com/faq": RuntimeError("must not fetch FAQ"),
+            "https://example.statusmatch.com/terms": RuntimeError("must not fetch TERMS"),
         }
     )
 
@@ -227,9 +233,11 @@ def test_waitlist_closes_watch_but_preserves_documents(db_session) -> None:
 
     assert result.projects_archived == 1
     assert db_session.scalar(select(func.count()).select_from(StatusMatchWatch)) == 0
-    assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 2
+    assert result.pages_checked == 1
+    assert fetcher.calls == ["https://example.statusmatch.com/"]
+    assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 1
     items = list(db_session.scalars(select(SourceItem)))
-    assert len(items) == 2
+    assert len(items) == 1
     assert all(item.raw_metadata["skip_semantic_processing"] for item in items)
 
 
@@ -252,6 +260,7 @@ def test_partial_ended_faq_does_not_close_active_project(db_session) -> None:
                 {
                     f"https://{host}/": ACTIVE_ACTIVITY,
                     f"https://{host}/faq": f"<html><body>{faq}</body></html>",
+                    f"https://{host}/terms": ACTIVE_TERMS,
                 }
             ),
         )
@@ -259,6 +268,25 @@ def test_partial_ended_faq_does_not_close_active_project(db_session) -> None:
         assert db_session.scalar(
             select(StatusMatchWatch).where(StatusMatchWatch.host == host)
         ) is not None
+
+
+def test_home_closed_archives_without_consulting_auxiliary_pages(db_session) -> None:
+    watch = _seed_watch(db_session)
+    responses = _active_responses()
+    responses["https://example.statusmatch.com/"] = (
+        "<html><body>This status match offer has ended.</body></html>"
+    )
+
+    responses["https://example.statusmatch.com/faq"] = RuntimeError("must not fetch FAQ")
+    responses["https://example.statusmatch.com/terms"] = RuntimeError("must not fetch TERMS")
+    fetcher = PageFetcher(responses)
+    result = monitor_statusmatch_watches(db_session, fetcher)
+
+    assert result.projects_archived == 1
+    assert result.errors == ()
+    assert result.pages_checked == 1
+    assert fetcher.calls == ["https://example.statusmatch.com/"]
+    assert db_session.get(StatusMatchWatch, watch.id) is None
 
 
 def test_closure_archives_event_and_preserves_semantic_history(db_session) -> None:
@@ -318,6 +346,9 @@ def test_closure_archives_event_and_preserves_semantic_history(db_session) -> No
         "https://example.statusmatch.com/faq": (
             "<html><body>This offer has expired and is no longer available.</body></html>"
         ),
+        "https://example.statusmatch.com/terms": (
+            "<html><body>Register your interest for future status opportunities.</body></html>"
+        ),
     }
     result = monitor_statusmatch_watches(db_session, PageFetcher(closed))
 
@@ -328,7 +359,8 @@ def test_closure_archives_event_and_preserves_semantic_history(db_session) -> No
     assert event.closure_document_version_id is not None
     assert db_session.get(FactSetRecord, fact.id) is not None
     assert db_session.get(BriefRecord, brief.id) is not None
-    assert db_session.scalar(select(func.count()).select_from(EventEvidence)) == 2
+    assert db_session.scalar(select(func.count()).select_from(EventEvidence)) == 3
+    assert event.lifecycle_status == "EXPIRED"
     assert db_session.scalar(select(func.count()).select_from(DocumentVersion)) == 4
 
 
@@ -403,13 +435,14 @@ def test_gmail_reads_only_unseen_messages_and_ignores_watched_hosts(db_session) 
     gmail.message_ids.append("message-2")
     third = collect_manual(db_session, adapter, idempotency_key="gmail:third")
 
-    assert first.new_versions == 3
+    assert first.new_versions == 4
     assert second.discovered == 0
     assert third.new_versions == 1
     assert gmail.get_calls == ["message-1", "message-2"]
     assert page_fetcher.calls == [
         "https://example.statusmatch.com/",
         "https://example.statusmatch.com/faq",
+        "https://example.statusmatch.com/terms",
     ]
 
 
@@ -424,7 +457,7 @@ def test_gmail_uses_history_cursor_after_initial_full_reconciliation(
     first = collect_manual(db_session, adapter, idempotency_key="gmail:history:first")
     state = db_session.get(SourceAutomationState, "status_services_mail")
 
-    assert first.new_versions == 3
+    assert first.new_versions == 4
     assert state is not None
     assert state.discovery_cursor == "100"
     assert gmail.list_calls == 1
@@ -465,7 +498,7 @@ def test_gmail_expired_history_cursor_falls_back_to_full_id_reconciliation(
         idempotency_key="gmail:history:fallback",
     )
 
-    assert summary.new_versions == 3
+    assert summary.new_versions == 4
     assert gmail.history_calls == [("stale", "Label_123")]
     assert gmail.list_calls == 1
     assert state.discovery_cursor == "210"
@@ -518,13 +551,15 @@ def test_removed_watch_requires_a_genuinely_new_message_to_reonboard(db_session)
     gmail.message_ids.append("message-2")
     reonboarded = collect_manual(db_session, adapter, idempotency_key="gmail:new")
 
-    assert reonboarded.discovered == 3
+    assert reonboarded.discovered == 4
     assert gmail.get_calls == ["message-1", "message-2"]
     assert page_fetcher.calls == [
         "https://example.statusmatch.com/",
         "https://example.statusmatch.com/faq",
+        "https://example.statusmatch.com/terms",
         "https://example.statusmatch.com/",
         "https://example.statusmatch.com/faq",
+        "https://example.statusmatch.com/terms",
     ]
     assert db_session.scalar(select(func.count()).select_from(StatusMatchWatch)) == 1
 
@@ -725,7 +760,7 @@ def test_daily_monitor_runs_even_when_gmail_collection_fails(session_factory) ->
     assert result.status == "FAILED"
     assert result.sources[0].status == "FAILED"
     assert result.statusmatch_projects_checked == 1
-    assert result.statusmatch_pages_checked == 2
+    assert result.statusmatch_pages_checked == 3
     assert result.statusmatch_pages_changed == 0
     assert result.statusmatch_errors == ()
     assert result.statusmatch_projects_succeeded == 1
@@ -769,7 +804,7 @@ def test_daily_cycle_processes_changed_watch_pages_when_mail_source_not_selected
     )
 
     assert result.status == "SUCCEEDED"
-    assert result.statusmatch_pages_changed == 2
+    assert result.statusmatch_pages_changed == 3
     assert result.statusmatch_projects_selected == 1
     assert result.statusmatch_projects_succeeded == 1
     assert result.statusmatch_project_model_calls == 2

@@ -44,7 +44,7 @@ ARTICLE_SCHEMA_VERSION = "3"
 
 SYSTEM_PROMPT = """你只处理一篇已经由程序中的精确 *.statusmatch.com 链接确定归属的
 第三方文章。不要分类，不要判断关系，不要创建活动，也不要修改官网事实。输入中的
-OFFICIAL_FACT_SET 和 OFFICIAL_BRIEF 是当前官网 HOME+FAQ 的完整权威整理。
+OFFICIAL_FACT_SET 和 OFFICIAL_BRIEF 是当前官网 HOME+FAQ+TERMS 的完整权威整理。
 
 只输出补充关注点 highlights；highlights 是简体中文字符串数组，不输出类型、理由、原文摘录、
 内部编号或状态。逐条比较，不要因为文章后半部分转载了官网 FAQ 就把整篇判为无新增。

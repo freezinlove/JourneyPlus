@@ -75,6 +75,17 @@ _REQUALIFICATION_FACT_RE = re.compile(
 )
 _GROUNDING_EXCERPT_LIMIT = 160
 _INTERNAL_FACT_LABELS = {
+    "what_happened": "活动内容",
+    "eligibility": "申请资格",
+    "target_status": "目标会籍",
+    "cost": "申请费用",
+    "challenge_requirements": "挑战要求",
+    "region": "适用地区",
+    "application_start": "开始时间",
+    "deadline": "截止时间",
+    "status_validity": "会籍有效期",
+    "action_link": "申请入口",
+    "caveats": "限制条件",
     "application_routes": "申请路径",
     "status_mappings": "会籍对应关系",
 }

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.content.service import IngestionService
+from journeyplus.contracts import LifecycleStatus
 from journeyplus.models import (
     DocumentVersion,
     SourceItem,
@@ -17,11 +18,13 @@ from journeyplus.sources.base import Fetcher
 from journeyplus.statusmatch.closure import (
     ClosureAssessment,
     assess_statusmatch_closure,
+    assess_statusmatch_home_closure,
 )
 from journeyplus.statusmatch.fetching import fetch_statusmatch_page
 from journeyplus.statusmatch.watchlist import (
     current_watch_documents,
     delete_watch_only,
+    ensure_statusmatch_watch,
     record_statusmatch_page_error,
     record_statusmatch_page_result,
     resolve_watch_event,
@@ -59,15 +62,74 @@ def monitor_statusmatch_watches(
     changed_document_version_ids: list[str] = []
     errors: list[str] = []
     for watch in watches:
+        watch = ensure_statusmatch_watch(session, watch.host)
         watch_failed = False
-        pages = list(
-            session.scalars(
-                select(StatusMatchWatchPage)
-                .where(StatusMatchWatchPage.watch_id == watch.id)
-                .order_by(StatusMatchWatchPage.page_kind.asc())
+        pages = {
+            page.page_kind: page
+            for page in session.scalars(
+                select(StatusMatchWatchPage).where(
+                    StatusMatchWatchPage.watch_id == watch.id
+                )
             )
+        }
+        activity_page = pages.get("activity")
+        if activity_page is None:
+            watch.status = "PENDING"
+            watch.last_error = "StatusMatch HOME watch page is missing"
+            errors.append(f"{watch.host}:activity:LookupError: HOME watch page is missing")
+            continue
+
+        pages_checked += 1
+        activity_item = statusmatch_page_item(
+            host=watch.host,
+            page_kind=activity_page.page_kind,
+            canonical_url=activity_page.canonical_url,
+            refresh=True,
         )
-        for page in pages:
+        try:
+            activity_raw = fetch_statusmatch_page(activity_item, fetcher)
+            activity_result = ingestion.ingest(activity_item, activity_raw)
+            record_statusmatch_page_result(
+                session,
+                item=activity_item,
+                result=activity_result,
+                checked_at=current,
+            )
+            pages_changed += int(activity_result.new_version)
+            if activity_result.new_version:
+                changed_document_version_ids.append(
+                    str(activity_result.document_version.id)
+                )
+        except Exception as exc:
+            record_statusmatch_page_error(
+                session,
+                item=activity_item,
+                error=exc,
+                checked_at=current,
+            )
+            errors.append(
+                f"{watch.host}:activity:{type(exc).__name__}: {exc}"[:1000]
+            )
+            continue
+
+        if _archive_if_statusmatch_home_closed(
+            session,
+            watch=watch,
+            checked_at=current,
+        ):
+            archived += 1
+            continue
+
+        for page_kind in ("faq", "terms"):
+            page = pages.get(page_kind)
+            if page is None:
+                watch_failed = True
+                watch.status = "PENDING"
+                watch.last_error = f"StatusMatch {page_kind.upper()} watch page is missing"
+                errors.append(
+                    f"{watch.host}:{page_kind}:LookupError: watch page is missing"
+                )
+                continue
             pages_checked += 1
             item = statusmatch_page_item(
                 host=watch.host,
@@ -125,6 +187,12 @@ def finalize_statusmatch_watch(
     )
     if watch is None:
         return False
+    if _archive_if_statusmatch_home_closed(
+        session,
+        watch=watch,
+        checked_at=checked_at or datetime.now(UTC),
+    ):
+        return True
     pages = {
         page.page_kind: page
         for page in session.scalars(
@@ -133,19 +201,27 @@ def finalize_statusmatch_watch(
             )
         )
     }
-    if set(pages) != {"activity", "faq"} or any(
+    if set(pages) != {"activity", "faq", "terms"} or any(
         page.current_document_version_id is None or page.last_error is not None
         for page in pages.values()
     ):
         return False
     activity, activity_item = _page_document_and_item(session, pages["activity"])
     faq, faq_item = _page_document_and_item(session, pages["faq"])
+    terms, terms_item = _page_document_and_item(session, pages["terms"])
     assessment = assess_statusmatch_closure(
         activity=activity,
         activity_item=activity_item,
         faq=faq,
         faq_item=faq_item,
+        terms=terms,
+        terms_item=terms_item,
     )
+    if assessment.inconsistent:
+        watch.status = "PENDING"
+        watch.last_error = assessment.reason
+        session.flush()
+        return False
     if not assessment.closed:
         watch.status = "ACTIVE"
         watch.last_error = None
@@ -155,7 +231,7 @@ def finalize_statusmatch_watch(
         session,
         watch=watch,
         assessment=assessment,
-        documents={"activity": activity, "faq": faq},
+        documents={"activity": activity, "faq": faq, "terms": terms},
         checked_at=checked_at or datetime.now(UTC),
     )
     return True
@@ -174,6 +250,7 @@ def _archive_and_remove_watch(
     evidence_document = documents[evidence_kind]
     if event is not None:
         event.archived_at = checked_at
+        event.lifecycle_status = LifecycleStatus.EXPIRED
         event.archive_reason = assessment.reason
         event.closure_document_version_id = evidence_document.id
     for document in current_watch_documents(session, watch):
@@ -185,6 +262,41 @@ def _archive_and_remove_watch(
                 "statusmatch_closure_reason": assessment.reason,
             }
     delete_watch_only(session, watch)
+
+
+def _archive_if_statusmatch_home_closed(
+    session: Session,
+    *,
+    watch: StatusMatchWatch,
+    checked_at: datetime,
+) -> bool:
+    activity_page = session.scalar(
+        select(StatusMatchWatchPage).where(
+            StatusMatchWatchPage.watch_id == watch.id,
+            StatusMatchWatchPage.page_kind == "activity",
+        )
+    )
+    if (
+        activity_page is None
+        or activity_page.current_document_version_id is None
+        or activity_page.last_error is not None
+    ):
+        return False
+    activity, activity_item = _page_document_and_item(session, activity_page)
+    assessment = assess_statusmatch_home_closure(
+        activity=activity,
+        activity_item=activity_item,
+    )
+    if not assessment.closed:
+        return False
+    _archive_and_remove_watch(
+        session,
+        watch=watch,
+        assessment=assessment,
+        documents={"activity": activity},
+        checked_at=checked_at,
+    )
+    return True
 
 
 def _page_document_and_item(

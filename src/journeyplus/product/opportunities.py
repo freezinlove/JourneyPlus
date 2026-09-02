@@ -581,32 +581,47 @@ def _route_fee_label(
     target_tier_key: str,
     raw_cost: str | None,
 ) -> str | None:
-    general = [
-        label
+    selected = [
+        price
         for price in prices
         if price.target_tier is None
-        for label in [_render_fee(price)]
-        if label is not None
+        or normalize_tier(price.target_tier) == target_tier_key
     ]
-    targeted = [
-        label
-        for price in prices
-        if price.target_tier is not None
-        and normalize_tier(price.target_tier) == target_tier_key
-        for label in [_render_fee(price)]
-        if label is not None
-    ]
-    general = list(dict.fromkeys(general))
-    targeted = list(dict.fromkeys(targeted))
-    parts: list[str] = []
-    if general:
-        parts.append(" + ".join(general))
-    if targeted:
-        parts.append(" / ".join(targeted))
-    if parts:
-        return " + ".join(parts)
+    general_available = _rendered_fees(
+        selected,
+        target_specific=False,
+        availability=RoutePriceAvailability.AVAILABLE,
+    )
+    targeted_available = _rendered_fees(
+        selected,
+        target_specific=True,
+        availability=RoutePriceAvailability.AVAILABLE,
+    )
+    conditional = list(
+        dict.fromkeys(
+            label
+            for price in selected
+            if price.availability == RoutePriceAvailability.CONDITIONAL
+            for label in [_render_fee(price)]
+            if label is not None
+        )
+    )
+    payable_parts: list[str] = []
+    if general_available:
+        payable_parts.append(" + ".join(general_available))
+    if targeted_available:
+        payable_parts.append(" / ".join(targeted_available))
+    payable = " + ".join(payable_parts)
+    if payable and conditional:
+        return f"{payable}；{' / '.join(conditional)}"
+    if payable:
+        return payable
+    if conditional:
+        return " / ".join(conditional)
     if raw_cost and _FREE_COST.fullmatch(raw_cost):
         return "免费"
+    if raw_cost and "金额未公布" in raw_cost and "收费" in raw_cost:
+        return "金额未公布"
     return None
 
 
@@ -617,7 +632,28 @@ def _render_fee(price: RoutePrice) -> str | None:
         return None
     if price.amount == 0:
         return "免费"
-    return f"{price.currency} {_decimal_text(price.amount)}"
+    rendered = f"{price.currency} {_decimal_text(price.amount)}"
+    if price.availability == RoutePriceAvailability.CONDITIONAL:
+        return f"条件另付 {rendered}"
+    return rendered
+
+
+def _rendered_fees(
+    prices: list[RoutePrice],
+    *,
+    target_specific: bool,
+    availability: RoutePriceAvailability,
+) -> list[str]:
+    return list(
+        dict.fromkeys(
+            label
+            for price in prices
+            if (price.target_tier is not None) == target_specific
+            and price.availability == availability
+            for label in [_render_fee(price)]
+            if label is not None
+        )
+    )
 
 
 def _decimal_text(value: Decimal) -> str:

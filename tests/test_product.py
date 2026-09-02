@@ -22,12 +22,16 @@ from journeyplus.models import (
     ArticleAnalysisRecord,
     ArticleBriefRecord,
     ArticleOpportunityRecord,
+    BriefRecord,
     DocumentVersion,
+    FactSetRecord,
     SourceItem,
+    StatusEvent,
 )
 from journeyplus.membership.contracts import ReachableMembershipTreeNode
 from journeyplus.product.api import create_product_app
-from journeyplus.product.opportunities import _opportunity_paths
+from journeyplus.product.briefs import _price_summaries, _public_brief_text
+from journeyplus.product.opportunities import _opportunity_paths, _route_fee_label
 from journeyplus.sources.registry import seed_sources
 
 
@@ -354,6 +358,144 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
         str(standalone.id)
     ]
     assert without_holdings["opportunities"][0]["path"] is None
+
+
+def test_unknown_paid_fee_and_free_fee_share_brief_and_tree_wording() -> None:
+    evidence = EvidenceRef(
+        document_version_id=uuid4(),
+        source_url="https://example.statusmatch.com/terms",
+        locator="application fee statement",
+    )
+    unknown = FactSet(
+        event_id=uuid4(),
+        opportunity_kind=OpportunityKind.STATUS_MATCH,
+        what_happened=FactField(value="Current status match", evidence=[evidence]),
+        cost=FactField(value="收费，金额未公布", evidence=[evidence]),
+    )
+    free = unknown.model_copy(
+        update={"cost": FactField(value="免费", evidence=[evidence])}
+    )
+
+    assert _price_summaries(unknown) == ["默认申请路线: 收费，金额未公布"]
+    assert _price_summaries(free) == ["默认申请路线: 免费"]
+    assert (
+        _route_fee_label([], target_tier_key="gold", raw_cost=unknown.cost.value)
+        == "金额未公布"
+    )
+    assert (
+        _route_fee_label([], target_tier_key="gold", raw_cost=free.cost.value)
+        == "免费"
+    )
+
+
+def test_conditional_upgrade_fee_is_not_summed_with_base_fee() -> None:
+    evidence = EvidenceRef(
+        document_version_id=uuid4(),
+        source_url="https://airastana.statusmatch.com/terms",
+        locator="application and upgrade fees",
+    )
+    prices = [
+        RoutePrice(
+            amount=49,
+            currency="USD",
+            availability=RoutePriceAvailability.AVAILABLE,
+            raw_text="Application fee USD 49",
+            evidence=[evidence],
+        ),
+        RoutePrice(
+            target_tier="Gold",
+            amount=199,
+            currency="USD",
+            availability=RoutePriceAvailability.CONDITIONAL,
+            raw_text="Select members may upgrade for an additional fee of USD 199",
+            evidence=[evidence],
+        ),
+    ]
+    facts = FactSet(
+        event_id=uuid4(),
+        opportunity_kind=OpportunityKind.STATUS_MATCH,
+        what_happened=FactField(value="Current status match", evidence=[evidence]),
+        application_routes=[
+            ApplicationRoute(
+                scope="默认申请路线",
+                prices=prices,
+                evidence=[evidence],
+            )
+        ],
+    )
+
+    assert (
+        _route_fee_label(prices, target_tier_key="gold", raw_cost=None)
+        == "USD 49；条件另付 USD 199"
+    )
+    assert _price_summaries(facts) == [
+        "默认申请路线: USD 49",
+        "默认申请路线 · Gold: 条件另付 USD 199",
+    ]
+    assert _public_brief_text(
+        "活动（what_happened）按申请路径（application_routes）的region收费。"
+    ) == "活动（活动内容）按申请路径（申请路径）的适用地区收费。"
+
+
+def test_archived_official_event_is_hidden_from_current_briefs(
+    session_factory,
+) -> None:
+    with session_factory.begin() as session:
+        event = StatusEvent(
+            created_from_key="archived-statusmatch-product-test",
+            program="Archived Club",
+            target_status="Gold",
+            summary="Archived status match",
+            search_text="Archived Club Gold",
+            lifecycle_status="EXPIRED",
+            archived_at=datetime.now(UTC),
+        )
+        session.add(event)
+        session.flush()
+        evidence = EvidenceRef(
+            document_version_id=uuid4(),
+            source_url="https://archived.statusmatch.com/",
+            locator="archived offer",
+        )
+        facts = FactSet(
+            event_id=event.id,
+            opportunity_kind=OpportunityKind.STATUS_MATCH,
+            what_happened=FactField(
+                value="Archived status match", evidence=[evidence]
+            ),
+        )
+        fact_record = FactSetRecord(
+            event_id=event.id,
+            version=1,
+            schema_version="5",
+            facts=facts.model_dump(mode="json"),
+            has_conflicts=False,
+        )
+        session.add(fact_record)
+        session.flush()
+        brief = Brief(
+            fact_set_id=fact_record.id,
+            title="Archived Club 简报",
+            title_fact_keys=["what_happened"],
+            summary="该项目已经结束。",
+            summary_fact_keys=["what_happened"],
+            source_links=["https://archived.statusmatch.com/"],
+        )
+        brief_record = BriefRecord(
+            fact_set_id=fact_record.id,
+            version=1,
+            schema_version="1",
+            content=brief.model_dump(mode="json"),
+        )
+        session.add(brief_record)
+        session.flush()
+        event.current_fact_set_id = fact_record.id
+        event.current_brief_id = brief_record.id
+
+    response = TestClient(create_product_app(session_factory)).get("/v1/briefs")
+
+    assert response.status_code == 200
+    assert response.json()["items"] == []
 
 
 def test_holding_rejects_free_text_not_present_in_catalog(session_factory) -> None:

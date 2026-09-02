@@ -87,7 +87,7 @@ uv run journeyplus ai-smoke
 5. 将下载文件保存为 `.secrets/google-oauth-client.json`（下载后的原始文件名需要改成这个名称）。这个文件包含客户端密钥，不要发送给别人或提交 Git。
 6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 `kirikoomiku@gmail.com` 并同意只读授权。
 7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
-8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。首次成功会保存 Gmail History ID，后续只读取 History 中新增或后加标签的邮件；游标过期时自动做全量 message ID 对账。适配器会检查新邮件中的文字、按钮和图片链接，本地解开 StatusMatch 跟踪包装，只访问去重后的项目专属 HTTPS 活动首页与 `/faq`；不会请求包含收件人参数的跟踪中转地址。
+8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。首次成功会保存 Gmail History ID，后续只读取 History 中新增或后加标签的邮件；游标过期时自动做全量 message ID 对账。适配器会检查新邮件中的文字、按钮和图片链接，本地解开 StatusMatch 跟踪包装，只访问去重后的项目专属 HTTPS 活动首页、`/faq` 与 `/terms`；不会请求包含收件人参数的跟踪中转地址。三页共同组成当前项目快照，`/terms` 的平台公共条款会在哈希和入库前截断。
 
 本项目的 OAuth Audience 已在 2026-08-23 确认为 Production，当前只读刷新令牌已通过四封合规邮件的发现、清洗、完整分析和重复采集验证。若以后重新创建 OAuth 项目，Testing 状态的 External 测试用户授权可能较快失效，长期自动运行前仍须重新确认发布状态和刷新令牌。
 

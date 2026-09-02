@@ -291,13 +291,6 @@ def _preparable_routes(
 
 
 def _watch_has_complete_snapshot(session: Session, watch: StatusMatchWatch) -> bool:
-    event = (
-        session.get(StatusEvent, watch.current_event_id)
-        if watch.current_event_id is not None
-        else None
-    )
-    if watch.status == "ACTIVE" and _event_has_current_official_output(session, event):
-        return True
     pages = list(
         session.scalars(
             select(StatusMatchWatchPage).where(
@@ -307,7 +300,7 @@ def _watch_has_complete_snapshot(session: Session, watch: StatusMatchWatch) -> b
     )
     return (
         watch.status == "ACTIVE"
-        and {page.page_kind for page in pages} == {"activity", "faq"}
+        and {page.page_kind for page in pages} == {"activity", "faq", "terms"}
         and all(
             page.current_document_version_id is not None and page.last_error is None
             for page in pages

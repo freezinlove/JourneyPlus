@@ -14,6 +14,7 @@ class ClosureAssessment:
     closed: bool
     reason: str | None = None
     evidence_page_kind: str | None = None
+    inconsistent: bool = False
 
 
 _WAITLIST_PATH_RE = re.compile(r"/(?:[^/]+/)*waitlist(?:\.php)?/?$", re.I)
@@ -21,6 +22,7 @@ _WAITLIST_TEXT_RE = re.compile(
     r"(?:"
     r"waitlist\s+for\s+future\s+opportunit(?:y|ies)"
     r"|register\s+your\s+interest\s+in\s+a\s+future\s+status\s+match"
+    r"|register\s+your\s+interest\s+for\s+future\s+status\s+opportunit(?:y|ies)"
     r"|awaiting\s+(?:new|future)\s+offers?"
     r"|no\s+(?:active|current)\s+(?:status\s+match\s+)?offers?"
     r")",
@@ -57,45 +59,61 @@ def assess_statusmatch_closure(
     activity_item: SourceItem,
     faq: DocumentVersion,
     faq_item: SourceItem,
+    terms: DocumentVersion,
+    terms_item: SourceItem,
 ) -> ClosureAssessment:
-    activity_text = _visible_text(activity)
-    faq_text = _visible_text(faq)
-    active_flow = _has_active_application_flow(activity)
-    final_url = str(
-        (activity_item.raw_metadata or {}).get("final_url")
-        or activity.canonical_url
+    home = assess_statusmatch_home_closure(
+        activity=activity,
+        activity_item=activity_item,
     )
-    final_path = urlsplit(final_url).path
-
-    if (
-        _WAITLIST_PATH_RE.search(final_path)
-        and _WAITLIST_TEXT_RE.search(activity_text)
-        and not active_flow
-    ):
+    if home.closed:
+        return home
+    page_states = {
+        "faq": _page_closure_reason(faq, faq_item, check_flow=False),
+        "terms": _page_closure_reason(terms, terms_item, check_flow=False),
+    }
+    closed_pages = [kind for kind, reason in page_states.items() if reason]
+    if closed_pages:
         return ClosureAssessment(
+            False,
+            "STATUSMATCH_PAGE_STATE_INCONSISTENT",
+            closed_pages[0],
             True,
-            "STATUSMATCH_WAITLIST_LANDING",
-            "activity",
-        )
-    if not active_flow and _WAITLIST_TEXT_RE.search(activity_text):
-        return ClosureAssessment(
-            True,
-            "STATUSMATCH_AWAITING_FUTURE_OFFER",
-            "activity",
-        )
-    if not active_flow and _WHOLE_ENDED_RE.search(activity_text):
-        return ClosureAssessment(
-            True,
-            "STATUSMATCH_WHOLE_OFFER_ENDED",
-            "activity",
-        )
-    if not active_flow and _WHOLE_ENDED_RE.search(faq_text):
-        return ClosureAssessment(
-            True,
-            "STATUSMATCH_WHOLE_OFFER_ENDED",
-            "faq",
         )
     return ClosureAssessment(False)
+
+
+def assess_statusmatch_home_closure(
+    *,
+    activity: DocumentVersion,
+    activity_item: SourceItem,
+) -> ClosureAssessment:
+    """Treat HOME as the sole authoritative lifecycle signal."""
+    reason = _page_closure_reason(activity, activity_item, check_flow=True)
+    if reason is None:
+        return ClosureAssessment(False)
+    return ClosureAssessment(True, reason, "activity")
+
+
+def _page_closure_reason(
+    document: DocumentVersion,
+    item: SourceItem,
+    *,
+    check_flow: bool,
+) -> str | None:
+    text = _visible_text(document)
+    if check_flow and _has_active_application_flow(document):
+        return None
+    final_url = str((item.raw_metadata or {}).get("final_url") or document.canonical_url)
+    if _WAITLIST_PATH_RE.search(urlsplit(final_url).path) and _WAITLIST_TEXT_RE.search(
+        text
+    ):
+        return "STATUSMATCH_WAITLIST_LANDING"
+    if _WAITLIST_TEXT_RE.search(text):
+        return "STATUSMATCH_AWAITING_FUTURE_OFFER"
+    if _WHOLE_ENDED_RE.search(text):
+        return "STATUSMATCH_WHOLE_OFFER_ENDED"
+    return None
 
 
 def _visible_text(document: DocumentVersion) -> str:

@@ -1539,26 +1539,67 @@ def test_conflicts_enter_review_but_still_generate_a_visible_chinese_brief(
     assert "待复核" in conflict_points[0].text
 
 
-def test_statusmatch_fee_table_and_footnote_conflict_is_deterministic(
+def test_statusmatch_prose_unavailability_overrides_stale_table_amount(
     db_session,
 ) -> None:
     event, documents = _event_with_documents(
         db_session,
         [
+            "Recently ended offers are listed below in the page navigation.\n\n"
             "Argentina, Brazil, Chile | Platinum: USD 399 | Not Available for Brazil. "
             "Platinum status match is not available for Argentina, Brazil, Chila, "
-            "Hong Kong, Taiwan or China residents."
+            "Hong Kong, Taiwan or China residents.\n\n"
+            "### Recently ended offers\nOld China offer."
         ],
     )
     _set_document_url(
         db_session, event, documents[0], "https://flyingblue.statusmatch.com/faq"
     )
     response = _fact_response(event, documents[0])
+    response["target_status"] = {
+        "value": "Silver, Gold, Platinum（阿根廷和智利存在冲突）",
+        "evidence": [_evidence(documents[0], "table and prose")],
+        "conflict": True,
+        "alternatives": ["Silver", "Gold", "Platinum"],
+    }
+    response["caveats"] = {
+        "value": (
+            "每人仅限一次匹配；Platinum在阿根廷和智利的表格与正文存在冲突；"
+            "申请费可能变更"
+        ),
+        "evidence": [_evidence(documents[0], "current conditions")],
+    }
     response["application_routes"] = [
         {
             "scope": "South America",
             "region": "Argentina, Brazil, Chile, Colombia",
             "cost": "Silver: USD 99; Gold: USD 299; Platinum: USD 399 (Not Available for Brazil)",
+            "prices": [
+                {
+                    "target_tier": "Silver",
+                    "amount": 99,
+                    "currency": "USD",
+                    "availability": "AVAILABLE",
+                    "raw_text": "USD 99",
+                    "evidence": [_evidence(documents[0], "current regional fee table")],
+                },
+                {
+                    "target_tier": "Gold",
+                    "amount": 299,
+                    "currency": "USD",
+                    "availability": "AVAILABLE",
+                    "raw_text": "USD 299",
+                    "evidence": [_evidence(documents[0], "current regional fee table")],
+                },
+                {
+                    "target_tier": "Platinum",
+                    "amount": 399,
+                    "currency": "USD",
+                    "availability": "AVAILABLE",
+                    "raw_text": "USD 399",
+                    "evidence": [_evidence(documents[0], "current regional fee table")],
+                },
+            ],
             "evidence": [_evidence(documents[0], "current regional fee table")],
         }
     ]
@@ -1566,29 +1607,22 @@ def test_statusmatch_fee_table_and_footnote_conflict_is_deterministic(
         db_session, SequenceAIProvider([response])
     ).consolidate(event)
 
-    assert event.status == "NEEDS_REVIEW"
-    assert facts.record.has_conflicts
-    assert facts.fact_set.application_routes[0].conflict
-    assert "argentina" in (
-        facts.fact_set.application_routes[0].conflict_note or ""
-    ).casefold()
-    assert "chile" in (
-        facts.fact_set.application_routes[0].conflict_note or ""
-    ).casefold()
-
-    candidate = _brief_response(facts.record, documents[0].canonical_url)
-    generated = BriefGenerator(
-        db_session, SequenceAIProvider([candidate])
-    ).generate(facts.record)
-
-    points = [
-        point
-        for point in generated.brief.caveats
-        if "application_routes" in point.fact_keys
+    assert event.status != "NEEDS_REVIEW"
+    assert not facts.record.has_conflicts
+    assert [route.region for route in facts.fact_set.application_routes] == [
+        "Colombia",
+        "Argentina, Brazil, Chile",
     ]
-    assert len(points) == 1
-    assert "待复核" in points[0].text
-    assert event.current_brief_id == generated.record.id
+    available, unavailable = facts.fact_set.application_routes
+    assert available.prices[-1].amount == 399
+    assert unavailable.prices[-1].amount is None
+    assert unavailable.prices[-1].currency is None
+    assert unavailable.prices[-1].availability == "UNAVAILABLE"
+    assert "正文明确" in unavailable.prices[-1].raw_text
+    assert not facts.fact_set.target_status.conflict
+    assert facts.fact_set.target_status.value == "Silver, Gold, Platinum"
+    assert "存在冲突" not in (facts.fact_set.caveats.value or "")
+    assert "历史费用表残留金额" in (facts.fact_set.caveats.value or "")
 
 
 def test_impossible_post_expiry_link_date_marks_deadline_conflict(

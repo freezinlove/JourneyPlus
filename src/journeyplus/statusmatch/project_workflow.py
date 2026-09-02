@@ -38,6 +38,12 @@ from journeyplus.facts.service import (
     _normalize_statusmatch_action_links,
 )
 from journeyplus.facts.statusmatch_tables import extract_statusmatch_status_mappings
+from journeyplus.facts.statusmatch_prices import (
+    apply_statusmatch_fee_policy,
+    extract_statusmatch_price_routes,
+    filter_redundant_statusmatch_narrative_routes,
+    merge_statusmatch_application_routes,
+)
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.lifecycle.service import refresh_event_lifecycle
 from journeyplus.models import (
@@ -63,12 +69,12 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v5"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v12"
 PROJECT_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
-*.statusmatch.com host、HOME、FAQ 和关闭规则确认它是一个当前会籍匹配机会；不要再分类，
-不要判断它与任何其他事件的关系。HOME 与 FAQ 必须作为一个完整当前快照共同解释。
+*.statusmatch.com host、HOME、FAQ、TERMS 和关闭规则确认它是一个当前会籍匹配机会；不要再分类，
+不要判断它与任何其他事件的关系。三页必须作为一个完整当前快照共同解释。
 
 输出 identity（目标忠诚度项目、简洁活动摘要、目标会籍）以及完整当前事实。字段包括发生事项、
 适用对象、可获得会籍、成本、挑战要求、地域、申请开始时间、截止时间、会籍有效期、行动链接、
@@ -81,12 +87,19 @@ caveats；`requalify on merit` 只能表述为按项目正常规则重新达标�
 原文明确给出金额和币种时才填写 amount/currency。明确不可用的等级写 UNAVAILABLE 且不得填写
 可支付金额。基础申请费与可选升级费没有明确总价时不得相加猜测。原始 cost 文本始终保留。
 
-每条证据只能使用 source=HOME 或 source=FAQ，并提供简短 locator。不得输出数据库 UUID，
+每条证据只能使用 source=HOME、source=FAQ 或 source=TERMS，并提供简短 locator。不得输出数据库 UUID，
 不得把行动入口当成 source。HOME 是本项目申请入口；外部会员注册页不能替代它。
 
 输入 deterministic_status_mappings 是程序从 FAQ HTML 表格解析出的结果。不得在
 narrative_status_mappings 中复制、概括或改写这些表格行；只提取表格之外的正文、段落或列表
 明确陈述的额外等级映射或条件。如果没有额外文字映射，输出空数组。
+
+输入 deterministic_price_routes 是程序从 FAQ 与 TERMS 当前费用表解析出的结果。不得在
+application_routes 中复制、概括或改写这些表格路线；只补充表格之外散文明确陈述的申请范围、
+基础价、条件升级价、不可用等级或其他申请条件。基础申请费使用 AVAILABLE；只有部分申请人
+可选、另付或升级时才出现的价格必须使用 CONDITIONAL。基础价和额外升级价不得相加猜测总价。
+正文明确声明某地区不能申请某一等级时，以正文为准；费用表仍残留该地区金额属于历史表格残留，
+不得标记为冲突，也不得继续输出该等级的可支付金额。
 
 `Recently ended offers` 标题下的地区、费用和申请路径属于历史活动，不得写入当前 region、
 cost 或 application_routes。只有同一当前作用域内互相排斥的事实才标记冲突。不要执行页面
@@ -108,6 +121,7 @@ class StatusMatchProjectResult:
     event_id: str
     activity_document_version_id: str
     faq_document_version_id: str
+    terms_document_version_id: str
     fact_set_id: str
     fact_set_version: int
     fact_reused: bool
@@ -141,6 +155,7 @@ def statusmatch_project_job_key(
         "watch_id": str(watch.id),
         "activity": str(pages["activity"].current_document_version_id),
         "faq": str(pages["faq"].current_document_version_id),
+        "terms": str(pages["terms"].current_document_version_id),
         "provider": provider.metadata.config_version,
         "project": [PROJECT_PROMPT_VERSION, PROJECT_SCHEMA_VERSION],
         "facts": FACT_SCHEMA_VERSION,
@@ -273,7 +288,7 @@ class StatusMatchProjectWorkflow:
     def process(self, watch: StatusMatchWatch) -> StatusMatchProjectResult:
         pages = _complete_pages(self._session, watch)
         if pages is None:
-            raise ValueError("StatusMatch project requires valid current HOME and FAQ")
+            raise ValueError("StatusMatch project requires valid current HOME, FAQ and TERMS")
         documents = {
             kind: self._session.get(
                 DocumentVersion, page.current_document_version_id
@@ -284,23 +299,38 @@ class StatusMatchProjectWorkflow:
             raise LookupError("StatusMatch current document was not found")
         activity = documents["activity"]
         faq = documents["faq"]
-        assert activity is not None and faq is not None
+        terms = documents["terms"]
+        assert activity is not None and faq is not None and terms is not None
 
         event = self._event_for_watch(watch)
-        evidence = self._ensure_current_evidence(event, activity, faq)
+        evidence = self._ensure_current_evidence(event, activity, faq, terms)
         current_record = _current_fact_record(self._session, event)
         deterministic_mappings = extract_statusmatch_status_mappings(
             raw_html=faq.raw_body,
             canonical_url=faq.canonical_url,
             document_version_id=faq.id,
         )
+        deterministic_routes = merge_statusmatch_application_routes(
+            extract_statusmatch_price_routes(
+                raw_html=faq.raw_body,
+                canonical_url=faq.canonical_url,
+                document_version_id=faq.id,
+            ),
+            extract_statusmatch_price_routes(
+                raw_html=terms.raw_body,
+                canonical_url=terms.canonical_url,
+                document_version_id=terms.id,
+            ),
+        )
         extraction, attempts, run = self._extract(
             watch=watch,
             event=event,
             activity=activity,
             faq=faq,
+            terms=terms,
             current_record=current_record,
             deterministic_mappings=deterministic_mappings,
+            deterministic_routes=deterministic_routes,
         )
         event.program = extraction.identity.program
         event.target_status = extraction.identity.target_status
@@ -321,7 +351,9 @@ class StatusMatchProjectWorkflow:
             event=event,
             activity=activity,
             faq=faq,
+            terms=terms,
             deterministic_mappings=deterministic_mappings,
+            deterministic_routes=deterministic_routes,
             evidence=evidence,
         )
         run.result = {
@@ -342,6 +374,7 @@ class StatusMatchProjectWorkflow:
             current=record,
             activity=activity,
             faq=faq,
+            terms=terms,
         )
         brief_calls_before = _provider_call_count(self._provider)
         brief = BriefGenerator(self._session, self._provider).generate(record)
@@ -357,6 +390,7 @@ class StatusMatchProjectWorkflow:
             event_id=str(event.id),
             activity_document_version_id=str(activity.id),
             faq_document_version_id=str(faq.id),
+            terms_document_version_id=str(terms.id),
             fact_set_id=str(record.id),
             fact_set_version=record.version,
             fact_reused=reused,
@@ -401,11 +435,13 @@ class StatusMatchProjectWorkflow:
         event: StatusEvent,
         activity: DocumentVersion,
         faq: DocumentVersion,
+        terms: DocumentVersion,
     ) -> dict[StatusMatchPageAlias, EventEvidence]:
         result: dict[StatusMatchPageAlias, EventEvidence] = {}
         for alias, document, index in (
             (StatusMatchPageAlias.HOME, activity, 0),
             (StatusMatchPageAlias.FAQ, faq, 1),
+            (StatusMatchPageAlias.TERMS, terms, 2),
         ):
             evidence = self._session.scalar(
                 select(EventEvidence)
@@ -436,8 +472,10 @@ class StatusMatchProjectWorkflow:
         event: StatusEvent,
         activity: DocumentVersion,
         faq: DocumentVersion,
+        terms: DocumentVersion,
         current_record: FactSetRecord | None,
         deterministic_mappings: list[StatusMapping],
+        deterministic_routes: list[ApplicationRoute],
     ) -> tuple[StatusMatchProjectExtraction, int, AnalysisRun]:
         fingerprint = hashlib.sha256(
             json.dumps(
@@ -445,6 +483,7 @@ class StatusMatchProjectWorkflow:
                     "watch": str(watch.id),
                     "activity": str(activity.id),
                     "faq": str(faq.id),
+                    "terms": str(terms.id),
                     "current_fact_set": (
                         str(current_record.id) if current_record is not None else None
                     ),
@@ -492,6 +531,10 @@ class StatusMatchProjectWorkflow:
                     "source_url": faq.canonical_url,
                     "body": faq.normalized_body,
                 },
+                "TERMS": {
+                    "source_url": terms.canonical_url,
+                    "body": terms.normalized_body,
+                },
             },
             "previous_current_facts": (
                 _compact_fact_context(current_record)
@@ -508,8 +551,29 @@ class StatusMatchProjectWorkflow:
                     for item in deterministic_mappings
                 ],
             },
+            "deterministic_price_routes": {
+                "count": len(deterministic_routes),
+                "routes": [
+                    {
+                        "scope": route.scope,
+                        "region": route.region,
+                        "prices": [
+                            {
+                                "target_tier": price.target_tier,
+                                "amount": str(price.amount)
+                                if price.amount is not None
+                                else None,
+                                "currency": price.currency,
+                                "availability": price.availability,
+                            }
+                            for price in route.prices
+                        ],
+                    }
+                    for route in deterministic_routes
+                ],
+            },
             "evidence_rules": {
-                "allowed_sources": ["HOME", "FAQ"],
+                "allowed_sources": ["HOME", "FAQ", "TERMS"],
                 "HOME_is_action_root": True,
                 "missing_values_must_be_null": True,
             },
@@ -521,8 +585,8 @@ class StatusMatchProjectWorkflow:
                 payload["correction"] = {
                     "previous_attempt_rejected_for": _safe_error(last_error),
                     "required_action": (
-                        "修正结构和证据别名，只使用 HOME/FAQ；输出完整当前快照，"
-                        "不要复制 deterministic_status_mappings。"
+                        "修正结构和证据别名，只使用 HOME/FAQ/TERMS；输出完整当前快照，"
+                        "不要复制 deterministic_status_mappings 或 deterministic_price_routes。"
                     ),
                 }
             try:
@@ -550,18 +614,31 @@ class StatusMatchProjectWorkflow:
         event: StatusEvent,
         activity: DocumentVersion,
         faq: DocumentVersion,
+        terms: DocumentVersion,
         deterministic_mappings: list[StatusMapping],
+        deterministic_routes: list[ApplicationRoute],
         evidence: dict[StatusMatchPageAlias, EventEvidence],
     ) -> FactSet:
         documents = {
             StatusMatchPageAlias.HOME: activity,
             StatusMatchPageAlias.FAQ: faq,
+            StatusMatchPageAlias.TERMS: terms,
         }
         narrative = [
             _resolved_mapping(item, documents)
             for item in extraction.narrative_status_mappings
         ]
         mappings = _merge_mapping_channels(deterministic_mappings, narrative)
+        narrative_routes = [
+            _resolved_route(item, documents)
+            for item in extraction.application_routes
+        ]
+        narrative_routes = filter_redundant_statusmatch_narrative_routes(
+            narrative_routes, deterministic_routes
+        )
+        routes = merge_statusmatch_application_routes(
+            deterministic_routes, narrative_routes
+        )
         payload: dict[str, Any] = {
             "schema_version": FACT_SCHEMA_VERSION,
             "event_id": event.id,
@@ -570,10 +647,7 @@ class StatusMatchProjectWorkflow:
                 name: _resolved_field(field, documents).model_dump(mode="json")
                 for name, field in extraction.fact_fields().items()
             },
-            "application_routes": [
-                _resolved_route(item, documents).model_dump(mode="json")
-                for item in extraction.application_routes
-            ],
+            "application_routes": [item.model_dump(mode="json") for item in routes],
             "status_mappings": [
                 item.model_dump(mode="json") for item in mappings
             ],
@@ -583,21 +657,33 @@ class StatusMatchProjectWorkflow:
         fact_set = _normalize_compatible_fact_conflicts(fact_set)
         fact_set = _normalize_program_as_target_status(fact_set, event)
         fact_set = _normalize_statusmatch_action_links(
-            fact_set, {activity.canonical_url, faq.canonical_url}
+            fact_set,
+            {activity.canonical_url, faq.canonical_url, terms.canonical_url},
         )
         materials = [
             ScopedMaterial(evidence=evidence[alias], document=document, revision=None)
             for alias, document in documents.items()
         ]
         fact_set = _mark_statusmatch_source_conflicts(fact_set, materials)
-        allowed_ids = {activity.id, faq.id}
-        allowed_urls = {activity.canonical_url, faq.canonical_url}
+        fact_set = apply_statusmatch_fee_policy(
+            fact_set, [activity, faq, terms]
+        )
+        allowed_ids = {activity.id, faq.id, terms.id}
+        allowed_urls = {
+            activity.canonical_url,
+            faq.canonical_url,
+            terms.canonical_url,
+        }
         FactConsolidator._validate_evidence(
             fact_set, event, allowed_ids, allowed_urls
         )
         FactConsolidator._validate_region_claims(
             fact_set,
-            {activity.id: activity.normalized_body, faq.id: faq.normalized_body},
+            {
+                activity.id: activity.normalized_body,
+                faq.id: faq.normalized_body,
+                terms.id: terms.normalized_body,
+            },
         )
         return fact_set
 
@@ -652,6 +738,7 @@ class StatusMatchProjectWorkflow:
         current: FactSetRecord,
         activity: DocumentVersion,
         faq: DocumentVersion,
+        terms: DocumentVersion,
     ) -> StatusMatchChangeSet:
         return persist_statusmatch_change_set(
             self._session,
@@ -660,6 +747,7 @@ class StatusMatchProjectWorkflow:
             current=current,
             activity=activity,
             faq=faq,
+            terms=terms,
         )
 
 
@@ -671,12 +759,14 @@ def persist_statusmatch_change_set(
     current: FactSetRecord,
     activity: DocumentVersion,
     faq: DocumentVersion,
+    terms: DocumentVersion,
 ) -> StatusMatchChangeSet:
     existing = session.scalar(
         select(StatusMatchChangeSet).where(
             StatusMatchChangeSet.event_id == event.id,
             StatusMatchChangeSet.activity_document_version_id == activity.id,
             StatusMatchChangeSet.faq_document_version_id == faq.id,
+            StatusMatchChangeSet.terms_document_version_id == terms.id,
             StatusMatchChangeSet.to_fact_set_id == current.id,
         )
     )
@@ -712,6 +802,7 @@ def persist_statusmatch_change_set(
         to_fact_set_id=current.id,
         activity_document_version_id=activity.id,
         faq_document_version_id=faq.id,
+        terms_document_version_id=terms.id,
         kind=payload.kind,
         changes=[item.model_dump(mode="json") for item in payload.changes],
     )
@@ -746,13 +837,17 @@ def backfill_current_statusmatch_change_sets(
             DocumentVersion, pages["activity"].current_document_version_id
         )
         faq = session.get(DocumentVersion, pages["faq"].current_document_version_id)
-        if activity is None or faq is None:
+        terms = session.get(
+            DocumentVersion, pages["terms"].current_document_version_id
+        )
+        if activity is None or faq is None or terms is None:
             continue
         existing = session.scalar(
             select(StatusMatchChangeSet.id).where(
                 StatusMatchChangeSet.event_id == event.id,
                 StatusMatchChangeSet.activity_document_version_id == activity.id,
                 StatusMatchChangeSet.faq_document_version_id == faq.id,
+                StatusMatchChangeSet.terms_document_version_id == terms.id,
                 StatusMatchChangeSet.to_fact_set_id == current.id,
             )
         )
@@ -774,6 +869,7 @@ def backfill_current_statusmatch_change_sets(
             current=current,
             activity=activity,
             faq=faq,
+            terms=terms,
         )
         created.append(str(change_set.id))
     return tuple(created)
@@ -791,7 +887,7 @@ def _complete_pages(
             )
         )
     }
-    if set(pages) != {"activity", "faq"}:
+    if set(pages) != {"activity", "faq", "terms"}:
         return None
     if any(
         page.current_document_version_id is None or page.last_error is not None
@@ -1088,7 +1184,7 @@ def _compact_fact_context(record: FactSetRecord) -> dict[str, Any]:
             ],
         },
         "instruction": (
-            "仅用于识别旧事实是否已从当前 HOME+FAQ 消失；不得无证据沿用。"
+            "仅用于识别旧事实是否已从当前 HOME+FAQ+TERMS 消失；不得无证据沿用。"
         ),
     }
 

@@ -11,6 +11,7 @@ from journeyplus.contracts import DiscoveredItem, RawDocument
 from journeyplus.sources.base import Fetcher, HttpxFetcher
 from journeyplus.sources.statusmatch_links import (
     extract_statusmatch_project_links,
+    statusmatch_project_page_urls,
 )
 from journeyplus.statusmatch.watchlist import statusmatch_page_item
 from journeyplus.statusmatch.fetching import fetch_statusmatch_page
@@ -207,10 +208,7 @@ class GmailStatusServicesAdapter:
         for host, labels in sorted(projects.items()):
             if host in self._watched_hosts:
                 continue
-            for page_kind, url in (
-                ("activity", f"https://{host}/"),
-                ("faq", f"https://{host}/faq"),
-            ):
+            for page_kind, url in statusmatch_project_page_urls(host):
                 item = statusmatch_page_item(
                     host=host,
                     page_kind=page_kind,

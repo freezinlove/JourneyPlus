@@ -271,6 +271,10 @@ def test_gmail_adapter_enforces_label_and_alias_but_no_sender_allowlist() -> Non
         {
             "https://clubavolta.statusmatch.com/": "<html><body>Activity overview</body></html>",
             "https://clubavolta.statusmatch.com/faq": "<html><body>Detailed eligibility</body></html>",
+            "https://clubavolta.statusmatch.com/terms": (
+                "<html><body>Project terms<h2>StatusMatch.Com Terms of Use</h2>"
+                "Common terms</body></html>"
+            ),
         }
     )
     adapter = GmailStatusServicesAdapter(client, project_fetcher=fetcher)
@@ -282,15 +286,20 @@ def test_gmail_adapter_enforces_label_and_alias_but_no_sender_allowlist() -> Non
         "allowed",
         "statusmatch-page:clubavolta.statusmatch.com:activity",
         "statusmatch-page:clubavolta.statusmatch.com:faq",
+        "statusmatch-page:clubavolta.statusmatch.com:terms",
     ]
     assert items[0].raw_metadata["origin_provider"] == "STATUSMATCH"
     assert items[0].raw_metadata["document_role"] == "mail_discovery"
     assert "Get Started Button" in adapter.fetch(items[0]).body
     assert "Activity overview" in adapter.fetch(items[1]).body
     assert "Detailed eligibility" in adapter.fetch(items[2]).body
+    assert "Project terms" in adapter.fetch(items[3]).body
+    assert "Common terms" not in adapter.fetch(items[3]).body
     assert fetcher.calls == [
         "https://clubavolta.statusmatch.com/",
         "https://clubavolta.statusmatch.com/faq",
+        "https://clubavolta.statusmatch.com/terms",
+        "https://clubavolta.statusmatch.com/terms",
     ]
 
 
@@ -329,6 +338,9 @@ def test_gmail_two_messages_deduplicate_project_pages_by_subdomain() -> None:
             {
                 "https://clubavolta.statusmatch.com/": "<html>Activity</html>",
                 "https://clubavolta.statusmatch.com/faq": "<html>FAQ</html>",
+                "https://clubavolta.statusmatch.com/terms": (
+                    "<html>Project terms<h2>StatusMatch.Com Terms of Use</h2></html>"
+                ),
             }
         ),
     )
@@ -340,4 +352,5 @@ def test_gmail_two_messages_deduplicate_project_pages_by_subdomain() -> None:
         "second",
         "statusmatch-page:clubavolta.statusmatch.com:activity",
         "statusmatch-page:clubavolta.statusmatch.com:faq",
+        "statusmatch-page:clubavolta.statusmatch.com:terms",
     ]

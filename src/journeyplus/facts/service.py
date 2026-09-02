@@ -18,6 +18,7 @@ from journeyplus.contracts import (
     EvidenceRef,
     FactField,
     FactSet,
+    RoutePriceAvailability,
     RunStatus,
     StatusMapping,
 )
@@ -37,14 +38,14 @@ from journeyplus.statusmatch.watchlist import (
 )
 
 
-FACT_PROMPT_VERSION = "fact-consolidation-v15"
+FACT_PROMPT_VERSION = "fact-consolidation-v16"
 FACT_SCHEMA_VERSION = "5"
 
 SYSTEM_PROMPT = """你只整理输入 event 指定的一个会籍获取事件。materials 保留完整正文，可能同时包含其他活动；linked_event_hint 只用于指出每份材料与当前事件相关的活动，不得混入其他活动的资格、费用、日期或结论。event、linked_event_hint 和 current_fact_set 都是整理上下文，不是事实证据；每个非空确定值仍必须绑定 materials 中真实存在的 document_version_id、对应 source_url 和简短正文证据定位。Gmail 邮件仅用于发现公开 StatusMatch 活动首页和 FAQ，绝不会进入 materials，也不得作为事实或引用来源。
 
 仅允许字段：发生事项、适用对象、可获得会籍、成本、挑战要求、地域、申请开始时间、截止时间、会籍有效期、行动链接、限制、application_routes，以及 status_mappings。申请开始时间与截止时间必须来自当前活动正文的明确表述，不得使用文章发布时间、会籍有效期或 event_hint 补猜；保留来源中的明确日期或时刻文字，系统后续统一按北京时间规范化。材料没有明确地域文字时 region 必须保持 null，绝对不得把“未提及地域”推断为全球或无地域限制。没有列出谁能申请的明确条件时 eligibility 必须保持 null；“条款适用”“请查看活动页”之类通用兜底文字不得代替具体事实。
 
-同一现实活动存在两条或更多资格、地区、条件价格或申请入口组合时，必须输出 application_routes。每条路径用 scope 简短区分适用人群或入口，把该路径的 eligibility、region、cost、action_link 与真实证据绑定。不同路径之间的差异不是冲突；路径间不同的原单值字段保持 value=null，共同适用于全部路径的值才可继续放在原单值字段。同一路径内部材料互相矛盾时才设置该路径 conflict=true 并填写 conflict_note。只有一条申请方式时不必创建 application_routes。
+同一现实活动存在两条或更多资格、地区、条件价格或申请入口组合时，必须输出 application_routes。每条路径用 scope 简短区分适用人群或入口，把该路径的 eligibility、region、cost、action_link 与真实证据绑定。不同路径之间的差异不是冲突；路径间不同的原单值字段保持 value=null，共同适用于全部路径的值才可继续放在原单值字段。同一路径内部材料互相矛盾时才设置该路径 conflict=true 并填写 conflict_note。只有一条申请方式时不必创建 application_routes。基础申请费使用 AVAILABLE；只有部分申请人可选、另付或升级时才出现的价格必须使用 CONDITIONAL，绝不能把条件升级价当成所有申请人都要支付的第二笔 AVAILABLE 费用。
 
 同一 StatusMatch 项目的首页常为概述，FAQ 会补充会员号、地区、身份证件、有效期等详细条件；两种陈述能够同时成立时，以 FAQ 细化首页，不得仅因详略不同设置冲突。只有相同作用域内互相排斥的具体值才是冲突。项目首页是完整 Status Match 申请流程入口；外部会员注册页只是前置步骤，不得替代项目首页成为 action_link。
 
@@ -1394,13 +1395,6 @@ _PLATINUM_UNAVAILABLE_RE = re.compile(
     r"(?P<countries>[^.\n]{1,300}?) residents",
     re.IGNORECASE,
 )
-_PLATINUM_PRICE_RE = re.compile(
-    r"Platinum\s*:\s*(?:USD|EUR|CAD|GBP|AUD|JPY|CNY|HKD)?\s*\$?\s*\d",
-    re.IGNORECASE,
-)
-_EXPLICIT_UNAVAILABLE_COUNTRY_RE = re.compile(
-    r"Not Available for (?P<country>[A-Za-z ]+)", re.IGNORECASE
-)
 _POST_EXPIRY_LINK_RE = re.compile(
     r"(?P<locator>(?:This\s+)?link.{0,120}?active.{0,120}?after the offer "
     r"expires.{0,100}?until\s+(?P<date>\d{1,2}\s+[A-Za-z]+\s+\d{4}))",
@@ -1422,50 +1416,117 @@ def _mark_statusmatch_source_conflicts(
         return fact_set
 
     routes = list(fact_set.application_routes)
-    unavailable_countries: set[str] = set()
+    unavailable_evidence: dict[str, list[EvidenceRef]] = {}
+    unavailable_labels: dict[str, str] = {}
     for item in statusmatch_materials:
-        for match in _PLATINUM_UNAVAILABLE_RE.finditer(item.document.normalized_body):
-            unavailable_countries.update(_country_names(match.group("countries")))
-    if unavailable_countries:
+        for match in _PLATINUM_UNAVAILABLE_RE.finditer(
+            item.document.normalized_body
+        ):
+            evidence = EvidenceRef(
+                document_version_id=item.document.id,
+                source_url=item.document.canonical_url,
+                locator=" ".join(match.group(0).split())[:500],
+            )
+            for country_label in _country_parts(match.group("countries")):
+                country = _normalize_country_name(country_label)
+                unavailable_labels.setdefault(country, country_label)
+                unavailable_evidence.setdefault(country, []).append(evidence)
+    if unavailable_evidence:
         updated_routes: list[ApplicationRoute] = []
         for route in routes:
-            if route.region is None or route.cost is None or not _PLATINUM_PRICE_RE.search(
-                route.cost
-            ):
+            has_available_platinum = any(
+                "platinum" in _normalize_country_text(price.target_tier or "")
+                and price.availability == RoutePriceAvailability.AVAILABLE
+                and price.amount is not None
+                for price in route.prices
+            )
+            if route.region is None or not has_available_platinum:
                 updated_routes.append(route)
                 continue
-            normalized_region = _normalize_country_text(route.region)
-            region_conflicts = {
-                country
-                for country in unavailable_countries
-                if country in normalized_region
-            }
-            explicit_unavailable = {
-                _normalize_country_name(match.group("country"))
-                for match in _EXPLICIT_UNAVAILABLE_COUNTRY_RE.finditer(route.cost)
-            }
-            region_conflicts -= explicit_unavailable
-            if not region_conflicts:
+            region_parts = _country_parts(route.region)
+            unavailable_parts = [
+                part
+                for part in region_parts
+                if _normalize_country_name(part) in unavailable_evidence
+            ]
+            if not unavailable_parts:
                 updated_routes.append(route)
                 continue
-            countries = "、".join(sorted(region_conflicts))
+            available_parts = [
+                part for part in region_parts if part not in unavailable_parts
+            ]
+            if available_parts:
+                available_region = ", ".join(available_parts)
+                updated_routes.append(
+                    route.model_copy(
+                        update={
+                            "scope": _replace_route_region(
+                                route.scope, route.region, available_region
+                            ),
+                            "region": available_region,
+                            "conflict": False,
+                            "conflict_note": None,
+                        }
+                    )
+                )
+            unavailable_region = ", ".join(unavailable_parts)
+            prose_evidence = _merge_evidence_refs(
+                *(
+                    unavailable_evidence[_normalize_country_name(part)]
+                    for part in unavailable_parts
+                )
+            )
+            unavailable_prices = [
+                price.model_copy(
+                    update={
+                        "amount": None,
+                        "currency": None,
+                        "availability": RoutePriceAvailability.UNAVAILABLE,
+                        "raw_text": (
+                            f"正文明确 {unavailable_region} 不可申请 Platinum"
+                        ),
+                        "evidence": _merge_evidence_refs(
+                            price.evidence, prose_evidence
+                        ),
+                    }
+                )
+                if "platinum"
+                in _normalize_country_text(price.target_tier or "")
+                else price
+                for price in route.prices
+            ]
             updated_routes.append(
                 route.model_copy(
                     update={
-                        "conflict": True,
-                        "conflict_note": (
-                            f"地区费用表显示 {countries} 可按所列费用申请 Platinum，"
-                            "但同页脚注说明这些地区不可申请 Platinum；"
-                            "两种说法均保留，需人工复核。"
+                        "scope": _replace_route_region(
+                            route.scope, route.region, unavailable_region
                         ),
+                        "region": unavailable_region,
+                        "prices": unavailable_prices,
+                        "evidence": _merge_evidence_refs(
+                            route.evidence, prose_evidence
+                        ),
+                        "conflict": False,
+                        "conflict_note": None,
                     }
                 )
             )
         routes = updated_routes
 
+    target_status = _resolve_stale_table_target_conflict(
+        fact_set.target_status,
+        unavailable_evidence=unavailable_evidence,
+    )
+    caveats = _resolve_stale_table_caveat(
+        fact_set.caveats,
+        unavailable_evidence=unavailable_evidence,
+        unavailable_labels=unavailable_labels,
+    )
+
     deadline = fact_set.deadline
     for item in statusmatch_materials:
-        match = _POST_EXPIRY_LINK_RE.search(item.document.normalized_body)
+        current_body = _current_statusmatch_body(item.document.normalized_body)
+        match = _POST_EXPIRY_LINK_RE.search(current_body)
         if match is None or deadline.value is None:
             continue
         link_date = normalize_event_time(match.group("date"), end_of_day=True)
@@ -1507,16 +1568,98 @@ def _mark_statusmatch_source_conflicts(
         route.model_dump(mode="json") for route in routes
     ]
     payload["deadline"] = deadline.model_dump(mode="json")
+    payload["target_status"] = target_status.model_dump(mode="json")
+    payload["caveats"] = caveats.model_dump(mode="json")
     return FactSet.model_validate(payload)
 
 
-def _country_names(value: str) -> set[str]:
-    parts = re.split(r"\s*(?:,|\bor\b|\band\b|&)\s*", value, flags=re.IGNORECASE)
-    return {
-        normalized
+def _country_parts(value: str) -> list[str]:
+    return [
+        cleaned
+        for part in re.split(
+            r"\s*(?:,|\bor\b|\band\b|&)\s*", value, flags=re.IGNORECASE
+        )
+        if (cleaned := " ".join(part.strip(" .,^*").split()))
+    ]
+
+
+def _replace_route_region(scope: str, old_region: str, new_region: str) -> str:
+    normalized_scope = " ".join(scope.split())
+    normalized_old = " ".join(old_region.split())
+    if normalized_scope.casefold() == normalized_old.casefold():
+        return new_region[:300]
+    index = normalized_scope.casefold().rfind(normalized_old.casefold())
+    if index >= 0:
+        return (
+            normalized_scope[:index]
+            + new_region
+            + normalized_scope[index + len(normalized_old) :]
+        )[:300]
+    return f"{normalized_scope}: {new_region}"[:300]
+
+
+def _resolve_stale_table_target_conflict(
+    field: FactField,
+    *,
+    unavailable_evidence: dict[str, list[EvidenceRef]],
+) -> FactField:
+    if not unavailable_evidence or not field.conflict:
+        return field
+    combined = " ".join([field.value or "", *field.alternatives])
+    if "platinum" not in combined.casefold():
+        return field
+    value = re.sub(r"[（(][^）)]*冲突[^）)]*[）)]", "", field.value or "").strip()
+    if not value and field.alternatives:
+        value = ", ".join(field.alternatives)
+    return FactField(
+        value=value or None,
+        evidence=_merge_evidence_refs(
+            field.evidence,
+            *(items for items in unavailable_evidence.values()),
+        ),
+    )
+
+
+def _resolve_stale_table_caveat(
+    field: FactField,
+    *,
+    unavailable_evidence: dict[str, list[EvidenceRef]],
+    unavailable_labels: dict[str, str],
+) -> FactField:
+    if not unavailable_evidence or field.value is None:
+        return field
+    parts = [part.strip() for part in field.value.split("；") if part.strip()]
+    retained = [
+        part
         for part in parts
-        if (normalized := _normalize_country_name(part))
-    }
+        if not ("platinum" in part.casefold() and "冲突" in part)
+    ]
+    if len(retained) == len(parts):
+        return field
+    countries = "、".join(
+        unavailable_labels[country]
+        for country in unavailable_labels
+    )
+    retained.append(
+        f"正文明确 Platinum 不适用于 {countries} 居民，"
+        "历史费用表残留金额不作为当前可申请依据"
+    )
+    return FactField(
+        value="；".join(retained),
+        evidence=_merge_evidence_refs(
+            field.evidence,
+            *(items for items in unavailable_evidence.values()),
+        ),
+    )
+
+
+def _current_statusmatch_body(value: str) -> str:
+    return re.split(
+        r"^\s*#{1,6}\s*Recently\s+ended\s+offers?\s*$",
+        value,
+        maxsplit=1,
+        flags=re.IGNORECASE | re.MULTILINE,
+    )[0]
 
 
 def _normalize_country_name(value: str) -> str:

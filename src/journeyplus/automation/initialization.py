@@ -591,7 +591,7 @@ def _statusmatch_hosts_for_documents(
     for external_id in external_ids:
         identity = external_id.removeprefix("statusmatch-page:")
         host, separator, page_kind = identity.rpartition(":")
-        if separator and host and page_kind in {"activity", "faq"}:
+        if separator and host and page_kind in {"activity", "faq", "terms"}:
             hosts.append(host.casefold().rstrip("."))
     return tuple(dict.fromkeys(hosts))
 

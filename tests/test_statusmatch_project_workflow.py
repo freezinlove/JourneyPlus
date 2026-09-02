@@ -45,6 +45,12 @@ ACTIVE_FAQ = """
 <p>Current members of Example Air with Gold status are eligible.</p>
 </body></html>
 """
+ACTIVE_TERMS = """
+<html><body><h1>Example Club Status Match Terms</h1>
+<p>Current project-specific terms.</p>
+<h2>StatusMatch.Com Terms of Use</h2><p>Common platform terms.</p>
+</body></html>
+"""
 
 
 class PageFetcher:
@@ -120,6 +126,7 @@ def _responses(host: str = "example.statusmatch.com") -> dict[str, str]:
     return {
         f"https://{host}/": ACTIVE_ACTIVITY,
         f"https://{host}/faq": ACTIVE_FAQ,
+        f"https://{host}/terms": ACTIVE_TERMS,
     }
 
 
@@ -282,6 +289,87 @@ def test_project_extracts_evidenced_route_prices_without_extra_model_stage(
         assert facts.opportunity_kind == OpportunityKind.STATUS_MATCH
         assert facts.application_routes[0].prices[0].currency == "USD"
         assert facts.application_routes[0].prices[0].amount == 99
+
+
+def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
+    session_factory,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/terms"] = """
+    <html><body><h1>Example Club Status Match Terms</h1>
+    <table>
+      <tr><th>Country/Region</th><th>Status Tier</th><th>Application Fee</th></tr>
+      <tr><td colspan="3">Listed in USD</td></tr>
+      <tr><td colspan="3">China</td></tr>
+      <tr><td></td><td>Gold</td><td>USD 99</td></tr>
+    </table>
+    <h2>StatusMatch.Com Terms of Use</h2>
+    <p>Standard membership is free and generic fees may apply.</p>
+    </body></html>
+    """
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    provider = ProjectProvider([_extraction()])
+
+    summary = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert summary.succeeded == 1
+    assert summary.model_calls == 2
+    request = provider.calls[0]["request"]
+    assert request["deterministic_price_routes"]["count"] == 1
+    assert "TERMS" in request["documents"]
+    assert "StatusMatch.Com Terms of Use" not in request["documents"]["TERMS"]["body"]
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        change_set = session.scalar(select(StatusMatchChangeSet))
+        assert record is not None and change_set is not None
+        facts = FactSet.model_validate(record.facts)
+        assert facts.application_routes[0].scope == "China"
+        assert facts.application_routes[0].prices[0].amount == 99
+        assert facts.application_routes[0].prices[0].currency == "USD"
+        assert change_set.terms_document_version_id is not None
+
+
+def test_terms_only_update_reprocesses_project_snapshot(session_factory) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/terms"] = ACTIVE_TERMS.replace(
+        "Current project-specific terms.",
+        "Application fees apply and vary by eligibility.",
+    )
+    fetcher = PageFetcher(responses)
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, fetcher)
+    process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+    fetcher.responses["https://example.statusmatch.com/terms"] = ACTIVE_TERMS.replace(
+        "Current project-specific terms.",
+        "There is no application fee payable for this status match.",
+    )
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, fetcher)
+
+    summary = process_pending_statusmatch_projects(
+        session_factory, ProjectProvider([_extraction()])
+    )
+
+    assert summary.succeeded == 1
+    assert summary.projects[0].change_kind == "FACTS_CHANGED"
+    with session_factory() as session:
+        records = list(
+            session.scalars(select(FactSetRecord).order_by(FactSetRecord.version))
+        )
+        assert [record.facts["cost"]["value"] for record in records] == [
+            "收费，金额未公布",
+            "免费",
+        ]
+        assert session.scalar(
+            select(func.count()).select_from(StatusMatchChangeSet)
+        ) == 2
 
 
 def test_page_update_keeps_event_and_records_structured_changes(
@@ -660,6 +748,10 @@ def test_closed_project_is_archived_and_never_reprocessed(session_factory) -> No
         "<html><body><p>This offer has expired and is no longer available.</p>"
         "</body></html>"
     )
+    closed["https://example.statusmatch.com/terms"] = (
+        "<html><body><p>This offer has expired and is no longer available.</p>"
+        "</body></html>"
+    )
     with session_factory.begin() as session:
         monitoring = monitor_statusmatch_watches(session, PageFetcher(closed))
     assert monitoring.projects_archived == 1
@@ -672,6 +764,7 @@ def test_closed_project_is_archived_and_never_reprocessed(session_factory) -> No
         assert session.get(StatusMatchWatch, watch_id) is None
         event = session.get(StatusEvent, event_id)
         assert event is not None and event.archived_at is not None
+        assert event.lifecycle_status == "EXPIRED"
 
 
 def test_different_hosts_and_reonboarded_watch_create_distinct_events(
@@ -747,7 +840,7 @@ def test_selected_host_audit_reports_complete_project_without_reprocessing(
         "one_live_event_per_watch": True,
     }
     project = report["projects"][0]
-    assert len(project["pages"]) == 2
+    assert len(project["pages"]) == 3
     assert project["event"]["program"] == "Example Club"
     assert project["fact_set"]["version"] == 1
     assert project["change_set"]["kind"] == "INITIAL_SNAPSHOT"

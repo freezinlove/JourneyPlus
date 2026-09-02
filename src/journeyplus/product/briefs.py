@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from decimal import Decimal
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,23 @@ from journeyplus.opportunity_shaping import (
 )
 from journeyplus.product.contracts import BriefList, BriefListItem
 from journeyplus.product.opportunities import PersonalizedMatchService
+
+
+_PUBLIC_FACT_LABELS = {
+    "what_happened": "活动内容",
+    "eligibility": "申请资格",
+    "target_status": "目标会籍",
+    "cost": "申请费用",
+    "challenge_requirements": "挑战要求",
+    "region": "适用地区",
+    "application_start": "开始时间",
+    "deadline": "截止时间",
+    "status_validity": "会籍有效期",
+    "action_link": "申请入口",
+    "caveats": "限制条件",
+    "application_routes": "申请路径",
+    "status_mappings": "会籍对应关系",
+}
 
 
 class ProductBriefService:
@@ -64,6 +84,7 @@ class ProductBriefService:
             select(StatusEvent).where(
                 StatusEvent.current_fact_set_id.is_not(None),
                 StatusEvent.current_brief_id.is_not(None),
+                StatusEvent.archived_at.is_(None),
             )
         )
         for event in events:
@@ -174,15 +195,15 @@ def _brief_item(
         program=program,
         target_status=target_status,
         lifecycle_status=lifecycle_status,
-        title=brief.title,
-        summary=brief.summary,
+        title=_public_brief_text(brief.title),
+        summary=_public_brief_text(brief.summary),
         eligibility=facts.eligibility.value,
         challenge_requirements=facts.challenge_requirements.value,
         deadline=facts.deadline.value,
         price_summaries=_price_summaries(facts),
         china_advisories=_china_advisories(facts),
-        key_points=[item.text for item in brief.key_points],
-        caveats=[item.text for item in brief.caveats],
+        key_points=[_public_brief_text(item.text) for item in brief.key_points],
+        caveats=[_public_brief_text(item.text) for item in brief.caveats],
         source_links=[str(item) for item in brief.source_links],
         published_at=published_at,
         updated_at=updated_at,
@@ -216,11 +237,36 @@ def _price_summaries(facts: FactSet) -> list[str]:
         if price.availability == RoutePriceAvailability.UNAVAILABLE:
             rendered = "不可用"
         elif price.amount is not None and price.currency is not None:
-            rendered = f"{price.currency} {price.amount}"
+            amount = f"{price.currency} {_decimal_text(price.amount)}"
+            rendered = (
+                f"条件另付 {amount}"
+                if price.availability == RoutePriceAvailability.CONDITIONAL
+                else amount
+            )
         else:
             rendered = price.availability.value
         summaries.append(f"{scope}{tier}: {rendered}")
+    if not summaries and facts.cost.value:
+        if "金额未公布" in facts.cost.value and "收费" in facts.cost.value:
+            summaries.append("默认申请路线: 收费，金额未公布")
+        elif facts.cost.value.strip() == "免费":
+            summaries.append("默认申请路线: 免费")
     return list(dict.fromkeys(summaries))
+
+
+def _decimal_text(value: Decimal) -> str:
+    rendered = format(value, "f")
+    return rendered.rstrip("0").rstrip(".") if "." in rendered else rendered
+
+
+def _public_brief_text(value: str) -> str:
+    for internal, label in _PUBLIC_FACT_LABELS.items():
+        value = re.sub(
+            rf"(?<![A-Za-z0-9_]){re.escape(internal)}(?![A-Za-z0-9_])",
+            label,
+            value,
+        )
+    return value
 
 
 def _china_advisories(facts: FactSet) -> list[ChinaRegionAdvisory]:

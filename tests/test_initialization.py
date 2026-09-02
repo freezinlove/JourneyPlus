@@ -66,6 +66,23 @@ class MailDetailAdapter:
         )
 
 
+def _initialization_statusmatch_page(page_kind: str) -> str:
+    if page_kind == "activity":
+        return (
+            "<html><body><h1>Apply for a Status Match today</h1>"
+            "<form><button>Continue</button></form></body></html>"
+        )
+    if page_kind == "faq":
+        return (
+            "<html><body><h1>Frequently Asked Questions</h1>"
+            "<p>The match is open.</p></body></html>"
+        )
+    return (
+        "<html><body><h1>Project Terms</h1><p>The match is open.</p>"
+        "<h2>StatusMatch.Com Terms of Use</h2><p>Common terms.</p></body></html>"
+    )
+
+
 class NamedMailDetailAdapter(MailDetailAdapter):
     def __init__(self, name: str) -> None:
         self.name = name
@@ -91,6 +108,7 @@ class NamedMailDetailAdapter(MailDetailAdapter):
             for page_kind, url in (
                 ("activity", f"https://{self.name}.statusmatch.com/"),
                 ("faq", f"https://{self.name}.statusmatch.com/faq"),
+                ("terms", f"https://{self.name}.statusmatch.com/terms"),
             )
         ]
 
@@ -99,13 +117,7 @@ class NamedMailDetailAdapter(MailDetailAdapter):
             source_id=self.source_id,
             external_id=item.external_id,
             canonical_url=item.canonical_url,
-            body=(
-                "<html><body><h1>Apply for a Status Match today</h1>"
-                "<form><button>Continue</button></form></body></html>"
-                if item.raw_metadata["page_kind"] == "activity"
-                else "<html><body><h1>Frequently Asked Questions</h1>"
-                "<p>The match is open.</p></body></html>"
-            ),
+            body=_initialization_statusmatch_page(item.raw_metadata["page_kind"]),
             content_type="text/html",
             metadata={"document_role": "linked_statusmatch_page"},
         )
@@ -386,7 +398,7 @@ def test_mail_initialization_processes_only_documents_in_current_discovery(
     assert summary.documents_selected == 1
     assert summary.backlog_count == 0
     assert len(provider.calls) == 2
-    assert len(summary.sources[0].document_version_ids) == 2
+    assert len(summary.sources[0].document_version_ids) == 3
     assert (
         stale.current_document_version_ids[0]
         not in summary.sources[0].document_version_ids
@@ -437,13 +449,23 @@ def test_public_initialization_routes_linked_article_before_generic_documents(
 
     class StatusPageFetcher:
         def get(self, url: str) -> FetchResponse:
-            body = (
-                "<html><body><h1>Apply for a Status Match today</h1>"
-                "<form><input type='text'><button>Continue</button></form>"
-                "</body></html>"
-                if not url.endswith("/faq")
-                else "<html><body><h1>FAQ</h1><p>Applications are open.</p></body></html>"
-            )
+            if url.endswith("/terms"):
+                body = (
+                    "<html><body><h1>Project Terms</h1>"
+                    "<h2>StatusMatch.Com Terms of Use</h2>"
+                    "<p>Common terms.</p></body></html>"
+                )
+            elif url.endswith("/faq"):
+                body = (
+                    "<html><body><h1>FAQ</h1>"
+                    "<p>Applications are open.</p></body></html>"
+                )
+            else:
+                body = (
+                    "<html><body><h1>Apply for a Status Match today</h1>"
+                    "<form><input type='text'><button>Continue</button></form>"
+                    "</body></html>"
+                )
             return FetchResponse(body=body, content_type="text/html", final_url=url)
 
     provider = InitializationArticleProvider()

@@ -129,6 +129,7 @@ def statusmatch_project_page_urls(host: str) -> tuple[tuple[str, str], ...]:
     return (
         ("activity", f"https://{host}/"),
         ("faq", f"https://{host}/faq"),
+        ("terms", f"https://{host}/terms"),
     )
 
 
