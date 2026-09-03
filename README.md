@@ -2,9 +2,11 @@
 
 JourneyPlus 当前收敛为一个默认面向中国用户的个性化常旅客会籍匹配产品。用户从规范化目录选择自己已有的会籍，系统沿现有官方与普通文章映射图计算完整可达关系，匹配图对每个会籍只绘制一次并只展示离已有会籍最近的到达路径；产品同时展示匹配/挑战机会、分路线价格、原始证据和中文简报。中国地区只生成提示，不过滤、不阻止、不替换任何机会或价格。
 
-产品形态是 AI Workflow，不是多 Agent 系统：AI 只复用在现有正文事实提取与简报生成阶段；会籍目录、持有会籍、路径遍历、闭环处理、价格继承、地区提示和页面查询全部是确定性程序。机会事实只分为 `STATUS_MATCH | OTHER`：真正的会籍匹配、挑战、Fast Track 和临时会籍挑战属于前者，其他会籍相关机会属于后者。`OTHER` 仍照常生成并展示简报，只是不进入个性化匹配图。
+当前可运行底座是 AI Workflow：AI 用于正文事实提取与简报生成，会籍目录、持有会籍、路径遍历、闭环处理、价格继承、地区提示和页面查询全部由确定性程序完成。当前产品定位在此基础上增加一个有严格边界的会籍策略 Agent，由它理解用户自然语言中的已有会籍、目标和取舍，必要时发起一次关键确认，基于程序候选给出推荐，并处理受限的 StatusMatcher 经验调查、一次最小条件调整和一个经用户确认的等待目标。它不是多 Agent 系统，也不把普通工作流包装成 Agent。
 
-当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。原有买分/买里程链路继续保留历史、手工采集和查询能力，但已退出默认产品入口和自动调度。产品总方针见 [个性化常旅客会籍匹配产品总方针](doc/personalized-status-match-product-direction.md)，启动、接口、迁移和回滚见 [产品运维说明](doc/personalized-status-match-product-operations.md)。
+机会事实只分为 `STATUS_MATCH | OTHER`：真正的会籍匹配、挑战、Fast Track 和临时会籍挑战属于前者，其他会籍相关机会属于后者。`OTHER` 仍照常生成并展示简报，只是不进入个性化匹配图。
+
+当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。原有买分/买里程链路继续保留历史、手工采集和查询能力，但已退出默认产品入口和自动调度。产品总边界见 [个性化常旅客会籍匹配产品总方针](doc/personalized-status-match-product-direction.md)，Agent 的定位、工作方式和复杂度边界见 [会籍策略 Agent 产品方针](doc/personalized-status-match-agent-direction.md)，Agent 实现方式见 [会籍策略 Agent 技术基线](doc/personalized-status-match-agent-technical-baseline.md)，启动、接口、迁移和回滚见 [产品运维说明](doc/personalized-status-match-product-operations.md)。
 
 ## 本地开发
 
@@ -31,7 +33,7 @@ uv run journeyplus product-api
 uv run journeyplus review-api
 ```
 
-打开 `http://127.0.0.1:8000/` 即可使用“我的会籍”“匹配图”“机会简报”和“机会详情”四个页面；接口文档位于 `http://127.0.0.1:8000/docs`。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
+打开 `http://127.0.0.1:8000/` 即可使用当前已经实现的“我的会籍”“匹配图”“机会简报”和“机会详情”四个页面；接口文档位于 `http://127.0.0.1:8000/docs`。会籍策略 Agent 已确定产品方针，但 Agent 入口、等待目标和 StatusMatcher 调查尚未实现，不能把这份定位文档理解为当前运行能力。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
 
 自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源只有 LoyaltyLobby 通用文章和 StatusMatch 邮件专用来源。AwardWallet 买分来源仍为 `enabled=true`，但 `automatic_scheduling=false`；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
@@ -70,7 +72,7 @@ JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
 
 ### 千问 AI 平台
 
-第一版默认使用北京按量付费 OpenAI-compatible 地址 `https://dashscope.aliyuncs.com/compatible-mode/v1` 和 `deepseek-v4-flash`。只需在 `.env` 填写北京地域创建的 `JOURNEYPLUS_AI_API_KEY`，然后执行：
+当前默认使用北京按量付费 OpenAI-compatible 地址 `https://dashscope.aliyuncs.com/compatible-mode/v1` 和 `deepseek-v4-flash`。只需在 `.env` 填写北京地域创建的 `JOURNEYPLUS_AI_API_KEY`，然后执行：
 
 ```bash
 uv run journeyplus ai-smoke
@@ -99,9 +101,9 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-当前产品收敛 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`。第一版流水线、通用文章 V2 和买分固定页监控的历史变更仍分别保留在原 OpenSpec 目录中，但范围冲突时以当前产品收敛变更为准。
+当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`。该变更只交付目录、持有会籍、匹配图、简报和详情等确定性能力，不代表 Agent 已实现；[会籍策略 Agent 产品方针](doc/personalized-status-match-agent-direction.md) 明确纳入的单 Agent 交互由独立实施变更承接。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针和 Agent 专项方针为准。
 
-## 第一版已知限制
+## 当前已知限制
 
 - 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，买分保留手工运行，其他公开来源保持关闭。
 - LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
@@ -111,3 +113,4 @@ uv run python scripts/smoke_public_sources.py
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
+- 会籍策略 Agent 目前只有已确认的产品方针，尚未落到页面、接口和运行流程；StatusMatcher 正式自动调查还以取得书面许可、授权接口或其他明确授权为前提。当前必须补齐但尚未实现的能力清单见 [产品运维说明](doc/personalized-status-match-product-operations.md#尚未实现的-agent-能力清单)。

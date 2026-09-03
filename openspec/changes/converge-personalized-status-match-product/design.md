@@ -1,3 +1,5 @@
+> 后续方针说明（2026-09-03）：本文保留确定性产品底座在交付时的设计记录。其中“用户查询零 AI”和“聊天式推荐为非目标”不再排除后来确定的单会籍策略 Agent；既有四个页面和确定性服务仍保持零 AI 读取。当前 Agent 工作方式及边界以 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 为准，本文没有实现 Agent 或等待目标。
+
 ## Context
 
 JourneyPlus 当前是 Python/FastAPI/SQLAlchemy/PostgreSQL 应用，已有两条会籍事实来源：StatusMatch 官方项目快照和 LoyaltyLobby 普通文章。两类来源都能形成证据化 `FactSet`，其中直接会籍映射已经通过 provenance 合并到统一会籍图。统一图当前提供有深度、节点和分支上限的单根嵌套树以及完整管理员审计；产品尚无用户持有会籍、公开产品 API 或用户页面。
@@ -18,7 +20,7 @@ JourneyPlus 当前是 Python/FastAPI/SQLAlchemy/PostgreSQL 应用，已有两条
 - 通过 provenance 将映射边还原为当前活动、路线、价格、条件、期限、简报和证据。
 - 默认生成中国地区提示，但不据此过滤、排序、阻止或替换价格。
 - 在现有 FastAPI 进程内提供 JSON API 和四个轻量用户页面。
-- 保持用户查询零 AI 调用，并让买分来源退出每日自动选择。
+- 保持本变更交付的目录、匹配图、简报和详情查询零 AI 调用，并让买分来源退出每日自动选择；本变更不实现单会籍策略 Agent。
 
 **Non-Goals:**
 
@@ -26,7 +28,7 @@ JourneyPlus 当前是 Python/FastAPI/SQLAlchemy/PostgreSQL 应用，已有两条
 - 直接匹配/条件匹配/公开挑战的额外业务分类或页面分区。
 - 业务路径深度上限、枚举并持久化所有简单路径或保存传递边。
 - 自动汇率换算、按地区自动选最低价、地区资格裁决或绕过建议。
-- 收藏、申请进度、提醒、自动报名、旅行计划、权益估值、多 Agent 和聊天式推荐。
+- 本变更不实现收藏、申请进度、提醒、自动报名、旅行计划、权益估值、多 Agent 或通用聊天助手；后来纳入的单会籍策略 Agent 由专项方针和独立变更约束。
 - 新的 JavaScript 框架、Node 构建链或独立前端部署。
 
 ## Decisions
@@ -51,7 +53,7 @@ JourneyPlus 当前是 Python/FastAPI/SQLAlchemy/PostgreSQL 应用，已有两条
 
 新材料在现有事实提取调用中输出 `prices`；HTML 表格或稳定格式优先使用确定性解析。旧材料和模型漏填时，读取层使用保守价格解析器处理常见 `Tier: CUR amount`、`CUR amount` 和 unavailable 文本，并在无法可靠拆分时回退到原始 `cost`。全局 FactSet 费用对全部路线共同适用时，读取层可以作为每条路线的只读继承价格，但不覆盖路线自己的价格。
 
-备选方案是在用户打开详情时调用模型拆价；该方案会产生不稳定结果和交互成本，违反零 AI 查询目标，因此不采用。
+备选方案是在用户打开详情时调用模型拆价；该方案会产生不稳定结果和交互成本，违反既有确定性页面不调用 AI 的边界，因此不采用。单会籍策略 Agent 也只能读取已经结构化的价格，不能临时调用模型拆价。
 
 ### 4. StatusHolding 直接引用规范化项目和等级键
 

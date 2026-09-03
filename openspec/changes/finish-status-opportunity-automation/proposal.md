@@ -5,7 +5,7 @@
 ## What Changes
 
 - 建立第一期冻结金标的真实模型运行、缓存续跑、分类与事件分组报告；本期金标不评测活动时效，且金标基线和必要调整完成前不得开始时效实现。
-- 从旧来源集合中移除 StatusMatcher 和 Frequent Flyer Bonuses 会籍汇总列表的注册、CLI 入口、生产适配能力及专属规则；来源注册表保留 FFB 博客 Feed、AwardWallet、StatusMatch/GetStatus Gmail、LoyaltyLobby、Frequent Miler 和很旅行的适配器与历史兼容，但当前只启用 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路，其他四个公开来源保持 `enabled=false`、`automatic_scheduling=false`。
+- 从旧来源集合中移除 `statusmatcher_reports` 和 Frequent Flyer Bonuses 会籍汇总列表的批量采集注册、CLI 入口、生产适配能力及专属规则；来源注册表保留 FFB 博客 Feed、AwardWallet、StatusMatch/GetStatus Gmail、LoyaltyLobby、Frequent Miler 和很旅行的适配器与历史兼容，但当前只启用 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路，其他四个公开来源保持 `enabled=false`、`automatic_scheduling=false`。该移除只约束机会发现与定时采集，不禁止 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 后来纳入的、取得明确授权后面向最终候选的按需经验调查。
 - 移除没有独立业务价值的 `opportunity_type`；使用最小的 `program / target_status / summary`、来源权威项目名与完整材料判断活动关系，后续只新增可空的申请开始和截止窗口，不新增合作方、地区、入口指纹等事件身份字段。
 - 为当时的 V1 事件链路明确同活动跨文章聚合、延期作为更新、同品牌不同活动与不同时期新活动拆分，以及不确定关系保守分开并进入复核的行为；这些结果保留用于历史审计和回滚，当前 LoyaltyLobby V2 不再执行跨文章关系判断。
 - 在金标阶段完成后增加与审核状态独立的 `UPCOMING / ACTIVE / EXPIRED / UNKNOWN` 生命周期；过期事件软归档后退出自动候选池且不得自动恢复。
@@ -26,13 +26,13 @@
 
 ### Modified Capabilities
 
-- `status-opportunity-pipeline`: 从正式来源中移除 StatusMatcher 与 FFB 会籍汇总列表，并将 Gmail 项目链接的活动首页和 `/faq` 纳入完整材料；本变更保留的 V1 事件语义用于历史兼容，当前 LoyaltyLobby 通用文章行为由 `simplify-generic-article-pipeline` 的文章级 V2 规格约束。
+- `status-opportunity-pipeline`: 从正式采集来源中移除 `statusmatcher_reports` 与 FFB 会籍汇总列表，并将 Gmail 项目链接的活动首页和 `/faq` 纳入完整材料；本变更保留的 V1 事件语义用于历史兼容，当前 LoyaltyLobby 通用文章行为由 `simplify-generic-article-pipeline` 的文章级 V2 规格约束。单 Agent 的授权后按需经验调查不属于该来源流水线。
 - `event-scoped-status-processing`: 对明确判定为活动延期的 `UPDATE_OF` 允许截止时间形成新的当前事实版本，同时保留旧事实历史；普通来源分歧仍按冲突处理。
 
 ## Impact
 
 - 影响金标评测 CLI、AI 运行缓存和评测报告。
-- 影响来源注册表、来源工厂、CLI、StatusMatcher/FFB 汇总适配代码、Gmail 链接发现及其测试和说明文档。
+- 影响来源注册表、来源工厂、CLI、`statusmatcher_reports`/FFB 汇总批量采集适配代码、Gmail 链接发现及其测试和说明文档。
 - 影响历史 V1 的 `EventHint`、`StatusEvent`、`FactSet`、事件候选召回、关系判断、聚合、迁移和复核数据展示；当前 LoyaltyLobby V2 使用独立的文章分析与机会记录。
 - 影响 FactSet 的 JSON Schema、事实协调和简报事实引用；不增加数据库列，旧派生 FactSet 在备份后通过受控重建退出当前业务状态。
 - 新增每日单轮编排 CLI、运行互斥/幂等、来源运行状态、LoyaltyLobby 受控验证和生命周期推进。

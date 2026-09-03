@@ -1,3 +1,5 @@
+> 后续范围说明（2026-09-03）：本文保留最初纵向切片的历史需求，其中“接入 StatusMatcher 来源”已被 [自动化收敛变更](../../../finish-status-opportunity-automation/specs/status-opportunity-pipeline/spec.md) 取代。当前不得恢复 `statusmatcher_reports` 批量采集来源；[会籍策略 Agent 产品方针](../../../../../doc/personalized-status-match-agent-direction.md) 所允许的授权后按需经验调查不是该来源的恢复，也不用于活动发现或事实入库。
+
 ## ADDED Requirements
 
 ### Requirement: 第一版仅处理会籍获取机会

@@ -1,5 +1,7 @@
 # 第一版来源注册表
 
+> 后续范围说明（2026-09-03）：本文仅保留最初来源选择的历史输入，当前来源范围由 `finish-status-opportunity-automation` 约束。`statusmatcher_reports` 与 FFB 会籍汇总批量来源均不在当前正式注册表或调度中；[单会籍策略 Agent](../../../doc/personalized-status-match-agent-direction.md) 的授权后按需 StatusMatcher 经验调查不复用本注册表，也不构成来源恢复。
+>
 > 文档状态：第一版实施输入；来源入口与技术特征已核验，采集频率和正式启用顺序待用户决定
 >
 > 最近核验：2026-08-19

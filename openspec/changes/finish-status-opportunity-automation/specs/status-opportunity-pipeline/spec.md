@@ -99,11 +99,11 @@ Gmail 适配器 MUST 检查邮件 HTML 中所有文字链接、按钮和仅图�
 ## MODIFIED Requirements
 
 ### Requirement: 来源注册兼容与当前运行范围必须分离
-系统 MUST 在统一来源注册表中保留 Frequent Flyer Bonuses 博客、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的适配器、稳定 `source_id`、完整 URL、正文策略、访问限制及历史兼容。当前产品 MUST 只启用 `loyaltylobby_feed` 通用文章链路和 `status_services_mail` 专用项目链路；其他四个公开来源 MUST 保持 `enabled=false`、`automatic_scheduling=false`，不得进入当前通用处理。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。StatusMatcher 与 Frequent Flyer Bonuses 会籍汇总列表 MUST 不存在于正式注册表、CLI 可选来源或自动调度范围。
+系统 MUST 在统一来源注册表中保留 Frequent Flyer Bonuses 博客、AwardWallet Elite Status、StatusMatch/GetStatus 邮件、LoyaltyLobby、Frequent Miler Elite Status 和很旅行的适配器、稳定 `source_id`、完整 URL、正文策略、访问限制及历史兼容。当前产品 MUST 只启用 `loyaltylobby_feed` 通用文章链路和 `status_services_mail` 专用项目链路；其他四个公开来源 MUST 保持 `enabled=false`、`automatic_scheduling=false`，不得进入当前通用处理。每个来源适配器 MUST 只负责发现和获取材料，并输出统一的来源条目与文档契约，不得直接创建业务事件。`statusmatcher_reports` 与 Frequent Flyer Bonuses 会籍汇总批量来源 MUST 不存在于正式注册表、CLI 可选来源或自动调度范围。本 Requirement 只约束机会采集流水线，不禁止会籍策略 Agent 在取得明确授权后，对确定性候选执行不写入机会事实或统一图、非活动发现的按需经验调查。
 
 #### Scenario: 注册表成为唯一来源配置输入
 - **WHEN** 系统初始化会籍来源配置
-- **THEN** 它导入六条兼容来源记录及其入口和策略，其中只有 LoyaltyLobby 与 StatusMatch/GetStatus Gmail 启用，StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 StatusMatcher 或 FFB 会籍汇总列表
+- **THEN** 它导入六条兼容来源记录及其入口和策略，其中只有 LoyaltyLobby 与 StatusMatch/GetStatus Gmail 启用，StatusMatch 与 GetStatus 邮件共用 `status_services_mail`，且不导入 `statusmatcher_reports` 或 FFB 会籍汇总列表
 
 #### Scenario: 自动运行选择当前来源
 - **WHEN** 每日单轮选择到期来源和待处理文档

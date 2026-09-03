@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: 当前两条来源链路每天运行且关闭来源不得进入自动化
-系统 MUST 只把 `loyaltylobby_feed` 作为当前通用公开来源，把 `status_services_mail` 作为 StatusMatch/GetStatus 专用来源，并为两者配置一天采集周期和自动选择。FFB 会籍 Feed、AwardWallet、Frequent Miler 和很旅行 SHALL 保留适配器、注册记录、原文及历史结果，但 MUST 保持 `enabled=false`、`automatic_scheduling=false`，不得进入当前通用处理。StatusMatcher 与 FFB 会籍汇总列表 MUST 不参与任何自动周期。
+系统 MUST 只把 `loyaltylobby_feed` 作为当前通用公开来源，把 `status_services_mail` 作为 StatusMatch/GetStatus 专用来源，并为两者配置一天采集周期和自动选择。FFB 会籍 Feed、AwardWallet、Frequent Miler 和很旅行 SHALL 保留适配器、注册记录、原文及历史结果，但 MUST 保持 `enabled=false`、`automatic_scheduling=false`，不得进入当前通用处理。`statusmatcher_reports` 与 FFB 会籍汇总批量来源 MUST 不参与任何来源自动化周期。本 Requirement 不把会籍策略 Agent 在用户请求已经产生最终候选或等待目标首次命中后、取得明确授权时执行的一次按需经验调查定义为来源采集；该能力不得恢复批量来源或扫描 StatusMatcher 发现活动。
 
 #### Scenario: 当前自动来源策略生效
 - **WHEN** 系统播种来源并执行每日单轮
@@ -61,7 +61,7 @@
 - **THEN** 系统处理上限内项目、保留剩余积压并在运行摘要中报告
 
 #### Scenario: 数据库保留已停用来源原文
-- **WHEN** 数据库中仍保留已关闭公开来源、已移除 FFB 汇总列表或 StatusMatcher 的原始文档
+- **WHEN** 数据库中仍保留已关闭公开来源、已移除 FFB 汇总列表或 `statusmatcher_reports` 的原始文档
 - **THEN** 单轮处理不读取这些文档，自动化状态也不把它们计入当前来源积压
 
 #### Scenario: 仅显式运行一个正式来源

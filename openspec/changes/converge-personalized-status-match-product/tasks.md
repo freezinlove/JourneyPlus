@@ -1,3 +1,5 @@
+> 后续方针说明（2026-09-03）：这些已完成任务只交付确定性个性化底座，不包含会籍策略 Agent。后续 Agent 范围见 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md)；原有零 AI 调用验收继续适用于既有目录、图谱、简报和详情读取。
+
 ## 1. 机会事实与范围
 
 - [x] 1.1 在核心、普通文章和 StatusMatch 契约中加入二值 OpportunityKind 与有证据的 RoutePrice，保持旧 JSON 可读
