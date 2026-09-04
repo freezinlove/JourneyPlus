@@ -1,4 +1,4 @@
-> 后续方针说明（2026-09-03）：本文保留确定性产品底座在交付时的设计记录。其中“用户查询零 AI”和“聊天式推荐为非目标”不再排除后来确定的单会籍策略 Agent；既有四个页面和确定性服务仍保持零 AI 读取。当前 Agent 工作方式及边界以 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 为准，本文没有实现 Agent 或等待目标。
+> 后续方针说明（2026-09-04）：本文保留确定性产品底座在交付时的设计记录。其中“用户查询零 AI”和“聊天式推荐为非目标”不排除后来确定的单会籍策略 Agent；既有四个页面和确定性服务仍保持零 AI 读取。Agent 和等待目标已由独立的 `implement-membership-strategy-agent` 变更实现，当前工作方式及边界以 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 为准。
 
 ## Context
 

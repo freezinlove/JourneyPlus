@@ -33,7 +33,7 @@ uv run journeyplus product-api
 uv run journeyplus review-api
 ```
 
-打开 `http://127.0.0.1:8000/` 即可使用当前已经实现的“我的会籍”“匹配图”“机会简报”和“机会详情”四个页面；接口文档位于 `http://127.0.0.1:8000/docs`。会籍策略 Agent 已确定产品方针，但 Agent 入口、等待目标和 StatusMatcher 调查尚未实现，不能把这份定位文档理解为当前运行能力。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
+打开 `http://127.0.0.1:8000/agent` 即可使用会籍策略 Agent；“我的会籍”“匹配图”“机会简报”和“机会详情”仍可独立使用，接口文档位于 `http://127.0.0.1:8000/docs`。Agent 能理解自然语言目标和取舍、确认并保存新会籍、调用现有匹配图查询事实候选、给出个性化首选，在无方案时提出一次有候选依据的最小调整，并在用户确认后保存一个持续跟进目标。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
 
 自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源只有 LoyaltyLobby 通用文章和 StatusMatch 邮件专用来源。AwardWallet 买分来源仍为 `enabled=true`，但 `automatic_scheduling=false`；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
@@ -64,7 +64,15 @@ JOURNEYPLUS_AUTOMATION_MODEL_CALL_LIMIT=100
 JOURNEYPLUS_AUTOMATION_LEASE_SECONDS=3600
 JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE=v2
 JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
+JOURNEYPLUS_AGENT_INTERACTION_TTL_HOURS=24
+JOURNEYPLUS_AGENT_MAX_MODEL_CALLS=3
+JOURNEYPLUS_STATUSMATCHER_ENABLED=false
+JOURNEYPLUS_STATUSMATCHER_TIMEOUT_SECONDS=12
+JOURNEYPLUS_STATUSMATCHER_MAX_RESPONSE_BYTES=1000000
+JOURNEYPLUS_STATUSMATCHER_MAX_PAGES=2
 ```
+
+StatusMatcher 调查默认关闭。只有取得自动读取许可或其他明确授权后，才可把 `JOURNEYPLUS_STATUSMATCHER_ENABLED` 设为 `true`；即使服务端启用，Agent 也只会在用户要求实际申请经验且数据库已经产生正式候选时调查最多三条候选，不会借此发现数据库之外的新路线。
 
 ## 配置
 
@@ -101,7 +109,7 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`。该变更只交付目录、持有会籍、匹配图、简报和详情等确定性能力，不代表 Agent 已实现；[会籍策略 Agent 产品方针](doc/personalized-status-match-agent-direction.md) 明确纳入的单 Agent 交互由独立实施变更承接。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针和 Agent 专项方针为准。
+当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`；单 Agent 的实施与验收任务位于 `openspec/changes/implement-membership-strategy-agent/`。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针、Agent 专项方针和当前实施 change 为准。
 
 ## 当前已知限制
 
@@ -113,4 +121,4 @@ uv run python scripts/smoke_public_sources.py
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
-- 会籍策略 Agent 目前只有已确认的产品方针，尚未落到页面、接口和运行流程；StatusMatcher 正式自动调查还以取得书面许可、授权接口或其他明确授权为前提。当前必须补齐但尚未实现的能力清单见 [产品运维说明](doc/personalized-status-match-product-operations.md#尚未实现的-agent-能力清单)。
+- 会籍策略 Agent 已落到页面、回合 API、短期交互状态和每日等待检查；模型未配置时 Agent 明确不可用，但其他确定性页面和 API 不受影响。StatusMatcher 正式自动调查仍以取得书面许可、授权接口或其他明确授权为前提，并保持默认关闭。

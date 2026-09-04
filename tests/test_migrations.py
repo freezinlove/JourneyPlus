@@ -8,6 +8,7 @@ from alembic import command
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.exc import IntegrityError
 
 
 def test_migration_revision_ids_fit_postgresql_alembic_version_column() -> None:
@@ -51,6 +52,8 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         "article_opportunities",
         "article_briefs",
         "status_holdings",
+        "agent_interactions",
+        "agent_wait_goals",
     } <= tables
     columns = {
         column["name"]
@@ -59,6 +62,69 @@ def test_initial_migration_creates_all_v1_tables(tmp_path: Path, monkeypatch) ->
         )
     }
     assert "discovery_cursor" in columns
+
+
+def test_membership_agent_migration_round_trips_on_sqlite(
+    tmp_path: Path, monkeypatch
+) -> None:
+    database_url = f"sqlite+pysqlite:///{tmp_path / 'membership-agent.sqlite'}"
+    monkeypatch.setenv("JOURNEYPLUS_DATABASE_URL", database_url)
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+
+    command.upgrade(config, "0017_statusmatch_terms")
+    engine = create_engine(database_url)
+    assert "agent_interactions" not in inspect(engine).get_table_names()
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(database_url)
+    assert {"agent_interactions", "agent_wait_goals"} <= set(
+        inspect(engine).get_table_names()
+    )
+    assert "uq_agent_wait_goals_single_active" in {
+        index["name"] for index in inspect(engine).get_indexes("agent_wait_goals")
+    }
+    now = "2026-09-04 00:00:00"
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                """
+                INSERT INTO agent_wait_goals (
+                    id, status, query, preferences, research_statusmatcher,
+                    holding_node_ids, created_at, updated_at
+                ) VALUES (
+                    :id, 'ACTIVE', '{}', '[]', 0, '[]', :now, :now
+                )
+                """
+            ),
+            {"id": "1" * 32, "now": now},
+        )
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    INSERT INTO agent_wait_goals (
+                        id, status, query, preferences, research_statusmatcher,
+                        holding_node_ids, created_at, updated_at
+                    ) VALUES (
+                        :id, 'ACTIVE', '{}', '[]', 0, '[]', :now, :now
+                    )
+                    """
+                ),
+                {"id": "2" * 32, "now": now},
+            )
+    except IntegrityError:
+        pass
+    else:
+        raise AssertionError("second ACTIVE wait goal should violate unique index")
+    engine.dispose()
+
+    command.downgrade(config, "0017_statusmatch_terms")
+    engine = create_engine(database_url)
+    assert "agent_interactions" not in inspect(engine).get_table_names()
+    assert "agent_wait_goals" not in inspect(engine).get_table_names()
+    engine.dispose()
 
 
 def test_personalized_match_migration_backfills_kind_prices_and_scheduler(

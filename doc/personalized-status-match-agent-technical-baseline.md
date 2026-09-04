@@ -4,7 +4,7 @@
 >
 > 产品依据：[JourneyPlus 个性化会籍匹配产品总方针](./personalized-status-match-product-direction.md)与[JourneyPlus 会籍策略 Agent 产品方针](./personalized-status-match-agent-direction.md)。本文只规定这两份产品方针对应的技术实现边界，不扩大产品范围。
 >
-> 实现状态：本文同时描述当前已经运行的技术底座和增加单 Agent 后必须达到的目标技术形态。当前未实现项以[个性化会籍匹配产品运维说明](./personalized-status-match-product-operations.md)为准，不能因本文存在而宣称 Agent 已上线。
+> 实现状态：本文描述的单 Agent 已由 `openspec/changes/implement-membership-strategy-agent/` 落地，并通过真实 PostgreSQL、真实模型和受控 StatusMatcher 页面验收。当前运行方式以[产品运维说明](./personalized-status-match-product-operations.md)为准，验收记录见[会籍策略 Agent 真实链路验收](./membership-strategy-agent-real-validation-2026-09-04.md)。
 >
 > 历史关系：`technical-baseline-initial.md` 是泛旅行规划和多 Agent 设想的开工前历史副本，不再作为当前技术决策依据，也不在本文中延续其 LangGraph、多 Agent、OR-Tools、独立 Worker、移动端或完整旅行规划架构。
 
@@ -55,18 +55,17 @@ ORM            SQLAlchemy 2
 
 ### 2.3 当前个性化能力的边界
 
-当前 `PersonalizedMatchService` 根据全部 `StatusHolding` 计算可达图和关联机会，但不接收用户本次目标、最高费用、是否接受挑战等取舍，也不在可行路线之间进行个性化选择。当前能力回答的是“从已有会籍能够到哪里”，不是“结合我的目标和取舍，现在最值得走哪条路线”。
+`PersonalizedMatchService` 仍只根据全部 `StatusHolding` 计算可达图和关联机会，不承担用户本次目标、最高费用、是否接受挑战等取舍，也不在可行路线之间进行个性化选择。新增的 `CandidateRouteService` 在这层事实读取之上按目标和硬条件返回 `matching_routes`、`nearby_routes` 和 `unknown_routes`；`AgentController` 再负责回答“结合我的目标和取舍，现在最值得走哪条路线”。
 
-当前没有：
+当前已经运行：
 
-- Agent 页面或 Agent API；
-- Agent 动作循环和跨确认状态；
-- 面向目标和硬取舍的候选查询；
-- 只偏离一个条件的近似候选查询；
-- StatusMatcher 按需经验调查；
-- 等待目标、首次命中恢复和去重通知。
+- `/agent` 页面、回合 API 和状态 API；
+- 有类型、有上限的 Agent 动作循环和跨确认短期状态；
+- 面向目标和硬取舍的事实候选及只偏离一个条件的近似候选；
+- 默认关闭、双重授权、最多三条候选和两页的 StatusMatcher 按需经验调查；
+- 一个经用户确认的等待目标、每日确定性检查、首次命中恢复和一次性应用内结果。
 
-## 3. 目标总体架构
+## 3. 当前总体架构
 
 ```mermaid
 flowchart TD
@@ -78,7 +77,7 @@ flowchart TD
     Guard --> Catalog["会籍目录与规范化"]
     Guard --> Holdings["StatusHoldingService"]
     Guard --> Routes["CandidateRouteService"]
-    Guard --> Experience["StatusMatcherExperienceTool"]
+    Guard --> Experience["StatusMatcherExperienceClient"]
     Guard --> Wait["WaitGoalService"]
 
     Catalog --> Observation["结构化 ToolObservation"]
@@ -91,7 +90,7 @@ flowchart TD
     Daily["现有 run-daily"] --> WaitCheck["确定性等待目标检查"]
     WaitCheck -->|无新候选| Stop["结束，不调用模型"]
     WaitCheck -->|首次命中| Controller
-    Controller --> Notice["一次去重的应用内通知"]
+    Controller --> Notice["一次性应用内首次命中结果"]
 
     Facts[("现有 PostgreSQL 事实与会籍图")]
     Catalog --> Facts
@@ -248,7 +247,7 @@ unknown_routes    因关键事实缺失而不能安全判定的路线及未知�
 
 ### 9.1 技术定位
 
-StatusMatcher 实现为 Agent 的独立、按需、只读 `StatusMatcherExperienceTool`，不实现为 `SourceAdapter`，不进入 `SOURCE_REGISTRY`，不参与 `run-daily` 的常规来源采集，也不恢复已经移除的 `statusmatcher_reports` 批量来源。
+StatusMatcher 实现为 Agent 的独立、按需、只读 `StatusMatcherExperienceClient`，不实现为 `SourceAdapter`，不进入 `SOURCE_REGISTRY`，不参与 `run-daily` 的常规来源采集，也不恢复已经移除的 `statusmatcher_reports` 批量来源。
 
 ### 9.2 调用前置条件
 

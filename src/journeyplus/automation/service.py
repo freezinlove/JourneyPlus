@@ -11,6 +11,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
+from journeyplus.agent.contracts import WaitCheckStatus, WaitCheckSummary
+from journeyplus.agent.controller import (
+    AgentController,
+    ExperienceResearcher,
+    cleanup_expired_interactions,
+)
+from journeyplus.agent.waiting import WaitGoalService
 from journeyplus.article_operations import (
     GENERIC_PUBLIC_SOURCE_ID,
     pending_article_count,
@@ -143,6 +150,10 @@ class DailyCycleSummary:
     statusmatch_article_model_calls: int
     statusmatch_article_errors: tuple[str, ...]
     statusmatch_article_outputs: tuple[dict[str, Any], ...]
+    agent_wait_status: str
+    agent_wait_matching_count: int
+    agent_wait_model_called: bool
+    agent_wait_error: str | None
     backlog_count: int
     needs_review_count: int
 
@@ -234,6 +245,9 @@ def run_daily_cycle(
     statusmatch_fetcher: Fetcher | None = None,
     generic_pipeline_mode: str = "v2",
     generic_title_drop_enabled: bool = True,
+    agent_experience_researcher: ExperienceResearcher | None = None,
+    agent_interaction_ttl: timedelta = timedelta(hours=24),
+    agent_max_model_calls: int = 3,
 ) -> DailyCycleSummary:
     if generic_pipeline_mode not in {"v1", "v2"}:
         raise ValueError("generic_pipeline_mode must be v1 or v2")
@@ -271,6 +285,7 @@ def run_daily_cycle(
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
+    waiting = WaitCheckSummary(status=WaitCheckStatus.NO_GOAL)
     global_error: str | None = None
     try:
         with session_factory.begin() as session:
@@ -489,6 +504,20 @@ def run_daily_cycle(
                 "status_events": asdict(lifecycle),
                 "article_opportunities": asdict(article_lifecycle),
             }
+            waiting = WaitGoalService(session).check_current(
+                lambda goal, result: AgentController(
+                    session,
+                    budgeted,
+                    interaction_ttl=agent_interaction_ttl,
+                    max_model_calls=agent_max_model_calls,
+                    experience_researcher=agent_experience_researcher,
+                    degrade_provider_errors=False,
+                ).resume_wait_goal(goal, result)
+            )
+            processing_payload["agent_waiting"] = waiting.model_dump(mode="json")
+            processing_payload["expired_agent_interactions_deleted"] = (
+                cleanup_expired_interactions(session, now=current)
+            )
             backlog = (
                 pending_article_count(
                     session,
@@ -626,6 +655,10 @@ def run_daily_cycle(
         statusmatch_article_outputs=tuple(
             asdict(item) for item in article_processing.routes
         ),
+        agent_wait_status=waiting.status,
+        agent_wait_matching_count=waiting.matching_count,
+        agent_wait_model_called=waiting.agent_called,
+        agent_wait_error=waiting.error,
         backlog_count=backlog,
         needs_review_count=needs_review,
     )
@@ -1352,6 +1385,10 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         statusmatch_article_model_calls=0,
         statusmatch_article_errors=(),
         statusmatch_article_outputs=(),
+        agent_wait_status=WaitCheckStatus.NO_GOAL,
+        agent_wait_matching_count=0,
+        agent_wait_model_called=False,
+        agent_wait_error=None,
         backlog_count=0,
         needs_review_count=0,
     )

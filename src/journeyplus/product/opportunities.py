@@ -161,7 +161,12 @@ class PersonalizedMatchService:
             target_status=article.target_status,
         )
 
-    def detail(self, opportunity_id: UUID | str) -> OpportunityDetail:
+    def detail(
+        self,
+        opportunity_id: UUID | str,
+        *,
+        include_current_path: bool = True,
+    ) -> OpportunityDetail:
         resolved_id = UUID(str(opportunity_id))
         fact_record = self._session.get(FactSetRecord, resolved_id)
         if fact_record is not None:
@@ -171,6 +176,8 @@ class PersonalizedMatchService:
             if article is None:
                 raise LookupError(f"Opportunity {opportunity_id} was not found")
             detail = self._article_detail(article)
+        if not include_current_path:
+            return detail
         return detail.model_copy(update={"path": self._current_path(resolved_id)})
 
     def _current_path(self, opportunity_id: UUID) -> list[str] | None:

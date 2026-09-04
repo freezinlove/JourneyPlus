@@ -1,4 +1,4 @@
-> 后续方针说明（2026-09-03）：本变更记录的是已经完成的确定性产品底座。“用户查询零 AI”只约束既有目录、匹配图、简报和详情页面，不再排除后来明确纳入的单会籍策略 Agent；“不做聊天式推荐”也不再适用于该有边界的 Agent 交互。当前范围以 [产品总方针](../../../doc/personalized-status-match-product-direction.md) 和 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 为准。Agent 尚未由本变更实现，多 Agent 仍明确排除。
+> 后续方针说明（2026-09-04）：本变更记录的是已经完成的确定性产品底座。“用户查询零 AI”只约束既有目录、匹配图、简报和详情页面，不排除后来明确纳入的单会籍策略 Agent；“不做聊天式推荐”也不适用于该有边界的 Agent 交互。单 Agent 已由独立的 `implement-membership-strategy-agent` 变更实现；当前范围以 [产品总方针](../../../doc/personalized-status-match-product-direction.md) 和 [会籍策略 Agent 产品方针](../../../doc/personalized-status-match-agent-direction.md) 为准，多 Agent 仍明确排除。
 
 ## Why
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -10,6 +11,20 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from journeyplus.agent.contracts import (
+    AgentStateResponse,
+    AgentTurnRequest,
+    AgentTurnResponse,
+)
+from journeyplus.agent.controller import (
+    AgentController,
+    AgentProviderError,
+    AgentStateError,
+    ExperienceResearcher,
+    cleanup_expired_interactions,
+)
+from journeyplus.agent.waiting import WaitGoalError, WaitGoalService
+from journeyplus.ai.provider import AIProvider
 from journeyplus.membership.contracts import MembershipCatalog
 from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.product.briefs import ProductBriefService
@@ -27,13 +42,34 @@ from journeyplus.product.opportunities import PersonalizedMatchService
 _STATIC_DIR = Path(__file__).with_name("static")
 
 
-def create_product_app(session_factory: sessionmaker[Session]) -> FastAPI:
+def create_product_app(
+    session_factory: sessionmaker[Session],
+    *,
+    ai_provider: AIProvider | None = None,
+    experience_researcher: ExperienceResearcher | None = None,
+    agent_interaction_ttl_hours: int = 24,
+    agent_max_model_calls: int = 3,
+) -> FastAPI:
     app = FastAPI(
         title="JourneyPlus personalized status matches",
         docs_url="/docs",
         redoc_url=None,
     )
     app.mount("/assets", StaticFiles(directory=_STATIC_DIR), name="assets")
+
+    def agent_controller(session: Session) -> AgentController:
+        if ai_provider is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="会籍策略 Agent 暂不可用：服务端尚未配置模型。",
+            )
+        return AgentController(
+            session,
+            ai_provider,
+            interaction_ttl=timedelta(hours=agent_interaction_ttl_hours),
+            max_model_calls=agent_max_model_calls,
+            experience_researcher=experience_researcher,
+        )
 
     @app.exception_handler(SQLAlchemyError)
     async def database_unavailable(_request, _exc) -> JSONResponse:
@@ -55,6 +91,42 @@ def create_product_app(session_factory: sessionmaker[Session]) -> FastAPI:
         with session_factory.begin() as session:
             catalog = UnifiedMembershipTreeService(session).catalog(query=q)
             return catalog.model_copy(update={"nodes": catalog.nodes[:limit]})
+
+    @app.post("/v1/agent/turn", response_model=AgentTurnResponse)
+    def agent_turn(request: AgentTurnRequest) -> AgentTurnResponse:
+        try:
+            with session_factory.begin() as session:
+                return agent_controller(session).turn(request)
+        except HTTPException:
+            raise
+        except (AgentStateError, WaitGoalError, LookupError) as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except AgentProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    @app.get("/v1/agent/state", response_model=AgentStateResponse)
+    def agent_state() -> AgentStateResponse:
+        with session_factory.begin() as session:
+            cleanup_expired_interactions(session)
+            wait_service = WaitGoalService(session)
+            pending = wait_service.consume_pending()
+            latest = (
+                agent_controller(session).latest_response()
+                if ai_provider is not None
+                else None
+            )
+            if (
+                pending is not None
+                and latest is not None
+                and pending.interaction_id == latest.interaction_id
+            ):
+                latest = None
+            return AgentStateResponse(
+                available=ai_provider is not None,
+                interaction=latest,
+                wait_goal=wait_service.current(),
+                pending_result=pending,
+            )
 
     @app.get("/v1/status-holdings", response_model=list[StatusHoldingView])
     def list_status_holdings() -> list[StatusHoldingView]:
@@ -137,6 +209,10 @@ def create_product_app(session_factory: sessionmaker[Session]) -> FastAPI:
     def holdings_page() -> str:
         return _page("holdings", "我的会籍")
 
+    @app.get("/agent", response_class=HTMLResponse, include_in_schema=False)
+    def agent_page() -> str:
+        return _page("agent", "会籍策略 Agent")
+
     @app.get("/matches", response_class=HTMLResponse, include_in_schema=False)
     def matches_page() -> str:
         return _page("matches", "个性化匹配图")
@@ -162,6 +238,7 @@ def create_product_app(session_factory: sessionmaker[Session]) -> FastAPI:
 
 def _page(page: str, title: str, *, page_data: str = "") -> str:
     navigation = (
+        ("agent", "/agent", "策略 Agent"),
         ("holdings", "/holdings", "我的会籍"),
         ("matches", "/matches", "匹配图"),
         ("briefs", "/briefs", "机会简报"),
@@ -177,7 +254,7 @@ def _page(page: str, title: str, *, page_data: str = "") -> str:
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="个性化常旅客会籍匹配与挑战机会">
   <title>{title} · JourneyPlus</title>
-  <link rel="stylesheet" href="/assets/app.css?v=20260902-brief-rows">
+  <link rel="stylesheet" href="/assets/app.css?v=20260904-agent-v1">
 </head>
 <body data-page="{page}" {page_data}>
   <header class="topbar">
@@ -188,6 +265,6 @@ def _page(page: str, title: str, *, page_data: str = "") -> str:
     <div class="loading-card"><span class="spinner"></span>正在读取当前数据…</div>
   </main>
   <footer>默认地区：中国 · 地区仅作提醒，不限制机会</footer>
-  <script src="/assets/app.js?v=20260902-brief-rows" defer></script>
+  <script src="/assets/app.js?v=20260904-agent-v1" defer></script>
 </body>
 </html>"""

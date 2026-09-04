@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text as sql_text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -63,6 +64,56 @@ class StatusHolding(Base, TimestampMixin):
     program_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
     tier_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
     valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
+class AgentInteraction(Base, TimestampMixin):
+    __tablename__ = "agent_interactions"
+    __table_args__ = (Index("ix_agent_interactions_status_expires", "status", "expires_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    status: Mapped[str] = mapped_column(String(60), nullable=False)
+    state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    last_response: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    provider: Mapped[str] = mapped_column(String(100), nullable=False)
+    model: Mapped[str] = mapped_column(String(200), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(100), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AgentWaitGoal(Base, TimestampMixin):
+    __tablename__ = "agent_wait_goals"
+    __table_args__ = (
+        Index(
+            "uq_agent_wait_goals_single_active",
+            "status",
+            unique=True,
+            sqlite_where=sql_text("status = 'ACTIVE'"),
+            postgresql_where=sql_text("status = 'ACTIVE'"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source_interaction_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("agent_interactions.id", ondelete="SET NULL"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False)
+    query: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    preferences: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    research_statusmatcher: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    holding_node_ids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    last_candidate_signature: Mapped[str | None] = mapped_column(
+        String(64), nullable=True
+    )
+    pending_result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    pending_seen_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    notified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class CollectionRun(Base, TimestampMixin):
