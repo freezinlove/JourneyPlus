@@ -183,7 +183,7 @@ def test_current_document_body_removes_historical_fees_but_keeps_later_mapping()
         _document("terms", "Current project conditions."),
     ]
     result = apply_statusmatch_fee_policy(_facts(documents), documents)
-    assert result.cost.value == "免费"
+    assert result.cost.value is None
 
 
 def test_fee_table_marks_unavailable_target_without_amount() -> None:
@@ -348,11 +348,11 @@ def test_fee_table_prices_remove_redundant_narrative_copies() -> None:
     [
         ("There is no application fee payable for this status match.", "免费"),
         ("Application fees apply and vary by eligibility.", "收费，金额未公布"),
-        ("Free account enrolment includes complimentary Wi-Fi.", "免费"),
-        ("No price information is published.", "免费"),
+        ("Free account enrolment includes complimentary Wi-Fi.", None),
+        ("No price information is published.", None),
     ],
 )
-def test_fee_policy_uses_application_fee_semantics(page_text: str, expected: str) -> None:
+def test_fee_policy_uses_application_fee_semantics(page_text: str, expected: str | None) -> None:
     documents = [
         _document("activity", "Applications are open."),
         _document("faq", page_text),
@@ -363,7 +363,7 @@ def test_fee_policy_uses_application_fee_semantics(page_text: str, expected: str
 
     assert result.cost.value == expected
     if page_text.startswith("Free account"):
-        assert "按产品规则" in result.cost.evidence[0].locator
+        assert result.cost.evidence == []
 
 
 def test_fee_policy_marks_explicit_free_and_paid_conflict() -> None:

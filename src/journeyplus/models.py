@@ -8,10 +8,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     Numeric,
@@ -56,7 +58,10 @@ class Source(Base, TimestampMixin):
 
 class StatusHolding(Base, TimestampMixin):
     __tablename__ = "status_holdings"
-    __table_args__ = (UniqueConstraint("program_key"),)
+    __table_args__ = (
+        UniqueConstraint("program_key"),
+        ForeignKeyConstraint(["tier_id", "program_id"], ["membership_tiers.id", "membership_tiers.program_id"], name="fk_holding_tier_program"),
+    )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
     program_key: Mapped[str] = mapped_column(String(300), nullable=False)
@@ -64,6 +69,12 @@ class StatusHolding(Base, TimestampMixin):
     program_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
     tier_display_name: Mapped[str] = mapped_column(String(300), nullable=False)
     valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # Nullable during additive backfill; ambiguous legacy identities stay unconfirmed.
+    program_id: Mapped[UUID | None] = mapped_column(ForeignKey("membership_programs.id", name="fk_holding_program"))
+    tier_id: Mapped[UUID | None] = mapped_column(Uuid)
+    revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    identity_status: Mapped[str] = mapped_column(String(30), default="NEEDS_CONFIRMATION", server_default="NEEDS_CONFIRMATION")
 
 
 class AgentInteraction(Base, TimestampMixin):
@@ -79,17 +90,21 @@ class AgentInteraction(Base, TimestampMixin):
     prompt_version: Mapped[str] = mapped_column(String(100), nullable=False)
     schema_version: Mapped[str] = mapped_column(String(100), nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    active_turn_id: Mapped[UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AgentWaitGoal(Base, TimestampMixin):
     __tablename__ = "agent_wait_goals"
     __table_args__ = (
+        CheckConstraint("singleton_key = 1", name="ck_wait_singleton"),
         Index(
             "uq_agent_wait_goals_single_active",
-            "status",
+            "singleton_key",
             unique=True,
-            sqlite_where=sql_text("status = 'ACTIVE'"),
-            postgresql_where=sql_text("status = 'ACTIVE'"),
+            sqlite_where=sql_text("status IN ('ACTIVE','RESULT_PENDING','NEEDS_RECONFIRMATION')"),
+            postgresql_where=sql_text("status IN ('ACTIVE','RESULT_PENDING','NEEDS_RECONFIRMATION')"),
         ),
     )
 
@@ -114,6 +129,14 @@ class AgentWaitGoal(Base, TimestampMixin):
     notified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    singleton_key: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    holding_snapshot: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    conditions_schema_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    last_checked_snapshot: Mapped[str | None] = mapped_column(String(64))
+    result_id: Mapped[UUID | None] = mapped_column(Uuid)
+    result_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CollectionRun(Base, TimestampMixin):
@@ -247,6 +270,7 @@ class SourceItem(Base, TimestampMixin):
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     discovery_fingerprint: Mapped[str | None] = mapped_column(String(128))
     raw_metadata: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
+    document_role: Mapped[str] = mapped_column(String(30), default="OTHER", server_default="OTHER")
 
 
 class DocumentVersion(Base, TimestampMixin):
@@ -277,6 +301,7 @@ class DocumentVersion(Base, TimestampMixin):
     duplicate_of_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("document_versions.id"), nullable=True
     )
+    section_parser_version: Mapped[str | None] = mapped_column(String(100))
 
 
 class BuyPointsSnapshotRecord(Base, TimestampMixin):
@@ -738,3 +763,8 @@ class GoldCaseRecord(Base, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     document_text: Mapped[str] = mapped_column(Text, nullable=False)
     labels: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+
+
+# Register the source-neutral knowledge tables with the same metadata/migrations.
+from journeyplus.knowledge import models as _knowledge_models  # noqa: E402,F401
+from journeyplus.agent import workspace_models as _workspace_models  # noqa: E402,F401

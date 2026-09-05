@@ -104,6 +104,8 @@ def _iso_datetime(value: str) -> datetime:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("knowledge-audit", help="Inspect legacy knowledge counts and association gaps without changing data")
+    subparsers.add_parser("knowledge-backfill", help="Add knowledge identities and source sections; retain unresolved associations")
     subparsers.add_parser("seed-sources", help="Import or refresh configured sources")
     subparsers.add_parser(
         "gmail-authorize",
@@ -307,6 +309,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             port=args.port,
         )
         return 0
+    if args.command in {"knowledge-audit", "knowledge-backfill"}:
+        from journeyplus.knowledge.migration import migration_audit, backfill_identity_and_sources
+        with session_scope(factory) as session:
+            result = migration_audit(session) if args.command == "knowledge-audit" else backfill_identity_and_sources(session)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
     if args.command == "seed-sources":
         with session_scope(factory) as session:
             sources = seed_sources(session)

@@ -290,15 +290,8 @@ def apply_statusmatch_fee_policy(
     elif free_evidence:
         cost = FactField(value="免费", evidence=free_evidence)
     else:
-        fallback = [
-            EvidenceRef(
-                document_version_id=document.id,
-                source_url=document.canonical_url,
-                locator="完整三页当前快照未列出匹配申请金额或收费语义；按产品规则视为免费",
-            )
-            for document in documents
-        ]
-        cost = FactField(value="免费", evidence=fallback)
+        # Absence is not evidence of zero cost, even with all three pages present.
+        cost = FactField()
     return fact_set.model_copy(update={"cost": cost})
 
 
