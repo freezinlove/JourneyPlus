@@ -58,3 +58,14 @@ Workflow SHALL 对重复来源版本和相同知识保持幂等，合并一致�
 #### Scenario: 每日运行没有经验请求
 - **WHEN** 正常每日Workflow更新活动
 - **THEN** 系统不批量采集StatusMatcher，仍完成事实和生命周期处理
+
+### Requirement: LoyaltyLobby 新文章发布边界
+正式发布 SHALL 仅接受发布时间不早于 2026-09-06 00:00 Asia/Shanghai 的 LoyaltyLobby 文章；邮件发现的官方活动 MUST 不受此文章日期限制。
+
+#### Scenario: 旧文章重新抓取
+- **WHEN** 边界前的 LoyaltyLobby 文章被重新抓取或强制刷新
+- **THEN** 暂缓正式发布且不调用提取模型，不以抓取时间替代发布时间
+
+#### Scenario: 文章缺少发布日期
+- **WHEN** LoyaltyLobby 来源没有可用发布时间
+- **THEN** 暂缓并标明 PUBLICATION_DATE_UNKNOWN，不推定其为新文章

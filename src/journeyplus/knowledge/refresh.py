@@ -10,13 +10,16 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from journeyplus.models import (StatusMatchWatch, StatusMatchWatchPage, StatusEvent, FactSetRecord,
-    ArticleOpportunityRecord, ArticleAnalysisRecord, DocumentVersion, now_utc)
-from journeyplus.knowledge.contracts import DocumentBinding
-from journeyplus.knowledge.models import Activity, ActivityDocument, ActivityObservationState, ActivityBrief
-from journeyplus.knowledge.publication import CatalogService
+    ArticleOpportunityRecord, ArticleAnalysisRecord, DocumentVersion, SourceItem, now_utc)
+from journeyplus.knowledge.contracts import DocumentBinding, KnowledgeDraft
+from journeyplus.knowledge.models import Activity, ActivityDocument, ActivityObservationState, ActivityBrief, ActivityKnowledgeVersion
+from journeyplus.knowledge.publication import CatalogService, PublicationService, signature
 from journeyplus.knowledge.workflow import KnowledgeWorkflow
-from journeyplus.knowledge.sources import section_document
+from journeyplus.knowledge.sources import section_document, create_evidence
 from journeyplus.knowledge.migration import _link
+
+
+from journeyplus.knowledge.ingestion_scope import article_scope_reason
 
 
 class KnowledgeRefreshService:
@@ -82,15 +85,60 @@ class KnowledgeRefreshService:
                 match=re.search(r'(?im)^.*Recently ended offers.*$',doc.normalized_body)
                 if match:end=match.start()
                 scope=[x.id for x in sections if x.locator.get('end',end+1)<=end]
+                if not scope:
+                    self._observe(s,aid,error='NO_CURRENT_OFFICIAL_CONTENT')
+                    return {'activity_id':str(aid),'status':'DEFERRED','reason':'官方页面没有可发布的当前正文','model_calls':0}
                 bindings.append(DocumentBinding(document_version_id=doc.id,
                     role='OFFICIAL_PRIMARY' if kind=='activity' else 'OFFICIAL_SUPPORT',section_ids=scope))
         return self._process(aid,bindings,force=force)
+
+    def closed_event(self, event_id: UUID):
+        """Replay a verified HOME closure even after the legacy watch was removed."""
+        from types import SimpleNamespace
+        from journeyplus.statusmatch.closure import assess_statusmatch_home_closure
+        with self.factory.begin() as s:
+            event=s.get(StatusEvent,event_id)
+            if event is None or event.closure_document_version_id is None:
+                raise ValueError('关闭事件缺少 HOME 证据')
+            doc=s.get(DocumentVersion,event.closure_document_version_id)
+            item=s.get(SourceItem,doc.source_item_id)
+            assessment=assess_statusmatch_home_closure(activity=doc,activity_item=item)
+            if not assessment.closed:
+                return {'status':'DEFERRED','reason':'HOME_CLOSURE_NOT_CONFIRMED','model_calls':0}
+            sections=section_document(s,doc.id)
+            evidence_section=next((section for section in sections if assess_statusmatch_home_closure(
+                activity=SimpleNamespace(raw_body=None,normalized_body=section.body,canonical_url=doc.canonical_url),
+                activity_item=item).closed),None)
+            if evidence_section is None:
+                return {'status':'DEFERRED','reason':'HOME_CLOSURE_EVIDENCE_NOT_LOCATABLE','model_calls':0}
+            record=s.get(FactSetRecord,event.current_fact_set_id) if event.current_fact_set_id else None
+            activity=self._identity(s,event,'status_events',record.facts if record else {'opportunity_kind':'STATUS_MATCH'})
+            aid=activity.id
+            previous=s.get(ActivityKnowledgeVersion,activity.current_version_id) if activity.current_version_id else None
+            evidence=create_evidence(s,evidence_section.id,evidence_section.body)
+            draft=KnowledgeDraft.model_validate({
+                'activity_id':aid,'base_version_id':activity.current_version_id,
+                'extraction_key':'home-closure:'+signature({'activity':str(aid),'document':str(doc.id)}),
+                'documents':[{'document_version_id':doc.id,'role':'OFFICIAL_PRIMARY','section_ids':[evidence_section.id]}],
+                'facts':{'title':previous.facts['title'] if previous else event.program+' 会籍匹配',
+                         'summary':{'value':'官方活动首页已确认关闭申请。','known_state':'KNOWN','evidence_ids':[evidence.id]},
+                         'lifecycle':{'value':'CLOSED','known_state':'KNOWN','evidence_ids':[evidence.id]}},
+                'options':[]})
+            version=PublicationService(s).publish(draft)
+            vid=version.id
+            self._observe(s,aid,source_time=doc.fetched_at)
+        return {'status':'REUSED' if previous and previous.id==vid else 'PUBLISHED',
+                'activity_id':str(aid),'version_id':str(vid),'model_calls':0,'briefs':self._briefs(vid)}
 
     def article(self, opportunity_id: UUID, *, force=False):
         with self.factory.begin() as s:
             old=s.get(ArticleOpportunityRecord,opportunity_id)
             if old is None:raise ValueError('文章活动不存在')
             analysis=s.get(ArticleAnalysisRecord,old.analysis_id)
+            item=s.get(SourceItem,analysis.source_item_id)
+            reason=article_scope_reason(item)
+            if reason:
+                return {'status':'DEFERRED','reason':reason,'source_ref':str(item.id),'model_calls':0}
             peers=list(s.scalars(select(ArticleOpportunityRecord).where(ArticleOpportunityRecord.analysis_id==old.analysis_id)))
             activity=self._identity(s,old,'article_opportunities',old.facts)
             aid=activity.id
@@ -148,10 +196,11 @@ class KnowledgeRefreshService:
     def pending(self, *, limit=10):
         if not 1<=limit<=100:raise ValueError('limit must be between 1 and 100')
         with self.factory() as s:
+            closures=list(s.scalars(select(StatusEvent.id).where(StatusEvent.closure_document_version_id.is_not(None)).order_by(StatusEvent.archived_at.desc()).limit(100)))
             hosts=list(s.scalars(select(StatusMatchWatch.host).where(StatusMatchWatch.current_event_id.is_not(None)).order_by(StatusMatchWatch.last_changed_at.desc()).limit(100)))
             articles=list(s.scalars(select(ArticleOpportunityRecord.id).order_by(ArticleOpportunityRecord.updated_at.desc()).limit(100)))
         results=[];attempted=0
-        for kind,key in [('official',h) for h in hosts]+[('article',a) for a in articles]:
+        for kind,key in [('closed_event',e) for e in closures]+[('official',h) for h in hosts]+[('article',a) for a in articles]:
             if attempted>=limit:break
             try:
                 result=getattr(self,kind)(key);results.append(result)

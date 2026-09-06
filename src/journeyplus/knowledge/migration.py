@@ -6,11 +6,13 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from journeyplus.models import (ArticleOpportunityRecord, DocumentVersion, FactSetRecord,
+from journeyplus.models import (ArticleAnalysisRecord, ArticleOpportunityRecord, DocumentVersion, FactSetRecord,
                                 SourceItem, StatusEvent, StatusHolding)
 from journeyplus.knowledge.models import Activity, KnowledgeMigrationLink, MembershipTier
 from journeyplus.knowledge.publication import CatalogService, canonical_key, signature
 from journeyplus.knowledge.sources import section_document
+
+from journeyplus.knowledge.ingestion_scope import article_scope_reason
 
 MIGRATION_VERSION="activity-knowledge-1"
 LEGACY_ROLES={
@@ -60,8 +62,16 @@ def _link(s:Session,table:str,identifier:UUID,path:str,target_table:str,target_i
 def backfill_identity_and_sources(s:Session) -> dict:
     c=CatalogService(s)
     activities=[]
+    excluded_articles=0
+    excluded_documents=0
     for cls,table in [(StatusEvent,"status_events"),(ArticleOpportunityRecord,"article_opportunities")]:
         for old in s.scalars(select(cls)):
+            if table == 'article_opportunities':
+                analysis=s.get(ArticleAnalysisRecord,old.analysis_id)
+                item=s.get(SourceItem,analysis.source_item_id)
+                if article_scope_reason(item):
+                    excluded_articles+=1
+                    continue
             program=c.program(old.program)
             identity=f"legacy:{table}:{old.id}"
             activity=s.scalar(select(Activity).where(Activity.identity_key==identity))
@@ -86,6 +96,10 @@ def backfill_identity_and_sources(s:Session) -> dict:
                     _link(s,table,old.id,f"application_routes/{route_index}/prices/{price_index}","option_prices",None,"UNRESOLVED",reason)
             activities.append(str(activity.id))
     for doc in s.scalars(select(DocumentVersion)):
+        item=s.get(SourceItem,doc.source_item_id)
+        if article_scope_reason(item):
+            excluded_documents+=1
+            continue
         section_document(s,doc.id)
         _link(s,"document_versions",doc.id,"","document_versions",doc.id,"MAPPED","Reused allowed normalized body; stable section parser")
     for holding in s.scalars(select(StatusHolding)):
@@ -94,5 +108,5 @@ def backfill_identity_and_sources(s:Session) -> dict:
         holding.program_id=p.id;holding.tier_id=t.id;holding.identity_status="CONFIRMED"
         _link(s,"status_holdings",holding.id,"","status_holdings",holding.id,"MAPPED","Confirmed user identity preserved without changing labels or expiry")
     s.flush()
-    return {"activity_count":len(activities),"links":dict(s.execute(select(KnowledgeMigrationLink.status,func.count()).group_by(KnowledgeMigrationLink.status)).all()),
+    return {"excluded_articles":excluded_articles,"excluded_documents":excluded_documents,"activity_count":len(activities),"links":dict(s.execute(select(KnowledgeMigrationLink.status,func.count()).group_by(KnowledgeMigrationLink.status)).all()),
             "published_count":sum(s.get(Activity,UUID(x)).current_version_id is not None for x in activities)}

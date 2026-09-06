@@ -152,3 +152,104 @@ def test_evidence_only_update_does_not_create_change_news(factory):
         second=PublicationService(s).publish(KnowledgeDraft.model_validate(data))
         assert second.id!=first.id and second.fact_hash==first.fact_hash
         assert s.scalar(select(ActivityBrief).where(ActivityBrief.knowledge_version_id==second.id,ActivityBrief.brief_kind=='UPDATE')) is None
+
+
+@pytest.mark.parametrize('url,source,published,reason', [
+    ('https://loyaltylobby.com/old/','loyaltylobby_feed','2026-09-05T15:59:59+00:00','HISTORICAL_LOYALTYLOBBY'),
+    ('https://loyaltylobby.com/new/','loyaltylobby_feed','2026-09-06T00:00:00+08:00',None),
+    ('https://www.loyaltylobby.com/unknown/','loyaltylobby_feed',None,'PUBLICATION_DATE_UNKNOWN'),
+    ('https://redirect.example/article','loyaltylobby_feed','2026-08-01T00:00:00+00:00','HISTORICAL_LOYALTYLOBBY'),
+    ('https://clubavolta.statusmatch.com/faq','gmail',None,None),
+    ('https://loyaltylobby.com.example.org/','gmail',None,None),
+])
+def test_article_scope_respects_publication_date_and_preserves_official_backfill(url,source,published,reason):
+    from datetime import datetime
+    from types import SimpleNamespace
+    from journeyplus.knowledge.ingestion_scope import article_scope_reason
+    item=SimpleNamespace(canonical_url=url,source_id=source,published_at=datetime.fromisoformat(published) if published else None)
+    assert article_scope_reason(item)==reason
+
+
+def test_historical_article_force_refresh_and_backfill_do_not_create_activity(factory):
+    from journeyplus.models import (SourceItem, DocumentVersion, AnalysisRun, ArticleAnalysisRecord,
+                                    ArticleOpportunityRecord, now_utc)
+    from journeyplus.knowledge.migration import backfill_identity_and_sources
+    from datetime import datetime, UTC
+    from uuid import uuid4
+    with factory.begin() as s:
+        draft,_,_=fixture_draft(s)
+        doc=s.get(DocumentVersion,draft.documents[0].document_version_id)
+        item=s.get(SourceItem,doc.source_item_id)
+        item.canonical_url='https://loyaltylobby.com/2026/08/24/old/'
+        item.published_at=datetime(2026,8,24,tzinfo=UTC)
+        run=AnalysisRun(idempotency_key=str(uuid4()),document_version_id=doc.id,stage='article',status='COMPLETED',
+            input_version='test',provider='test',model='test',model_config_version='test',prompt_version='test',schema_version='test')
+        s.add(run);s.flush()
+        analysis=ArticleAnalysisRecord(document_version_id=doc.id,source_item_id=item.id,analysis_run_id=run.id,
+            input_version='test',label='STATUS_MATCH',confidence=1,reason='test',status='READY',content_signature='test')
+        s.add(analysis);s.flush()
+        opportunity=ArticleOpportunityRecord(analysis_id=analysis.id,opportunity_index=0,program='Must not create',
+            summary='old',visibility_until_at=now_utc(),visibility_policy='test',facts={},fact_signature='test')
+        s.add(opportunity);s.flush();oid=opportunity.id
+    provider=SequenceAIProvider([])
+    result=KnowledgeRefreshService(factory,provider).article(oid,force=True)
+    assert result['reason']=='HISTORICAL_LOYALTYLOBBY' and provider.calls==[]
+    with factory.begin() as s:
+        migrated=backfill_identity_and_sources(s)
+        assert migrated['excluded_articles']==1 and migrated['excluded_documents']==1
+        assert s.scalar(select(Activity).where(Activity.identity_key==f'legacy:article_opportunities:{oid}')) is None
+
+
+def test_closed_home_replays_after_watch_removal_and_preserves_history(factory):
+    from journeyplus.models import StatusEvent, SourceItem, DocumentVersion, now_utc
+    from journeyplus.knowledge.models import ActivityKnowledgeVersion
+    from uuid import uuid4
+    with factory.begin() as s:
+        draft,_,_=fixture_draft(s)
+        event=StatusEvent(created_from_key=str(uuid4()),program='Closure fixture',summary='test')
+        s.add(event);s.flush()
+        activity=s.get(Activity,draft.activity_id)
+        activity.identity_key=f'legacy:status_events:{event.id}'
+        old=PublicationService(s).publish(draft);old_id=old.id
+        item=s.get(SourceItem,s.get(DocumentVersion,draft.documents[0].document_version_id).source_item_id)
+        body='This status match offer has ended.'
+        doc=DocumentVersion(source_item_id=item.id,canonical_url=item.canonical_url,normalized_body=body,
+            content_type='text/plain',storage_mode='FULL',raw_hash=str(uuid4()),normalized_hash=str(uuid4()),
+            parser_version='test',fetched_at=now_utc())
+        s.add(doc);s.flush();event.closure_document_version_id=doc.id;eid=event.id
+    provider=SequenceAIProvider([]);service=KnowledgeRefreshService(factory,provider)
+    first=service.closed_event(eid);again=service.closed_event(eid)
+    assert first['status']=='PUBLISHED' and again['status']=='REUSED' and not provider.calls
+    with factory() as s:
+        detail=__import__('journeyplus.knowledge.reads',fromlist=['ActivityReadService']).ActivityReadService(s)
+        assert detail.detail(draft.activity_id)['facts']['lifecycle']['value']=='CLOSED'
+        assert detail.detail(draft.activity_id)['options']==[]
+        assert len(detail.detail(draft.activity_id,old_id)['options'])==1
+        assert s.get(ActivityKnowledgeVersion,old_id).status=='PUBLISHED'
+
+
+@pytest.mark.parametrize('home,faq_error,expected', [
+    ('# Recently ended offers\n\nOld price EUR 100.',None,'官方页面没有可发布的当前正文'),
+    ('Apply now.','timeout','官方三页不完整或本次检查失败，保留已发布版本'),
+])
+def test_incomplete_or_entirely_historical_official_source_never_reaches_model(factory,home,faq_error,expected):
+    from journeyplus.models import StatusEvent, StatusMatchWatch, StatusMatchWatchPage, DocumentVersion, now_utc
+    from uuid import uuid4
+    with factory.begin() as s:
+        draft,_,_=fixture_draft(s)
+        source_doc=s.get(DocumentVersion,draft.documents[0].document_version_id)
+        event=StatusEvent(created_from_key=str(uuid4()),program='Official fixture',summary='test')
+        s.add(event);s.flush()
+        watch=StatusMatchWatch(host='fixture.statusmatch.com',current_event_id=event.id)
+        s.add(watch);s.flush()
+        for kind in ['activity','faq','terms']:
+            body=home if kind=='activity' else 'Current terms.'
+            doc=DocumentVersion(source_item_id=source_doc.source_item_id,canonical_url=f'https://fixture.statusmatch.com/{kind}',
+                normalized_body=body,content_type='text/plain',storage_mode='FULL',raw_hash=str(uuid4()),
+                normalized_hash=str(uuid4()),parser_version='test',fetched_at=now_utc())
+            s.add(doc);s.flush()
+            s.add(StatusMatchWatchPage(watch_id=watch.id,page_kind=kind,canonical_url=doc.canonical_url,
+                current_document_version_id=doc.id,last_error=faq_error if kind=='faq' else None))
+    provider=SequenceAIProvider([])
+    result=KnowledgeRefreshService(factory,provider).official('fixture.statusmatch.com')
+    assert result['status']=='DEFERRED' and result['reason']==expected and not provider.calls
