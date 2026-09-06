@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated, Literal
+from decimal import Decimal
 from uuid import UUID
 
 from pydantic import Field, RootModel
@@ -44,9 +45,64 @@ class AskDecision(StrictModel):
     payload:AskPayload
 
 
-class ReadRequest(StrictModel):
-    tool:Literal["query_activity_materials","query_membership_routes","research_statusmatcher"]
-    args:dict=Field(default_factory=dict)
+class ActivitySelector(StrictModel):
+    text: str | None = Field(default=None, description="目标活动或项目名称；A到B的路径问题先定位B")
+    ref: str | None = Field(default=None, description="已披露的活动、项目或等级短引用")
+
+
+class ActivityReadArgs(StrictModel):
+    selector: ActivitySelector
+    question: str = ""
+    view: Literal["AUTO","OVERVIEW","DETAIL","EVIDENCE","CHANGES"] = "AUTO"
+    aspects: list[Literal["PRICE","ELIGIBILITY","CHALLENGE","WINDOW","VALIDITY","APPLICATION"]] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
+    section_refs: list[str] = Field(default_factory=list)
+    version_ref: str | None = None
+
+
+class RouteToolQuery(StrictModel):
+    target_program_id: str | None = Field(default=None,description="目的地项目的program_ref，不是活动ref或起点项目")
+    target_tier_id: str | None = Field(default=None,description="目的地等级tier_ref；用户未指定目标等级则留空")
+    starting_tier_ids: list[str] = Field(default_factory=list,max_length=20,description="用户本轮提到的起点等级tier_ref；已有会籍默认由服务器读取")
+    alliance: str | None = None
+    category: str | None = None
+    free_only: bool = False
+    max_amount: Decimal | None = Field(default=None,ge=0)
+    currency: str | None = None
+    allow_challenge: bool | None = None
+    source_acquisition: Literal["EARNED","MATCHED","UNKNOWN"] = "UNKNOWN"
+    residency: str | None = None
+    require_proven_eligibility: bool = False
+
+
+class RouteReadArgs(StrictModel):
+    mode: Literal["EXPLORE","COMPARE","INSPECT"] = "EXPLORE"
+    query: RouteToolQuery | None = None
+    route_refs: list[str] = Field(default_factory=list,max_length=3)
+
+
+class ResearchReadArgs(StrictModel):
+    step_refs: list[str] = Field(default_factory=list,max_length=12)
+    question: str = ""
+    refresh: bool = False
+
+
+class ActivityReadRequest(StrictModel):
+    tool: Literal["query_activity_materials"]
+    args: ActivityReadArgs
+
+
+class RouteReadRequest(StrictModel):
+    tool: Literal["query_membership_routes"]
+    args: RouteReadArgs
+
+
+class ResearchReadRequest(StrictModel):
+    tool: Literal["research_statusmatcher"]
+    args: ResearchReadArgs
+
+
+ReadRequest = Annotated[ActivityReadRequest|RouteReadRequest|ResearchReadRequest,Field(discriminator="tool")]
 
 
 class ReadPayload(StrictModel):

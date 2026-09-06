@@ -16,7 +16,7 @@ from journeyplus.models import StatusHolding
 from journeyplus.knowledge.contracts import ConditionSet
 from journeyplus.knowledge.models import (Activity, ActivityKnowledgeVersion, ApplicationOptionVersion,
     MembershipProgram, MembershipTier, OptionMapping, OptionPrice, OptionPriceMapping)
-from journeyplus.knowledge.publication import signature
+from journeyplus.knowledge.publication import display_tier_name, signature
 from journeyplus.knowledge.reads import envelope
 
 
@@ -143,8 +143,8 @@ class RouteService:
                 sid=signature([str(o.id),str(m.id),str(node),context])[:16]
                 steps[sid]={"ref":sid,"option_ref":str(o.id),"mapping_ref":str(m.id),"activity_ref":str(v.activity_id),"version_ref":str(v.id),
                     "from_tier_id":str(node) if node else None,"to_tier_id":str(m.target_tier_id),
-                    "from":f"{programs[tiers[node].program_id].display_name} {tiers[node].display_name}" if node else None,
-                    "to":f"{programs[m.target_program_id].display_name} {tiers[m.target_tier_id].display_name}",
+                    "from":f"{programs[tiers[node].program_id].display_name} {display_tier_name(programs[tiers[node].program_id],tiers[node])}" if node else None,
+                    "to":f"{programs[m.target_program_id].display_name} {display_tier_name(programs[m.target_program_id],tiers[m.target_tier_id])}",
                     "fees":fees,"conditional_items":conditional,"alternative_items":alternatives,"fee_unknown":fee_unknown,
                     "challenge":challenge,"eligibility":eligibility,"constraint_checks":checks,
                     "material_caveats":[x["reason"] for x in checks if x["result"]!="PASS"]+(["期限精度不足，需核对"] if time_unknown else []),"fact_refs":m.evidence_ids,
@@ -188,7 +188,7 @@ class RouteService:
             elif unknown:unknowns.append("free_only")
         if q.max_amount is not None:
             if app.get(q.currency,Decimal(0))>q.max_amount:violations.append("max_amount")
-            elif unknown or any(cur!=q.currency for cur in app):unknowns.append("max_amount")
+            elif unknown or any(cur!=q.currency and amount>0 for cur,amount in app.items()):unknowns.append("max_amount")
         challenge="REQUIRED" if any(x["challenge"]=="REQUIRED" for x in items) else "UNKNOWN" if any(x["challenge"]=="UNKNOWN" for x in items) else "NONE"
         if q.allow_challenge is False:
             if challenge=="REQUIRED":violations.append("allow_challenge")

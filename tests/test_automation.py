@@ -568,3 +568,20 @@ def test_beijing_midnight_creates_a_new_day_bucket(session_factory) -> None:
         assert session.scalar(
             select(func.count()).select_from(CollectionRun)
         ) == 2
+
+
+def test_daily_unified_publication_switch_records_failures(session_factory,monkeypatch):
+    from journeyplus.knowledge.refresh import KnowledgeRefreshService
+    calls=[]
+    def pending(self, *, limit):
+        calls.append((self.workflow.provider,limit))
+        return [{'status':'FAILED','error_code':'FixturePublicationFailure'}]
+    monkeypatch.setattr(KnowledgeRefreshService,'pending',pending)
+    provider=SequenceAIProvider([])
+    result=run_daily_cycle(session_factory,provider,lambda source_id:BuyPointsSyntheticAdapter(),
+        source_ids=['awardwallet_buy_points_page'],now=datetime(2026,8,26,2,tzinfo=UTC),knowledge_publish_enabled=True)
+    assert len(calls)==1 and calls[0][0].metadata==provider.metadata
+    assert result.status=='FAILED' and result.knowledge_outputs[0]['error_code']=='FixturePublicationFailure'
+    assert len(provider.calls)==0
+    with session_factory() as s:
+        assert s.scalar(select(AutomationRun)).processing_result['knowledge_outputs'][0]['status']=='FAILED'

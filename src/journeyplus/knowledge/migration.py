@@ -72,8 +72,9 @@ def backfill_identity_and_sources(s:Session) -> dict:
                 s.add(activity);s.flush()
             _link(s,table,old.id,"", "activities",activity.id,"MAPPED","Preserved source identity; no cross-edition brand merge")
             for index,mapping in enumerate(value.get("status_mappings") or []):
-                source=c.program(mapping["source_program"])
-                for tier in mapping.get("source_tiers") or []: c.tier(source.id,tier)
+                if not mapping["source_program"].casefold().startswith(('all major ','all eligible ')):
+                    source=c.program(mapping["source_program"])
+                    for tier in mapping.get("source_tiers") or []: c.tier(source.id,tier)
                 if mapping.get("target_tier"): c.tier(program.id,mapping["target_tier"])
                 _link(s,table,old.id,f"status_mappings/{index}","option_mappings",None,"UNRESOLVED",
                       "Source mapping has no explicit application option identity; re-extract scoped evidence")

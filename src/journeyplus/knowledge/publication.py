@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import json
 import unicodedata
 from uuid import UUID
@@ -21,6 +22,13 @@ def canonical_key(text: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", text).casefold().split())
 
 
+def display_tier_name(program, tier) -> str:
+    name=tier.display_name
+    if canonical_key(name).startswith(canonical_key(program.display_name)+' '):
+        name=name[len(program.display_name):].strip()
+    return re.sub(r'\s+status$','',name,flags=re.I)
+
+
 def signature(value) -> str:
     return hashlib.sha256(json.dumps(value,ensure_ascii=False,sort_keys=True,separators=(",", ":"),default=str).encode()).hexdigest()
 
@@ -39,6 +47,11 @@ class CatalogService:
             raise ValueError("Program name cannot be empty")
         row = self.session.scalar(select(MembershipProgram).where(MembershipProgram.canonical_key == key))
         if row is None:
+            formatting_matches=[p for p in self.session.scalars(select(MembershipProgram)) if p.canonical_key.replace(' ','')==key.replace(' ','')]
+            if len(formatting_matches)==1:
+                row=formatting_matches[0]
+                self.alias(name,row.id)
+                return row
             row = MembershipProgram(canonical_key=key,display_name=name,category=category,alliance=alliance)
             self.session.add(row); self.session.flush()
         return row
@@ -49,6 +62,15 @@ class CatalogService:
             raise ValueError("Tier requires an existing program and name")
         row = self.session.scalar(select(MembershipTier).where(MembershipTier.program_id==program_id,MembershipTier.canonical_key==key))
         if row is None:
+            program=self.session.get(MembershipProgram,program_id)
+            def normalized_tier(value):
+                value=canonical_key(value)
+                if value.startswith(program.canonical_key+' '):value=value[len(program.canonical_key)+1:]
+                return re.sub(r'\s+status$','',value)
+            matches=[t for t in self.session.scalars(select(MembershipTier).where(MembershipTier.program_id==program_id)) if normalized_tier(t.canonical_key)==normalized_tier(key)]
+            if len(matches)==1:
+                self.alias(name,program_id,matches[0].id)
+                return matches[0]
             row = MembershipTier(program_id=program_id,canonical_key=key,display_name=name)
             self.session.add(row); self.session.flush()
         return row
@@ -70,6 +92,13 @@ class CatalogService:
         rows=list(self.session.scalars(select(MembershipProgram).where(
             MembershipProgram.canonical_key.contains(key,autoescape=True) | MembershipProgram.id.in_(ids)
         ).order_by(MembershipProgram.canonical_key).limit(limit+1)))
+        if not rows and key:
+            compact=key.replace(' ','')
+            matches=[]
+            for p in self.session.scalars(select(MembershipProgram).order_by(MembershipProgram.canonical_key)):
+                names=[p.canonical_key,*self.session.scalars(select(MembershipAlias.normalized_alias).where(MembershipAlias.program_id==p.id,MembershipAlias.tier_id.is_(None)))]
+                if any(len(n.replace(' ',''))>=4 and n.replace(' ','') in compact for n in names):matches.append(p)
+            rows=matches[:limit+1]
         return {"has_more":len(rows)>limit,"programs":[{"id":str(r.id),"name":r.display_name,"category":r.category,
                 "tiers":[{"id":str(t.id),"name":t.display_name} for t in self.session.scalars(select(MembershipTier).where(MembershipTier.program_id==r.id).order_by(MembershipTier.canonical_key))]} for r in rows[:limit]]}
 
@@ -120,6 +149,33 @@ class PublicationService:
                 t=self.session.get(MembershipTier,tid)
                 if t is None or t.program_id!=s.program_id: raise ValueError("Source tier/program mismatch")
         for option in draft.options:
+            for price in option.prices:
+                if price.known_state != "KNOWN":continue
+                quotes="\n".join(self.session.get(EvidenceReference,e).quote for e in price.evidence_ids)
+                if price.amount == 0:
+                    if not re.search(r"no\s+(?:application\s+)?fee|no\s+fee\s+payable|free\s+of\s+charge|免(?:申请)?费|不收取.*费用",quotes,re.I):
+                        raise ValueError("Zero fee lacks explicit free application evidence")
+                else:
+                    if price.raw_text not in quotes:
+                        raise ValueError("Known price raw_text must be an exact supporting source excerpt")
+                    quotes=price.raw_text
+                    targets={m.target_tier_id for m in option.mappings}
+                    if len(targets)>1 and price.target_scope=='EXACT':
+                        tier=self.session.get(MembershipTier,price.target_tier_id)
+                        program=self.session.get(MembershipProgram,tier.program_id)
+                        label=tier.display_name
+                        if canonical_key(label).startswith(program.canonical_key+' '):label=label[len(program.display_name)+1:]
+                        label=re.sub(r'\s+status$','',label,flags=re.I)
+                        if not re.search(r'(?<!\w)'+re.escape(label)+r'(?!\w)',quotes,re.I):
+                            raise ValueError("Multi-target price excerpt does not identify its target tier")
+                    if len(targets)>1 and price.target_scope=='ALL_TARGETS' and not re.search(r'all\s+(?:tiers|levels)|flat\s+fee|所有.*等级|统一.*费',quotes,re.I):
+                        raise ValueError("Universal nonzero fee lacks explicit all-target evidence")
+                    amount=format(price.amount.normalize(),'f')
+                    if not re.search(r"(?<![\d.])"+re.escape(amount)+r"(?:\.0+)?(?!\d|\.\d)",quotes.replace(',','')):
+                        raise ValueError("Known amount is absent from its source evidence")
+                    currencies={'EUR':['EUR','€'],'USD':['USD','US$'],'GBP':['GBP','£']}
+                    if not any(token.casefold() in quotes.casefold() for token in currencies.get(price.currency,[price.currency])):
+                        raise ValueError("Known currency is absent from its source evidence")
             source(option.source_scope)
             parent_ids={c.condition_id for c in draft.facts.conditions.items}
             for group in [option.conditions,*[m.conditions for m in option.mappings],*[p.conditions for p in option.prices]]:

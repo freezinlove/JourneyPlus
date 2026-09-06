@@ -3,6 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import UTC,datetime,timedelta
 import json
+import logging
 import re
 from time import monotonic
 from uuid import UUID,uuid4
@@ -24,9 +25,9 @@ from journeyplus.knowledge.packets import decision_packet
 PROMPT="""你是 JourneyPlus 单一会籍 Agent，允许任意自然语言。闲聊直接 ANSWER，零业务读取。
 按当前问题选择 READ 工具，活动问答不强制填写目标或保存会籍。ASK 每回合只问一个关键问题。
 查询活动资料 query_activity_materials 参数 selector={text或ref},question,view(AUTO/OVERVIEW/DETAIL/EVIDENCE/CHANGES),aspects(PRICE/ELIGIBILITY/CHALLENGE/WINDOW/VALIDITY/APPLICATION),section_refs?。项目目录消歧也使用这个入口。
-查询路线 query_membership_routes 参数 mode(EXPLORE/COMPARE/INSPECT),query={target_program_id?,target_tier_id?,alliance?,category?,free_only?,max_amount?,currency?,allow_challenge?,source_acquisition?,residency?,require_proven_eligibility?,starting_tier_ids?},route_refs?。所有ID使用当前已提供引用，不能凭名字猜ID。没有目标合法，默认持有会籍由服务端提供。
+查询路线 query_membership_routes 参数 mode(EXPLORE/COMPARE/INSPECT),query={target_program_id?,target_tier_id?,alliance?,category?,free_only?,max_amount?,currency?,allow_challenge?,source_acquisition?,residency?,require_proven_eligibility?,starting_tier_ids?},route_refs?。所有ID使用当前已提供引用，不能凭名字猜ID。没有目标合法，默认持有会籍由服务端提供。活动工具返回catalog及mappings；用户说自己有某会籍可以用已定位tier_ref作为starting_tier_ids临时计算，不要求先保存。用户要路径卡片时，先用目标项目名定位目标活动（例如A到B应查B活动，不是A的前置活动），读出目录后用query_membership_routes生成。活动ref不能当route_graph的路线ref，只有query_membership_routes返回的路线才能绘图。用户明确要求路径卡片时，必须在读到目标活动mapping后的下一次调用READ query_membership_routes，不能提前ANSWER或重复读取无关前置活动。
 research_statusmatcher 参数 step_refs,question,refresh。只有用户请求或接受经验调查才调用；不可用如实解释。
-金额、规则、URL、图边来自工具，不得编造。关键未知、费用适用范围、partial必须说明。相似名字不代表同活动或等级等价。
+金额、规则、URL、图边来自工具，不得编造。关键未知、费用适用范围、partial必须说明。相似名字不代表同活动或等级等价。all membership levels是所有会员等级，不能改成仅高级会员；CATEGORY_RULE的具体项目资格仍需核对，不能宣称所有项目自动符合。
 ANSWER 的 blocks 选择已返回 subject_refs；route_graph精选一个首选至多两备选，探索可更多；简单问题不强制图。服务端渲染正式价格和详情。
 下一步建议独立在回答末尾发送自然语言，不能混作卡片点击。PROPOSE只提出明确用户数据变更，不等于确认写入。
 HOLDING_SAVE/EDIT changes={program_id,tier_id,valid_until?}；QUERY_ADJUST changes为只更改一个条件的RouteQuery字段；WAIT_CREATE changes={query:RouteQuery}。
@@ -40,24 +41,7 @@ def aware(value):return value.replace(tzinfo=UTC) if value.tzinfo is None else v
 class WorkspaceError(ValueError):pass
 
 
-class ReferenceMap:
-    def __init__(self,state:dict):
-        self.entries=state.setdefault("references",{})
-        self.reverse={v:k for k,v in self.entries.items()}
-
-    def encode(self,value):
-        if isinstance(value,dict):return {self.encode(k):self.encode(v) for k,v in value.items()}
-        if isinstance(value,list):return [self.encode(v) for v in value]
-        if isinstance(value,str) and (re.fullmatch(r"[0-9a-f]{8}-[0-9a-f-]{27}",value) or re.fullmatch(r"[0-9a-f]{16}",value)):
-            if value not in self.reverse:
-                key=f"K{len(self.entries)+1}";self.entries[key]=value;self.reverse[value]=key
-            return self.reverse[value]
-        return value
-
-    def decode(self,value):
-        if isinstance(value,dict):return {self.decode(k):self.decode(v) for k,v in value.items()}
-        if isinstance(value,list):return [self.decode(v) for v in value]
-        return self.entries.get(value,value) if isinstance(value,str) else value
+from journeyplus.knowledge.references import ReferenceMap
 
 
 class WorkspaceService:
@@ -141,10 +125,9 @@ class WorkspaceService:
                     continue
                 decision=result.root
                 if decision.action=="READ":
-                    if calls>=self.max_calls:break
                     for read in decision.payload.requests:
                         if monotonic()>=deadline:raise TimeoutError("回合时间预算用尽")
-                        args=refs.decode(read.args)
+                        args=refs.decode(read.args.model_dump(mode="json",exclude_none=True))
                         data=self._tool(read.tool,args,state,request.text)
                         basis.append({"tool":read.tool,"status":data.get("status"),"coverage":data.get("coverage"),"snapshot_ref":data.get("snapshot_ref")})
                         packets.append(decision_packet(refs.encode(data),max_bytes=15000))
@@ -160,11 +143,25 @@ class WorkspaceService:
                     state["pending_action"]=pending
                     answer={"text":payload["reason"],"blocks":[{"type":"confirmation","payload":refs.encode(pending)}],"next_steps":[]}
                 else:
-                    answer=self._assemble(decision.payload.model_dump(mode="json"),state,refs)
+                    try:answer=self._assemble(decision.payload.model_dump(mode="json"),state,refs)
+                    except WorkspaceError as exc:
+                        if calls>=self.max_calls:break
+                        packets.append({'status':'INVALID_SELECTION','message':str(exc),'instruction':'使用工具返回的对应类型引用；路线图需要先查询路线。'})
+                        continue
                 break
             if answer is None:
-                error="BUDGET_EXHAUSTED";answer={"text":"本轮已达到处理预算。已保留读取结果，可以继续追问需要核对的部分。","blocks":[],"next_steps":[]}
+                route_refs=[refs.reverse[r] for r in state.get('last_route_refs',[]) if r in refs.reverse][-3:] if any(b['tool']=='query_membership_routes' for b in basis) else []
+                activity_refs=[refs.reverse[a['ref']] for material in state.get('materials',[])[-1:] for a in material.get('data',{}).get('activities',[]) if a['ref'] in refs.reverse][-3:] if any(b['tool']=='query_activity_materials' for b in basis) else []
+                if route_refs or activity_refs:
+                    selected=route_refs or activity_refs
+                    kind='route_graph' if route_refs else 'activity_card'
+                    answer=self._assemble({'text':'本轮已完成资料读取。以下结果由已发布资料生成；费用和待核实条件请查看卡片及详情。',
+                        'blocks':[{'type':kind,'subject_refs':selected,'fact_refs':[],'reason':'预算内的确定性展示','columns':[]}],'next_steps':[]},state,refs)
+                    answer['processing_note']='MODEL_CALL_BUDGET_REACHED'
+                else:
+                    error="BUDGET_EXHAUSTED";answer={"text":"本轮已达到处理预算。已保留读取结果，可以继续追问需要核对的部分。","blocks":[],"next_steps":[]}
         except Exception as exc:
+            logging.getLogger(__name__).warning("Workspace turn failed: %s; %s",type(exc).__name__,str(exc) if isinstance(exc,WorkspaceError) else "see stage error type")
             error="PROVIDER_TIMEOUT" if isinstance(exc,(TimeoutError,httpx.TimeoutException)) else "PROVIDER_HTTP" if isinstance(exc,httpx.HTTPStatusError) else "SCHEMA_ERROR" if isinstance(exc,ValidationError) else "INVALID_JSON" if isinstance(exc,json.JSONDecodeError) else "CONFIG_UNAVAILABLE" if self.provider is None else "TOOL_ERROR"
             answer={"text":"本轮未能完成处理，输入和已取得资料已保留，可以继续重试。","blocks":[],"next_steps":[],"error":{"code":error,"retryable":error!="CONFIG_UNAVAILABLE"}}
         answer.update(id=str(uuid4()),turn_id=str(turnid),basis=basis,model_calls=calls,repair_calls=repairs,research_state="NOT_REQUESTED" if not any(b["tool"]=="research_statusmatcher" for b in basis) else state.get("last_research_state","UNAVAILABLE"))
@@ -185,6 +182,8 @@ class WorkspaceService:
             raise WorkspaceError("经验适配器尚未连接到工作区步骤契约")
         with self.factory() as s:
             if name=="query_activity_materials":
+                args["question"]=args.get("question") or text
+                if isinstance(args.get("selector"),str):args["selector"]={"text":args["selector"]}
                 result=ActivityReadService(s).materials(**args)
                 if result["status"]=="NEEDS_INPUT":
                     result["data"]["catalog"]=CatalogService(s).search(args.get("selector",{}).get("text", ""))
@@ -202,7 +201,8 @@ class WorkspaceService:
                 result=RouteService(s).query(query)
                 state["query"]=query.model_dump(mode="json")
                 routes=result.pop("server_routes");steps=result.pop("server_steps")
-                selected={r["ref"] for r in result["data"]["cards"]}
+                state["last_route_refs"]=[r["ref"] for r in result["data"]["cards"]]
+                selected=set(state["last_route_refs"])
                 state["routes"].update({r:routes[r] for r in selected})
                 selected_steps={sid for r in selected for sid in routes[r]["step_refs"]}
                 state["steps"].update({sid:steps[sid] for sid in selected_steps})

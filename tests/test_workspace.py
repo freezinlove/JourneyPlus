@@ -138,7 +138,7 @@ def test_workflow_model_runs_outside_database_transaction(factory):
     class Provider:
         def generate_structured(self, **kwargs):
             assert engine.pool.checkedout() == 0 if hasattr(engine.pool, 'checkedout') else not active
-            return KnowledgeDraft.model_validate(data)
+            return kwargs["output_model"].model_validate({"facts":data["facts"],"options":data["options"]})
     engine = factory.kw['bind']
     active = set()
     event.listen(engine, 'begin', lambda conn: active.add(id(conn)))
@@ -156,10 +156,10 @@ def test_workflow_rejects_model_changed_source_binding(factory):
     from journeyplus.knowledge.workflow import KnowledgeWorkflow
     with factory.begin() as s:
         draft, _, _ = fixture_draft(s)
-    provider = SequenceAIProvider([draft.model_dump(mode='json')])
+    provider = SequenceAIProvider([draft.model_dump(mode='json'),draft.model_dump(mode='json')])
     workflow = KnowledgeWorkflow(factory, provider)
     prepared = workflow.prepare(draft.activity_id, draft.documents)
-    with pytest.raises(ValueError, match='改变了服务端绑定'):
+    with pytest.raises(ValueError, match='Extra inputs'):
         workflow.extract(prepared)
 
 

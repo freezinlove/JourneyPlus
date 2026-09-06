@@ -49,7 +49,7 @@ def fixture_draft(s):
                         raw_hash=suffix,normalized_hash=suffix,parser_version="fixture",fetched_at=now_utc())
     s.add(doc);s.flush()
     sections=section_document(s,doc.id)
-    ev=create_evidence(s,sections[1].id,"A Gold to B Silver: EUR 100.")
+    ev=create_evidence(s,sections[1].id,sections[1].body)
     evidence=[str(ev.id)]
     c=CatalogService(s)
     a=c.program("A "+suffix); ag=c.tier(a.id,"Gold")
@@ -63,7 +63,7 @@ def fixture_draft(s):
         "options":[{"logical_key":"airline","label":"航空会籍","method":"MATCH","source_scope":scope,
                     "availability":"AVAILABLE","challenge":{"known_state":"KNOWN","value":{"kind":"NONE"},"evidence_ids":evidence},
                     "mappings":[{"key":key,"source_scope":scope,"target_program_id":str(b.id),"target_tier_id":str(t.id),"availability":"AVAILABLE","evidence_ids":evidence} for key,t in [("silver",bs),("gold",bg)]],
-                    "prices":[{"key":key,"charge_key":"application-"+key,"target_tier_id":str(t.id),"mapping_keys":[key],"amount":amount,"currency":"EUR","known_state":"KNOWN","availability":"AVAILABLE","raw_text":"fixture price","evidence_ids":evidence} for key,t,amount in [("silver",bs,"100"),("gold",bg,"200")]]}]})
+                    "prices":[{"key":key,"charge_key":"application-"+key,"target_tier_id":str(t.id),"mapping_keys":[key],"amount":amount,"currency":"EUR","known_state":"KNOWN","availability":"AVAILABLE","raw_text":f"B {t.display_name}: EUR {amount}","evidence_ids":evidence} for key,t,amount in [("silver",bs,"100"),("gold",bg,"200")]]}]})
     return draft,doc,ev
 
 
@@ -102,12 +102,18 @@ def test_sections_keep_exception_and_are_idempotent(knowledge_session):
 
 
 def test_atomic_publish_is_idempotent_and_keeps_option_identity(knowledge_session):
-    s=knowledge_session;draft,_,_=fixture_draft(s)
+    s=knowledge_session;draft,doc,old_ev=fixture_draft(s)
     service=PublicationService(s);v1=service.publish(draft)
     assert service.publish(draft).id==v1.id
     ov1=s.scalar(select(ApplicationOptionVersion).where(ApplicationOptionVersion.knowledge_version_id==v1.id))
     data=draft.model_dump(mode="json");data.update(base_version_id=str(v1.id),extraction_key="fixture-2")
-    data["options"][0]["prices"][1]["amount"]="180"
+    new_body=doc.normalized_body.replace('B Gold: EUR 200','B Gold: EUR 180')
+    new_doc=DocumentVersion(source_item_id=doc.source_item_id,canonical_url=doc.canonical_url,raw_body=new_body,normalized_body=new_body,content_type='text/markdown',storage_mode='FULL',raw_hash=str(uuid4()),normalized_hash=str(uuid4()),parser_version='fixture',fetched_at=now_utc())
+    s.add(new_doc);s.flush();new_sections=section_document(s,new_doc.id)
+    new_ev=create_evidence(s,new_sections[1].id,new_sections[1].body)
+    import json
+    data=json.loads(json.dumps(data).replace(str(old_ev.id),str(new_ev.id)).replace(str(doc.id),str(new_doc.id)))
+    data["options"][0]["prices"][1].update(amount="180",raw_text="B Gold: EUR 180")
     v2=service.publish(KnowledgeDraft.model_validate(data))
     ov2=s.scalar(select(ApplicationOptionVersion).where(ApplicationOptionVersion.knowledge_version_id==v2.id))
     assert ov1.option_id==ov2.option_id and ov1.id!=ov2.id

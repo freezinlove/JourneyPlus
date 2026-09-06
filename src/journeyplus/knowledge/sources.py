@@ -14,7 +14,7 @@ from journeyplus.knowledge.models import DocumentSection, EvidenceReference
 SECTION_PARSER_VERSION = "semantic-sections-1"
 TOPICS = {
     "PRICE": r"fee|price|cost|eur|usd|费用|收费|免费|价格",
-    "ELIGIBILITY": r"eligible|eligibility|qualif|obtained|资格|匹配取得|申请条件",
+    "ELIGIBILITY": r"eligible|eligibility|qualif|obtained|membership|tier|match|资格|会籍|等级|匹配|条件",
     "CHALLENGE": r"challenge|nights?|stays?|挑战|住宿",
     "WINDOW": r"deadline|until|valid|截止|有效|期限",
 }

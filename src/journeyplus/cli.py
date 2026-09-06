@@ -104,6 +104,11 @@ def _iso_datetime(value: str) -> datetime:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    knowledge = subparsers.add_parser("knowledge-refresh", help="Publish unified knowledge from collected source versions")
+    knowledge.add_argument("--host")
+    knowledge.add_argument("--article-id", type=UUID)
+    knowledge.add_argument("--limit", type=int, default=10)
+    knowledge.add_argument("--force", action="store_true")
     subparsers.add_parser("knowledge-audit", help="Inspect legacy knowledge counts and association gaps without changing data")
     subparsers.add_parser("knowledge-backfill", help="Add knowledge identities and source sections; retain unresolved associations")
     subparsers.add_parser("seed-sources", help="Import or refresh configured sources")
@@ -308,6 +313,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             host=args.host,
             port=args.port,
         )
+        return 0
+    if args.command == "knowledge-refresh":
+        from journeyplus.knowledge.refresh import KnowledgeRefreshService
+        service = KnowledgeRefreshService(factory, OpenAICompatibleProvider(settings))
+        if args.host and args.article_id:
+            parser.error("choose --host or --article-id")
+        result = service.official(args.host, force=args.force) if args.host else service.article(args.article_id, force=args.force) if args.article_id else service.pending(limit=args.limit)
+        print(json.dumps(result, ensure_ascii=False))
         return 0
     if args.command in {"knowledge-audit", "knowledge-backfill"}:
         from journeyplus.knowledge.migration import migration_audit, backfill_identity_and_sources
@@ -519,6 +532,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             generic_pipeline_mode=settings.generic_article_pipeline,
             generic_title_drop_enabled=settings.generic_title_drop_enabled,
+            knowledge_publish_enabled=settings.knowledge_publish_enabled,
             agent_experience_researcher=_statusmatcher_experience_client(settings),
             agent_interaction_ttl=timedelta(
                 hours=settings.agent_interaction_ttl_hours

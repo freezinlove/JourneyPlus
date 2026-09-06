@@ -26,6 +26,7 @@ class Settings:
     automation_document_limit: int = 20
     automation_model_call_limit: int = 100
     automation_lease_seconds: int = 3600
+    knowledge_publish_enabled: bool = False
     generic_article_pipeline: str = "v2"
     generic_title_drop_enabled: bool = True
     agent_interaction_ttl_hours: int = 24
@@ -72,6 +73,7 @@ class Settings:
             automation_lease_seconds=_positive_env_int(
                 "JOURNEYPLUS_AUTOMATION_LEASE_SECONDS", 3600
             ),
+            knowledge_publish_enabled=_boolean_env("JOURNEYPLUS_KNOWLEDGE_PUBLISH_ENABLED", False),
             generic_article_pipeline=_choice_env(
                 "JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE", "v2", {"v1", "v2"}
             ),

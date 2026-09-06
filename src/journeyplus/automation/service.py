@@ -156,6 +156,7 @@ class DailyCycleSummary:
     agent_wait_error: str | None
     backlog_count: int
     needs_review_count: int
+    knowledge_outputs: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,6 +246,7 @@ def run_daily_cycle(
     statusmatch_fetcher: Fetcher | None = None,
     generic_pipeline_mode: str = "v2",
     generic_title_drop_enabled: bool = True,
+    knowledge_publish_enabled: bool = False,
     agent_experience_researcher: ExperienceResearcher | None = None,
     agent_interaction_ttl: timedelta = timedelta(hours=24),
     agent_max_model_calls: int = 3,
@@ -479,6 +481,9 @@ def run_daily_cycle(
                 "buy_points_processing": asdict(buy_points_processing),
                 "generic_documents": generic_payload,
             }
+            if knowledge_publish_enabled:
+                from journeyplus.knowledge.refresh import KnowledgeRefreshService
+                processing_payload['knowledge_outputs']=KnowledgeRefreshService(session_factory,budgeted).pending(limit=resolved_limits.documents)
         except Exception as exc:
             global_error = _safe_error(exc)
             processing_payload = {
@@ -563,6 +568,7 @@ def run_daily_cycle(
                 item.status == RunStatus.FAILED for item in source_summaries
             )
             processing_failures = int(processing_payload.get("failed", 0))
+            knowledge_failures = any(r.get("status")=="FAILED" or r.get("briefs",{}).get("status")=="FAILED" for r in processing_payload.get("knowledge_outputs",[]))
             project_failures = project_processing.failed
             article_failures = article_processing.failed
             buy_points_failures = buy_points_processing.failed
@@ -570,6 +576,7 @@ def run_daily_cycle(
                 RunStatus.SUCCEEDED
                 if not source_failures
                 and not processing_failures
+                and not knowledge_failures
                 and not project_failures
                 and not article_failures
                 and not buy_points_failures
@@ -661,6 +668,7 @@ def run_daily_cycle(
         agent_wait_error=waiting.error,
         backlog_count=backlog,
         needs_review_count=needs_review,
+        knowledge_outputs=tuple(processing_payload.get("knowledge_outputs", [])),
     )
 
 

@@ -5,11 +5,12 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from journeyplus.models import DocumentVersion
 
 from journeyplus.knowledge.models import (Activity, ActivityBrief, ActivityDocument, ActivityKnowledgeVersion,
     ActivityObservationState, ApplicationOptionVersion, DocumentSection, EvidenceReference,
     MembershipProgram, MembershipTier, OptionMapping, OptionPrice)
-from journeyplus.knowledge.publication import canonical_key, signature
+from journeyplus.knowledge.publication import canonical_key, signature, display_tier_name
 from journeyplus.knowledge.sources import expand_evidence
 
 
@@ -32,13 +33,34 @@ class ActivityReadService:
             try: row=self.session.get(Activity,UUID(ref))
             except ValueError: row=None
             if row: return [row]
+            try:
+                reference_id=UUID(ref)
+                program=self.session.get(MembershipProgram,reference_id)
+                tier=self.session.get(MembershipTier,reference_id) if program is None else None
+                program_id=program.id if program else tier.program_id if tier else None
+                if program_id:
+                    return list(self.session.scalars(select(Activity).where(Activity.primary_program_id==program_id,Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
+            except ValueError:pass
         query=canonical_key(text or "")
+        direction=re.search(r'(?:\bto\b|匹配到|匹配至|→|->)\s*(.+)$',query)
+        if direction:query=direction[1].strip()
         rows=[]
         for a in self.session.scalars(select(Activity).where(Activity.merged_into_id.is_(None)).order_by(Activity.identity_key)):
             p=self.session.get(MembershipProgram,a.primary_program_id) if a.primary_program_id else None
             v=self.session.get(ActivityKnowledgeVersion,a.current_version_id) if a.current_version_id else None
-            if query and any(query in canonical_key(x) for x in [p.display_name if p else "",v.facts.get("title","") if v else "",a.identity_key]):
+            if query and any(query.replace(" ","") in canonical_key(x).replace(" ","") for x in [p.display_name if p else "",v.facts.get("title","") if v else "",a.identity_key]):
                 rows.append(a)
+        if query:
+            from journeyplus.knowledge.publication import CatalogService
+            catalog=CatalogService(self.session).search(query,limit=limit)
+            program_ids={UUID(p['id']) for p in catalog['programs']}
+            stop={'status','match','matching','rewards','club','program','programme','loyalty','membership','gold','silver','platinum','premium','vip'}
+            query_tokens=set(re.findall(r'[a-z0-9]+',query))-stop
+            for program in self.session.scalars(select(MembershipProgram)):
+                tokens=set(re.findall(r'[a-z0-9]+',program.canonical_key))-stop
+                if tokens and tokens <= query_tokens:program_ids.add(program.id)
+            related=list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(program_ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
+            rows=list({a.id:a for a in rows+related}.values())
         return rows[:limit+1]
 
     def detail(self, activity_id:UUID, version_id:UUID|None=None)->dict:
@@ -53,7 +75,7 @@ class ActivityReadService:
             mappings=[]
             for m in self.session.scalars(select(OptionMapping).where(OptionMapping.option_version_id==o.id)):
                 tier=self.session.get(MembershipTier,m.target_tier_id);program=self.session.get(MembershipProgram,m.target_program_id)
-                mappings.append({"ref":str(m.id),"source_scope":m.source_scope,"to_program":program.display_name,"to_tier":tier.display_name,
+                mappings.append({"ref":str(m.id),"source_scope":m.source_scope,"to_program":program.display_name,"to_tier":display_tier_name(program,tier),
                                  "target_program_id":str(m.target_program_id),"target_tier_id":str(m.target_tier_id),
                                  "availability":m.availability,"conditions":m.conditions,"evidence_ids":m.evidence_ids})
             prices=[{"ref":str(p.id),"target_tier_id":str(p.target_tier_id) if p.target_tier_id else None,
@@ -68,7 +90,10 @@ class ActivityReadService:
         briefs=[{"kind":b.brief_kind,"status":b.status,"content":b.content,"version_ref":str(v.id)} for b in self.session.scalars(select(ActivityBrief).where(ActivityBrief.knowledge_version_id==v.id))]
         return {"ref":str(a.id),"version_ref":str(v.id),"current_version_ref":str(a.current_version_id),"is_current":a.current_version_id==v.id,
                 "name":v.facts["title"],"edition":a.edition_key,"kind":a.kind,"facts":v.facts,"published_at":v.published_at.isoformat(),
-                "freshness":observation.freshness if observation else "INCOMPLETE","options":options,"briefs":briefs}
+                "freshness":observation.freshness if observation else "INCOMPLETE","options":options,"briefs":briefs,
+                "sources":[{"document_version_ref":str(b.document_version_id),"role":b.role,"url":d.canonical_url,"fetched_at":d.fetched_at.isoformat()}
+                    for b in self.session.scalars(select(ActivityDocument).where(ActivityDocument.knowledge_version_id==v.id))
+                    if (d:=self.session.get(DocumentVersion,b.document_version_id))]}
 
     def materials(self, *, selector:dict, question:str, view:str="AUTO", aspects:list[str]|None=None,
                   evidence_refs:list[str]|None=None, section_refs:list[str]|None=None, version_ref:str|None=None, max_chars:int=14000)->dict:
@@ -85,9 +110,15 @@ class ActivityReadService:
             from journeyplus.knowledge.sources import TOPICS
             topics={k for k,p in TOPICS.items() if re.search(p,question,re.I)}
         facts=[]
+        for field in ('conditions','caveats','application_window','summary'):
+            value=detail['facts'].get(field)
+            if value: facts.append({'ref':f'{vid}/facts/{field}','subject_ref':detail['ref'],'label':detail['name'],'field':field,'value':value})
         relevant={"PRICE":"prices","ELIGIBILITY":"conditions","CHALLENGE":"challenge","WINDOW":"application_window",
                   "VALIDITY":"status_validity","APPLICATION":"action_link"}
         for o in detail["options"]:
+            if not topics or 'ELIGIBILITY' in topics:
+                facts.append({'ref':f"{vid}/{o['ref']}/source_scope",'subject_ref':o['ref'],'label':o['label'],'field':'source_scope','value':o['source_scope']})
+                facts.append({'ref':f"{vid}/{o['ref']}/mappings",'subject_ref':o['ref'],'label':o['label'],'field':'mappings','value':o['mappings']})
             for aspect,field in relevant.items():
                 if not topics or aspect in topics:
                     facts.append({"ref":f"{vid}/{o['ref']}/{field}","subject_ref":o["ref"],"label":o["label"],"field":field,"value":o[field]})
@@ -133,6 +164,13 @@ class ActivityReadService:
         summary["material_caveats"]=detail["facts"].get("caveats",[])
         out=envelope({"activities":[summary],"facts":facts,"snippets":snippets,"changes":[]},snapshot=snapshot,
                      status="PARTIAL" if partial else "OK",count=len(facts),partial=partial,reason="CONTENT_BUDGET" if partial else None)
+        tier_ids=set()
+        for option in detail['options']:
+            tier_ids.update(option['source_scope'].get('tier_ids',[]))
+            for mapping in option['mappings']:
+                tier_ids.add(mapping['target_tier_id']);tier_ids.update(mapping['source_scope'].get('tier_ids',[]))
+        out['data']['catalog']=[{'tier_ref':str(t.id),'tier_name':t.display_name,'program_ref':str(t.program_id),'program_name':self.session.get(MembershipProgram,t.program_id).display_name}
+            for t in self.session.scalars(select(MembershipTier).where(MembershipTier.id.in_([UUID(x) for x in tier_ids])))]
         out["expansions"]=[{"ref":r,"kind":"SECTION","aspects":list(topics),"reason":"尚未展开的完整来源片段"} for r in expansions]
         if partial:out["caveats"].append("相关资料未全部展开，不可据此确认没有限制")
         if view=="CHANGES":

@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Generic, Literal, TypeVar
 from uuid import UUID
 
-from pydantic import Field, HttpUrl, model_validator
+from pydantic import Field, HttpUrl, model_validator, ConfigDict
 
 from journeyplus.contracts import StrictModel
 
@@ -20,6 +20,10 @@ class Alternative(StrictModel, Generic[T]):
 
 
 class FactValue(StrictModel, Generic[T]):
+    model_config = ConfigDict(json_schema_extra={"allOf":[
+        {"if":{"required":["value"],"properties":{"value":{"not":{"type":"null"}}}},
+         "then":{"required":["known_state","evidence_ids"],"properties":{"known_state":{"const":"KNOWN"},"evidence_ids":{"minItems":1}}}}
+    ]})
     schema_version: Literal[1] = 1
     known_state: KnownState = "UNKNOWN"
     value: T | None = None
@@ -44,6 +48,12 @@ class FactValue(StrictModel, Generic[T]):
 
 
 class SourceScope(StrictModel):
+    model_config = ConfigDict(json_schema_extra={"allOf":[
+        {"if":{"properties":{"kind":{"const":"CATEGORY_RULE"}},"required":["kind"]},
+         "then":{"required":["category","rule_text","evidence_ids"],"properties":{"category":{"enum":["AIRLINE","HOTEL","CRUISE","OTHER"]},"rule_text":{"type":"string","minLength":1},"program_id":{"type":"null"},"tier_ids":{"maxItems":0}}}},
+        {"if":{"properties":{"kind":{"const":"EXACT_TIERS"}},"required":["kind"]},
+         "then":{"required":["program_id","tier_ids","evidence_ids"],"properties":{"program_id":{"type":"string","format":"uuid"},"tier_ids":{"minItems":1},"category":{"type":"null"}}}}
+    ]})
     kind: Literal["EXACT_TIERS", "PROGRAM_ANY_TIER", "CATEGORY_RULE", "PUBLIC", "UNKNOWN"] = "UNKNOWN"
     program_id: UUID | None = None
     tier_ids: list[UUID] = Field(default_factory=list)
@@ -63,13 +73,17 @@ class SourceScope(StrictModel):
                 raise ValueError("Program scope must not imply individual tiers")
         elif self.kind == "CATEGORY_RULE":
             if not self.category or not self.rule_text or self.program_id or self.tier_ids:
-                raise ValueError("Category rule requires category and rule text")
+                raise ValueError("CATEGORY_RULE requires category and nonempty rule_text, program_id=null, tier_ids=[]")
         elif self.program_id or self.tier_ids or self.category:
             raise ValueError("Public and unknown scopes cannot contain inferred identities")
         return self
 
 
 class Condition(StrictModel):
+    model_config = ConfigDict(json_schema_extra={"allOf":[
+        {"if":{"required":["value"],"properties":{"value":{"not":{"type":"null"}}}},
+         "then":{"required":["known_state","evidence_ids"],"properties":{"known_state":{"const":"KNOWN"},"evidence_ids":{"minItems":1}}}}
+    ]})
     condition_id: str
     topic: Literal["SOURCE_ACQUISITION", "RESIDENCY", "MIN_REMAINING_VALIDITY", "PRIOR_PARTICIPATION", "DOCUMENT_REQUIREMENT", "OTHER"]
     operator: Literal["EQ", "IN", "GTE", "TEXT"]
@@ -197,6 +211,16 @@ class MappingDraft(StrictModel):
 
 
 class PriceDraft(StrictModel):
+    model_config = ConfigDict(json_schema_extra={"allOf":[
+        {"if":{"properties":{"target_scope":{"const":"ALL_TARGETS"}},"required":["target_scope"]},
+         "then":{"properties":{"target_tier_id":{"type":"null"}}},
+         "else":{"required":["target_tier_id"],"properties":{"target_tier_id":{"type":"string","format":"uuid"}}}},
+        {"if":{"properties":{"mapping_scope":{"const":"ALL_MAPPINGS"}},"required":["mapping_scope"]},
+         "then":{"properties":{"mapping_keys":{"maxItems":0}}},
+         "else":{"required":["mapping_keys"],"properties":{"mapping_keys":{"minItems":1}}}},
+        {"if":{"required":["amount"],"properties":{"amount":{"not":{"type":"null"}}}},
+         "then":{"required":["known_state"],"properties":{"known_state":{"const":"KNOWN"}}}}
+    ]})
     key: str = Field(min_length=1)
     target_tier_id: UUID | None = None
     target_scope: Literal["EXACT", "ALL_TARGETS"] = "EXACT"
@@ -217,11 +241,11 @@ class PriceDraft(StrictModel):
     @model_validator(mode="after")
     def price_scope(self):
         if (self.target_scope == "EXACT") != (self.target_tier_id is not None):
-            raise ValueError("Price target scope must be explicit")
+            raise ValueError("target_scope EXACT requires target_tier_id; ALL_TARGETS requires target_tier_id=null")
         if (self.mapping_scope == "EXPLICIT") != bool(self.mapping_keys):
             raise ValueError("Explicit price scope requires mapping keys")
-        if self.known_state == "KNOWN" and (self.amount is None or self.currency is None):
-            raise ValueError("Known price needs amount and currency")
+        if self.known_state == "KNOWN" and (self.amount is None or (self.amount != 0 and self.currency is None)):
+            raise ValueError("Known nonzero price needs amount and currency")
         if self.known_state != "KNOWN" and self.amount is not None:
             raise ValueError("Unknown/conflicting price cannot expose an effective amount")
         if self.availability == "UNAVAILABLE" and self.amount is not None:

@@ -10,9 +10,9 @@ from sqlalchemy import (JSON, CheckConstraint, DateTime, ForeignKey, ForeignKeyC
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from journeyplus.models import Base, TimestampMixin
-
 J = JSON().with_variant(JSONB(), "postgresql")
+
+from journeyplus.models import Base, TimestampMixin
 
 
 class Identity(TimestampMixin):
@@ -152,7 +152,7 @@ class OptionPrice(Base, Identity):
         ForeignKeyConstraint(["option_version_id", "knowledge_version_id"], ["application_option_versions.id", "application_option_versions.knowledge_version_id"]),
         CheckConstraint("amount IS NULL OR amount >= 0", name="ck_price_nonnegative"),
         CheckConstraint("(target_scope = 'EXACT' AND target_tier_id IS NOT NULL) OR (target_scope = 'ALL_TARGETS' AND target_tier_id IS NULL)", name="ck_price_target_scope"),
-        CheckConstraint("(known_state = 'KNOWN' AND amount IS NOT NULL AND currency IS NOT NULL) OR (known_state IN ('UNKNOWN','CONFLICT','NOT_APPLICABLE') AND amount IS NULL)", name="ck_price_known_state"),
+        CheckConstraint("(known_state = 'KNOWN' AND amount IS NOT NULL AND (amount = 0 OR currency IS NOT NULL)) OR (known_state IN ('UNKNOWN','CONFLICT','NOT_APPLICABLE') AND amount IS NULL)", name="ck_price_known_state"),
         CheckConstraint("mapping_scope IN ('EXPLICIT','ALL_MAPPINGS')", name="ck_price_mapping_scope"),
         CheckConstraint("fee_role IN ('APPLICATION','CHALLENGE_SPEND','OTHER')", name="ck_price_role"),
         CheckConstraint("(combination='ALTERNATIVE' AND alternative_group IS NOT NULL) OR (combination IN ('REQUIRED','CONDITIONAL') AND alternative_group IS NULL)", name="ck_price_combination"),
