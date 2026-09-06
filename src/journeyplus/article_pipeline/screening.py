@@ -55,7 +55,7 @@ class BatchTitleScreener:
         self._confidence_floor = confidence_floor
         self._drop_confidence_floor = drop_confidence_floor
 
-    def screen(self, documents: list[DocumentVersion]) -> list[ScreeningOutcome]:
+    def screen(self, documents: list[DocumentVersion], *, rendered=None) -> list[ScreeningOutcome]:
         if not documents:
             return []
         document_ids = [document.id for document in documents]
@@ -103,14 +103,30 @@ class BatchTitleScreener:
 
         for start in range(0, len(pending), self._batch_size):
             chunk = pending[start : start + self._batch_size]
-            outcomes = self._screen_chunk(chunk)
+            outcomes = self._screen_chunk(chunk, rendered=rendered)
             by_document_id.update({outcome.result.document_version_id: outcome for outcome in outcomes})
 
         return [by_document_id[document_id] for document_id in document_ids]
 
     def _screen_chunk(
-        self, chunk: list[tuple[DocumentVersion, SourceItem, AnalysisRun]]
+        self, chunk: list[tuple[DocumentVersion, SourceItem, AnalysisRun]], *, rendered=None
     ) -> list[ScreeningOutcome]:
+        if rendered is None:
+            results,error = self.render_chunk(chunk)
+        else:
+            results = {document.id:rendered[document.id][0] for document,_,_ in chunk}
+            error = next((rendered[document.id][1] for document,_,_ in chunk if rendered[document.id][1]),None)
+        outcomes: list[ScreeningOutcome] = []
+        for document, _item, run in chunk:
+            result = results[document.id]
+            run.result = result.model_dump(mode="json")
+            run.status = RunStatus.SUCCEEDED if error is None else RunStatus.FAILED
+            run.error = None if error is None else f"{type(error).__name__}: {error}"[:2000]
+            outcomes.append(ScreeningOutcome(run, result, False))
+        self._session.flush()
+        return outcomes
+
+    def render_chunk(self, chunk):
         requested_ids = {document.id for document, _item, _run in chunk}
         try:
             response = self._provider.generate_structured(
@@ -151,15 +167,7 @@ class BatchTitleScreener:
                 for document, _item, _run in chunk
             }
 
-        outcomes: list[ScreeningOutcome] = []
-        for document, _item, run in chunk:
-            result = results[document.id]
-            run.result = result.model_dump(mode="json")
-            run.status = RunStatus.SUCCEEDED if error is None else RunStatus.FAILED
-            run.error = None if error is None else f"{type(error).__name__}: {error}"[:2000]
-            outcomes.append(ScreeningOutcome(run, result, False))
-        self._session.flush()
-        return outcomes
+        return results,error
 
     def _normalize_result(self, result: TitleScreenResult) -> TitleScreenResult:
         if result.decision == TitleScreenDecision.DROP:

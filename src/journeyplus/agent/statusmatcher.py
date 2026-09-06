@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections import Counter
 from datetime import UTC, datetime
-from urllib.parse import urlsplit
 
 import httpx
 from selectolax.parser import HTMLParser
@@ -108,6 +107,8 @@ class StatusMatcherExperienceClient:
         max_response_bytes: int = 1_000_000,
         max_pages: int = 2,
         client: httpx.Client | None = None,
+        company_mappings: dict | None = None,
+        report_identities: dict | None = None,
     ) -> None:
         if not 0 < timeout_seconds <= 30:
             raise ValueError("StatusMatcher timeout must be between 0 and 30 seconds")
@@ -116,8 +117,11 @@ class StatusMatcherExperienceClient:
         if not 1 <= max_pages <= 2:
             raise ValueError("StatusMatcher page limit must be between 1 and 2")
         self.enabled = enabled
+        self._company_mappings = company_mappings or {}
+        self._report_identities = report_identities or {}
         self._max_response_bytes = max_response_bytes
         self._max_pages = max_pages
+        self._timeout_seconds = timeout_seconds
         self._client = client or httpx.Client(
             base_url=_BASE_URL,
             follow_redirects=True,
@@ -127,6 +131,12 @@ class StatusMatcherExperienceClient:
                 "Accept": "text/html,application/xhtml+xml",
             },
         )
+
+    def research_steps(self, targets, state, **kwargs):
+        from journeyplus.agent.step_research import StepResearchService
+        return StepResearchService(enabled=self.enabled,companies=self._company_mappings,
+            identities=self._report_identities,client=self._client,response_limit=self._max_response_bytes,
+            timeout_seconds=self._timeout_seconds,max_pages=self._max_pages).research_steps(targets,state,**kwargs)
 
     def research(self, route: CandidateRoute) -> StatusMatcherObservation:
         observed_at = datetime.now(UTC)
@@ -140,13 +150,15 @@ class StatusMatcherExperienceClient:
         reports: list[ExperienceReport] = []
         source_urls: list[str] = []
         missing_steps: list[str] = []
+        from journeyplus.agent.research_http import ResearchBudget
+        budget=ResearchBudget()
         try:
             for step in route.steps:
                 slug = _resolve_slug(step.program)
                 if slug is None:
                     missing_steps.append(step.program)
                     continue
-                page_reports, page_urls = self._step_reports(step, slug)
+                page_reports, page_urls = self._step_reports(step, slug,budget=budget)
                 reports.extend(page_reports)
                 source_urls.extend(page_urls)
         except (httpx.HTTPError, ValueError) as exc:
@@ -196,7 +208,7 @@ class StatusMatcherExperienceClient:
         )
 
     def _step_reports(
-        self, step: CandidateRouteStep, slug: str
+        self, step: CandidateRouteStep, slug: str, *, budget=None
     ) -> tuple[list[ExperienceReport], list[str]]:
         reports: list[ExperienceReport] = []
         urls: list[str] = []
@@ -205,7 +217,7 @@ class StatusMatcherExperienceClient:
             path = f"/company/{slug}"
             if page:
                 path += f"?page-to={page}"
-            html, url = self._read_html(path)
+            html, url = self._read_html(path,budget=budget)
             urls.append(url)
             parsed = _parse_obtaining_reports(html)
             reports.extend(
@@ -215,23 +227,11 @@ class StatusMatcherExperienceClient:
             )
         return reports, urls
 
-    def _read_html(self, path: str) -> tuple[str, str]:
+    def _read_html(self, path: str, *, budget=None) -> tuple[str, str]:
         if not _COMPANY_PATH.fullmatch(path.split("?", 1)[0]):
             raise ValueError("unsupported StatusMatcher path")
-        with self._client.stream("GET", path) as response:
-            response.raise_for_status()
-            final = urlsplit(str(response.url))
-            if final.scheme != "https" or final.hostname != "statusmatcher.com":
-                raise ValueError("StatusMatcher redirected outside the allowlist")
-            chunks: list[bytes] = []
-            size = 0
-            for chunk in response.iter_bytes():
-                size += len(chunk)
-                if size > self._max_response_bytes:
-                    raise ValueError("StatusMatcher response exceeded size limit")
-                chunks.append(chunk)
-            encoding = response.encoding or "utf-8"
-            return b"".join(chunks).decode(encoding, errors="replace"), str(response.url)
+        from journeyplus.agent.research_http import ResearchBudget,read_research_html
+        return read_research_html(self._client,path,budget or ResearchBudget(),response_limit=self._max_response_bytes,timeout_seconds=self._timeout_seconds)
 
 
 def _resolve_slug(program: str) -> str | None:

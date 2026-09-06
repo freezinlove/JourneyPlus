@@ -44,7 +44,7 @@ from journeyplus.product.startup import (
     ProductDatabaseUnavailable,
     prepare_product_database,
 )
-from journeyplus.sources.collection import collect_manual
+from journeyplus.sources.collection import collect_in_phases
 from journeyplus.sources.gmail_auth import (
     authorize_gmail,
 )
@@ -59,7 +59,6 @@ from journeyplus.statusmatch.article_workflow import (
 )
 from journeyplus.statusmatch.articles import (
     discover_statusmatch_article_routes,
-    prepare_statusmatch_article_projects,
 )
 from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
 from journeyplus.statusmatch.project_workflow import (
@@ -111,6 +110,8 @@ def build_parser() -> argparse.ArgumentParser:
     knowledge.add_argument("--force", action="store_true")
     subparsers.add_parser("knowledge-audit", help="Inspect legacy knowledge counts and association gaps without changing data")
     subparsers.add_parser("knowledge-backfill", help="Add knowledge identities and source sections; retain unresolved associations")
+    edition=subparsers.add_parser('knowledge-review-edition',help='Apply an explicit, source-scoped edition review from a JSON file')
+    edition.add_argument('--input-file',required=True)
     subparsers.add_parser("seed-sources", help="Import or refresh configured sources")
     subparsers.add_parser(
         "gmail-authorize",
@@ -277,6 +278,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     engine = engine_from_settings(settings)
     factory = create_session_factory(engine)
+    from journeyplus.knowledge.user_journal import configure_user_data
+    configure_user_data(factory,settings.knowledge_read_mode,settings.knowledge_user_writes_paused)
     if args.command == "review-api":
         import uvicorn
 
@@ -309,6 +312,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 experience_researcher=experience_researcher,
                 agent_interaction_ttl_hours=settings.agent_interaction_ttl_hours,
                 agent_max_model_calls=settings.agent_max_model_calls,
+                knowledge_read_mode=settings.knowledge_read_mode,
+                knowledge_user_writes_paused=settings.knowledge_user_writes_paused,
             ),
             host=args.host,
             port=args.port,
@@ -327,6 +332,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         with session_scope(factory) as session:
             result = migration_audit(session) if args.command == "knowledge-audit" else backfill_identity_and_sources(session)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.command=='knowledge-review-edition':
+        from pathlib import Path
+        from journeyplus.knowledge.identity import ActivityIdentityService,EditionReviewRequest
+        review=EditionReviewRequest.model_validate_json(Path(args.input_file).read_text())
+        with session_scope(factory) as session:
+            activity=ActivityIdentityService(session).review_edition(**review.model_dump())
+            result={'decision':review.decision,'activity_id':str(activity.id) if activity else None,'review_id':str(review.review_id)}
+        print(json.dumps(result,ensure_ascii=False))
         return 0
 
     if args.command == "seed-sources":
@@ -458,11 +473,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             discovery = discover_statusmatch_article_routes(
                 session, source_ids=source_ids
             )
-            preparation = prepare_statusmatch_article_projects(
-                session,
-                HttpxFetcher(),
-                hosts=list(discovery.project_hosts),
-            )
+        from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
+        preparation = prepare_article_projects_in_phases(
+            factory, HttpxFetcher(), hosts=list(discovery.project_hosts)
+        )
         projects = process_pending_statusmatch_projects(
             factory,
             provider,
@@ -613,13 +627,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     with session_scope(factory) as session:
         seed_sources(session)
-        adapter = build_configured_adapter(args.source_id, settings)
-        collection = collect_manual(
-            session,
-            adapter,
-            idempotency_key=args.idempotency_key,
-            max_items=args.limit,
-        )
+    adapter = build_configured_adapter(args.source_id, settings)
+    collection = collect_in_phases(
+        factory, adapter, idempotency_key=args.idempotency_key, max_items=args.limit
+    )
     if args.command == "collect":
         print(json.dumps(asdict(collection), ensure_ascii=False))
         return 0

@@ -342,7 +342,7 @@ class BriefGenerator:
         self._prompt_version = prompt_version
         self._max_attempts = max_attempts
 
-    def generate(self, fact_record: FactSetRecord) -> BriefGeneration:
+    def generate(self, fact_record: FactSetRecord, *, rendered: Brief | None = None) -> BriefGeneration:
         fact_set = FactSet.model_validate(fact_record.facts)
         key = (
             f"{AnalysisStage.BRIEF_GENERATION}:{fact_record.id}:"
@@ -390,6 +390,41 @@ class BriefGenerator:
         if existing is None:
             self._session.add(run)
 
+        try:
+            brief = rendered if rendered is not None else self.render(fact_record)
+            self._validate(brief, fact_record, fact_set)
+        except Exception as exc:
+            run.status = RunStatus.FAILED
+            run.error = getattr(exc, "diagnostic_json", str(exc))[:4000]
+            self._session.flush()
+            raise
+
+        run.status = RunStatus.SUCCEEDED
+        run.result = brief.model_dump(mode="json")
+        run.error = None
+        version = (
+            self._session.scalar(
+                select(func.max(BriefRecord.version)).where(
+                    BriefRecord.fact_set_id == fact_record.id
+                )
+            )
+            or 0
+        ) + 1
+        record = BriefRecord(
+            fact_set_id=fact_record.id,
+            version=version,
+            schema_version=brief.schema_version,
+            content=brief.model_dump(mode="json"),
+        )
+        self._session.add(record)
+        self._session.flush()
+        event.current_brief_id = record.id
+        self._session.flush()
+        return BriefGeneration(run, record, brief, False)
+
+    def render(self, fact_record: FactSetRecord) -> Brief:
+        """Render and ground a detached immutable fact snapshot without database access."""
+        fact_set = FactSet.model_validate(fact_record.facts)
         last_error: Exception | None = None
         attempt_diagnostics: list[dict[str, Any]] = []
         brief: Brief | None = None
@@ -479,36 +514,14 @@ class BriefGenerator:
             diagnostic_json = json.dumps(
                 diagnostic_payload, ensure_ascii=False, separators=(",", ":")
             )
-            run.status = RunStatus.FAILED
-            run.error = diagnostic_json[:4000]
-            self._session.flush()
-            raise ValueError(
+            error = ValueError(
                 f"Brief generation failed after {self._max_attempts} attempts: "
                 f"{diagnostic_json}"
-            ) from last_error
-
-        run.status = RunStatus.SUCCEEDED
-        run.result = brief.model_dump(mode="json")
-        run.error = None
-        version = (
-            self._session.scalar(
-                select(func.max(BriefRecord.version)).where(
-                    BriefRecord.fact_set_id == fact_record.id
-                )
             )
-            or 0
-        ) + 1
-        record = BriefRecord(
-            fact_set_id=fact_record.id,
-            version=version,
-            schema_version=brief.schema_version,
-            content=brief.model_dump(mode="json"),
-        )
-        self._session.add(record)
-        self._session.flush()
-        event.current_brief_id = record.id
-        self._session.flush()
-        return BriefGeneration(run, record, brief, False)
+            error.diagnostic_json = diagnostic_json
+            raise error from last_error
+
+        return brief
 
     @staticmethod
     def _validate(brief: Brief, record: FactSetRecord, fact_set: FactSet) -> None:
@@ -652,3 +665,25 @@ class BriefGenerator:
                 for start in range(0, len(value) - 159):
                     if value[start : start + 160] in output_text:
                         raise ValueError("Brief repeats a long source-derived passage")
+
+
+def generate_brief_in_phases(factory, provider, fact_id):
+    """Read immutable facts, render without a session, publish with a fresh guard."""
+    from types import SimpleNamespace
+    with factory() as session:
+        record = session.get(FactSetRecord, fact_id)
+        if record is None:
+            raise LookupError('FactSet not found')
+        key = f"{AnalysisStage.BRIEF_GENERATION}:{record.id}:{provider.metadata.config_version}:{BRIEF_PROMPT_VERSION}"
+        existing = session.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key == key))
+        cached = Brief.model_validate(existing.result) if existing and existing.result else None
+        snapshot = SimpleNamespace(id=record.id, event_id=record.event_id, facts=record.facts)
+    rendered = cached or BriefGenerator(None, provider).render(snapshot)
+    with factory.begin() as session:
+        record = session.get(FactSetRecord, fact_id)
+        event = session.scalar(select(StatusEvent).where(StatusEvent.id == snapshot.event_id).with_for_update())
+        if event is None or event.current_fact_set_id != fact_id:
+            raise ValueError('FactSet changed before brief publication')
+        result = BriefGenerator(session, provider).generate(record, rendered=rendered)
+        # Return scalar identity instead of expired ORM state.
+        return str(result.record.id), result.reused

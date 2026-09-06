@@ -1,0 +1,1311 @@
+{
+  "schema_version": 1,
+  "captured_on": "2026-09-06",
+  "purpose": "Frozen development regression facts, not current offers or a production seed",
+  "privacy": "Public source facts only; no saved holdings, workspace messages, email content, tokens or StatusMatcher reports. Identifiers are local fixture aliases.",
+  "assumption": "Synthetic Air Canada Aeroplan Elite 50K, USD100 cap, no saved holdings",
+  "routes": {
+    "schema_version": 1,
+    "status": "PARTIAL",
+    "snapshot_ref": "348920fbb4dbe6a02796",
+    "data": {
+      "cards": [
+        {
+          "ref": "K1",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Air Astana Nomad Club Nomad Club GOLD",
+          "step_refs": [
+            "K2"
+          ],
+          "step_count": 1,
+          "classification": "MATCH",
+          "violations": [],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "49.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LOWER_KNOWN_FEE",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8"
+          ]
+        },
+        {
+          "ref": "K3",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Club Avolta Gold",
+          "step_refs": [
+            "K4"
+          ],
+          "step_count": 1,
+          "classification": "MATCH",
+          "violations": [],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": true,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LOWER_KNOWN_FEE",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C9",
+            "C10",
+            "C7",
+            "C11",
+            "C8"
+          ]
+        },
+        {
+          "ref": "K5",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Club Avolta Gold",
+          "step_refs": [
+            "K2",
+            "K6"
+          ],
+          "step_count": 2,
+          "classification": "MATCH",
+          "violations": [],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "49.0000"
+              },
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "LOWER_KNOWN_FEE"
+          ],
+          "material_caveat_refs": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8",
+            "C9",
+            "C10",
+            "C11"
+          ]
+        },
+        {
+          "ref": "K7",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Air Astana Nomad Club Nomad Club GOLD",
+          "step_refs": [
+            "K8",
+            "K9"
+          ],
+          "step_count": 2,
+          "classification": "NEARBY",
+          "violations": [
+            "max_amount"
+          ],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "198.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LOWER_KNOWN_FEE",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C12",
+            "C13",
+            "C14",
+            "C15",
+            "C16",
+            "C7",
+            "C8",
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6"
+          ]
+        },
+        {
+          "ref": "K10",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Club Avolta Gold",
+          "step_refs": [
+            "K8",
+            "K11"
+          ],
+          "step_count": 2,
+          "classification": "NEARBY",
+          "violations": [
+            "max_amount"
+          ],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "149.0000"
+              },
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LOWER_KNOWN_FEE",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C12",
+            "C13",
+            "C14",
+            "C15",
+            "C16",
+            "C7",
+            "C8",
+            "C9",
+            "C10",
+            "C11"
+          ]
+        },
+        {
+          "ref": "K12",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Royal Jordanian Royal Club GOLD SPARROW",
+          "step_refs": [
+            "K8"
+          ],
+          "step_count": 1,
+          "classification": "NEARBY",
+          "violations": [
+            "max_amount"
+          ],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "149.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LOWER_KNOWN_FEE",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C12",
+            "C13",
+            "C14",
+            "C15",
+            "C16",
+            "C7",
+            "C8"
+          ]
+        },
+        {
+          "ref": "K13",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Club Avolta Gold",
+          "step_refs": [
+            "K8",
+            "K9",
+            "K6"
+          ],
+          "step_count": 3,
+          "classification": "NEARBY",
+          "violations": [
+            "max_amount"
+          ],
+          "unknowns": [],
+          "cost": {
+            "state": "KNOWN",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "198.0000"
+              },
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [],
+          "material_caveat_refs": [
+            "C12",
+            "C13",
+            "C14",
+            "C15",
+            "C16",
+            "C7",
+            "C8",
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C9",
+            "C10",
+            "C11"
+          ]
+        },
+        {
+          "ref": "K14",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Radisson Rewards Premium",
+          "step_refs": [
+            "K4",
+            "K15"
+          ],
+          "step_count": 2,
+          "classification": "UNKNOWN",
+          "violations": [],
+          "unknowns": [
+            "max_amount"
+          ],
+          "cost": {
+            "state": "PARTIAL",
+            "totals": [
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [
+            "FEWER_STEPS",
+            "LESS_UNCERTAINTY",
+            "NO_CHALLENGE"
+          ],
+          "material_caveat_refs": [
+            "C9",
+            "C10",
+            "C7",
+            "C11",
+            "C8",
+            "C17"
+          ]
+        },
+        {
+          "ref": "K16",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Radisson Rewards Premium",
+          "step_refs": [
+            "K2",
+            "K6",
+            "K15"
+          ],
+          "step_count": 3,
+          "classification": "UNKNOWN",
+          "violations": [],
+          "unknowns": [
+            "max_amount"
+          ],
+          "cost": {
+            "state": "PARTIAL",
+            "totals": [
+              {
+                "currency": "USD",
+                "role": "APPLICATION",
+                "amount": "49.0000"
+              },
+              {
+                "currency": null,
+                "role": "APPLICATION",
+                "amount": "0.0000"
+              }
+            ],
+            "conditional_items": [],
+            "alternative_items": [],
+            "is_proven_free": false,
+            "scope": "已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"
+          },
+          "eligibility": "UNKNOWN",
+          "challenge": "UNKNOWN",
+          "needs_inspection": true,
+          "selection_reasons": [],
+          "material_caveat_refs": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8",
+            "C9",
+            "C10",
+            "C11",
+            "C17"
+          ]
+        }
+      ],
+      "steps": {
+        "K2": {
+          "ref": "K2",
+          "option_ref": "K17",
+          "mapping_ref": "K18",
+          "activity_ref": "K19",
+          "version_ref": "K20",
+          "from_tier_id": "K21",
+          "to_tier_id": "K22",
+          "target_category": "AIRLINE",
+          "target_alliance": null,
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Air Astana Nomad Club Nomad Club GOLD",
+          "fees": [
+            {
+              "ref": "K23",
+              "amount": "49.0000",
+              "currency": "USD",
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "UNKNOWN",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T2"
+        },
+        "K8": {
+          "ref": "K8",
+          "option_ref": "K24",
+          "mapping_ref": "K25",
+          "activity_ref": "K26",
+          "version_ref": "K27",
+          "from_tier_id": "K21",
+          "to_tier_id": "K28",
+          "target_category": "AIRLINE",
+          "target_alliance": "寰宇一家",
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Royal Jordanian Royal Club GOLD SPARROW",
+          "fees": [
+            {
+              "ref": "K29",
+              "amount": "149.0000",
+              "currency": "USD",
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "UNKNOWN",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C12",
+            "C13",
+            "C14",
+            "C15",
+            "C16",
+            "C7",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T3"
+        },
+        "K4": {
+          "ref": "K4",
+          "option_ref": "K30",
+          "mapping_ref": "K31",
+          "activity_ref": "K32",
+          "version_ref": "K33",
+          "from_tier_id": "K21",
+          "to_tier_id": "K34",
+          "target_category": "OTHER",
+          "target_alliance": null,
+          "from": "Air Canada Aeroplan Elite 50K",
+          "to": "Club Avolta Gold",
+          "fees": [
+            {
+              "ref": "K35",
+              "amount": "0.0000",
+              "currency": null,
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "UNKNOWN",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C9",
+            "C10",
+            "C7",
+            "C11",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T4"
+        },
+        "K6": {
+          "ref": "K6",
+          "option_ref": "K30",
+          "mapping_ref": "K31",
+          "activity_ref": "K32",
+          "version_ref": "K33",
+          "from_tier_id": "K22",
+          "to_tier_id": "K34",
+          "target_category": "OTHER",
+          "target_alliance": null,
+          "from": "Air Astana Nomad Club Nomad Club GOLD",
+          "to": "Club Avolta Gold",
+          "fees": [
+            {
+              "ref": "K35",
+              "amount": "0.0000",
+              "currency": null,
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "MATCHED",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C9",
+            "C10",
+            "C7",
+            "C11",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T4"
+        },
+        "K9": {
+          "ref": "K9",
+          "option_ref": "K17",
+          "mapping_ref": "K36",
+          "activity_ref": "K19",
+          "version_ref": "K20",
+          "from_tier_id": "K28",
+          "to_tier_id": "K22",
+          "target_category": "AIRLINE",
+          "target_alliance": null,
+          "from": "Royal Jordanian Royal Club GOLD SPARROW",
+          "to": "Air Astana Nomad Club Nomad Club GOLD",
+          "fees": [
+            {
+              "ref": "K23",
+              "amount": "49.0000",
+              "currency": "USD",
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "MATCHED",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C1",
+            "C2",
+            "C3",
+            "C4",
+            "C5",
+            "C6",
+            "C7",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T2"
+        },
+        "K11": {
+          "ref": "K11",
+          "option_ref": "K30",
+          "mapping_ref": "K31",
+          "activity_ref": "K32",
+          "version_ref": "K33",
+          "from_tier_id": "K28",
+          "to_tier_id": "K34",
+          "target_category": "OTHER",
+          "target_alliance": null,
+          "from": "Royal Jordanian Royal Club GOLD SPARROW",
+          "to": "Club Avolta Gold",
+          "fees": [
+            {
+              "ref": "K35",
+              "amount": "0.0000",
+              "currency": null,
+              "role": "APPLICATION",
+              "conditions": [],
+              "charge_key": "application",
+              "known_state": "KNOWN",
+              "availability": "AVAILABLE",
+              "alternative_group": null
+            }
+          ],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": false,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "MATCHED",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C9",
+            "C10",
+            "C7",
+            "C11",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T4"
+        },
+        "K15": {
+          "ref": "K15",
+          "option_ref": "K37",
+          "mapping_ref": "K38",
+          "activity_ref": "K39",
+          "version_ref": "K40",
+          "from_tier_id": "K34",
+          "to_tier_id": "K41",
+          "target_category": "OTHER",
+          "target_alliance": null,
+          "from": "Club Avolta Gold",
+          "to": "Radisson Rewards Premium",
+          "fees": [],
+          "conditional_items": [],
+          "alternative_items": [],
+          "fee_unknown": true,
+          "fee_conflict": false,
+          "challenge": "UNKNOWN",
+          "eligibility": "UNKNOWN",
+          "source_acquisition": "MATCHED",
+          "freshness": "FRESH",
+          "availability": "AVAILABLE",
+          "material_caveat_refs": [
+            "C7",
+            "C17",
+            "C8"
+          ],
+          "application_window_ref": "T1",
+          "status_validity_ref": "T5"
+        }
+      },
+      "groups": [
+        {
+          "name": "Air Astana Nomad Club Nomad Club GOLD",
+          "classification": "MATCH",
+          "count": 1
+        },
+        {
+          "name": "Air Astana Nomad Club Nomad Club GOLD",
+          "classification": "NEARBY",
+          "count": 1
+        },
+        {
+          "name": "Club Avolta Gold",
+          "classification": "MATCH",
+          "count": 2
+        },
+        {
+          "name": "Club Avolta Gold",
+          "classification": "NEARBY",
+          "count": 2
+        },
+        {
+          "name": "Radisson Rewards Premium",
+          "classification": "UNKNOWN",
+          "count": 2
+        },
+        {
+          "name": "Royal Jordanian Royal Club GOLD SPARROW",
+          "classification": "NEARBY",
+          "count": 1
+        }
+      ],
+      "query": {
+        "target_program_id": null,
+        "target_tier_id": null,
+        "alliance": null,
+        "category": null,
+        "free_only": false,
+        "max_amount": "100",
+        "currency": "USD",
+        "allow_challenge": null,
+        "source_acquisition": "UNKNOWN",
+        "residency": null,
+        "prior_participation": null,
+        "preferences": [],
+        "require_proven_eligibility": false,
+        "starting_tier_ids": [
+          "K21"
+        ],
+        "use_saved_holdings": false
+      },
+      "reason_counts": {
+        "硬条件失败且不满足单项可调整方案要求": 2
+      },
+      "view": "ROUTE_OVERVIEW",
+      "material_caveats": {
+        "C1": "The eligible countries are: All countries in Europe, the Middle East and Asia.",
+        "C2": "hold ID documents such as a passport or driver’s license for the eligible country.",
+        "C3": "A Nomad Club membership number is required to participate in the promotion.",
+        "C4": "Only status members of the listed eligible airline and hotel programs may apply.",
+        "C5": "Only 1 status match per person will be permitted under this campaign",
+        "C6": "your other airline status number/card or proof for verification",
+        "C7": "申请期限或时区尚未核实",
+        "C8": "期限精度不足，需核对",
+        "C9": "Each customer can apply just once.",
+        "C10": "Customers must have an account with Club Avolta.",
+        "C11": "All major airlines, all membership levels",
+        "C12": "Only Government issued identity document holders for the following countries are eligible for the offer: \nAustria, Bahrain, Belgium, Canada, Cyprus, Denmark, Egypt, England, France, Germany, Iraq, Italy, Jordan, Kuwait, Lebanon, Netherlands, Portugal, Saudi Arabia, Spain, Sweden, Switzerland, Syria, Turkey, UAE & UK.",
+        "C13": "Yes, a Royal Club membership number is required to participate in the promotion. You can enrol in the Royal Club program here.",
+        "C14": "Only 1 status match per person will be permitted under this campaign matching to either Royal Club Gold Sparrow or Silver Jay tiers.",
+        "C15": "a status match will only be granted to applicant's whose name matches the records in the Royal Club program.",
+        "C16": "Special note to applicants from Canada: Valid Canadian Passport is required for a sucessful match. ID Cards, Residence Permits and other forms of ID will not be accepted.",
+        "C17": "尚无完整资格条件记录，不代表全部申请资格已被证实"
+      },
+      "temporal_facts": {
+        "T1": {
+          "activity": {
+            "end": {
+              "value": null,
+              "raw_text": "",
+              "known_state": "UNKNOWN",
+              "alternatives": [],
+              "evidence_ids": [],
+              "schema_version": 1
+            },
+            "start": {
+              "value": null,
+              "raw_text": "",
+              "known_state": "UNKNOWN",
+              "alternatives": [],
+              "evidence_ids": [],
+              "schema_version": 1
+            }
+          },
+          "option": {
+            "end": {
+              "value": null,
+              "raw_text": "",
+              "known_state": "UNKNOWN",
+              "alternatives": [],
+              "evidence_ids": [],
+              "schema_version": 1
+            },
+            "start": {
+              "value": null,
+              "raw_text": "",
+              "known_state": "UNKNOWN",
+              "alternatives": [],
+              "evidence_ids": [],
+              "schema_version": 1
+            }
+          }
+        },
+        "T2": {
+          "value": {
+            "end": {
+              "date": "2026-12-31",
+              "month": null,
+              "anchor": null,
+              "instant": null,
+              "raw_text": "valid until December 31, 2026",
+              "timezone": null,
+              "precision": "DATE",
+              "offset_days": null,
+              "evidence_ids": [
+                "K42"
+              ]
+            },
+            "days": null,
+            "kind": "FIXED_END",
+            "anchor": null,
+            "months": null
+          },
+          "raw_text": "",
+          "known_state": "KNOWN",
+          "alternatives": [],
+          "evidence_ids": [
+            "K42",
+            "K43"
+          ],
+          "schema_version": 1
+        },
+        "T3": {
+          "value": {
+            "end": null,
+            "days": null,
+            "kind": "DURATION",
+            "anchor": "APPROVAL",
+            "months": 12
+          },
+          "raw_text": "",
+          "known_state": "KNOWN",
+          "alternatives": [],
+          "evidence_ids": [
+            "K44"
+          ],
+          "schema_version": 1
+        },
+        "T4": {
+          "value": {
+            "end": null,
+            "days": null,
+            "kind": "DURATION",
+            "anchor": "APPROVAL",
+            "months": 12
+          },
+          "raw_text": "",
+          "known_state": "KNOWN",
+          "alternatives": [],
+          "evidence_ids": [
+            "K45",
+            "K46",
+            "K47"
+          ],
+          "schema_version": 1
+        },
+        "T5": {
+          "value": null,
+          "raw_text": "",
+          "known_state": "UNKNOWN",
+          "alternatives": [],
+          "evidence_ids": [],
+          "schema_version": 1
+        }
+      }
+    },
+    "coverage": {
+      "search_complete": false,
+      "scope_description": "所选活动的已发布知识",
+      "observed_count": 9,
+      "returned_count": 9,
+      "presentation_has_more": false,
+      "stopped_reason": "KNOWLEDGE_GAPS",
+      "expanded_states": 11,
+      "checked_edges": 2585,
+      "knowledge_complete": false,
+      "pending_activity_count": 2,
+      "incomplete_published_activity_count": 1,
+      "searched_published_graph_complete": true,
+      "unresolved_holding_count": 0,
+      "unresolved_alliance_program_count": 0
+    },
+    "caveats": [
+      "仍有匹配活动未发布或来源映射未核实；当前结果不能证明没有其他路径。",
+      "路线与步骤的 material_caveat_refs 指向 data.material_caveats 中的完整限制；application_window_ref/status_validity_ref 指向 data.temporal_facts 中的完整期限，必须一并读取。逐项资格检查与证据需用 INSPECT 展开，概览不代表无条件可申请。"
+    ],
+    "expansions": [
+      {
+        "ref": "K1",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K3",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K5",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K7",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K10",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K12",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K13",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      },
+      {
+        "ref": "K14",
+        "kind": "ROUTE",
+        "aspects": [
+          "ELIGIBILITY",
+          "PRICE"
+        ],
+        "reason": "展开完整方案"
+      }
+    ],
+    "provenance": []
+  },
+  "activities": [
+    {
+      "ref": "K26",
+      "version_ref": "K27",
+      "name": "Royal Jordanian Royal Club Status Match",
+      "edition": "legacy:K73",
+      "kind": "STATUS_MATCH",
+      "published_at": "2026-09-06T07:00:11.877760+00:00",
+      "freshness": "FRESH",
+      "card": {
+        "version_ref": "K27",
+        "kind": "STATUS_MATCH",
+        "lifecycle": "OPEN",
+        "fees": [
+          {
+            "ref": "K48",
+            "label": "Hotel Status Match · SILVER JAY",
+            "value": "USD 49",
+            "role": "申请费",
+            "caveats": []
+          },
+          {
+            "ref": "K29",
+            "label": "Airline Status Match · GOLD SPARROW",
+            "value": "USD 149",
+            "role": "申请费",
+            "caveats": []
+          }
+        ],
+        "additional_fee_count": 2,
+        "challenge": "UNKNOWN",
+        "eligibility_note": "不同申请方式的资格及适用限制，请在详情中逐项核对。",
+        "fee_note": null
+      },
+      "sources": [
+        {
+          "document_version_ref": "K49",
+          "role": "OFFICIAL_PRIMARY",
+          "url": "https://rj.statusmatch.com/",
+          "fetched_at": "2026-08-23T10:23:31.851098+00:00"
+        },
+        {
+          "document_version_ref": "K50",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://rj.statusmatch.com/faq",
+          "fetched_at": "2026-08-23T10:23:33.261428+00:00"
+        },
+        {
+          "document_version_ref": "K51",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://rj.statusmatch.com/terms",
+          "fetched_at": "2026-09-06T03:03:38.098002+00:00"
+        }
+      ]
+    },
+    {
+      "ref": "K39",
+      "version_ref": "K40",
+      "name": "Radisson Rewards ClubAvolta Status Match",
+      "edition": "legacy:K74",
+      "kind": "STATUS_MATCH",
+      "published_at": "2026-09-05T13:49:37.487132+00:00",
+      "freshness": "FRESH",
+      "card": {
+        "version_ref": "K40",
+        "kind": "STATUS_MATCH",
+        "lifecycle": "OPEN",
+        "fees": [],
+        "additional_fee_count": 0,
+        "challenge": "UNKNOWN",
+        "eligibility_note": "不同申请方式的资格及适用限制，请在详情中逐项核对。",
+        "fee_note": "尚无已核实费用，不能据此推断免费。"
+      },
+      "sources": [
+        {
+          "document_version_ref": "K52",
+          "role": "THIRD_PARTY",
+          "url": "https://loyaltylobby.com/2026/08/24/radisson-rewards-clubavolta-status-match-is-back-for-2026/",
+          "fetched_at": "2026-08-25T09:53:19.087306+00:00"
+        }
+      ]
+    },
+    {
+      "ref": "K32",
+      "version_ref": "K33",
+      "name": "Club Avolta Status Match",
+      "edition": "legacy:K75",
+      "kind": "STATUS_MATCH",
+      "published_at": "2026-09-05T13:57:19.373847+00:00",
+      "freshness": "FRESH",
+      "card": {
+        "version_ref": "K33",
+        "kind": "STATUS_MATCH",
+        "lifecycle": "OPEN",
+        "fees": [
+          {
+            "ref": "K53",
+            "label": "Hotel Status Match · Gold",
+            "value": "免费",
+            "role": "申请费",
+            "caveats": []
+          }
+        ],
+        "additional_fee_count": 1,
+        "challenge": "UNKNOWN",
+        "eligibility_note": "不同申请方式的资格及适用限制，请在详情中逐项核对。",
+        "fee_note": null
+      },
+      "sources": [
+        {
+          "document_version_ref": "K54",
+          "role": "OFFICIAL_PRIMARY",
+          "url": "https://clubavolta.statusmatch.com/",
+          "fetched_at": "2026-08-23T10:23:23.993095+00:00"
+        },
+        {
+          "document_version_ref": "K55",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://clubavolta.statusmatch.com/faq",
+          "fetched_at": "2026-08-23T10:23:24.646387+00:00"
+        },
+        {
+          "document_version_ref": "K56",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://clubavolta.statusmatch.com/terms",
+          "fetched_at": "2026-09-02T06:26:17.277657+00:00"
+        }
+      ]
+    },
+    {
+      "ref": "K57",
+      "version_ref": "K58",
+      "name": "Malaysia Airlines Enrich Status Match",
+      "edition": "legacy:K76",
+      "kind": "STATUS_MATCH",
+      "published_at": "2026-09-06T03:09:50.896568+00:00",
+      "freshness": "FRESH",
+      "card": {
+        "version_ref": "K58",
+        "kind": "STATUS_MATCH",
+        "lifecycle": "OPEN",
+        "fees": [
+          {
+            "ref": "K59",
+            "label": "Enrich Status Match · Enrich Silver",
+            "value": "USD 89",
+            "role": "申请费",
+            "caveats": [
+              "适用性待核实"
+            ]
+          },
+          {
+            "ref": "K60",
+            "label": "Enrich Status Match · Enrich Gold",
+            "value": "USD 199",
+            "role": "申请费",
+            "caveats": [
+              "适用性待核实"
+            ]
+          },
+          {
+            "ref": "K61",
+            "label": "Enrich Status Match · Enrich Platinum",
+            "value": "USD 349",
+            "role": "申请费",
+            "caveats": [
+              "适用性待核实"
+            ]
+          }
+        ],
+        "additional_fee_count": 0,
+        "challenge": "UNKNOWN",
+        "eligibility_note": "不同申请方式的资格及适用限制，请在详情中逐项核对。",
+        "fee_note": null
+      },
+      "sources": [
+        {
+          "document_version_ref": "K62",
+          "role": "OFFICIAL_PRIMARY",
+          "url": "https://enrich.statusmatch.com/",
+          "fetched_at": "2026-08-23T10:23:25.297365+00:00"
+        },
+        {
+          "document_version_ref": "K63",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://enrich.statusmatch.com/faq",
+          "fetched_at": "2026-08-23T10:23:25.934799+00:00"
+        },
+        {
+          "document_version_ref": "K64",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://enrich.statusmatch.com/terms",
+          "fetched_at": "2026-09-02T06:26:20.118714+00:00"
+        }
+      ]
+    },
+    {
+      "ref": "K65",
+      "version_ref": "K66",
+      "name": "Flying Blue Status Match",
+      "edition": "legacy:K77",
+      "kind": "STATUS_MATCH",
+      "published_at": "2026-09-06T06:21:27.600668+00:00",
+      "freshness": "FRESH",
+      "card": {
+        "version_ref": "K66",
+        "kind": "STATUS_MATCH",
+        "lifecycle": "OPEN",
+        "fees": [
+          {
+            "ref": "K67",
+            "label": "Flying Blue Status Match (Latin America) · SILVER",
+            "value": "USD 99",
+            "role": "申请费",
+            "caveats": []
+          },
+          {
+            "ref": "K68",
+            "label": "Flying Blue Status Match (Greece) · SILVER",
+            "value": "EUR 89",
+            "role": "申请费",
+            "caveats": []
+          },
+          {
+            "ref": "K69",
+            "label": "Flying Blue Status Match (Latin America) · GOLD",
+            "value": "USD 299",
+            "role": "申请费",
+            "caveats": []
+          }
+        ],
+        "additional_fee_count": 3,
+        "challenge": "UNKNOWN",
+        "eligibility_note": "不同申请方式的资格及适用限制，请在详情中逐项核对。",
+        "fee_note": null
+      },
+      "sources": [
+        {
+          "document_version_ref": "K70",
+          "role": "OFFICIAL_PRIMARY",
+          "url": "https://flyingblue.statusmatch.com/",
+          "fetched_at": "2026-08-23T10:23:26.601946+00:00"
+        },
+        {
+          "document_version_ref": "K71",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://flyingblue.statusmatch.com/faq",
+          "fetched_at": "2026-08-28T05:03:07.407347+00:00"
+        },
+        {
+          "document_version_ref": "K72",
+          "role": "OFFICIAL_SUPPORT",
+          "url": "https://flyingblue.statusmatch.com/terms",
+          "fetched_at": "2026-09-02T06:26:22.170207+00:00"
+        }
+      ]
+    }
+  ],
+  "defects": {
+    "unstructured_input": "tests/fixtures/workspace_evaluation/tasks.json: development chat and clarification cases",
+    "fee_scope_and_unknown": "tests/test_knowledge_routes.py",
+    "alternative_paths_and_pagination": "tests/test_knowledge_pagination.py",
+    "experience_permission_visibility": "tests/test_research_intent.py"
+  }
+}

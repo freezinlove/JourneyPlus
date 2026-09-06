@@ -99,6 +99,11 @@ def test_product_api_returns_actionable_503_when_database_drops() -> None:
             return False
 
     class FailedFactory:
+        kw = {}
+
+        def configure(self, **kwargs):
+            self.kw.update(kwargs)
+
         def begin(self):
             return FailedContext()
 

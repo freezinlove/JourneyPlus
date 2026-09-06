@@ -69,6 +69,7 @@ HOLDING_SAVE/EDIT：唯一识别项目等级，单事务写规范会籍、递增
 | POST /v2/agent/workspaces/{id}/messages | text、client_message_id、expected_revision、optional subject_refs；运行正常 Agent 回合，返回 presentation/basis/pending |
 | GET /v2/agent/workspaces/{id} | 分页会话、最新状态、pending；无模型、无通知消费 |
 | POST /v2/agent/workspaces/{id}/focus | ref、presentation_id、expected_revision；仅更新浏览焦点，零模型、零调查 |
+| POST /v2/agent/workspaces/{id}/wait-result | 将确切等待结果幂等加入工作区，绑定版本和浏览引用；不表示已展示，零模型 |
 | POST /v2/agent/workspaces/{id}/confirm | 确认第 4 节 pending；业务幂等，必要后续查询走显式回合 |
 | GET /v2/activities/{id} 与 /materials | 可带 version_ref/view/cursor，确定性活动详情／证据 |
 | POST /v2/routes/query | 查询结构条件或展开 refs，确定性图与路径，不运行 Agent |
@@ -96,3 +97,26 @@ RESULT_PENDING 不再搜索更优；GET 可以重复返回。前端实际呈现�
 agent/contracts.py 承载动作／响应 Schema；controller.py 处理有界回合与确认；prompts.py 消费薄数据；waiting.py 实现任务生命周期；product/api.py 区分浏览与对话；新增 workspace 服务集中幂等和 TTL。模型与持久化事务分离，不把状态机散到页面按钮处理里。
 
 必须演练：任意闲聊无资料注入；无目标探索；先问条款再问“它”；推荐后“第二条”；点击不增加消息／模型次数；三次预算含修复；确认后网络断开重试不重复写；两个标签页并发；24h到期；等待命中但未展示、重复 seen、会籍变更及继续等待。
+
+## 实施补充：查询起点与提议边界
+
+RouteQuery/RouteToolQuery 的 use_saved_holdings 为可选布尔：null 时显式 starting_tier_ids 独立，否则使用已确认会籍；false 不读取已保存起点，true 显式合并。它只属于临时查询/明确确认的等待条件，不修改长期会籍。
+
+目录成功且没有活动资料时返回 CATALOG_ONLY，目录引用仍可用于路线评估，不能把目录当作活动事实。用户明确要求最小调整且已有确定性近似方案时，可在三次模型预算内由控制器构造候选提议，复用 QUERY_ADJUST 的相同校验和确认门；不能跳过路线评估或以等待任务替代一次性调整。
+
+### 明确标识与非致命澄清限制
+
+模型 READ／PROPOSE 的标识参数在访问数据或形成提议前，必须能解析到本工作区已经披露的引用。服务器完整搜索缓存中存在但尚未披露的对象不能被猜 ID 访问；原始身份仅在其已经有披露映射时兼容。许可关闭的经验请求先返回关闭状态，不要求额外定位。
+
+ASK 仍只展示一个完整澄清问题。如果模型一次输出多个问号分隔的问题，程序保留首问并记录 ONE_CLARIFICATION，不把合法的自然语言问题升级为 Schema 故障，也不增加修复调用。确认类问题仍必须通过 PROPOSE／确认门；事实包、金额与条件不采用文字截短。
+
+### 原始查询与调整提议的执行合约补充
+
+QUERY_ADJUST 的 payload 可提供可选 `query:RouteToolQuery`（仅此 kind 接受），表示用户原始条件，`changes` 可为空。控制器验证引用已经披露，执行 `query_membership_routes(EXPLORE)` 并记录 PROPOSAL_EVALUATION，然后由评估结果计算唯一最小调整；没有只差一个条件的证据则不提出变更。不得在原始 query 中先放宽预算，不要求模型猜差额。已评估路线仍可提交 changes/support_refs，两种方式复用同一确认门。
+
+待确认调整保存原 query_hash、资料与会籍快照和过期时间；确认时查询改变，即使工作区 revision 被后续浏览更新，也不能把旧调整应用到新查询。拒绝后停止递归放宽。确定性校准仅保护用户明示的单一金额上限；含否定、旧条件、引述或多币种歧义时不猜测。模型新添但用户未要求的拒绝挑战／仅免费不能从“只差预算”推导，已有明确约束保持。
+
+三次模型预算包含修复；成功修复后移除 format_repair 指令。最后一次模型决策仍可以 READ 或 PROPOSE，由程序展示已验证结果，不要求额外第四次调用。目录查询使用 AUTO 视图，CATALOG_ONLY 是返回状态，不是查询视图。
+## 2026-09-06 真实交互完成条件补充
+
+明确要求路径评估时，完成条件进入当前每次系统决策提示，不能用活动卡代替结果。公开入口查询允许不指定项目／联盟；模型把可选偏好作为必填追问时，执行器要求继续完成实际查询，真正歧义仍允许澄清。已取得有效零结果和覆盖状态时，三次调用预算耗尽后也生成正式无命中说明，不报未结构化或预算失败。已有已校验结果时的尾部格式失败可由程序展示，保留诊断；没有可用事实时继续给可恢复错误。

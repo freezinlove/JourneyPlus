@@ -1,0 +1,1 @@
+main{max-width:1050px;padding-bottom:70px}.cards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.card{height:100%}header>a:last-child{margin-left:auto;color:#365d47;font-size:14px}@media(max-width:680px){.cards{grid-template-columns:1fr}header{flex-wrap:wrap}header>a:last-child{font-size:12px}main{padding-bottom:50px}}

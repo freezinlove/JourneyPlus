@@ -49,6 +49,8 @@ def create_product_app(
     experience_researcher: ExperienceResearcher | None = None,
     agent_interaction_ttl_hours: int = 24,
     agent_max_model_calls: int = 3,
+    knowledge_read_mode: str = 'legacy',
+    knowledge_user_writes_paused: bool = False,
 ) -> FastAPI:
     app = FastAPI(
         title="JourneyPlus personalized status matches",
@@ -56,13 +58,25 @@ def create_product_app(
         redoc_url=None,
     )
     app.mount("/assets", StaticFiles(directory=_STATIC_DIR), name="assets")
+    from journeyplus.product.rollout import install_rollout
+    install_rollout(app,knowledge_read_mode,knowledge_user_writes_paused)
+    from journeyplus.knowledge.user_journal import configure_user_data
+    configure_user_data(session_factory,knowledge_read_mode.casefold(),knowledge_user_writes_paused)
     from journeyplus.product.knowledge_api import knowledge_router
     app.include_router(knowledge_router(session_factory,ai_provider,
-        ttl_hours=agent_interaction_ttl_hours,max_calls=agent_max_model_calls))
+        ttl_hours=agent_interaction_ttl_hours,max_calls=agent_max_model_calls,researcher=experience_researcher))
 
     @app.get("/workspace", response_class=HTMLResponse, include_in_schema=False)
     def workspace_page() -> str:
         return (_STATIC_DIR / "workspace.html").read_text(encoding="utf-8")
+
+    @app.get('/knowledge',response_class=HTMLResponse,include_in_schema=False)
+    def knowledge_page() -> str:
+        return (_STATIC_DIR / 'knowledge.html').read_text(encoding='utf-8')
+
+    @app.get('/explore',response_class=HTMLResponse,include_in_schema=False)
+    def explore_page() -> str:
+        return (_STATIC_DIR / 'explore.html').read_text(encoding='utf-8')
 
     def agent_controller(session: Session) -> AgentController:
         if ai_provider is None:

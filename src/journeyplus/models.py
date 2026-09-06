@@ -56,6 +56,20 @@ class Source(Base, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
+class UserBusinessOperation(Base):
+    """Rollback journal for explicit holdings and independent waiting state only."""
+    __tablename__='user_business_operations'
+    __table_args__=(CheckConstraint("entity_kind IN ('HOLDING','WAIT_GOAL')",name='ck_user_operation_kind'),)
+    sequence:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)
+    operation_id:Mapped[UUID]=mapped_column(Uuid,default=uuid4,unique=True,nullable=False)
+    entity_kind:Mapped[str]=mapped_column(String(20),nullable=False)
+    entity_id:Mapped[UUID]=mapped_column(Uuid,nullable=False)
+    before_state:Mapped[dict|None]=mapped_column(JSON,nullable=True)
+    after_state:Mapped[dict|None]=mapped_column(JSON,nullable=True)
+    payload_hash:Mapped[str]=mapped_column(String(64),nullable=False)
+    created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now_utc,nullable=False)
+
+
 class StatusHolding(Base, TimestampMixin):
     __tablename__ = "status_holdings"
     __table_args__ = (
@@ -122,6 +136,7 @@ class AgentWaitGoal(Base, TimestampMixin):
     last_candidate_signature: Mapped[str | None] = mapped_column(
         String(64), nullable=True
     )
+    seen_candidate_signatures: Mapped[list[str]] = mapped_column(JSON,default=list,server_default='[]',nullable=False)
     pending_result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     pending_seen_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

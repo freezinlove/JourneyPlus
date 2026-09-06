@@ -196,11 +196,7 @@ def process_pending_statusmatch_projects(
     skipped = 0
     for watch_id, key in candidates:
         def operation(current_watch_id: UUID = watch_id) -> StatusMatchProjectResult:
-            with session_factory.begin() as session:
-                watch = session.get(StatusMatchWatch, current_watch_id)
-                if watch is None:
-                    raise LookupError("StatusMatch watch disappeared before processing")
-                return StatusMatchProjectWorkflow(session, counted).process(watch)
+            return process_statusmatch_project_in_phases(session_factory, counted, current_watch_id)
 
         try:
             result, was_skipped = runner.execute(
@@ -281,12 +277,14 @@ class StatusMatchProjectWorkflow:
         provider: AIProvider,
         *,
         max_attempts: int = 2,
+        extraction_override=None,
     ) -> None:
         self._session = session
         self._provider = provider
         self._max_attempts = max_attempts
+        self._extraction_override = extraction_override
 
-    def process(self, watch: StatusMatchWatch) -> StatusMatchProjectResult:
+    def process(self, watch: StatusMatchWatch, *, skip_brief=False) -> StatusMatchProjectResult:
         pages = _complete_pages(self._session, watch)
         if pages is None:
             raise ValueError("StatusMatch project requires valid current HOME, FAQ and TERMS")
@@ -378,12 +376,12 @@ class StatusMatchProjectWorkflow:
             terms=terms,
         )
         brief_calls_before = _provider_call_count(self._provider)
-        brief = BriefGenerator(self._session, self._provider).generate(record)
+        brief = None if skip_brief else BriefGenerator(self._session, self._provider).generate(record)
         brief_calls_after = _provider_call_count(self._provider)
         if brief_calls_before is not None and brief_calls_after is not None:
             brief_calls = brief_calls_after - brief_calls_before
         else:
-            brief_calls = 0 if brief.reused else 1
+            brief_calls = 0 if brief is None or brief.reused else 1
         self._session.flush()
         return StatusMatchProjectResult(
             host=watch.host,
@@ -395,8 +393,8 @@ class StatusMatchProjectWorkflow:
             fact_set_id=str(record.id),
             fact_set_version=record.version,
             fact_reused=reused,
-            brief_id=str(brief.record.id),
-            brief_reused=brief.reused,
+            brief_id=str(brief.record.id) if brief else "",
+            brief_reused=brief.reused if brief else False,
             mapping_count=len(fact_set.status_mappings),
             change_set_id=str(change_set.id),
             change_kind=change_set.kind,
@@ -477,7 +475,11 @@ class StatusMatchProjectWorkflow:
         current_record: FactSetRecord | None,
         deterministic_mappings: list[StatusMapping],
         deterministic_routes: list[ApplicationRoute],
+        prepare_only=False,
     ) -> tuple[StatusMatchProjectExtraction, int, AnalysisRun]:
+        if self._extraction_override is not None:
+            extraction, attempts, run_id = self._extraction_override
+            return extraction, attempts, self._session.get(AnalysisRun, run_id)
         fingerprint = hashlib.sha256(
             json.dumps(
                 {
@@ -503,7 +505,10 @@ class StatusMatchProjectWorkflow:
         if existing is not None and existing.result:
             stored = existing.result.get("extraction")
             if stored is not None:
-                return StatusMatchProjectExtraction.model_validate(stored), 0, existing
+                cached = StatusMatchProjectExtraction.model_validate(stored)
+                if prepare_only:
+                    return {}, existing, faq.normalized_body, cached
+                return cached, 0, existing
         run = existing or AnalysisRun(
             idempotency_key=key,
             document_version_id=activity.id,
@@ -579,6 +584,19 @@ class StatusMatchProjectWorkflow:
                 "missing_values_must_be_null": True,
             },
         }
+        if prepare_only:
+            return request, run, faq.normalized_body, None
+        try:
+            extraction, attempts = self.generate_extraction(request, faq.normalized_body)
+            return extraction, attempts, run
+        except Exception as exc:
+            run.status = RunStatus.FAILED
+            run.error = _safe_error(exc)
+            self._session.flush()
+            raise
+
+    def generate_extraction(self, request, faq_body):
+        """Pure provider/validation phase; no ORM access."""
         last_error: Exception | None = None
         for attempt in range(1, self._max_attempts + 1):
             payload = dict(request)
@@ -596,16 +614,14 @@ class StatusMatchProjectWorkflow:
                     user_prompt=json.dumps(payload, ensure_ascii=False),
                     output_model=StatusMatchProjectExtraction,
                 )
-                _validate_project_extraction(extraction, faq.normalized_body)
-                return extraction, attempt, run
+                _validate_project_extraction(extraction, faq_body)
+                return extraction, attempt
             except Exception as exc:
                 last_error = exc
-        run.status = RunStatus.FAILED
-        run.error = _safe_error(last_error or RuntimeError("unknown extraction error"))
-        self._session.flush()
+        error = _safe_error(last_error or RuntimeError("unknown extraction error"))
         raise ValueError(
             f"StatusMatch project extraction failed after {self._max_attempts} attempts: "
-            f"{run.error}"
+            f"{error}"
         ) from last_error
 
     def _resolve_fact_set(
@@ -1212,3 +1228,46 @@ class _CallCountingProvider:
 
 def _safe_error(exc: Exception) -> str:
     return " ".join(str(exc).split())[:1000] or type(exc).__name__
+
+
+def process_statusmatch_project_in_phases(factory, provider, watch_id):
+    from dataclasses import replace
+    from journeyplus.briefs.service import generate_brief_in_phases
+    with factory.begin() as session:
+        watch = session.get(StatusMatchWatch, watch_id)
+        if watch is None:
+            raise LookupError('StatusMatch watch disappeared before processing')
+        workflow = StatusMatchProjectWorkflow(session, provider)
+        pages = _complete_pages(session, watch)
+        if pages is None:
+            raise ValueError('StatusMatch requires a complete current snapshot')
+        docs = {k:session.get(DocumentVersion,p.current_document_version_id) for k,p in pages.items()}
+        event = workflow._event_for_watch(watch)
+        current = _current_fact_record(session,event)
+        baseline = (event.id,event.current_fact_set_id,{k:d.id for k,d in docs.items()})
+        mappings = extract_statusmatch_status_mappings(raw_html=docs['faq'].raw_body,canonical_url=docs['faq'].canonical_url,document_version_id=docs['faq'].id)
+        routes = merge_statusmatch_application_routes(*[
+            extract_statusmatch_price_routes(raw_html=docs[k].raw_body,canonical_url=docs[k].canonical_url,document_version_id=docs[k].id)
+            for k in ('faq','terms')])
+        request,run,faq_body,cached = workflow._extract(watch=watch,event=event,activity=docs['activity'],faq=docs['faq'],terms=docs['terms'],
+            current_record=current,deterministic_mappings=mappings,deterministic_routes=routes,prepare_only=True)
+        session.flush();run_id=run.id
+    try:
+        extraction,attempts = (cached,0) if cached is not None else StatusMatchProjectWorkflow(None,provider).generate_extraction(request,faq_body)
+    except Exception as exc:
+        with factory.begin() as session:
+            run=session.get(AnalysisRun,run_id);run.status=RunStatus.FAILED;run.error=_safe_error(exc)
+        raise
+    with factory.begin() as session:
+        watch=session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id==watch_id).with_for_update())
+        event=session.scalar(select(StatusEvent).where(StatusEvent.id==baseline[0]).with_for_update())
+        pages=_complete_pages(session,watch) if watch else None
+        if (watch is None or watch.current_event_id!=baseline[0] or event.current_fact_set_id!=baseline[1]
+                or pages is None or {k:p.current_document_version_id for k,p in pages.items()}!=baseline[2]):
+            raise ValueError('StatusMatch source or facts changed during extraction')
+        result=StatusMatchProjectWorkflow(session,provider,extraction_override=(extraction,attempts,run_id)).process(watch,skip_brief=True)
+    before=_provider_call_count(provider)
+    brief_id,reused=generate_brief_in_phases(factory,provider,UUID(result.fact_set_id))
+    after=_provider_call_count(provider)
+    calls=after-before if before is not None and after is not None else 0 if reused else 1
+    return replace(result,brief_id=brief_id,brief_reused=reused,model_calls=result.model_calls+calls)

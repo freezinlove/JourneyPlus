@@ -237,16 +237,6 @@ def process_pending_articles(
         documents = [session.get(DocumentVersion, item) for item in selected]
         if any(document is None for document in documents):
             raise LookupError("A selected article document was not found")
-        title_calls_before = _provider_call_count(runtime_provider)
-        screenings = BatchTitleScreener(session, runtime_provider).screen(
-            [document for document in documents if document is not None]
-        )
-        stage_calls["title"] += (
-            _provider_call_count(runtime_provider) - title_calls_before
-        )
-        screening_by_id = {
-            outcome.result.document_version_id: outcome for outcome in screenings
-        }
         article_metadata: dict[UUID, tuple[str, str]] = {}
         for document in documents:
             assert document is not None
@@ -254,6 +244,16 @@ def process_pending_articles(
             if item is None:
                 raise LookupError("Article source item was not found")
             article_metadata[document.id] = (item.title, item.canonical_url)
+
+    from journeyplus.article_pipeline.phases import screen_in_phases,interpret_in_phases,article_brief_in_phases
+    title_calls_before = _provider_call_count(runtime_provider)
+    screenings = screen_in_phases(session_factory,runtime_provider,selected)
+    stage_calls["title"] += (
+        _provider_call_count(runtime_provider) - title_calls_before
+    )
+    screening_by_id = {
+        outcome.result.document_version_id: outcome for outcome in screenings
+    }
 
     runner = JobRunner(session_factory, max_attempts=1)
     results: list[ArticleDocumentProcessingResult] = []
@@ -298,29 +298,24 @@ def process_pending_articles(
                     document_label=None,
                     reused_title_screen=current_screening.reused,
                 )
-            with session_factory.begin() as session:
-                document = session.get(DocumentVersion, current_document_id)
-                if document is None:
-                    raise LookupError("Article document was not found")
-                interpretation_calls_before = _provider_call_count(runtime_provider)
-                interpreted = ArticleInterpreter(
-                    session, runtime_provider
-                ).interpret(document)
-                stage_calls["interpretation"] += (
-                    _provider_call_count(runtime_provider)
-                    - interpretation_calls_before
+            interpretation_calls_before = _provider_call_count(runtime_provider)
+            interpreted = interpret_in_phases(session_factory,runtime_provider,current_document_id)
+            stage_calls["interpretation"] += (
+                _provider_call_count(runtime_provider)
+                - interpretation_calls_before
+            )
+            document_label = interpreted.interpretation.label
+            reused_interpretation = interpreted.reused
+            opportunity_ids = tuple(item.id for item in interpreted.opportunities)
+            interpretation_error = (
+                (
+                    interpreted.run.error
+                    or "Article interpretation needs manual review"
                 )
-                document_label = interpreted.interpretation.label
-                reused_interpretation = interpreted.reused
-                opportunity_ids = tuple(item.id for item in interpreted.opportunities)
-                interpretation_error = (
-                    (
-                        interpreted.run.error
-                        or "Article interpretation needs manual review"
-                    )
-                    if interpreted.run.status == RunStatus.FAILED
-                    else None
-                )
+                if interpreted.run.status == RunStatus.FAILED
+                else None
+            )
+
 
             if interpretation_error is not None:
                 raise ValueError(interpretation_error)
@@ -328,33 +323,14 @@ def process_pending_articles(
             brief_ids: list[str] = []
             brief_errors: list[str] = []
             for opportunity_id in opportunity_ids:
-                brief_session = session_factory()
                 brief_calls_before = _provider_call_count(runtime_provider)
                 try:
-                    opportunity = brief_session.get(
-                        ArticleOpportunityRecord, opportunity_id
-                    )
-                    if opportunity is None:
-                        raise LookupError("Article opportunity was not found")
-                    generated = ArticleBriefGenerator(
-                        brief_session, runtime_provider
-                    ).generate(opportunity)
-                    opportunity.status = "DRAFT"
-                    brief_session.commit()
+                    generated=article_brief_in_phases(session_factory,runtime_provider,opportunity_id)
                     brief_ids.append(str(generated.record.id))
                 except Exception as exc:
-                    opportunity = brief_session.get(
-                        ArticleOpportunityRecord, opportunity_id
-                    )
-                    if opportunity is not None:
-                        opportunity.status = "NEEDS_REVIEW"
-                    brief_session.commit()
                     brief_errors.append(f"{type(exc).__name__}: {exc}"[:1000])
                 finally:
-                    stage_calls["brief"] += (
-                        _provider_call_count(runtime_provider) - brief_calls_before
-                    )
-                    brief_session.close()
+                    stage_calls["brief"] += _provider_call_count(runtime_provider)-brief_calls_before
             if brief_errors:
                 raise ValueError("; ".join(brief_errors))
             return ArticleDocumentProcessingResult(

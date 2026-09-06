@@ -53,7 +53,7 @@ class ArticleBriefGenerator:
         self._prompt_version = prompt_version
         self._max_attempts = max_attempts
 
-    def generate(self, opportunity: ArticleOpportunityRecord) -> ArticleBriefGeneration:
+    def generate(self, opportunity: ArticleOpportunityRecord, *, rendered=None) -> ArticleBriefGeneration:
         fact_set = FactSet.model_validate(opportunity.facts)
         key = (
             f"{AnalysisStage.ARTICLE_BRIEF}:{opportunity.id}:"
@@ -93,6 +93,43 @@ class ArticleBriefGenerator:
             self._session.add(run)
         self._session.flush()
 
+        try:
+            brief = rendered if rendered is not None else self.render(opportunity)
+            BriefGenerator._validate(brief, opportunity, fact_set)
+        except Exception as exc:
+            run.status = RunStatus.FAILED
+            run.error = str(exc)[:4000]
+            self._session.flush()
+            raise
+
+        run.status = RunStatus.SUCCEEDED
+        run.result = brief.model_dump(mode="json")
+        run.error = None
+        version = (
+            self._session.scalar(
+                select(func.max(ArticleBriefRecord.version)).where(
+                    ArticleBriefRecord.opportunity_id == opportunity.id
+                )
+            )
+            or 0
+        ) + 1
+        record = ArticleBriefRecord(
+            opportunity_id=opportunity.id,
+            analysis_run_id=run.id,
+            input_version=opportunity.fact_signature,
+            version=version,
+            schema_version=brief.schema_version,
+            content=brief.model_dump(mode="json"),
+        )
+        self._session.add(record)
+        self._session.flush()
+        opportunity.current_brief_id = record.id
+        self._session.flush()
+        return ArticleBriefGeneration(run, record, brief, False)
+
+    def render(self, opportunity):
+        """Render a detached opportunity; no database session is required."""
+        fact_set = FactSet.model_validate(opportunity.facts)
         known_fact_keys, unknown_fact_keys = _fact_key_availability(fact_set)
         allowed_source_links = _allowed_source_links(fact_set)
         last_error: Exception | None = None
@@ -128,35 +165,10 @@ class ArticleBriefGenerator:
             except Exception as exc:
                 last_error = exc
         if brief is None:
-            run.status = RunStatus.FAILED
-            run.error = (
+            error = (
                 f"Brief generation failed after {self._max_attempts} attempts: "
                 f"{_safe_error_message(last_error or ValueError('unknown error'))}"
             )[:4000]
-            self._session.flush()
-            raise ValueError(run.error) from last_error
+            raise ValueError(error) from last_error
 
-        run.status = RunStatus.SUCCEEDED
-        run.result = brief.model_dump(mode="json")
-        run.error = None
-        version = (
-            self._session.scalar(
-                select(func.max(ArticleBriefRecord.version)).where(
-                    ArticleBriefRecord.opportunity_id == opportunity.id
-                )
-            )
-            or 0
-        ) + 1
-        record = ArticleBriefRecord(
-            opportunity_id=opportunity.id,
-            analysis_run_id=run.id,
-            input_version=opportunity.fact_signature,
-            version=version,
-            schema_version=brief.schema_version,
-            content=brief.model_dump(mode="json"),
-        )
-        self._session.add(record)
-        self._session.flush()
-        opportunity.current_brief_id = record.id
-        self._session.flush()
-        return ArticleBriefGeneration(run, record, brief, False)
+        return brief

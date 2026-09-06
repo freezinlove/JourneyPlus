@@ -101,7 +101,7 @@ class ArticleInterpreter:
         self._prompt_version = prompt_version
         self._max_attempts = max_attempts
 
-    def interpret(self, document: DocumentVersion) -> ArticleInterpretationOutcome:
+    def interpret(self, document: DocumentVersion, *, rendered=None) -> ArticleInterpretationOutcome:
         item = self._session.get(SourceItem, document.source_item_id)
         if item is None:
             raise LookupError("Source item was not found")
@@ -164,6 +164,29 @@ class ArticleInterpreter:
             run.result = None
         self._session.flush()
 
+        interpretation, last_error = rendered if rendered is not None else self.render(document,item)
+        if interpretation is None:
+            interpretation = ArticleInterpretation(
+                label=DocumentLabel.UNCERTAIN,
+                confidence=0,
+                reason="正文解析在有限重试后未通过结构或证据校验，等待人工复核。",
+            )
+            run.status = RunStatus.FAILED
+            run.error = _safe_error(last_error or RuntimeError("unknown error"))
+        else:
+            run.status = RunStatus.SUCCEEDED
+            run.error = None
+        run.result = interpretation.model_dump(mode="json")
+        self._session.flush()
+        analysis, opportunities = self._materialize(
+            document, item, run, interpretation
+        )
+        return ArticleInterpretationOutcome(
+            run, analysis, opportunities, interpretation, False
+        )
+
+    def render(self, document, item):
+        """Interpret detached source data without touching the database."""
         interpretation: ArticleInterpretation | None = None
         last_error: Exception | None = None
         for _attempt in range(self._max_attempts):
@@ -206,25 +229,7 @@ class ArticleInterpreter:
                 break
             except Exception as exc:
                 last_error = exc
-        if interpretation is None:
-            interpretation = ArticleInterpretation(
-                label=DocumentLabel.UNCERTAIN,
-                confidence=0,
-                reason="正文解析在有限重试后未通过结构或证据校验，等待人工复核。",
-            )
-            run.status = RunStatus.FAILED
-            run.error = _safe_error(last_error or RuntimeError("unknown error"))
-        else:
-            run.status = RunStatus.SUCCEEDED
-            run.error = None
-        run.result = interpretation.model_dump(mode="json")
-        self._session.flush()
-        analysis, opportunities = self._materialize(
-            document, item, run, interpretation
-        )
-        return ArticleInterpretationOutcome(
-            run, analysis, opportunities, interpretation, False
-        )
+        return interpretation, last_error
 
     def _materialize(
         self,

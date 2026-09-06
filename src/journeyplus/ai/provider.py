@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from contextvars import ContextVar
+from contextlib import contextmanager
+from time import monotonic
 from typing import Any, Protocol, TypeVar
 
 import httpx
@@ -46,6 +49,8 @@ class OpenAICompatibleProvider:
         assert settings.ai_base_url is not None
         assert settings.ai_api_key is not None
         self._temperature = temperature
+        self._call_metrics = ContextVar(f'journeyplus_provider_metrics_{id(self)}',default=None)
+        self._call_timeout = ContextVar(f'journeyplus_provider_timeout_{id(self)}',default=None)
         self._client = client or httpx.Client(
             base_url=settings.ai_base_url.rstrip("/") + "/",
             headers={"Authorization": f"Bearer {settings.ai_api_key}"},
@@ -65,6 +70,18 @@ class OpenAICompatibleProvider:
             ),
         )
 
+    @property
+    def last_call_metrics(self):
+        value=self._call_metrics.get()
+        return dict(value) if value is not None else None
+
+    @contextmanager
+    def call_timeout(self,seconds):
+        if seconds<=0:raise TimeoutError('Provider call budget exhausted')
+        token=self._call_timeout.set(seconds)
+        try:yield
+        finally:self._call_timeout.reset(token)
+
     def generate_structured(
         self,
         *,
@@ -72,8 +89,20 @@ class OpenAICompatibleProvider:
         user_prompt: str,
         output_model: type[OutputModel],
     ) -> OutputModel:
+        schema_json=json.dumps(output_model.model_json_schema(),ensure_ascii=False)
+        metrics={'schema_bytes':len(schema_json.encode()),'system_prompt_bytes':len(system_prompt.encode()),
+                 'user_prompt_bytes':len(user_prompt.encode()),'usage':None}
+        self._call_metrics.set(metrics)
+        started=monotonic()
+        timeout=self._call_timeout.get()
+        request_options={}
+        if timeout is not None:
+            settings=self._client.timeout.as_dict()
+            request_options['timeout']=httpx.Timeout(**{k:min(v,timeout) if v is not None else timeout for k,v in settings.items()})
+            metrics['io_timeout_seconds']=timeout
         response = self._client.post(
             "chat/completions",
+            **request_options,
             json={
                 "model": self.metadata.model,
                 "temperature": self._temperature,
@@ -86,17 +115,20 @@ class OpenAICompatibleProvider:
                             "必须只返回一个 JSON 对象，不要使用 Markdown 代码块，并严格符合"
                             "以下 JSON Schema；服务端 JSON Mode 只保证合法 JSON，字段仍由"
                             "本地 Schema 校验：\n"
-                            + json.dumps(
-                                output_model.model_json_schema(), ensure_ascii=False
-                            )
+                            + schema_json
                         ),
                     },
                     {"role": "user", "content": user_prompt},
                 ],
             },
         )
+        metrics['provider_request_ms']=round((monotonic()-started)*1000)
         response.raise_for_status()
         payload = response.json()
+        usage=payload.get('usage')
+        if isinstance(usage,dict):
+            metrics['usage']={key:usage[key] for key in ('prompt_tokens','completion_tokens','total_tokens')
+                              if type(usage.get(key)) is int and usage[key]>=0} or None
         content: Any = payload["choices"][0]["message"]["content"]
         if isinstance(content, str):
             content = _parse_json_content(content)

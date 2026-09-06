@@ -1,0 +1,764 @@
+{
+  "schema_version": 1,
+  "fixture_date": "2026-09-06",
+  "limitations": "Automated assertions are necessary, not sufficient; review_checks require source-grounded review. Snapshot facts are date-bound.",
+  "cases": [
+    {
+      "id": "chat_greeting",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "你好，今天心情不错，跟我打个招呼。"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "不注入目录或活动资料"
+      ]
+    },
+    {
+      "id": "chat_joke",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "讲一个关于行李箱的简短笑话。"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "不强制询问目标会籍"
+      ]
+    },
+    {
+      "id": "chat_translation",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "把“祝你旅途愉快”翻译成英文。"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "只回答语言问题"
+      ]
+    },
+    {
+      "id": "chat_topic_change",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian Gold Sparrow 申请费多少？",
+        "换个话题，帮我写一句周末问候。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "last_business_reads": 0
+      },
+      "review_checks": [
+        "第二回合不继续推荐会籍"
+      ]
+    },
+    {
+      "id": "chat_unclear",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "随便聊聊吧。"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "不要求结构化表单"
+      ]
+    },
+    {
+      "id": "fact_rj_fee",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian Gold Sparrow 的航空会籍匹配申请费是多少？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_text_contains": [
+          "USD 149"
+        ],
+        "final_text_not_contains": [
+          "Hotel Status Match ·",
+          "Card Match ·"
+        ]
+      },
+      "review_checks": [
+        "USD149，不能混入Silver49"
+      ]
+    },
+    {
+      "id": "fact_rj_id",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian 对加拿大申请人的证件要求是什么？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "加拿大护照要求，不能把签发国当居住国"
+      ]
+    },
+    {
+      "id": "fact_avolta_fee",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Club Avolta 的匹配活动收费吗？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "明确免费，不能推断其他活动也免费"
+      ]
+    },
+    {
+      "id": "fact_enrich_fee",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Enrich Gold 和 Platinum 的申请费分别是多少？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "Gold199/Platinum349USD，各档分开"
+      ]
+    },
+    {
+      "id": "fact_rj_challenge",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian 这个匹配是不是完全不需要挑战？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "未知保持未知，不能回答无需挑战"
+      ]
+    },
+    {
+      "id": "fact_flyingblue_region",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Flying Blue 希腊和巴西的申请费用有区别吗？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "区分EUR和USD，保留Brazil例外与映射未知"
+      ]
+    },
+    {
+      "id": "fact_anaphora",
+      "category": "followup",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian Gold Sparrow 申请费多少？",
+        "它的会籍有效期多久？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "指代仍为RJ，批准后12个月"
+      ]
+    },
+    {
+      "id": "route_rj",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，想看匹配 Royal Jordanian Gold Sparrow 的路径和费用，不保存会籍。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_block_any": [
+          "route_graph",
+          "route_comparison"
+        ],
+        "route_read": true
+      },
+      "review_checks": [
+        "USD149，挑战未知，覆盖不完整"
+      ]
+    },
+    {
+      "id": "route_budget",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，想匹配 Royal Jordanian Gold Sparrow，预算100美元，不保存会籍。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "max_match_amount": {
+          "currency": "USD",
+          "amount": "100"
+        },
+        "route_read": true
+      },
+      "review_checks": [
+        "149不能成为满足100上限的正式匹配"
+      ]
+    },
+    {
+      "id": "route_free",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，只看免费匹配 Royal Jordanian Gold Sparrow 的方案。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "matches_must_be_free": true,
+        "route_read": true
+      },
+      "review_checks": [
+        "收费路线只能作为近似建议"
+      ]
+    },
+    {
+      "id": "route_no_challenge",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，要匹配 Royal Jordanian Gold Sparrow，不能有挑战。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "matches_require_no_challenge": true,
+        "route_read": true
+      },
+      "review_checks": [
+        "挑战未知不能当作NONE"
+      ]
+    },
+    {
+      "id": "route_avolta",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，看看通向 Club Avolta Gold 的路径。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_block_any": [
+          "route_graph",
+          "route_comparison"
+        ],
+        "route_read": true
+      },
+      "review_checks": [
+        "保留直达与其他路径，不强制三条以外丢弃"
+      ]
+    },
+    {
+      "id": "route_unspecified",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "我没有说目标会籍，能先帮我看看有哪些可能吗？"
+      ],
+      "expect": {
+        "no_errors": true
+      },
+      "review_checks": [
+        "允许探索或只问一个关键问题"
+      ]
+    },
+    {
+      "id": "compare_rj_avolta",
+      "category": "comparison",
+      "split": "development",
+      "messages": [
+        "假设我有 Aeroplan Elite 50K，比较匹配 Royal Jordanian Gold Sparrow 和 Club Avolta Gold 的费用与条件。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_route_targets_include": [
+          "Royal Jordanian",
+          "Club Avolta"
+        ]
+      },
+      "review_checks": [
+        "不同目标不能拿等级名直接判高低"
+      ]
+    },
+    {
+      "id": "compare_two",
+      "category": "followup",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，看看通向 Club Avolta Gold 的路径。",
+        "比较一下你刚刚给的两条路径。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "使用原路线范围，未给两条时澄清，不编造第二条"
+      ]
+    },
+    {
+      "id": "research_explicit",
+      "category": "research",
+      "split": "development",
+      "messages": [
+        "帮我调查 StatusMatcher 上 Royal Jordanian Gold Sparrow 的匹配经验。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "research_must_be_disabled": true
+      },
+      "review_checks": [
+        "不发外部请求，不编成功率"
+      ]
+    },
+    {
+      "id": "research_success",
+      "category": "research",
+      "split": "development",
+      "messages": [
+        "Royal Jordanian 匹配的真实成功率有90%吗？查一下 StatusMatcher。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "research_must_be_disabled": true
+      },
+      "review_checks": [
+        "不接受用户给出的90%作为事实"
+      ]
+    },
+    {
+      "id": "proposal_holding",
+      "category": "confirmation",
+      "split": "development",
+      "messages": [
+        "请生成保存 Air Canada Aeroplan Elite 50K 的待确认卡，有效期2027-12-31。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "pending_kind": "HOLDING_SAVE"
+      },
+      "review_checks": [
+        "显示名称和有效期前后；不直接保存"
+      ]
+    },
+    {
+      "id": "proposal_wait",
+      "category": "confirmation",
+      "split": "development",
+      "messages": [
+        "请生成一个等待 Royal Jordanian Gold Sparrow 免费匹配方案的待确认任务，不要直接创建。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "pending_kind": "WAIT_CREATE"
+      },
+      "review_checks": [
+        "条件可执行，有确认门"
+      ]
+    },
+    {
+      "id": "holdout_chat_business_word",
+      "category": "chat",
+      "split": "development",
+      "messages": [
+        "写一句含有“会籍”两个字的绕口令，不需要查询活动。"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "不能因关键词而注入数据库"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_fact_validity",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Club Avolta 匹配到的 Gold 能保留多久？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "有效期锚点不能当发布日期"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_fact_astana",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Air Astana 的49美元和199美元是两种什么费用？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_text_contains": [
+          "49",
+          "199",
+          "不是通用申请费"
+        ]
+      },
+      "review_checks": [
+        "49申请费与199买升区别，不生成49直达高等级"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_unknown_source",
+      "category": "facts",
+      "split": "development",
+      "messages": [
+        "Flying Blue 现在具体接受哪些原有航空会籍？"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "来源映射未知时说明范围缺口，不用历史表补齐"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_path_compound",
+      "category": "routes",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，看看 RJ Gold Sparrow 路线，顺便解释加拿大身份证能不能申请。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "route_read": true
+      },
+      "review_checks": [
+        "复合问题需要费用和证件依据，不能推断居住地"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_research_compare",
+      "category": "research",
+      "split": "development",
+      "messages": [
+        "帮我去 StatusMatcher 比较 Royal Jordanian 和 Enrich 哪个容易成功。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "research_must_be_disabled": true,
+        "final_text_matches": [
+          "未(?:启用|开启)|(?:功能|许可|调查).*关闭"
+        ]
+      },
+      "review_checks": [
+        "关闭状态不作经验排名"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_save_ambiguous",
+      "category": "confirmation",
+      "split": "development",
+      "messages": [
+        "我有一个金卡，先别存，想聊聊能干什么。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "no_pending_holding": true
+      },
+      "review_checks": [
+        "项目不明不强制保存"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "holdout_change_mind",
+      "category": "followup",
+      "split": "development",
+      "messages": [
+        "请生成保存 Aeroplan Elite 50K 的待确认操作。",
+        "算了，先别保存，跟我聊聊旅行就行。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "no_pending_holding": true,
+        "final_text_contains": [
+          "已取消"
+        ]
+      },
+      "review_checks": [
+        "明确未确认不写长期会籍"
+      ],
+      "previous_split": "holdout_used_during_debugging"
+    },
+    {
+      "id": "proposal_minimum_adjustment",
+      "category": "confirmation",
+      "split": "development",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，想匹配 Royal Jordanian Gold Sparrow，预算最多 100 美元。如果确实只差预算，请给我一个最小金额调整的待确认提议，不要直接修改条件。"
+      ],
+      "expect": {
+        "route_read": true,
+        "pending_kind": "QUERY_ADJUST",
+        "no_errors": true
+      },
+      "review_checks": [
+        "必须先真实评估路线，不能用活动读取代替",
+        "预算只能从 USD 100 调到来源已确认的 USD 149",
+        "不能因为符合查询筛选就保证证件等申请资格通过",
+        "提议不写入会籍、不创建等待任务"
+      ]
+    },
+    {
+      "id": "locked_chat_quote",
+      "category": "chat",
+      "split": "holdout",
+      "messages": [
+        "只帮我润色这句话，不要查活动：“会籍匹配让旅程更方便。”"
+      ],
+      "expect": {
+        "business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "按改写任务回答，不因会籍关键词注入资料"
+      ]
+    },
+    {
+      "id": "locked_scope_switch",
+      "category": "followup",
+      "split": "holdout",
+      "messages": [
+        "Royal Jordanian 的 Gold Sparrow 有效期多久？",
+        "换个话题，给我一句简短的旅行祝福。"
+      ],
+      "expect": {
+        "last_business_reads": 0,
+        "no_errors": true
+      },
+      "review_checks": [
+        "首轮有效期来自官方版本；次轮不沿用活动查询或旧焦点"
+      ]
+    },
+    {
+      "id": "locked_identity_exception",
+      "category": "facts",
+      "split": "holdout",
+      "messages": [
+        "加拿大居民拿枫叶卡，可以用于 Royal Jordanian 的 status match 身份证明吗？请解释依据，不要替我作申请。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true
+      },
+      "review_checks": [
+        "加拿大居住地不等于国籍；加拿大例外明确要求 Canadian Passport，不能把永久居民卡说成护照"
+      ]
+    },
+    {
+      "id": "locked_source_excerpt",
+      "category": "facts",
+      "split": "holdout",
+      "messages": [
+        "我想看 Club Avolta 关于一个人能申请几次的相关原文及上下文。"
+      ],
+      "expect": {
+        "min_business_reads": 1,
+        "no_errors": true,
+        "final_block_any": [
+          "evidence_answer",
+          "activity_card"
+        ]
+      },
+      "review_checks": [
+        "原文定位到相关活动资格条款；不得返回不相关活动全文或捏造规则"
+      ]
+    },
+    {
+      "id": "locked_hypothetical_none",
+      "category": "routes",
+      "split": "holdout",
+      "messages": [
+        "这次假设我没有任何航空或酒店会籍。看看有什么不需要已有会籍的申请机会；别把我保存的会籍算进去。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true
+      },
+      "review_checks": [
+        "use_saved_holdings=false 且起点为空；未知来源不是公开申请；无命中与覆盖不完整分别说明"
+      ]
+    },
+    {
+      "id": "locked_budget_multicurrency",
+      "category": "routes",
+      "split": "holdout",
+      "messages": [
+        "假设我持有 Air Canada Aeroplan Elite 50K，去 Royal Jordanian Gold Sparrow，预算是100欧元，不要自行换成美元；费用跨币种不能判断就直说。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true
+      },
+      "review_checks": [
+        "预算保留 EUR 100；USD 149 不作隐式换汇，不宣称已满足欧元预算"
+      ]
+    },
+    {
+      "id": "locked_research_step",
+      "category": "research",
+      "split": "holdout",
+      "messages": [
+        "先只调查 Air Canada Aeroplan Elite 50K 到 Royal Jordanian Gold Sparrow 这一步的近期申请经验，不用规划完整行程。"
+      ],
+      "expect": {
+        "research_must_be_disabled": true,
+        "no_errors": true,
+        "no_pending_holding": true
+      },
+      "review_checks": [
+        "默认许可关闭明确可见，不能声称已联网或真实成功率，不强制保存会籍"
+      ]
+    },
+    {
+      "id": "locked_confirmation_cancel",
+      "category": "confirmation",
+      "split": "holdout",
+      "messages": [
+        "请提议保存我的 Air Canada Aeroplan Elite 50K，会籍到期日暂不填写。",
+        "取消保存，这次不需要长期记住。"
+      ],
+      "expect": {
+        "no_errors": true,
+        "no_pending_holding": true
+      },
+      "review_checks": [
+        "首轮明确确认门；第二轮取消后不得写入会籍或再次提议保存"
+      ]
+    },
+    {
+      "id": "locked_compare_validity",
+      "category": "comparison",
+      "split": "holdout",
+      "messages": [
+        "假设我的起点是 Air Canada Aeroplan Elite 50K，请列出到 Avolta Gold 的直接及中转路线。",
+        "将这两条按费用、有效期放在同一个比较表里，不能省掉中间步骤。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true,
+        "final_block_any": [
+          "route_comparison"
+        ]
+      },
+      "review_checks": [
+        "比较范围保持两条已查路线；期限绑定每一步原版本；只有整体方案入口"
+      ]
+    },
+    {
+      "id": "locked_context_acquisition",
+      "category": "followup",
+      "split": "holdout",
+      "messages": [
+        "假设我有 Air Canada Aeroplan Elite 50K，看看到 Royal Jordanian Gold Sparrow 的路径。",
+        "补充一下，我这张 50K 也是匹配取得的，不是飞出来的。请重新核对是否有影响，别保存为长期信息。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true,
+        "no_pending_holding": true
+      },
+      "review_checks": [
+        "SOURCE_ACQUISITION 临时改为 MATCHED；未知规则不推断允许，旧回合不被覆盖，不创建会籍写入提议"
+      ]
+    },
+    {
+      "id": "public_entry_optional_preference",
+      "category": "route",
+      "split": "development",
+      "messages": [
+        "假设我没有任何已有会籍，请找不需要已有会籍就能申请的匹配或挑战机会。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true,
+        "no_pending_holding": true
+      },
+      "review_checks": [
+        "实际以空起点且不使用已保存会籍查询；目标或联盟偏好不是必填；无命中保留覆盖说明"
+      ]
+    },
+    {
+      "id": "route_vietnam_spelling",
+      "category": "route",
+      "split": "development",
+      "messages": [
+        "假设我有 Lufthansa Miles & More Senator，想看匹配到 Lotusmiles (Vietnam Airlines) Gold 的路径、费用和还没核实的条件。"
+      ],
+      "expect": {
+        "route_read": true,
+        "no_errors": true,
+        "no_pending_holding": true,
+        "final_block_any": [
+          "route_graph",
+          "route_comparison",
+          "route_list"
+        ]
+      },
+      "review_checks": [
+        "同一越南航空项目不同写法不阻断路径或重复追问；未知费用不能被称为免费；实际引用的目标是 Gold"
+      ]
+    }
+  ],
+  "holdout_policy": {
+    "frozen_at": "2026-09-06",
+    "sha256": "a0dd50fa416957a9a2f609b80ccc74d539de069bfc0b6467cbeb1ad1e70eb9ec",
+    "use": "Run after implementation freeze; report failures without tuning against these cases. Create a new holdout if used for debugging."
+  }
+}

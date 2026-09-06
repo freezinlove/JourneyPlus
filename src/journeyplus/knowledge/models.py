@@ -255,6 +255,24 @@ class ActivityObservationState(Base, TimestampMixin):
     freshness: Mapped[str] = mapped_column(String(30), default="INCOMPLETE")
 
 
+class ActivityEditionReview(Base, Identity):
+    __tablename__='activity_edition_reviews'
+    __table_args__=(
+        CheckConstraint("decision IN ('SAME','NEW','UNRESOLVED')",name='ck_edition_review_decision'),
+        CheckConstraint("(decision='UNRESOLVED' AND target_activity_id IS NULL) OR (decision IN ('SAME','NEW') AND target_activity_id IS NOT NULL)",name='ck_edition_review_target'),
+        ForeignKeyConstraint(['base_version_id','activity_id'],['activity_knowledge_versions.id','activity_knowledge_versions.activity_id']),
+        Index('ix_edition_review_source','source_table','source_id','created_at'),
+    )
+    source_table:Mapped[str]=mapped_column(String(40))
+    source_id:Mapped[str]=mapped_column(String(100))
+    activity_id:Mapped[UUID]=mapped_column(ForeignKey('activities.id'))
+    base_version_id:Mapped[UUID|None]=mapped_column(Uuid)
+    decision:Mapped[str]=mapped_column(String(20))
+    target_activity_id:Mapped[UUID|None]=mapped_column(ForeignKey('activities.id'))
+    reason:Mapped[str]=mapped_column(Text)
+    request_json:Mapped[dict]=mapped_column(J)
+
+
 class KnowledgeMigrationLink(Base, Identity):
     __tablename__ = "knowledge_migration_links"
     __table_args__ = (UniqueConstraint("legacy_table", "legacy_id", "legacy_path", "migration_version"),)

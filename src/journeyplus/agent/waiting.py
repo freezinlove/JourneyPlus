@@ -140,7 +140,7 @@ class WaitGoalService:
     def _current_row(self) -> AgentWaitGoal | None:
         return self._session.scalar(
             select(AgentWaitGoal)
-            .where(AgentWaitGoal.status == AgentWaitGoalStatus.ACTIVE)
+            .where(AgentWaitGoal.status == AgentWaitGoalStatus.ACTIVE, AgentWaitGoal.conditions_schema_version == 1)
             .order_by(AgentWaitGoal.updated_at.desc(), AgentWaitGoal.id.desc())
             .limit(1)
         )

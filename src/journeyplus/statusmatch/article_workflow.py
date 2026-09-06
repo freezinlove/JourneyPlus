@@ -130,11 +130,7 @@ def process_pending_statusmatch_articles(
         def operation(
             current_route_id: UUID = route_id,
         ) -> StatusMatchArticleProcessingResult:
-            with session_factory.begin() as session:
-                route = session.get(StatusMatchArticleRoute, current_route_id)
-                if route is None:
-                    raise LookupError("StatusMatch article route disappeared")
-                return StatusMatchArticleWorkflow(session, counted).process(route)
+            return process_statusmatch_article_in_phases(session_factory,counted,current_route_id)
 
         try:
             result, was_skipped = runner.execute(
@@ -208,10 +204,12 @@ class StatusMatchArticleWorkflow:
         provider: AIProvider,
         *,
         max_attempts: int = 2,
+        extraction_override=None,
     ) -> None:
         self._session = session
         self._provider = provider
         self._max_attempts = max_attempts
+        self._extraction_override = extraction_override
 
     def process(
         self,
@@ -288,7 +286,11 @@ class StatusMatchArticleWorkflow:
         fact: FactSetRecord,
         brief: BriefRecord,
         input_version: str,
+        prepare_only=False,
     ) -> tuple[StatusMatchArticleExtraction, int, AnalysisRun]:
+        if self._extraction_override is not None:
+            extraction,attempts,run_id=self._extraction_override
+            return extraction,attempts,self._session.get(AnalysisRun,run_id)
         key = (
             f"{AnalysisStage.STATUSMATCH_ARTICLE_HIGHLIGHTS}:{route.id}:"
             f"{input_version}"
@@ -297,7 +299,9 @@ class StatusMatchArticleWorkflow:
             select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
         )
         if run is not None and run.result is not None:
-            return StatusMatchArticleExtraction.model_validate(run.result), 0, run
+            cached=StatusMatchArticleExtraction.model_validate(run.result)
+            if prepare_only:return {},run,cached
+            return cached, 0, run
         if run is None:
             run = AnalysisRun(
                 idempotency_key=key,
@@ -340,6 +344,15 @@ class StatusMatchArticleWorkflow:
                 "never_output_membership_mapping_claims": True,
             },
         }
+        if prepare_only:return request,run,None
+        try:
+            extraction,attempts=self.render(request)
+            return extraction,attempts,run
+        except Exception as exc:
+            run.status=RunStatus.FAILED;run.error=_safe_error(exc);self._session.flush()
+            raise
+
+    def render(self,request):
         last_error: Exception | None = None
         for attempt in range(1, self._max_attempts + 1):
             payload = dict(request)
@@ -359,15 +372,13 @@ class StatusMatchArticleWorkflow:
                     output_model=StatusMatchArticleExtraction,
                 )
                 _validate_extraction(extraction)
-                return extraction, attempt, run
+                return extraction, attempt
             except Exception as exc:
                 last_error = exc
-        run.status = RunStatus.FAILED
-        run.error = _safe_error(last_error or RuntimeError("unknown extraction error"))
-        self._session.flush()
+        error = _safe_error(last_error or RuntimeError("unknown extraction error"))
         raise ValueError(
             f"StatusMatch article extraction failed after {self._max_attempts} "
-            f"attempts: {run.error}"
+            f"attempts: {error}"
         ) from last_error
 
 
@@ -590,3 +601,25 @@ class _CallCountingProvider:
     def generate_structured(self, **kwargs):
         self.calls += 1
         return self._provider.generate_structured(**kwargs)
+
+
+def process_statusmatch_article_in_phases(factory,provider,route_id):
+    with factory.begin() as s:
+        route=s.get(StatusMatchArticleRoute,route_id)
+        if route is None:raise LookupError('StatusMatch article route disappeared')
+        document,item,event,fact,brief=_ready_materials(s,route)
+        baseline=(document.id,event.id,fact.id,brief.id,_input_version(route,event,provider))
+        request,run,cached=StatusMatchArticleWorkflow(s,provider)._extract(route=route,document=document,item=item,event=event,
+            fact=fact,brief=brief,input_version=baseline[4],prepare_only=True)
+        s.flush();run_id=run.id
+    try:extraction,attempts=(cached,0) if cached is not None else StatusMatchArticleWorkflow(None,provider).render(request)
+    except Exception as exc:
+        with factory.begin() as s:
+            run=s.get(AnalysisRun,run_id);run.status=RunStatus.FAILED;run.error=_safe_error(exc)
+        raise
+    with factory.begin() as s:
+        route=s.scalar(select(StatusMatchArticleRoute).where(StatusMatchArticleRoute.id==route_id).with_for_update())
+        document,item,event,fact,brief=_ready_materials(s,route)
+        if baseline!=(document.id,event.id,fact.id,brief.id,_input_version(route,event,provider)):
+            raise ValueError('Official facts or article changed during extraction')
+        return StatusMatchArticleWorkflow(s,provider,extraction_override=(extraction,attempts,run_id)).process(route)

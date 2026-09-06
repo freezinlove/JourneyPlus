@@ -80,3 +80,20 @@ cost={state:KNOWN/PARTIAL/UNKNOWN/CONFLICT,totals:[{currency,amount,role}],condi
 ```
 
 这是按问题投影的最小实例，省略字段不能被前端当作无要求；实际契约对 view 规定必填投影。若用户已明确来源 MATCHED，则 R1 因资格失败排除；若查询明确要求资格已证实，则该未知必须进入 UNKNOWN，而非 MATCH。
+
+## 8. 已实现的传输边界与兼容字段
+
+- `knowledge.transport.ServerRouteResult` 持有 `server_routes/server_steps/snapshot`，只在服务器缓存与分页中使用；`ModelDecisionPacket` 只接受 `DecisionData` 的目录、相关事实、候选／共享步骤、过滤原因、证据和经验观察等显式字段；`PresentationData` 单独承载已选对象、比较行、节点和与回答绑定的经验。三类容器均拒绝未声明字段；领域事实值只允许 JSON 值，不接受 ORM 对象。
+- 模型路径入参继续使用已兼容的 `target_program_id/target_tier_id/max_amount/currency` 等平铺字段，但实际值必须是已披露短引用。路径条件、成本等领域验证仍由原类型合约和评估器负责，传输类型不重新解释事实。
+- 根状态新增 `CATALOG_ONLY` 表示只定位到项目等级目录，以及 `EXPIRED/NEEDS_INSPECTION` 表示续页／内容读取状态。目录可直接作为路径查询起点，不能误作当前活动事实。
+- 在短引用注册、深复制和预算计算之前先投影掉完整服务器缓存；没有披露的引用不会因内部缓存存在而获得模型调用权限。保留 `reason_counts`，让模型能解释实际过滤原因；计数仍受 coverage 的搜索范围约束。
+
+- 真实评测后的概览投影：data.view=ROUTE_OVERVIEW，完整限制去重到 data.material_caveats，路线与步骤保留 material_caveat_refs；完整申请期限和会籍有效期去重到 data.temporal_facts，由步骤 application_window_ref/status_validity_ref 引用。仅按完整 JSON 相等去重，不摘要、不丢原文例外或精度。概览保留费用及资格三态，逐项检查输入与事实证据由 INSPECT 展开。此投影仅作用于模型读取边界，浏览页与服务器原始候选不改动。
+
+
+## 9. 2026-09-06 真实预算校准
+
+基于三类真实查询、四种格式、各三次重复（36次），保留浅层JSON；完整结果与限制见 implementation-progress.md。比较初始5000 token／15000字节目标校准为7000工具token估算／21000字节上限，与聚焦一致；实际Provider增量密度更高时仍自动收紧。此为实测后的初始配置调整，不修改费用／资格规则，不保证任意八条路线都装得下。发生裁剪时报告 disclosed_candidate_count，并保留 expansions；模型要完整遍历必须先展开当前页被省略候选，再读取 next_cursor。用户浏览页不受模型预算裁剪。模型、数据规模或字段改变后重新评测，不能将本轮压缩率当作稳定承诺。
+## 2026-09-06 搜索验收补充
+
+路径扩展按确切来源等级、明确项目范围、类别规则、公开入口分别建邻接索引；UNKNOWN 来源不进入可执行索引，但仍进入知识覆盖缺口。边预算计量本次实际相关映射检查，不用每一步全表扫描耗尽预算。确定性同一身份节点用于衔接和循环防护，正式事实仍引用原mapping／option／knowledge version。真实副本完整图搜索为109状态、177次检查、105条路径；这不是任意数据量下的固定上限或完整性保证。

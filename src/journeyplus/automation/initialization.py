@@ -29,7 +29,7 @@ from journeyplus.models import (
     SourceItem,
 )
 from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
-from journeyplus.sources.collection import CollectionSummary, collect_manual
+from journeyplus.sources.collection import collect_in_phases
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.history import HistoricalFeedWindowAdapter
 from journeyplus.sources.registry import seed_sources
@@ -47,7 +47,6 @@ from journeyplus.statusmatch.articles import (
     ArticleProjectPreparationSummary,
     ArticleRouteDiscoverySummary,
     discover_statusmatch_article_routes,
-    prepare_statusmatch_article_projects,
 )
 
 
@@ -271,12 +270,11 @@ def _run_initialization(
                     source_ids=list(source_ids),
                     document_ids=current_document_ids,
                 )
-                article_preparation = prepare_statusmatch_article_projects(
-                    session,
-                    statusmatch_fetcher or HttpxFetcher(),
-                    hosts=list(article_discovery.project_hosts),
-                    checked_at=current,
-                )
+            from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
+            article_preparation = prepare_article_projects_in_phases(
+                session_factory, statusmatch_fetcher or HttpxFetcher(),
+                hosts=list(article_discovery.project_hosts), checked_at=current
+            )
             project_hosts = article_discovery.project_hosts
         if source_failed:
             error = "one or more initialization sources failed"
@@ -473,36 +471,13 @@ def _collect_initialization_source(
     key = f"{batch_key}:{source_id}"
     historical: HistoricalFeedWindowAdapter | None = None
     try:
-        with session_factory.begin() as session:
-            existing = session.scalar(
-                select(CollectionRun).where(CollectionRun.idempotency_key == key)
-            )
-            if existing is not None and existing.status == RunStatus.SUCCEEDED:
-                collection = CollectionSummary(
-                    run_id=str(existing.id),
-                    source_id=source_id,
-                    discovered=existing.discovered_count,
-                    considered=min(existing.discovered_count, max_items),
-                    new_versions=existing.document_count,
-                    reused_run=True,
-                )
-            else:
-                adapter = adapter_factory(source_id)
-                if start is not None and end is not None:
-                    if not isinstance(adapter, FeedAdapter):
-                        raise TypeError(
-                            f"{source_id} historical initialization requires FeedAdapter"
-                        )
-                    historical = HistoricalFeedWindowAdapter(
-                        adapter, start=start, end=end
-                    )
-                    adapter = historical
-                collection = collect_manual(
-                    session,
-                    adapter,
-                    idempotency_key=key,
-                    max_items=max_items,
-                )
+        adapter = adapter_factory(source_id)
+        if start is not None and end is not None:
+            if not isinstance(adapter, FeedAdapter):
+                raise TypeError(f"{source_id} historical initialization requires FeedAdapter")
+            historical = HistoricalFeedWindowAdapter(adapter,start=start,end=end)
+            adapter = historical
+        collection = collect_in_phases(session_factory,adapter,idempotency_key=key,max_items=max_items)
         report = historical.report if historical is not None else None
         if report is not None and report.eligible > max_items:
             raise RuntimeError(

@@ -51,14 +51,11 @@ from journeyplus.operations import (
 )
 from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
 from journeyplus.sources.collection import (
-    CollectionSummary,
     automatically_scheduled_source_ids,
-    collect_manual,
 )
 from journeyplus.sources.registry import SOURCE_REGISTRY, seed_sources
 from journeyplus.statusmatch.service import (
     StatusMatchMonitoringSummary,
-    monitor_statusmatch_watches,
 )
 from journeyplus.statusmatch.article_workflow import (
     StatusMatchArticleProcessingSummary,
@@ -69,7 +66,6 @@ from journeyplus.statusmatch.articles import (
     ArticleProjectPreparationSummary,
     ArticleRouteDiscoverySummary,
     discover_statusmatch_article_routes,
-    prepare_statusmatch_article_projects,
 )
 from journeyplus.statusmatch.project_workflow import (
     StatusMatchProjectProcessingSummary,
@@ -303,12 +299,10 @@ def run_daily_cycle(
             run_id = str(run.id)
 
         try:
-            with session_factory.begin() as session:
-                monitoring = monitor_statusmatch_watches(
-                    session,
-                    statusmatch_fetcher or HttpxFetcher(),
-                    checked_at=current,
-                )
+            from journeyplus.statusmatch.monitoring import monitor_statusmatch_projects
+            monitoring = monitor_statusmatch_projects(
+                session_factory, statusmatch_fetcher or HttpxFetcher(), checked_at=current
+            )
         except Exception as exc:
             monitoring = StatusMatchMonitoringSummary(
                 errors=(_safe_error(exc),)
@@ -337,12 +331,11 @@ def run_daily_cycle(
                     session,
                     source_ids=list(selected_source_ids),
                 )
-                article_preparation = prepare_statusmatch_article_projects(
-                    session,
-                    statusmatch_fetcher or HttpxFetcher(),
-                    hosts=list(article_discovery.project_hosts),
-                    checked_at=current,
-                )
+            from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
+            article_preparation = prepare_article_projects_in_phases(
+                session_factory, statusmatch_fetcher or HttpxFetcher(),
+                hosts=list(article_discovery.project_hosts), checked_at=current
+            )
         except Exception as exc:
             global_error = _safe_error(exc)
 
@@ -499,6 +492,21 @@ def run_daily_cycle(
                 "buy_points_processing": asdict(buy_points_processing),
             }
 
+        # V2 waiting owns a short transaction and never invokes a model. Keep its
+        # query schema away from the legacy controller during staged rollout.
+        from journeyplus.agent.workspace import WorkspaceWaitService,WorkspaceService
+        try:
+            removed=WorkspaceService(session_factory,None).cleanup(at=current)
+            processing_payload['workspace_cleanup']={'status':'COMPLETED','removed_workspaces':removed}
+        except Exception as exc:
+            processing_payload['workspace_cleanup']={'status':'FAILED','error_type':type(exc).__name__}
+        try:
+            paused=session_factory.kw.get('info',{}).get('user_business_writes_paused',False)
+            workspace_waiting = {'status':'PAUSED','model_calls':0} if paused else WorkspaceWaitService(session_factory).check()
+        except Exception as exc:
+            workspace_waiting = {"status": "FAILED", "model_calls": 0, "error_type": type(exc).__name__}
+        processing_payload["workspace_waiting"] = workspace_waiting
+
         with session_factory.begin() as session:
             lifecycle = advance_lifecycles(session, now=current)
             article_lifecycle = advance_article_lifecycles(session, now=current)
@@ -509,7 +517,7 @@ def run_daily_cycle(
                 "status_events": asdict(lifecycle),
                 "article_opportunities": asdict(article_lifecycle),
             }
-            waiting = WaitGoalService(session).check_current(
+            waiting = WaitCheckSummary(status='PAUSED',agent_called=False) if session.info.get('user_business_writes_paused') else WaitGoalService(session).check_current(
                 lambda goal, result: AgentController(
                     session,
                     budgeted,
@@ -519,6 +527,10 @@ def run_daily_cycle(
                     degrade_provider_errors=False,
                 ).resume_wait_goal(goal, result)
             )
+            if workspace_waiting['status']!='NO_ACTIVE_GOAL':
+                waiting=WaitCheckSummary(status=workspace_waiting['status'],goal_id=workspace_waiting.get('goal_id'),
+                    matching_count=workspace_waiting.get('matching_count',0),agent_called=False,
+                    error=workspace_waiting.get('error_type'))
             processing_payload["agent_waiting"] = waiting.model_dump(mode="json")
             processing_payload["expired_agent_interactions_deleted"] = (
                 cleanup_expired_interactions(session, now=current)
@@ -886,26 +898,10 @@ def _run_source_collection(
 ) -> SourceCycleSummary:
     key = f"daily:{day_bucket.isoformat()}:{source_id}"
     try:
-        with session_factory.begin() as session:
-            existing = session.scalar(
-                select(CollectionRun).where(CollectionRun.idempotency_key == key)
-            )
-            if existing is not None and existing.status == RunStatus.SUCCEEDED:
-                collection = CollectionSummary(
-                    run_id=str(existing.id),
-                    source_id=source_id,
-                    discovered=existing.discovered_count,
-                    considered=min(existing.discovered_count, max_items),
-                    new_versions=existing.document_count,
-                    reused_run=True,
-                )
-            else:
-                collection = collect_manual(
-                    session,
-                    adapter_factory(source_id),
-                    idempotency_key=key,
-                    max_items=max_items,
-                )
+        from journeyplus.sources.collection import collect_in_phases
+        collection = collect_in_phases(
+            session_factory, adapter_factory(source_id), idempotency_key=key, max_items=max_items
+        )
         _record_source_success(
             session_factory,
             source_id=source_id,

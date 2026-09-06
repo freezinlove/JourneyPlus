@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from uuid import UUID, uuid5
+from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ TOPICS = {
     "ELIGIBILITY": r"eligible|eligibility|qualif|obtained|membership|tier|match|资格|会籍|等级|匹配|条件",
     "CHALLENGE": r"challenge|nights?|stays?|挑战|住宿",
     "WINDOW": r"deadline|until|valid|截止|有效|期限",
+    "VALIDITY": r"validity|valid for|duration|\b[0-9]+\s*months?\b|有效期|有效.*月",
+    "APPLICATION": r"apply|application|申请|submit|提交",
 }
 
 
@@ -24,15 +27,29 @@ def digest(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+def require_knowledge_content(doc: DocumentVersion) -> None:
+    """Check at every read boundary, including already materialized evidence."""
+    if doc.storage_mode == 'restricted_mail_snapshot':
+        raise ValueError('Mail discovery content is not activity knowledge; use its official linked pages')
+    host = (urlsplit(doc.canonical_url).hostname or '').casefold()
+    if host=='statusmatcher.com' or host.endswith('.statusmatcher.com'):
+        raise ValueError('StatusMatcher experience belongs only to the temporary workspace, not published activity knowledge')
+    if host.endswith('.statusmatch.com') and re.search(
+            r'(?im)^\s*(?:#{1,6}\s*)?(?:\*\*)?StatusMatch\.Com\s+Terms\s+of\s+Use\b',
+            doc.normalized_body):
+        raise ValueError('Unscoped public Terms content must be recollected before knowledge use')
+
+
 def section_document(session: Session, document_id: UUID) -> list[DocumentSection]:
     """Segment allowed normalized text; never fetch or reintroduce excluded HTML."""
+    doc = session.get(DocumentVersion, document_id)
+    if doc is None:
+        raise LookupError("Document version does not exist")
+    require_knowledge_content(doc)
     existing = list(session.scalars(select(DocumentSection).where(
         DocumentSection.document_version_id == document_id).order_by(DocumentSection.ordinal)))
     if existing:
         return existing
-    doc = session.get(DocumentVersion, document_id)
-    if doc is None:
-        raise LookupError("Document version does not exist")
     text = doc.normalized_body
     lines = text.splitlines(keepends=True)
     chunks: list[dict] = []
@@ -112,6 +129,7 @@ def create_evidence(session: Session, section_id: UUID, quote: str) -> EvidenceR
     section = session.get(DocumentSection, section_id)
     if section is None or not quote.strip() or quote not in section.body:
         raise ValueError("Evidence must quote text from the exact source section")
+    require_knowledge_content(session.get(DocumentVersion, section.document_version_id))
     key = digest(json.dumps([str(section_id), quote], ensure_ascii=False))
     old = session.scalar(select(EvidenceReference).where(
         EvidenceReference.document_version_id == section.document_version_id,
@@ -126,17 +144,40 @@ def create_evidence(session: Session, section_id: UUID, quote: str) -> EvidenceR
     return ref
 
 
+def related_section_scope(section, sections):
+    """A markdown FAQ question and its full answer form one disclosure unit.
+
+    Old snapshots grouped every unheaded paragraph together. Recompute this read
+    boundary without mutating immutable source sections or their evidence IDs.
+    """
+    def question(row):
+        return bool(re.match(r'\s*\*\s+\*\*.+[?？]\*\*\s*$',row.body,re.S))
+    index=next(i for i,row in enumerate(sections) if row.id==section.id)
+    start=None
+    for i in range(index,-1,-1):
+        if sections[i].kind in {'HEADING','TABLE','ROW'}:break
+        if question(sections[i]):start=i;break
+    if start is not None:
+        end=start+1
+        while end<len(sections) and not question(sections[end]) and sections[end].kind not in {'HEADING','TABLE','ROW'}:
+            end+=1
+        return {row.id for row in sections[start:end]}
+    return {section.id,*(UUID(x) for x in section.related_section_ids)}
+
+
 def expand_evidence(session: Session, evidence_id: UUID, *, allowed_sections: set[UUID] | None = None) -> dict:
     evidence = session.get(EvidenceReference, evidence_id)
     if evidence is None:
         raise LookupError("Unknown evidence reference")
     doc = session.get(DocumentVersion, evidence.document_version_id)
+    require_knowledge_content(doc)
     section = session.get(DocumentSection, evidence.section_id) if evidence.section_id else None
     if section and allowed_sections is not None and section.id not in allowed_sections:
         raise ValueError("Evidence outside activity section scope")
     sections = []
     if section:
-        ids = {section.id, *(UUID(x) for x in section.related_section_ids)}
+        siblings=list(session.scalars(select(DocumentSection).where(DocumentSection.document_version_id==doc.id).order_by(DocumentSection.ordinal)))
+        ids = related_section_scope(section,siblings)
         if section.kind=="ROW" and section.parent_id:
             table=session.get(DocumentSection,section.parent_id)
             ids.update(UUID(x) for x in table.related_section_ids)

@@ -143,3 +143,17 @@ def test_daily_wait_hit_does_not_advance_when_model_budget_runs_out(
         assert row is not None
         assert row.last_candidate_signature is None
         assert row.pending_result is None
+
+
+def test_daily_maintenance_cleans_expired_workspace_without_model(session_factory):
+    from datetime import timedelta
+    from uuid import UUID
+    from journeyplus.agent.workspace import WorkspaceService
+    from journeyplus.models import AgentInteraction,now_utc
+    service=WorkspaceService(session_factory,None);view=service.create();current=now_utc()
+    with session_factory.begin() as s:
+        s.get(AgentInteraction,UUID(view['id'])).expires_at=current-timedelta(seconds=1)
+    provider=SequenceAIProvider([])
+    run_daily_cycle(session_factory,provider,_unused_adapter,source_ids=[],now=current)
+    with session_factory() as s:assert s.get(AgentInteraction,UUID(view['id'])) is None
+    assert provider.calls==[]

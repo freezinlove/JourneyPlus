@@ -129,7 +129,7 @@ def extract_statusmatch_mapping_source_metadata(
         ):
             if len(row) < 2:
                 continue
-            source_program = " ".join(_cell_lines(row[0]))
+            source_program = _strip_markers(" ".join(_cell_lines(row[0])))
             if not source_program:
                 continue
             key = (_normalize(source_program).casefold(), category)
@@ -239,7 +239,9 @@ def _matrix_mapping_table(
     for row_index, row in enumerate(rows[header_index + 1 :], start=header_index + 2):
         if len(row) < 2:
             continue
-        source_program = " ".join(_cell_lines(row[0]))
+        source_text = " ".join(_cell_lines(row[0]))
+        source_program = _strip_markers(source_text)
+        source_markers = _markers(source_text)
         if not source_program:
             continue
         for column, target in enumerate(targets, start=1):
@@ -267,7 +269,7 @@ def _matrix_mapping_table(
                     availability = "UNAVAILABLE"
                     conditions = None
                 else:
-                    markers = tuple(dict.fromkeys((*target_markers, *cell_markers)))
+                    markers = tuple(dict.fromkeys((*source_markers, *target_markers, *cell_markers)))
                     availability = "CONDITIONAL" if markers else "AVAILABLE"
                     conditions = (
                         _conditions_for_markers(

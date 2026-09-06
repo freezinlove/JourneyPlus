@@ -34,10 +34,12 @@ class StatusHoldingService:
         if holding is None:
             holding = StatusHolding(program_key=node.program_key)
             self._session.add(holding)
+        before=(holding.program_display_name,holding.tier_display_name,holding.valid_until,holding.program_id,holding.tier_id)
         holding.tier_key = node.tier_key
         holding.program_display_name = node.program
         holding.tier_display_name = node.tier
         holding.valid_until = request.valid_until
+        self._bind_identity(holding,before)
         self._session.flush()
         return _view(holding)
 
@@ -52,13 +54,27 @@ class StatusHoldingService:
         )
         if conflicting is not None:
             self._session.delete(conflicting)
+        before=(holding.program_display_name,holding.tier_display_name,holding.valid_until,holding.program_id,holding.tier_id)
         holding.program_key = node.program_key
         holding.tier_key = node.tier_key
         holding.program_display_name = node.program
         holding.tier_display_name = node.tier
         holding.valid_until = request.valid_until
+        self._bind_identity(holding,before)
         self._session.flush()
         return _view(holding)
+
+    def _bind_identity(self,holding,before):
+        # Legacy form writes must update V2 identity and revision in the same
+        # transaction; otherwise the new route evaluator keeps the previous tier.
+        from journeyplus.knowledge.publication import CatalogService
+        prior_revision = holding.revision or 0
+        catalog=CatalogService(self._session)
+        program=catalog.program(holding.program_display_name)
+        tier=catalog.tier(program.id,holding.tier_display_name)
+        holding.program_id=program.id;holding.tier_id=tier.id;holding.identity_status='CONFIRMED'
+        after=(holding.program_display_name,holding.tier_display_name,holding.valid_until,holding.program_id,holding.tier_id)
+        if before!=after:holding.revision=prior_revision+1
 
     def delete(self, holding_id: UUID | str) -> None:
         self._session.delete(self._required(holding_id))

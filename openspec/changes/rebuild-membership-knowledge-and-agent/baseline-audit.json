@@ -1,0 +1,619 @@
+{
+  "migration_version": "activity-knowledge-1",
+  "counts": {
+    "status_events": 8,
+    "fact_sets": 66,
+    "article_opportunities": 23,
+    "document_versions": 214,
+    "event_evidence": 30,
+    "event_revisions": 17,
+    "briefs": 68,
+    "article_briefs": 23,
+    "status_holdings": 2,
+    "agent_interactions": 2,
+    "agent_wait_goals": 1
+  },
+  "table_roles": {
+    "status_events": "activity identity",
+    "fact_sets": "versioned facts; mapping/price association requires source evidence",
+    "article_opportunities": "source-neutral activity identity and scoped facts",
+    "document_versions": "reused immutable source versions plus semantic sections",
+    "event_evidence": "exact section evidence or unresolved document-level locator",
+    "event_revisions": "knowledge/source history",
+    "briefs": "read-only legacy derived text",
+    "article_briefs": "read-only legacy derived text",
+    "status_holdings": "preserve ID; normalize program/tier",
+    "agent_interactions": "expire legacy interaction; new versioned workspace",
+    "agent_wait_goals": "preserve explicit task and confirmed conditions"
+  },
+  "activities": [
+    {
+      "legacy_id": "a7ad87c8-a3b8-4aac-85f9-8158f59f8876",
+      "program": "Air Astana Nomad Club",
+      "fact_version_id": "0b3c9a68-d66d-423c-a388-d51af7153668",
+      "mapping_count": 249,
+      "application_method_count": 1,
+      "price_count": 2,
+      "signature": "724364ff6eb9cfd4e3c138f524910f15137d87c9ff5a4ac43215ab435f10fe9b",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "9593608c-da27-4e1f-8f64-dde95eba49b7",
+      "program": "Club Avolta",
+      "fact_version_id": "fc997444-fa02-47e1-92ed-ff0fbf0599e0",
+      "mapping_count": 2,
+      "application_method_count": 1,
+      "price_count": 0,
+      "signature": "cb368bfab2819f66f75cdadc4847cb2fb3ef2b7c1f7de7f71dd80e7086c75739",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "e4709f64-3d9a-4bd8-8c06-7620e77f9a49",
+      "program": "Malaysia Airlines Enrich",
+      "fact_version_id": "4d2b45db-7aa9-4e87-aa38-5e0c1021d537",
+      "mapping_count": 6,
+      "application_method_count": 2,
+      "price_count": 3,
+      "signature": "e9005b8525a781f2596596717e51d6d152d345bdde249d38c6dae7c231a2e710",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "326f1066-5750-4c7d-897c-b809b0ec53d5",
+      "program": "Flying Blue",
+      "fact_version_id": "77b516f7-956b-4898-b9c3-c089b51a88a2",
+      "mapping_count": 100,
+      "application_method_count": 4,
+      "price_count": 12,
+      "signature": "bcfba880312249ad69eef5c08f446fa0dbcf5ccaa622038e244941cb0eb850c1",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "7a5fe6be-f838-4d82-87cd-952acb70d852",
+      "program": "GHA DISCOVERY",
+      "fact_version_id": "ce1eeb1a-068c-4f60-995f-fe7fd27b66fc",
+      "mapping_count": 108,
+      "application_method_count": 2,
+      "price_count": 4,
+      "signature": "6487d85dcab10f711456d7e335806955d0a0bb071ed3ecc3b2510578edccce0e",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "2d73e719-8d84-4e1d-a402-9c2640c67318",
+      "program": "Kenya Airways Asante Rewards",
+      "fact_version_id": "7365c598-63b3-4240-b32e-e2cf927d6bd1",
+      "mapping_count": 207,
+      "application_method_count": 4,
+      "price_count": 12,
+      "signature": "0413210c645b02dd0e53f5689bd5d7f6e47b8ce57eb6ce4e6ae5b065c96b9718",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "ae47caca-0a5e-484e-bae0-fffd2fc5f9f6",
+      "program": "Royal Jordanian Royal Club",
+      "fact_version_id": "8edd39d9-cad3-4033-9b4d-47cfebb5533d",
+      "mapping_count": 99,
+      "application_method_count": 3,
+      "price_count": 5,
+      "signature": "5089518b592d17e609f1faaec7886d4466fb35eb22133d13824dd193b5102c4f",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    },
+    {
+      "legacy_id": "c4c7b4b7-e9f7-4456-91e8-49335206bdcc",
+      "program": "Lotusmiles (Vietnam Airlines)",
+      "fact_version_id": "2efc94f4-ae42-4b6f-8f1e-c2ce71f5b6fd",
+      "mapping_count": 201,
+      "application_method_count": 4,
+      "price_count": 10,
+      "signature": "dba2a66d164714de5ed70ae6be046b01e151d2c13123e75afa0224bd2eb93101",
+      "association_status": "REQUIRES_EVIDENCE_RECONCILIATION"
+    }
+  ],
+  "facts_signature": "612641f266705111e7e12d5bdcccc471a5ce6eccda8288e72891476a3455c422",
+  "schema_inventory": {
+    "alembic_version": {
+      "count": 1,
+      "columns": [
+        "version_num"
+      ]
+    },
+    "sources": {
+      "count": 9,
+      "columns": [
+        "id",
+        "name",
+        "adapter_type",
+        "discovery_config",
+        "access_policy",
+        "collection_cadence",
+        "automatic_scheduling",
+        "enabled",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "collection_runs": {
+      "count": 55,
+      "columns": [
+        "id",
+        "source_id",
+        "idempotency_key",
+        "status",
+        "discovered_count",
+        "document_count",
+        "error",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "job_runs": {
+      "count": 321,
+      "columns": [
+        "id",
+        "idempotency_key",
+        "job_type",
+        "status",
+        "attempts",
+        "result",
+        "error",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "source_items": {
+      "count": 160,
+      "columns": [
+        "id",
+        "source_id",
+        "external_id",
+        "discovered_url",
+        "canonical_url",
+        "title",
+        "published_at",
+        "observed_at",
+        "discovery_fingerprint",
+        "raw_metadata",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "document_versions": {
+      "count": 214,
+      "columns": [
+        "id",
+        "source_item_id",
+        "canonical_url",
+        "raw_body",
+        "normalized_body",
+        "content_type",
+        "storage_mode",
+        "raw_hash",
+        "normalized_hash",
+        "parser_version",
+        "fetched_at",
+        "duplicate_of_id",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "analysis_runs": {
+      "count": 356,
+      "columns": [
+        "id",
+        "idempotency_key",
+        "document_version_id",
+        "event_id",
+        "stage",
+        "status",
+        "input_version",
+        "provider",
+        "model",
+        "model_config_version",
+        "prompt_version",
+        "schema_version",
+        "result",
+        "error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "status_events": {
+      "count": 8,
+      "columns": [
+        "id",
+        "created_from_key",
+        "program",
+        "target_status",
+        "summary",
+        "search_text",
+        "status",
+        "merged_into_id",
+        "current_fact_set_id",
+        "current_brief_id",
+        "created_at",
+        "updated_at",
+        "application_start_at",
+        "application_deadline_at",
+        "lifecycle_status",
+        "archived_at",
+        "archive_reason",
+        "closure_document_version_id"
+      ]
+    },
+    "event_revisions": {
+      "count": 17,
+      "columns": [
+        "id",
+        "event_id",
+        "document_version_id",
+        "relationship",
+        "snapshot",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "event_evidence": {
+      "count": 30,
+      "columns": [
+        "id",
+        "event_id",
+        "document_version_id",
+        "hint_index",
+        "source_url",
+        "locator",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "fact_sets": {
+      "count": 66,
+      "columns": [
+        "id",
+        "event_id",
+        "version",
+        "schema_version",
+        "facts",
+        "has_conflicts",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "briefs": {
+      "count": 68,
+      "columns": [
+        "id",
+        "fact_set_id",
+        "version",
+        "schema_version",
+        "content",
+        "status",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "review_decisions": {
+      "count": 0,
+      "columns": [
+        "id",
+        "action",
+        "entity_type",
+        "entity_id",
+        "target_entity_id",
+        "reason",
+        "actor",
+        "payload",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "gold_cases": {
+      "count": 0,
+      "columns": [
+        "id",
+        "case_id",
+        "version",
+        "document_text",
+        "labels",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "statusmatch_watches": {
+      "count": 7,
+      "columns": [
+        "id",
+        "host",
+        "status",
+        "current_event_id",
+        "last_checked_at",
+        "last_changed_at",
+        "last_error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "statusmatch_watch_pages": {
+      "count": 21,
+      "columns": [
+        "id",
+        "watch_id",
+        "page_kind",
+        "canonical_url",
+        "current_document_version_id",
+        "last_checked_at",
+        "last_changed_at",
+        "last_error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "statusmatch_article_routes": {
+      "count": 2,
+      "columns": [
+        "id",
+        "document_version_id",
+        "project_host",
+        "project_url",
+        "event_id",
+        "status",
+        "last_error",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "statusmatch_change_sets": {
+      "count": 49,
+      "columns": [
+        "id",
+        "event_id",
+        "from_fact_set_id",
+        "to_fact_set_id",
+        "activity_document_version_id",
+        "faq_document_version_id",
+        "kind",
+        "changes",
+        "created_at",
+        "updated_at",
+        "terms_document_version_id"
+      ]
+    },
+    "article_analyses": {
+      "count": 62,
+      "columns": [
+        "id",
+        "document_version_id",
+        "source_item_id",
+        "analysis_run_id",
+        "input_version",
+        "label",
+        "confidence",
+        "reason",
+        "status",
+        "content_signature",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "automation_leases": {
+      "count": 1,
+      "columns": [
+        "name",
+        "owner_id",
+        "acquired_at",
+        "expires_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "automation_runs": {
+      "count": 10,
+      "columns": [
+        "id",
+        "idempotency_key",
+        "day_bucket",
+        "status",
+        "attempts",
+        "owner_id",
+        "limits",
+        "source_results",
+        "processing_result",
+        "lifecycle_result",
+        "model_calls",
+        "backlog_count",
+        "needs_review_count",
+        "error",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "source_automation_states": {
+      "count": 7,
+      "columns": [
+        "source_id",
+        "last_day_bucket",
+        "last_attempt_at",
+        "last_success_at",
+        "last_failure_at",
+        "last_error",
+        "consecutive_failures",
+        "last_new_document_count",
+        "pending_document_count",
+        "created_at",
+        "updated_at",
+        "discovery_cursor"
+      ]
+    },
+    "initialization_runs": {
+      "count": 1,
+      "columns": [
+        "id",
+        "batch_key",
+        "batch_type",
+        "window_start",
+        "window_end",
+        "status",
+        "audit_status",
+        "attempts",
+        "limits",
+        "source_results",
+        "processing_result",
+        "audit_notes",
+        "error",
+        "started_at",
+        "finished_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "article_briefs": {
+      "count": 23,
+      "columns": [
+        "id",
+        "opportunity_id",
+        "analysis_run_id",
+        "input_version",
+        "version",
+        "schema_version",
+        "content",
+        "status",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "statusmatch_article_supplements": {
+      "count": 16,
+      "columns": [
+        "id",
+        "route_id",
+        "event_id",
+        "article_document_version_id",
+        "fact_set_id",
+        "brief_id",
+        "analysis_run_id",
+        "input_version",
+        "status",
+        "highlights",
+        "created_at",
+        "updated_at",
+        "mapping_claims"
+      ]
+    },
+    "buy_points_snapshots": {
+      "count": 4,
+      "columns": [
+        "id",
+        "source_item_id",
+        "document_version_id",
+        "parser_version",
+        "page_title",
+        "page_modified_at",
+        "parsed_offer_count",
+        "offers_signature",
+        "diagnostics",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "article_opportunities": {
+      "count": 23,
+      "columns": [
+        "id",
+        "analysis_id",
+        "opportunity_index",
+        "program",
+        "target_status",
+        "summary",
+        "application_start_raw",
+        "application_deadline_raw",
+        "application_start_at",
+        "application_deadline_at",
+        "lifecycle_status",
+        "action_links",
+        "facts",
+        "fact_signature",
+        "status",
+        "current_brief_id",
+        "created_at",
+        "updated_at",
+        "visibility_until_at",
+        "visibility_policy",
+        "archived_at",
+        "archive_reason"
+      ]
+    },
+    "buy_points_offers": {
+      "count": 65,
+      "columns": [
+        "id",
+        "snapshot_id",
+        "offer_key",
+        "category",
+        "program_name",
+        "offer_text",
+        "offer_kind",
+        "max_percent",
+        "deadline_raw",
+        "deadline_date",
+        "posting_time_raw",
+        "detail_url",
+        "action_url",
+        "material_signature",
+        "evidence",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "status_holdings": {
+      "count": 2,
+      "columns": [
+        "id",
+        "program_key",
+        "tier_key",
+        "program_display_name",
+        "tier_display_name",
+        "valid_until",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "agent_interactions": {
+      "count": 2,
+      "columns": [
+        "id",
+        "status",
+        "state",
+        "last_response",
+        "provider",
+        "model",
+        "prompt_version",
+        "schema_version",
+        "expires_at",
+        "created_at",
+        "updated_at"
+      ]
+    },
+    "agent_wait_goals": {
+      "count": 1,
+      "columns": [
+        "id",
+        "source_interaction_id",
+        "status",
+        "query",
+        "preferences",
+        "research_statusmatcher",
+        "holding_node_ids",
+        "last_candidate_signature",
+        "pending_result",
+        "pending_seen_at",
+        "notified_at",
+        "created_at",
+        "updated_at"
+      ]
+    }
+  }
+}

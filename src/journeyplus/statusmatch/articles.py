@@ -327,3 +327,19 @@ def _event_has_current_official_output(
         and brief is not None
         and brief.fact_set_id == fact.id
     )
+
+
+def prepare_article_projects_in_phases(factory,fetcher,*,hosts=None,checked_at=None):
+    from journeyplus.statusmatch.monitoring import monitor_statusmatch_projects
+    with factory.begin() as s:
+        routes=_preparable_routes(s,hosts=hosts)
+        route_hosts=sorted({r.project_host for r in routes});fetch_hosts=[];created=0
+        for host in route_hosts:
+            watch=s.scalar(select(StatusMatchWatch).where(StatusMatchWatch.host==host))
+            if watch is None:watch=ensure_statusmatch_watch(s,host);created+=1
+            if not _watch_has_complete_snapshot(s,watch):fetch_hosts.append(host)
+    monitoring=monitor_statusmatch_projects(factory,fetcher,hosts=fetch_hosts,checked_at=checked_at) if fetch_hosts else StatusMatchMonitoringSummary()
+    with factory.begin() as s:
+        ready,waiting,closed=refresh_statusmatch_article_route_readiness(s,hosts=route_hosts,fetched_hosts=set(fetch_hosts))
+    return ArticleProjectPreparationSummary(hosts_considered=len(route_hosts),watches_created=created,
+        hosts_fetched=tuple(fetch_hosts),monitoring=monitoring,ready_routes=ready,waiting_routes=waiting,closed_routes=closed)

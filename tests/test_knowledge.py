@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from decimal import Decimal
 import os
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -76,6 +76,56 @@ def test_unknown_is_not_free_or_public():
     with pytest.raises(ValidationError): Temporal(precision="DATE",instant="2026-01-01T00:00:00Z")
 
 
+def test_explicit_edition_review_preserves_history_and_blocks_uncertain_source(knowledge_session):
+    from journeyplus.knowledge.identity import ActivityIdentityService,UnresolvedActivityEdition
+    s=knowledge_session;draft,doc,evidence=fixture_draft(s)
+    version=PublicationService(s).publish(draft);identity=ActivityIdentityService(s)
+    kwargs={'reason':'Scoped source review','evidence_ids':[evidence.id],'official_document_ids':[doc.id],
+            'expected_version':version.id}
+    same=identity.review_edition('status_events','review-source',draft.activity_id,review_id=uuid4(),decision='SAME',**kwargs)
+    assert same.id==draft.activity_id
+    identity.review_edition('status_events','review-source',draft.activity_id,review_id=uuid4(),decision='UNRESOLVED',**kwargs)
+    with pytest.raises(UnresolvedActivityEdition):identity.resolve_source('status_events','review-source',draft.activity_id)
+    with pytest.raises(ValueError,match='Year or brand'):
+        identity.review_edition('status_events','review-source',draft.activity_id,review_id=uuid4(),decision='NEW',edition_key='2027',**kwargs)
+    token=str(uuid4());body='A new round is open. Previous applicants may apply again after the eligibility reset.'
+    newdoc=DocumentVersion(source_item_id=doc.source_item_id,canonical_url=doc.canonical_url,raw_body=body,normalized_body=body,
+        content_type='text/markdown',storage_mode='FULL',raw_hash=token,normalized_hash=token,parser_version='fixture',fetched_at=now_utc())
+    s.add(newdoc);s.flush();section=section_document(s,newdoc.id)[0];ev=create_evidence(s,section.id,section.body)
+    kwargs.update(evidence_ids=[ev.id],official_document_ids=[newdoc.id]);review_id=uuid4()
+    fresh=identity.review_edition('status_events','review-source',draft.activity_id,review_id=review_id,decision='NEW',edition_key='round-2',**kwargs)
+    assert fresh.id!=draft.activity_id and fresh.current_version_id is None
+    assert identity.resolve_source('status_events','review-source',draft.activity_id).id==fresh.id
+    assert s.get(Activity,draft.activity_id).current_version_id==version.id
+    assert identity.review_edition('status_events','review-source',draft.activity_id,review_id=review_id,decision='NEW',edition_key='round-2',**kwargs).id==fresh.id
+    with pytest.raises(ValueError,match='reused'):
+        identity.review_edition('status_events','review-source',draft.activity_id,review_id=review_id,decision='NEW',edition_key='different',**kwargs)
+
+
+def test_edition_signal_is_reviewed_per_document_version(knowledge_session):
+    from journeyplus.knowledge.edition_guard import edition_signals
+    from journeyplus.knowledge.identity import ActivityIdentityService
+    s=knowledge_session;draft,doc,ev=fixture_draft(s);v=PublicationService(s).publish(draft)
+    activity=s.get(Activity,draft.activity_id);source=('status_events','signal-source')
+    assert edition_signals(s,activity,draft.documents,source)==[]
+    token=str(uuid4());body='New round: previous applicants may apply again.'
+    newer=DocumentVersion(source_item_id=doc.source_item_id,canonical_url=doc.canonical_url,raw_body=body,normalized_body=body,
+        content_type='text/markdown',storage_mode='FULL',raw_hash=token,normalized_hash=token,parser_version='fixture',fetched_at=now_utc())
+    s.add(newer);s.flush();section_document(s,newer.id)
+    from journeyplus.knowledge.contracts import DocumentBinding
+    bindings=[DocumentBinding(document_version_id=newer.id,role='THIRD_PARTY')]
+    signals=edition_signals(s,activity,bindings,source)
+    assert signals
+    ActivityIdentityService(s).review_edition(*source,activity.id,review_id=uuid4(),decision='SAME',reason='Article quotes historical wording; no new official edition',
+        evidence_ids=signals,official_document_ids=[],reviewed_document_ids=[newer.id],expected_version=v.id)
+    assert edition_signals(s,activity,bindings,source)==[]
+    # A review for this exact document cannot approve a later source version.
+    newer2=DocumentVersion(source_item_id=doc.source_item_id,canonical_url=doc.canonical_url,raw_body=body,normalized_body=body,
+        content_type='text/markdown',storage_mode='FULL',raw_hash=str(uuid4()),normalized_hash=str(uuid4()),parser_version='fixture',fetched_at=now_utc())
+    s.add(newer2);s.flush();section_document(s,newer2.id)
+    assert edition_signals(s,activity,[DocumentBinding(document_version_id=newer2.id,role='THIRD_PARTY')],source)
+
+
 def test_catalog_aliases_keep_ambiguity(knowledge_session):
     c=CatalogService(knowledge_session)
     a=c.program("Alpha");b=c.program("Beta")
@@ -120,6 +170,14 @@ def test_atomic_publish_is_idempotent_and_keeps_option_identity(knowledge_sessio
     assert s.get(Activity,draft.activity_id).current_version_id==v2.id
     assert s.scalar(select(OptionPrice.amount).where(OptionPrice.option_version_id==ov1.id,OptionPrice.price_key=="gold"))==Decimal("200")
     assert s.scalar(select(ActivityBrief).where(ActivityBrief.knowledge_version_id==v2.id,ActivityBrief.brief_kind=="UPDATE"))
+    from journeyplus.knowledge.reads import ActivityReadService
+    reader=ActivityReadService(s)
+    newest=reader.history(draft.activity_id,limit=1)
+    assert newest['versions'][0]['version_ref']==str(v2.id) and newest['versions'][0]['is_current']
+    assert newest['has_more']
+    older=reader.history(draft.activity_id,before_version=newest['next_before_version'],limit=1)
+    assert older['versions'][0]['version_ref']==str(v1.id) and not older['versions'][0]['is_current']
+    assert not older['has_more']
     stale=draft.model_copy(update={"extraction_key":"late-old-extraction"})
     with pytest.raises(StaleKnowledgeBase): service.publish(stale)
 
@@ -191,3 +249,188 @@ def test_route_unknown_challenge_never_becomes_none(knowledge_session):
     q=RouteQuery(starting_tier_ids=draft.options[0].source_scope.tier_ids,allow_challenge=False)
     result=RouteService(s).query(q,snapshot={str(draft.activity_id):str(v.id)})
     assert all(r["classification"]=="UNKNOWN" and r["challenge"]=="UNKNOWN" for r in result["data"]["cards"])
+
+
+def test_publication_failure_rolls_back_new_version_and_current_pointer(knowledge_session):
+    s=knowledge_session
+    draft,_,_=fixture_draft(s)
+    first=PublicationService(s).publish(draft)
+    first_id=first.id
+    data=draft.model_dump(mode='json')
+    data.update(base_version_id=str(first_id),extraction_key='injected-publication-failure')
+    data['facts']['title']='Updated title for transaction fixture'
+    def fail_before_published(session, *_):
+        if any(isinstance(row,ActivityKnowledgeVersion) and row.id!=first_id and row.status=='PUBLISHED' for row in session.dirty):
+            raise RuntimeError('Injected publication failure')
+    event.listen(s,'before_flush',fail_before_published)
+    try:
+        with pytest.raises(RuntimeError,match='Injected'):
+            with s.begin_nested():PublicationService(s).publish(KnowledgeDraft.model_validate(data))
+    finally:event.remove(s,'before_flush',fail_before_published)
+    assert s.get(Activity,draft.activity_id).current_version_id==first_id
+    assert len(list(s.scalars(select(ActivityKnowledgeVersion).where(ActivityKnowledgeVersion.activity_id==draft.activity_id))))==1
+
+
+def test_catalog_alias_ambiguity_and_tier_ownership(knowledge_session):
+    from uuid import uuid4
+    s=knowledge_session;c=CatalogService(s)
+    a=c.program('Alias Program A '+str(uuid4()));b=c.program('Alias Program B '+str(uuid4()))
+    alias='共享别名'+str(uuid4());c.alias(alias,a.id);c.alias(alias,b.id)
+    result=c.search(alias)
+    assert {p['id'] for p in result['programs']}=={str(a.id),str(b.id)}
+    tier=c.tier(a.id,'Gold')
+    with pytest.raises(ValueError,match='another program'):c.alias('wrong',b.id,tier.id)
+    with pytest.raises(ValueError,match='nonempty'):c.alias(' ',a.id)
+    assert tier.rank is None
+
+
+def test_same_alliance_and_tier_name_do_not_create_equivalent_membership(knowledge_session):
+    from journeyplus.knowledge.routes import RouteService,RouteQuery
+    from journeyplus.knowledge.models import MembershipProgram
+    s=knowledge_session;draft,_,_=fixture_draft(s);PublicationService(s).publish(draft)
+    source=s.get(MembershipProgram,draft.options[0].mappings[0].source_scope.program_id)
+    source.alliance='SKYTEAM'
+    other=CatalogService(s).program('Unrelated alliance member '+str(source.id),alliance='SKYTEAM')
+    tier=CatalogService(s).tier(other.id,'Gold');s.flush()
+    result=RouteService(s).query(RouteQuery(starting_tier_ids=[tier.id]))
+    assert result['data']['cards']==[]
+
+
+def test_explicit_identity_merge_preserves_history_and_blocks_stale_publication(knowledge_session):
+    from journeyplus.knowledge.identity import ActivityIdentityService
+    s=knowledge_session;draft,_,_=fixture_draft(s)
+    version=PublicationService(s).publish(draft)
+    source=s.get(Activity,draft.activity_id)
+    target=Activity(identity_key=str(uuid4()),primary_program_id=source.primary_program_id,
+                    kind=source.kind,edition_key='reviewed-same-edition')
+    s.add(target);s.flush()
+    evidence=list(draft.facts.summary.evidence_ids)
+    # This fixture's summary can be unknown; use an actual mapping reference.
+    evidence=evidence or draft.options[0].mappings[0].evidence_ids
+    service=ActivityIdentityService(s)
+    args=dict(reason='Sources explicitly identify the same offer',evidence_ids=evidence,
+              expected_source_version=version.id,expected_target_version=None)
+    with pytest.raises(ValueError,match='changed'):
+        service.merge(source.id,target.id,**{**args,'expected_source_version':None})
+    assert service.merge(source.id,target.id,**args).id==target.id
+    assert service.merge(source.id,target.id,**args).id==target.id
+    assert source.current_version_id==version.id
+    assert service.resolve(source.id).id==target.id
+    from journeyplus.knowledge.reads import ActivityReadService
+    reader=ActivityReadService(s)
+    assert reader.detail(source.id)['ref']==str(target.id)
+    historical=reader.detail(source.id,version.id)
+    assert historical['version_ref']==str(version.id) and not historical['is_current']
+    assert historical['merged_into_ref']==str(target.id)
+    with pytest.raises(ValueError,match='canonical'):
+        service.merge(target.id,source.id,**args)
+    with pytest.raises(StaleKnowledgeBase,match='merged'):
+        PublicationService(s).publish(draft)
+
+
+@pytest.mark.parametrize('restricted', ['mail', 'public_terms'])
+def test_source_boundary_also_blocks_preexisting_sections_and_evidence(knowledge_session,restricted):
+    s=knowledge_session;draft,_,_=fixture_draft(s)
+    doc=s.get(DocumentVersion,draft.documents[0].document_version_id)
+    eid=draft.options[0].mappings[0].evidence_ids[0]
+    if restricted=='mail':
+        doc.storage_mode='restricted_mail_snapshot'
+    else:
+        doc.canonical_url='https://example.statusmatch.com/terms'
+        doc.normalized_body+='\n\n## StatusMatch.Com Terms of Use\nExcluded common tail'
+    s.flush()
+    with pytest.raises(ValueError):section_document(s,doc.id)
+    with pytest.raises(ValueError):expand_evidence(s,eid)
+    with pytest.raises(ValueError):PublicationService(s).validate(draft)
+
+
+def test_mapping_table_groups_keep_rows_and_exclude_unavailable_cells(knowledge_session):
+    from journeyplus.knowledge.table_groups import prepare_mapping_groups
+    from journeyplus.knowledge.models import MembershipProgram
+    s=knowledge_session;draft,_,_=fixture_draft(s)
+    prior=s.get(DocumentVersion,draft.documents[0].document_version_id)
+    target=s.get(MembershipProgram,draft.options[0].mappings[0].target_program_id)
+    body=f'| | {target.display_name} Tier | |\n| Airline | Silver | Gold |\n| **Example Air** Club | Bronze | Diamond |\n| Other Airline | Silver | Not Available |'
+    html=f'<table><tr><td></td><td colspan="2">{target.display_name} Tier</td></tr><tr><th>Airline</th><th>Silver</th><th>Gold</th></tr><tr><td>Example Air Club</td><td>Bronze</td><td>Diamond</td></tr><tr><td>Other Airline</td><td>Silver</td><td>Not Available</td></tr></table>'
+    doc=DocumentVersion(source_item_id=prior.source_item_id,canonical_url='https://example.statusmatch.com/faq',
+        normalized_body=body,raw_body=html,raw_hash=str(uuid4()),normalized_hash=str(uuid4()),
+        content_type='text/html',storage_mode='permitted_snapshot',parser_version='test',fetched_at=now_utc())
+    s.add(doc);s.flush()
+    groups,hints=prepare_mapping_groups(s,doc,section_document(s,doc.id),target.id)
+    assert len(groups)==1 and hints[0]['mapping_count']==3
+    mappings=next(iter(groups.values()))
+    assert all(m['source_scope']['kind']=='EXACT_TIERS' for m in mappings)
+    assert len({m['key'] for m in mappings})==3
+    assert all(s.get(EvidenceReference,UUID(m['evidence_ids'][0])).document_version_id==doc.id for m in mappings)
+
+
+def test_mapping_group_keeps_source_footnote_and_its_section_evidence(knowledge_session):
+    from journeyplus.knowledge.table_groups import prepare_mapping_groups
+    from journeyplus.knowledge.models import MembershipProgram
+    s=knowledge_session; draft,_,_=fixture_draft(s)
+    prior=s.get(DocumentVersion,draft.documents[0].document_version_id)
+    target=s.get(MembershipProgram,draft.options[0].mappings[0].target_program_id)
+    body=f'| | {target.display_name} Tier |\n| Airline | Gold |\n| Aer Lingus \\*\\*\\*\\* AerClub | Platinum |\n\n**** Limited to EU/UK Passport holders.'
+    html=f'<table><tr><td></td><td>{target.display_name} Tier</td></tr><tr><th>Airline</th><th>Gold</th></tr><tr><td>Aer Lingus **** AerClub</td><td>Platinum</td></tr></table><p>**** Limited to EU/UK Passport holders.</p>'
+    doc=DocumentVersion(source_item_id=prior.source_item_id,canonical_url='https://example.statusmatch.com/faq',
+        normalized_body=body,raw_body=html,raw_hash=str(uuid4()),normalized_hash=str(uuid4()),
+        content_type='text/html',storage_mode='permitted_snapshot',parser_version='test',fetched_at=now_utc())
+    s.add(doc);s.flush()
+    groups,_=prepare_mapping_groups(s,doc,section_document(s,doc.id),target.id)
+    mapping=next(iter(groups.values()))[0]
+    assert mapping['availability']=='UNKNOWN'
+    condition=mapping['conditions']['items'][0]
+    assert condition['value']=='Limited to EU/UK Passport holders.'
+    assert len(condition['evidence_ids'])==2
+    assert any('Limited to EU/UK' in s.get(EvidenceReference,UUID(ref)).quote for ref in condition['evidence_ids'])
+
+
+@pytest.mark.parametrize('clause,expected_topic',[
+    ('Only Government issued identity document holders for the following countries are eligible: Canada, France.','DOCUMENT_REQUIREMENT'),
+    ('Passport holders who are residents of Canada may apply.','RESIDENCY'),
+    ('Only residents of Canada may apply.','RESIDENCY'),
+])
+def test_document_holder_country_is_not_automatically_residency(knowledge_session,clause,expected_topic):
+    from types import SimpleNamespace
+    s=knowledge_session;draft,_,_=fixture_draft(s)
+    value=draft.model_dump(mode='json');evidence=value['options'][0]['evidence_ids'][0] if 'evidence_ids' in value['options'][0] else value['options'][0]['source_scope']['evidence_ids'][0]
+    value['facts']['conditions']={'items':[{'condition_id':'country','topic':'RESIDENCY','operator':'IN','value':['Canada'],
+        'known_state':'KNOWN','raw_text':clause,'evidence_ids':[evidence]}]}
+    class SourceEvidence:
+        def get(self,model,id):return SimpleNamespace(quote=clause)
+    result=PublicationService(SourceEvidence()).ground_condition_topics(KnowledgeDraft.model_validate(value))
+    assert result.facts.conditions.items[0].topic==expected_topic
+    if expected_topic=='DOCUMENT_REQUIREMENT':assert result.facts.conditions.items[0].operator=='TEXT'
+
+
+def test_directory_keeps_user_named_start_when_model_only_asks_about_fees(knowledge_session):
+    from journeyplus.knowledge.reads import ActivityReadService
+    from journeyplus.knowledge.routes import RouteService,RouteQuery
+    s=knowledge_session;draft,_,_=fixture_draft(s);PublicationService(s).publish(draft)
+    catalog=CatalogService(s);outside=catalog.program('Outside Airlines');tier=catalog.tier(outside.id,'Gold')
+    result=ActivityReadService(s).materials(selector={'ref':str(draft.activity_id)},question='申请费多少钱',
+        directory_context='假设我有 Outside Airlines Gold，想找匹配路径。')
+    assert str(tier.id) in {row['tier_ref'] for row in result['data']['catalog']}
+    # Directory disclosure is not an application mapping or eligibility claim.
+    assert not RouteService(s).query(RouteQuery(starting_tier_ids=[tier.id]))['data']['cards']
+
+
+def test_catalog_resolves_distinctive_tier_without_inventing_acronym(knowledge_session):
+    s=knowledge_session;catalog=CatalogService(s)
+    p=catalog.program('Royal Jordanian Royal Club');catalog.tier(p.id,'Gold Sparrow')
+    other=catalog.program('Another Club');catalog.tier(other.id,'Gold')
+    assert [r['id'] for r in catalog.search('RJ Gold Sparrow route')['programs']]==[str(p.id)]
+    assert catalog.search('RJ')['programs']==[]
+    assert catalog.search('Gold route')['programs']==[]
+
+
+def test_faq_expansion_preserves_full_answer_without_other_questions(knowledge_session):
+    from types import SimpleNamespace
+    from uuid import uuid4
+    from journeyplus.knowledge.sources import related_section_scope
+    questions=['* **How long is status valid?**','You receive 12 months.','Except expired source accounts.',
+               '* **How much is the fee?**','The application costs USD 149.']
+    rows=[SimpleNamespace(id=uuid4(),kind='PARAGRAPH',body=text,related_section_ids=[]) for text in questions]
+    for row in rows:row.related_section_ids=[str(r.id) for r in rows if r!=row]
+    assert related_section_scope(rows[1],rows)=={r.id for r in rows[:3]}
+    assert related_section_scope(rows[4],rows)=={r.id for r in rows[3:]}

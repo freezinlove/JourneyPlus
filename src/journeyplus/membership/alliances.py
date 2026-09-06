@@ -199,6 +199,11 @@ _ALIASES_BY_LENGTH = tuple(
 )
 
 
+def exact_airline_alliance(program: str) -> AirlineAlliance | None:
+    """Exact reviewed alias only, suitable for canonical catalogue metadata."""
+    return _ALLIANCE_BY_ALIAS.get(normalize_key(program))
+
+
 def airline_alliance(program: str) -> AirlineAlliance | None:
     """Resolve a graph programme/carrier label without making a fuzzy guess."""
 

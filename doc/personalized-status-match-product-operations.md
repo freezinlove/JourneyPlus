@@ -1,5 +1,7 @@
 # 个性化会籍匹配产品运维说明
 
+> 2026-09-06 修订：新的产品与技术约束以[统一活动知识与 Agent 基线](./unified-knowledge-agent-baseline.md)及其 OpenSpec 为准。本文以下保留旧版／legacy 实现的范围与历史说明；涉及固定流水线、最短路径单一展示、仅完整候选后调查等冲突规定已被新基线替代，不能据此限制本次实现。正式切换尚未完成。
+
 > 本文只描述当前可运行产品。当前产品总边界见 [个性化会籍匹配产品总方针](./personalized-status-match-product-direction.md)，单 Agent 的行为边界见 [会籍策略 Agent 产品方针](./personalized-status-match-agent-direction.md)，实现约束见 [技术基线](./personalized-status-match-agent-technical-baseline.md)。早期文档中关于“无个性化页面”“Agent 尚未实现”“买分参与默认自动调度”或继续扩展多 Agent 的表述已经过期；历史验收数据仍保留参考价值。
 
 ## 产品边界

@@ -82,7 +82,12 @@ class SourceScope(StrictModel):
 class Condition(StrictModel):
     model_config = ConfigDict(json_schema_extra={"allOf":[
         {"if":{"required":["value"],"properties":{"value":{"not":{"type":"null"}}}},
-         "then":{"required":["known_state","evidence_ids"],"properties":{"known_state":{"const":"KNOWN"},"evidence_ids":{"minItems":1}}}}
+         "then":{"required":["known_state","evidence_ids"],"properties":{"known_state":{"const":"KNOWN"},"evidence_ids":{"minItems":1}}}},
+        *[{"if":{"required":["known_state","operator"],"properties":{"known_state":{"const":"KNOWN"},"operator":{"const":operator}}},
+           "then":{"properties":{"value":{"type":kind}}}}
+          for operator,kind in [("IN","array"),("EQ","string"),("TEXT","string"),("GTE","integer")]],
+        {"if":{"required":["known_state","operator"],"properties":{"known_state":{"const":"KNOWN"},"operator":{"const":"GTE"}}},
+         "then":{"properties":{"topic":{"const":"MIN_REMAINING_VALIDITY"}}}}
     ]})
     condition_id: str
     topic: Literal["SOURCE_ACQUISITION", "RESIDENCY", "MIN_REMAINING_VALIDITY", "PRIOR_PARTICIPATION", "DOCUMENT_REQUIREMENT", "OTHER"]
@@ -279,7 +284,7 @@ class OptionDraft(StrictModel):
                 raise ValueError("Price references a mapping outside this option")
             targets = {mappings[k].target_tier_id for k in price.mapping_keys} if price.mapping_keys else {m.target_tier_id for m in self.mappings}
             if price.target_scope == "EXACT" and price.target_tier_id not in targets:
-                raise ValueError("Price target is not mapped by this option")
+                raise ValueError(f"Price target is not mapped by this option: price={price.key}, mapping_keys={price.mapping_keys}. A conditional buy-up to another tier needs its own evidenced mapping to that target; do not attach it to a mapping ending at the lower tier.")
             if price.mapping_keys and price.target_scope == "EXACT" and targets != {price.target_tier_id}:
                 raise ValueError("Price target disagrees with its mappings")
         return self
@@ -291,6 +296,15 @@ class DocumentBinding(StrictModel):
     section_ids: list[UUID] = Field(default_factory=list)
 
 
+class ValidationNote(StrictModel):
+    code:Literal['PRICE_EVIDENCE_WITHHELD','MAPPING_TABLE_INCOMPLETE']='PRICE_EVIDENCE_WITHHELD'
+    option_key:str|None=None
+    price_key:str|None=None
+    group_ref:str|None=None
+    mapping_count:int=Field(default=0,ge=0)
+    evidence_ids:list[UUID]=Field(min_length=1)
+
+
 class KnowledgeDraft(StrictModel):
     schema_version: Literal[1] = 1
     activity_id: UUID
@@ -299,6 +313,7 @@ class KnowledgeDraft(StrictModel):
     facts: ActivityFacts
     documents: list[DocumentBinding] = Field(min_length=1)
     options: list[OptionDraft] = Field(default_factory=list)
+    validation_notes:list[ValidationNote]=Field(default_factory=list)
 
     @model_validator(mode="after")
     def unique_options(self):

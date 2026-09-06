@@ -168,6 +168,8 @@ class AgentWaitGoalStatus(StrEnum):
 
 
 class WaitCheckStatus(StrEnum):
+    PAUSED = "PAUSED"
+    NEEDS_RECONFIRMATION = "NEEDS_RECONFIRMATION"
     NO_GOAL = "NO_GOAL"
     NO_HIT = "NO_HIT"
     DUPLICATE = "DUPLICATE"

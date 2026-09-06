@@ -7,6 +7,19 @@ from journeyplus.facts.statusmatch_tables import (
 )
 
 
+def test_source_name_footnote_is_a_qualification_not_program_identity():
+    html = '''<table><tr><td></td><td>Target Club Tier</td></tr>
+    <tr><th>Airline</th><th>Gold</th></tr>
+    <tr><td>Aer Lingus **** AerClub</td><td>Platinum</td></tr></table>
+    <p>**** Limited to EU/UK Passport holders.</p>'''
+    mappings = extract_statusmatch_status_mappings(raw_html=html,
+        canonical_url='https://example.statusmatch.com/faq', document_version_id=uuid4())
+    assert len(mappings) == 1
+    assert mappings[0].source_program == 'Aer Lingus AerClub'
+    assert mappings[0].availability == 'CONDITIONAL'
+    assert mappings[0].conditions == 'Limited to EU/UK Passport holders.'
+
+
 def test_mapping_parser_excludes_region_fee_tables_but_keeps_later_tier_table() -> None:
     html = """
     <html><body>

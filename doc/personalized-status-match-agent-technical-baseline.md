@@ -1,6 +1,8 @@
 # JourneyPlus 会籍策略 Agent 技术基线
 
-> 文档状态：当前有效，Agent 专项技术基线。
+> 2026-09-06 修订：新的产品与技术约束以[统一活动知识与 Agent 基线](./unified-knowledge-agent-baseline.md)及其 OpenSpec 为准。本文以下保留旧版／legacy 实现的范围与历史说明；涉及固定流水线、最短路径单一展示、仅完整候选后调查等冲突规定已被新基线替代，不能据此限制本次实现。正式切换尚未完成。
+
+> 文档状态：旧版 Agent 技术基线，供 legacy 兼容参考。
 >
 > 产品依据：[JourneyPlus 个性化会籍匹配产品总方针](./personalized-status-match-product-direction.md)与[JourneyPlus 会籍策略 Agent 产品方针](./personalized-status-match-agent-direction.md)。本文只规定这两份产品方针对应的技术实现边界，不扩大产品范围。
 >

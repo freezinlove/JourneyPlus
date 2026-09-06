@@ -33,6 +33,7 @@
 | evidence_references | document_version_id:FK、section_id:FK、locator:JSONB、quote:text、content_hash:text | section 与 document 复合 FK；同版本定位+内容签名去重；不存在精确位置的旧依据标为 DOCUMENT_LEVEL，不能伪造 section：此时 section_id 可 NULL，precision:SECTION/DOCUMENT_LEVEL 必填 |
 | activity_briefs | knowledge_version_id:FK、brief_kind:CURRENT/UPDATE、previous_version_id?:FK、generator_version:text、status:PENDING/READY/FAILED、content:JSONB、fact_refs:JSONB、error_code?:text | unique(knowledge_version_id,brief_kind,generator_version)；UPDATE 前版同活动；无独立价格字段，content 数值位置用事实引用 |
 | activity_observation_state | activity_id:FK 主键、last_checked_at?:timestamptz、last_source_changed_at?:timestamptz、last_error?:text、freshness:FRESH/STALE/INCOMPLETE | 运行观察可变，不嵌入不可变事实；当前状态不会因检查时间更新而产生事实版本 |
+| activity_edition_reviews | id:UUID（幂等审核键）、source_table/source_id、activity_id:FK、base_version_id?:同活动FK、decision:SAME/NEW/UNRESOLVED、target_activity_id?:FK、reason:text、request_json:JSONB | 独立业务审核，绑定确切文档与证据；未决目标必须 NULL，确定目标不能为空；按来源与审核时间索引。仅显式审核入口追加，模型不可自行提交；不借用迁移审计记录决定业务归属 |
 | knowledge_migration_links | legacy_table:text、legacy_id:text、legacy_path:text、target_table:text、target_id?:UUID、status:MAPPED/UNRESOLVED/REJECTED、reason:text、migration_version:text | unique(legacy_table,legacy_id,legacy_path,migration_version)；这是审计映射，target 类型由服务校验，不作为业务查询关系 |
 
 OptionPrice 中 mapping_scope:ALL_MAPPINGS/EXPLICIT 是必填字段。没有明确对应证据时，不发布价格为普遍适用；可在草稿保留其原文与无法关联原因。多条价格是否同一次收费由 charge_key 表达，相同收费的多个来源只增证据，不叠加金额。
@@ -77,6 +78,7 @@ KNOWN 的 value 必填且有证据；UNKNOWN/CONFLICT 的有效 value 为 null�
 ## 5. 身份、版本、期次与价格归属
 
 1. 同一来源已绑定活动且只是规则更新，延续 Activity。官方明确新一轮申请、资格重置或新的活动标识时新建 Activity；仅年份文字或品牌相似不足以合并。无法确认期次则保留草稿关联待核对。
+   实施细化：新增重新申请等信号先产生 UNRESOLVED 业务审核并暂缓。SAME/NEW 审核需原版本、原因、证据与确切文档集合；审核不自动扩展到新文档版本。新增 `activity_edition_reviews` 承载此状态，`knowledge_migration_links` 仍只供审计。已有审核时回退保留增量表，不能通过降级删除审核结论。
 2. 一个申请办法保持同一 logical option ID；改价格、截止期或部分资格产生新的 OptionVersion。航空会籍申请改成酒店会籍申请属于另一办法，新 option ID。删除办法是在新知识版本不再包含它，旧版本保留。
 3. 发布版本包含该活动完整当前方案集合，不是零散 delta。每个引用固定知识版本；当前指针更新不重写旧会话。
 4. Mapping 只描述已证实来源→目标；Price 必须属于同一 option，目标 EXACT 或有明确 ALL_TARGETS，mapping_scope 再约束来源适用。地区和附加资格在价格条件上继续检查，不在活动内取 min(price)。
@@ -139,3 +141,20 @@ fact_hash 覆盖有业务语义的规范事实，排除检查时间和重复证�
 - 邮件发现的 StatusMatch 官方活动仍需回填 HOME/FAQ/Terms、方案、映射、价格和证据；不受 LoyaltyLobby 日期限制。正式回填前核对官方当前状态。
 - 单篇多活动拆分暂缓；保留无法确定范围时不发布的保护。旧文章之间的关联修复不列入本批，统一版本更新及新数据证据约束仍保留。
 - 数据结构迁移、备份恢复、已确认会籍和等待写入保护仍属于验收范围。不删除旧快照，不将隔离验收数据复制为正式活动。
+
+
+## 实施细化：局部收费材料未通过校验
+
+两次提取／修复后，若只剩明确的价格引文、目标金额关联、地区关联或免费证据错误，程序先验证移除全部价格后的完整活动与映射；类别范围、来源绑定、目标归属等任一错误仍阻止发布。随后逐条验证价格，只将未证实项替换为 UNKNOWN／amount=null／currency=null／availability=UNKNOWN，保留已验证的方案／目标／charge_key／收费组合和条件，raw_text 改用已绑定证据的实际原文。不会纠正或猜测简称等价关系，不把模型改写的金额引文当原文。
+
+保留未知占位而非直接删除收费项，避免其余已知费用被误算为完整总价或免费。每项以 PRICE_EVIDENCE_WITHHELD、option_key、price_key、evidence_ids 存入不可变版本的 validation_errors（此处是被排除材料的诊断，不表示发布了错误有效金额）；读取投影为 validation_notes，详情明确提示，模型包标 PRICE_ASSOCIATION 缺口。诊断参与事实哈希，旧版本不变。其他错误和结构上无法形成合法草稿仍保留未发布。
+
+StatusMatcher 域名内容在知识来源边界直接拒绝，经验仍只进入临时工作区。独立官方来源对同一收费项的矛盾保留两个证据值，评估为 CONFLICT，不相加、不选择较低值冒充总价。
+## 2026-09-06 表格覆盖和历史目录拼写补充
+
+- FAQ 表格由程序逐行解析和证据定位，模型仅把表格组分配给单次申请办法。允许按该组已披露的确切来源项目 ID 包含／排除子集，以区分通用费用与 Alaska 等特殊来源；未知、交叉或空子集拒绝。未分配行记录 `MAPPING_TABLE_INCOMPLETE`，进入查询覆盖声明。
+- 项目名称单元格、目标标题及等级单元格的脚注都保留。项目名中的脚注符号不成为项目身份；限制文字绑定脚注段落及表格证据。带脚注但尚不能自动判断的资格不变成无条件可用。
+- 历史表格中的完整项目前缀和短等级名可由同一官方目标表头证明为相同等级，使用 `OFFICIAL_TABLE_TARGET_LABEL` 目录别名。普通歧义别名、联盟或相似等级名称不产生图节点等价关系；Gold 不等于 Gold Elite Plus。
+- 已审查的 `Lotusmiles (Vietnam Airlines)`／`Vietnam Airlines Lotusmiles` 精确拼写对按同一项目处理，依据其官方 FAQ 目标表头；不推广成任意词序、模糊名称匹配。历史项目／等级 ID 和已发布版本保留。路径计算使用确定性同一身份节点以衔接前后步骤、防止别名绕过循环；原始 mapping／option／version 引用仍保留。新目录写入优先复用已绑定活动的身份，目录展示仅在等级集合相同时合并重复项目，独有等级不得丢弃。
+- 身份别名变化进入查询上下文签名，旧续页失效并提示重查；旧卡片仍保存原结果。类别与联盟只继承精确审查的同一项目资料，有冲突继续未知。
+- 旧官方卡片实际使用 `fact_sets.id`。兼容层同时接收 event、fact set 和 article opportunity ID，历史 fact set 沿 `event_id` 外键到明确活动映射；不能按标题猜测。

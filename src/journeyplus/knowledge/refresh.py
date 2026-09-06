@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from uuid import UUID
 from datetime import UTC, datetime, timedelta
+from functools import wraps
 from sqlalchemy import select
 
 from journeyplus.models import (StatusMatchWatch, StatusMatchWatchPage, StatusEvent, FactSetRecord,
@@ -20,6 +21,16 @@ from journeyplus.knowledge.migration import _link
 
 
 from journeyplus.knowledge.ingestion_scope import article_scope_reason
+
+
+def defer_unresolved_edition(method):
+    @wraps(method)
+    def call(*args,**kwargs):
+        from journeyplus.knowledge.identity import UnresolvedActivityEdition
+        try:return method(*args,**kwargs)
+        except UnresolvedActivityEdition:
+            return {'status':'DEFERRED','reason':'ACTIVITY_EDITION_REVIEW_REQUIRED','model_calls':0}
+    return call
 
 
 class KnowledgeRefreshService:
@@ -59,8 +70,10 @@ class KnowledgeRefreshService:
                 kind=facts.get('opportunity_kind', 'OTHER'), edition_key=f'legacy:{old.id}')
             s.add(activity);s.flush()
         _link(s, table, old.id, '', 'activities', activity.id, 'MAPPED', 'Explicit collected source identity')
-        return activity
+        from journeyplus.knowledge.identity import ActivityIdentityService
+        return ActivityIdentityService(s).resolve_source(table,str(old.id),activity.id)
 
+    @defer_unresolved_edition
     def official(self, host: str, *, force=False):
         with self.factory.begin() as s:
             watch = s.scalar(select(StatusMatchWatch).where(StatusMatchWatch.host == host))
@@ -73,7 +86,7 @@ class KnowledgeRefreshService:
             error = watch.last_error or next((pages[k].last_error for k in pages if pages[k].last_error), None)
             complete = all(k in pages and pages[k].current_document_version_id for k in ('activity','faq','terms'))
             if error or not complete:
-                self._observe(s, aid, error='INCOMPLETE_OFFICIAL_SNAPSHOT')
+                self._observe(s, aid, error='INCOMPLETE_OFFICIAL_SNAPSHOT',checked_at=watch.last_checked_at)
                 return {'activity_id':str(aid), 'status':'DEFERRED', 'reason':'官方三页不完整或本次检查失败，保留已发布版本'}
             bindings=[]
             for kind in ('activity','faq','terms'):
@@ -90,8 +103,11 @@ class KnowledgeRefreshService:
                     return {'activity_id':str(aid),'status':'DEFERRED','reason':'官方页面没有可发布的当前正文','model_calls':0}
                 bindings.append(DocumentBinding(document_version_id=doc.id,
                     role='OFFICIAL_PRIMARY' if kind=='activity' else 'OFFICIAL_SUPPORT',section_ids=scope))
-        return self._process(aid,bindings,force=force)
+            checks=[pages[k].last_checked_at for k in ('activity','faq','terms')]
+            checked_at=min(checks) if all(checks) else None
+        return self._process(aid,bindings,force=force,checked_at=checked_at,source_identity=('status_events',str(event.id)))
 
+    @defer_unresolved_edition
     def closed_event(self, event_id: UUID):
         """Replay a verified HOME closure even after the legacy watch was removed."""
         from types import SimpleNamespace
@@ -130,6 +146,7 @@ class KnowledgeRefreshService:
         return {'status':'REUSED' if previous and previous.id==vid else 'PUBLISHED',
                 'activity_id':str(aid),'version_id':str(vid),'model_calls':0,'briefs':self._briefs(vid)}
 
+    @defer_unresolved_edition
     def article(self, opportunity_id: UUID, *, force=False):
         with self.factory.begin() as s:
             old=s.get(ArticleOpportunityRecord,opportunity_id)
@@ -148,22 +165,39 @@ class KnowledgeRefreshService:
                 self._observe(s,aid,error='ARTICLE_SECTION_SCOPE_REQUIRED')
                 return {'activity_id':str(aid),'status':'DEFERRED','reason':'一文多活动需要先核对分段关联'}
             binding=DocumentBinding(document_version_id=analysis.document_version_id,role='THIRD_PARTY')
-        return self._process(aid,[binding],force=force)
+        return self._process(aid,[binding],force=force,source_identity=('article_opportunities',str(old.id)))
 
-    def _observe(self,s,aid,*,error=None,source_time=None,oldest_source_time=None):
+    def _observe(self,s,aid,*,error=None,source_time=None,oldest_source_time=None,checked_at=None):
         observation=s.get(ActivityObservationState,aid)
         if observation is None:
             observation=ActivityObservationState(activity_id=aid);s.add(observation)
-        observation.last_checked_at=now_utc();observation.last_error=error
+        # Model execution/cache reads are not a fresh check of the source.
+        check_time=checked_at or oldest_source_time or source_time
+        if check_time is not None:
+            observation.last_checked_at=check_time
+        observation.last_error=error
         if error:observation.freshness='INCOMPLETE'
         elif source_time:
             if source_time.tzinfo is None:source_time=source_time.replace(tzinfo=UTC)
             observation.last_source_changed_at=source_time
-            freshness_time=oldest_source_time or source_time
+            freshness_time=checked_at or oldest_source_time or source_time
             if freshness_time.tzinfo is None:freshness_time=freshness_time.replace(tzinfo=UTC)
             observation.freshness='STALE' if freshness_time<now_utc()-timedelta(days=30) else 'FRESH'
 
-    def _process(self,aid,bindings,*,force):
+    def _process(self,aid,bindings,*,force,checked_at=None,source_identity=None):
+        from journeyplus.knowledge.edition_guard import edition_signals
+        from journeyplus.knowledge.identity import ActivityIdentityService
+        from uuid import uuid4
+        with self.factory.begin() as s:
+            activity=s.get(Activity,aid,with_for_update=True)
+            signals=edition_signals(s,activity,bindings,source_identity)
+            if signals:
+                ActivityIdentityService(s).review_edition(*source_identity,aid,review_id=uuid4(),decision='UNRESOLVED',
+                    reason='New source wording may establish a separate application edition; explicit review required',
+                    evidence_ids=signals,official_document_ids=[b.document_version_id for b in bindings if b.role!='THIRD_PARTY'],
+                    reviewed_document_ids=[b.document_version_id for b in bindings],
+                    expected_version=activity.current_version_id)
+                return {'activity_id':str(aid),'status':'DEFERRED','reason':'ACTIVITY_EDITION_REVIEW_REQUIRED','model_calls':0}
         with self.factory() as s:
             activity=s.get(Activity,aid)
             current=list(s.scalars(select(ActivityDocument).where(ActivityDocument.knowledge_version_id==activity.current_version_id))) if activity.current_version_id else []
@@ -173,15 +207,15 @@ class KnowledgeRefreshService:
             source_time=max(source_times);oldest_source_time=min(source_times)
             version_id=activity.current_version_id
         if actual==expected and not force:
-            with self.factory.begin() as s:self._observe(s,aid,source_time=source_time,oldest_source_time=oldest_source_time)
+            with self.factory.begin() as s:self._observe(s,aid,source_time=source_time,oldest_source_time=oldest_source_time,checked_at=checked_at)
             return {'activity_id':str(aid),'version_id':str(version_id),'status':'REUSED','model_calls':0,'briefs':self._briefs(version_id)}
         try:
             result=self.workflow.process(aid,bindings)
-            with self.factory.begin() as s:self._observe(s,aid,source_time=source_time,oldest_source_time=oldest_source_time)
+            with self.factory.begin() as s:self._observe(s,aid,source_time=source_time,oldest_source_time=oldest_source_time,checked_at=checked_at)
             result['briefs']=self._briefs(UUID(result['version_id']))
             return result
         except Exception as exc:
-            with self.factory.begin() as s:self._observe(s,aid,error=type(exc).__name__)
+            with self.factory.begin() as s:self._observe(s,aid,error=type(exc).__name__,checked_at=checked_at)
             raise
 
     def _briefs(self,version_id):

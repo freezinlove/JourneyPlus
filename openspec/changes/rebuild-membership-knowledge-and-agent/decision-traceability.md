@@ -28,7 +28,7 @@
 | U20 | 用户特别认可的经验呈现：卡上一句话，原有详情内展开，无新入口堆叠 | D10/D11；agent-result-presentation、scoped-statusmatcher-research | 9、10 |
 | U21 | 输入失败可恢复；免费／价格／挑战错误必须修正 | D5–D7；membership-route-evaluation、conversational-membership-agent | 4–7、12 |
 | U22 | 可观测、真实模型和真实数据验收，未知／未查／失败明确 | D10/D13；knowledge-migration-and-evaluation | 12 |
-| U23 | 本轮授权OpenSpec完整持久化，未授权提交或自动部署 | proposal；tasks全部实施项未勾选 | 仅文档 |
+| U23 | 后续已授权按 OpenSpec 连续实施及逐步真实验收；未授权 Git 提交或正式默认切换 | proposal 最新范围修订；tasks 当前进度 | 全阶段实施与隔离验收 |
 
 ## 替代旧约束
 
@@ -69,4 +69,4 @@
 
 ## 文档使用顺序
 
-proposal → design → 对应spec → tasks。用户已确认的决定不重复征求确认；具体预算按评测调整，但不能借调参取消确认门、扩大长期记忆、静默丢候选或恢复杂乱点击。文档完整后开始代码实施需要进入apply阶段，完成真实验收后才归档和同步主规格。
+proposal → design → 对应spec → tasks。用户已确认的决定不重复征求确认；具体预算按评测调整，但不能借调参取消确认门、扩大长期记忆、静默丢候选或恢复杂乱点击。当前已进入 apply 实施；已完成项与证据见 implementation-progress.md。正式发布／稳定观察／旧存储退役条件尚未完成，不归档或同步主规格来替代实施验收。

@@ -15,6 +15,7 @@ from journeyplus.knowledge.sources import expand_evidence
 
 
 def envelope(data, *, snapshot=None, status="OK", count=0, returned=None, partial=False, reason=None):
+    if partial and status=='OK':status='PARTIAL'
     return {"schema_version":1,"status":status,"snapshot_ref":signature(snapshot or {})[:20],"data":data,
             "coverage":{"search_complete":not partial,"scope_description":"所选活动的已发布知识",
                         "observed_count":count,"returned_count":count if returned is None else returned,
@@ -24,6 +25,25 @@ def envelope(data, *, snapshot=None, status="OK", count=0, returned=None, partia
 
 class ActivityReadService:
     def __init__(self,session:Session):self.session=session
+
+    def history(self, activity_id:UUID, *, before_version:int|None=None, limit:int=10)->dict:
+        activity=self.session.get(Activity,activity_id)
+        if activity is None:raise LookupError('活动不存在')
+        if not 1<=limit<=20:raise ValueError('历史分页范围应为 1–20')
+        query=select(ActivityKnowledgeVersion).where(
+            ActivityKnowledgeVersion.activity_id==activity_id,
+            ActivityKnowledgeVersion.status=='PUBLISHED')
+        if before_version is not None:query=query.where(ActivityKnowledgeVersion.version_no<before_version)
+        rows=list(self.session.scalars(query.order_by(ActivityKnowledgeVersion.version_no.desc()).limit(limit+1)))
+        versions=[]
+        for version in rows[:limit]:
+            briefs=list(self.session.scalars(select(ActivityBrief).where(ActivityBrief.knowledge_version_id==version.id)))
+            versions.append({'version_ref':str(version.id),'version_no':version.version_no,
+                'is_current':activity.current_version_id==version.id and activity.merged_into_id is None,
+                'published_at':version.published_at.isoformat(),'name':version.facts['title'],
+                'briefs':[{'kind':b.brief_kind,'status':b.status,'content':b.content} for b in briefs]})
+        return {'activity_ref':str(activity_id),'versions':versions,'has_more':len(rows)>limit,
+                'next_before_version':rows[limit-1].version_no if len(rows)>limit else None}
 
     def snapshot(self)->dict[str,str]:
         return {str(a):str(v) for a,v in self.session.execute(select(Activity.id,Activity.current_version_id).where(Activity.current_version_id.is_not(None),Activity.merged_into_id.is_(None)))}
@@ -39,7 +59,10 @@ class ActivityReadService:
                 tier=self.session.get(MembershipTier,reference_id) if program is None else None
                 program_id=program.id if program else tier.program_id if tier else None
                 if program_id:
-                    return list(self.session.scalars(select(Activity).where(Activity.primary_program_id==program_id,Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
+                    from journeyplus.knowledge.catalog_identity import program_key
+                    actual=self.session.get(MembershipProgram,program_id)
+                    ids=[p.id for p in self.session.scalars(select(MembershipProgram)) if program_key(p)==program_key(actual)]
+                    return list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
             except ValueError:pass
         query=canonical_key(text or "")
         direction=re.search(r'(?:\bto\b|匹配到|匹配至|→|->)\s*(.+)$',query)
@@ -66,16 +89,33 @@ class ActivityReadService:
     def detail(self, activity_id:UUID, version_id:UUID|None=None)->dict:
         a=self.session.get(Activity,activity_id)
         if a is None: raise LookupError("活动不存在")
+        redirected_from = None
+        if version_id is None and a.merged_into_id is not None:
+            from journeyplus.knowledge.identity import ActivityIdentityService
+            redirected_from = str(a.id)
+            a = ActivityIdentityService(self.session).resolve(a.id)
         v=self.session.get(ActivityKnowledgeVersion,version_id or a.current_version_id) if (version_id or a.current_version_id) else None
-        if v is None: return {"ref":str(a.id),"status":"PENDING_KNOWLEDGE","caveats":["资料关联待核对，尚未发布活动知识"]}
+        if v is None: return {"ref":str(a.id),"redirected_from":redirected_from,"status":"PENDING_KNOWLEDGE","caveats":["资料关联待核对，尚未发布活动知识"]}
         if v.activity_id!=a.id or v.status!="PUBLISHED":raise ValueError("活动版本不匹配")
         observation=self.session.get(ActivityObservationState,a.id)
         options=[]
         for o in self.session.scalars(select(ApplicationOptionVersion).where(ApplicationOptionVersion.knowledge_version_id==v.id).order_by(ApplicationOptionVersion.id)):
             mappings=[]
-            for m in self.session.scalars(select(OptionMapping).where(OptionMapping.option_version_id==o.id)):
-                tier=self.session.get(MembershipTier,m.target_tier_id);program=self.session.get(MembershipProgram,m.target_program_id)
-                mappings.append({"ref":str(m.id),"source_scope":m.source_scope,"to_program":program.display_name,"to_tier":display_tier_name(program,tier),
+            mapping_rows=list(self.session.execute(select(OptionMapping,MembershipTier,MembershipProgram)
+                    .join(MembershipTier,MembershipTier.id==OptionMapping.target_tier_id)
+                    .join(MembershipProgram,MembershipProgram.id==OptionMapping.target_program_id)
+                    .where(OptionMapping.option_version_id==o.id)))
+            source_program_ids={UUID(m.source_scope['program_id']) for m,_,_ in mapping_rows if m.source_scope.get('program_id')}
+            source_tier_ids={UUID(identity) for m,_,_ in mapping_rows for identity in m.source_scope.get('tier_ids',[])}
+            source_programs={p.id:p for p in self.session.scalars(select(MembershipProgram).where(MembershipProgram.id.in_(source_program_ids)))}
+            source_tier_rows={t.id:t for t in self.session.scalars(select(MembershipTier).where(MembershipTier.id.in_(source_tier_ids)))}
+            for m,tier,program in mapping_rows:
+                source=source_programs.get(UUID(m.source_scope['program_id'])) if m.source_scope.get('program_id') else None
+                source_tiers=[source_tier_rows.get(UUID(identity)) for identity in m.source_scope.get('tier_ids',[])]
+                mappings.append({"ref":str(m.id),"source_scope":m.source_scope,
+                                 "from_program":source.display_name if source else None,
+                                 "from_tiers":[display_tier_name(source,t) for t in source_tiers if source and t],
+                                 "to_program":program.display_name,"to_tier":display_tier_name(program,tier),
                                  "target_program_id":str(m.target_program_id),"target_tier_id":str(m.target_tier_id),
                                  "availability":m.availability,"conditions":m.conditions,"evidence_ids":m.evidence_ids})
             prices=[{"ref":str(p.id),"target_tier_id":str(p.target_tier_id) if p.target_tier_id else None,
@@ -88,15 +128,20 @@ class ActivityReadService:
                             "application_window":o.application_window,"status_validity":o.status_validity,
                             "action_link":o.action_link,"availability":o.availability,"mappings":mappings,"prices":prices})
         briefs=[{"kind":b.brief_kind,"status":b.status,"content":b.content,"version_ref":str(v.id)} for b in self.session.scalars(select(ActivityBrief).where(ActivityBrief.knowledge_version_id==v.id))]
-        return {"ref":str(a.id),"version_ref":str(v.id),"current_version_ref":str(a.current_version_id),"is_current":a.current_version_id==v.id,
+        result={"ref":str(a.id),"version_ref":str(v.id),"current_version_ref":str(a.current_version_id),"is_current":a.current_version_id==v.id and a.merged_into_id is None,
+                "redirected_from":redirected_from,"merged_into_ref":str(a.merged_into_id) if a.merged_into_id else None,
                 "name":v.facts["title"],"edition":a.edition_key,"kind":a.kind,"facts":v.facts,"published_at":v.published_at.isoformat(),
                 "freshness":observation.freshness if observation else "INCOMPLETE","options":options,"briefs":briefs,
                 "sources":[{"document_version_ref":str(b.document_version_id),"role":b.role,"url":d.canonical_url,"fetched_at":d.fetched_at.isoformat()}
                     for b in self.session.scalars(select(ActivityDocument).where(ActivityDocument.knowledge_version_id==v.id))
                     if (d:=self.session.get(DocumentVersion,b.document_version_id))]}
+        from journeyplus.knowledge.cards import activity_card
+        if v.validation_errors:result['validation_notes']=v.validation_errors
+        result['card']=activity_card(result)
+        return result
 
     def materials(self, *, selector:dict, question:str, view:str="AUTO", aspects:list[str]|None=None,
-                  evidence_refs:list[str]|None=None, section_refs:list[str]|None=None, version_ref:str|None=None, max_chars:int=14000)->dict:
+                  evidence_refs:list[str]|None=None, section_refs:list[str]|None=None, version_ref:str|None=None, max_chars:int=14000, directory_context:str="")->dict:
         max_chars=min(max(max_chars,1000),24000)
         rows=self.locate(ref=selector.get("ref"),text=selector.get("text"))
         if len(rows)!=1:
@@ -105,10 +150,13 @@ class ActivityReadService:
         detail=self.detail(rows[0].id,UUID(version_ref) if version_ref else None)
         if detail.get("status")=="PENDING_KNOWLEDGE":return envelope(detail,status="UNAVAILABLE")
         vid=UUID(detail["version_ref"]);snapshot={detail["ref"]:str(vid)}
+        from journeyplus.knowledge.sources import TOPICS
         topics=set(aspects or [])
         if not topics:
             from journeyplus.knowledge.sources import TOPICS
             topics={k for k,p in TOPICS.items() if re.search(p,question,re.I)}
+        from journeyplus.knowledge.publication import CatalogService
+        mentioned_programs={p['id'] for context in {question,directory_context} if context for p in CatalogService(self.session).search(context,limit=20)['programs']}
         facts=[]
         for field in ('conditions','caveats','application_window','summary'):
             value=detail['facts'].get(field)
@@ -116,9 +164,19 @@ class ActivityReadService:
         relevant={"PRICE":"prices","ELIGIBILITY":"conditions","CHALLENGE":"challenge","WINDOW":"application_window",
                   "VALIDITY":"status_validity","APPLICATION":"action_link"}
         for o in detail["options"]:
-            if not topics or 'ELIGIBILITY' in topics:
+            if not topics or 'ELIGIBILITY' in topics or re.search(r'statusmatcher|经验|成功率|案例|调查|更稳|报告|experience|success rate|research',question+' '+directory_context,re.I):
                 facts.append({'ref':f"{vid}/{o['ref']}/source_scope",'subject_ref':o['ref'],'label':o['label'],'field':'source_scope','value':o['source_scope']})
-                facts.append({'ref':f"{vid}/{o['ref']}/mappings",'subject_ref':o['ref'],'label':o['label'],'field':'mappings','value':o['mappings']})
+                selected=[m for m in o['mappings'] if len(o['mappings'])<=6 or m['source_scope'].get('program_id') in mentioned_programs or m['source_scope']['kind'] in {'PUBLIC','CATEGORY_RULE'}]
+                if selected:
+                    facts.append({'ref':f"{vid}/{o['ref']}/mappings",'subject_ref':o['ref'],'label':o['label'],'field':'mappings','value':selected})
+                groups={}
+                for mapping in o['mappings']:
+                    group=groups.setdefault(mapping['target_tier_id'],{'target_tier_id':mapping['target_tier_id'],
+                        'target_program_id':mapping['target_program_id'],'to_program':mapping['to_program'],
+                        'to_tier':mapping['to_tier'],'mapping_count':0})
+                    group['mapping_count']+=1
+                facts.append({'ref':f"{vid}/{o['ref']}/mapping_overview",'subject_ref':o['ref'],'label':o['label'],
+                              'field':'mapping_overview','value':list(groups.values())})
             for aspect,field in relevant.items():
                 if not topics or aspect in topics:
                     facts.append({"ref":f"{vid}/{o['ref']}/{field}","subject_ref":o["ref"],"label":o["label"],"field":field,"value":o[field]})
@@ -126,6 +184,9 @@ class ActivityReadService:
             if topics and "ELIGIBILITY" not in topics and o["conditions"].get("items"):
                 facts.append({"ref":f"{vid}/{o['ref']}/conditions","subject_ref":o["ref"],"label":o["label"],"field":"conditions","value":o["conditions"]})
         bindings=list(self.session.scalars(select(ActivityDocument).where(ActivityDocument.knowledge_version_id==vid)))
+        from journeyplus.knowledge.sources import require_knowledge_content
+        for binding in bindings:
+            require_knowledge_content(self.session.get(DocumentVersion,binding.document_version_id))
         allowed={b.document_version_id:{UUID(x) for x in b.section_scope} or None for b in bindings}
         snippets=[];size=0;partial=False;expansions=[]
         if view in {"EVIDENCE","DETAIL"} or topics or evidence_refs or section_refs:
@@ -144,10 +205,11 @@ class ActivityReadService:
                     sections=list(self.session.scalars(select(DocumentSection).where(DocumentSection.document_version_id==b.document_version_id).order_by(DocumentSection.ordinal)))
                     requested={UUID(x) for x in section_refs or []}
                     scope=allowed[b.document_version_id]
-                    selected=[x for x in sections if (x.id in requested if requested else (not topics or topics.intersection(x.topics)) and x.kind!="ROW")]
+                    selected=[x for x in sections if (x.id in requested if requested else (not topics or topics.intersection(x.topics) or any(re.search(TOPICS.get(topic,r"(?!)"),x.body,re.I) for topic in topics)) and x.kind!="ROW")]
                     by_id={x.id:x for x in sections}
                     for root in selected:
-                        ids={root.id,*[UUID(r) for r in root.related_section_ids]}
+                        from journeyplus.knowledge.sources import related_section_scope
+                        ids=related_section_scope(root,sections)
                         group=[x for x in sections if x.id in ids and (scope is None or x.id in scope) and str(x.id) not in {n["ref"] for n in snippets}]
                         length=sum(len(x.body) for x in group)
                         if size+length>max_chars:
@@ -160,15 +222,31 @@ class ActivityReadService:
                         if section is None or section.document_version_id not in allowed or (allowed[section.document_version_id] is not None and section.id not in allowed[section.document_version_id]):
                             raise ValueError("章节不属于当前活动版本")
         summary={k:detail[k] for k in ["ref","name","edition","version_ref","published_at","freshness","is_current"]}
+        summary['unresolved_aspects']=[]
+        mapping_scopes=[m['source_scope']['kind'] for o in detail['options'] for m in o['mappings']]
+        summary['source_mapping_counts']={'known':sum(kind!='UNKNOWN' for kind in mapping_scopes),
+                                          'unknown':sum(kind=='UNKNOWN' for kind in mapping_scopes)}
+        if any(n.get('code')=='PRICE_EVIDENCE_WITHHELD' for n in detail.get('validation_notes',[])):
+            summary['unresolved_aspects'].append('PRICE_ASSOCIATION')
+        if any(n.get('code')=='MAPPING_TABLE_INCOMPLETE' for n in detail.get('validation_notes',[])):
+            summary['unresolved_aspects'].append('SOURCE_MAPPING')
+            summary['source_mapping_counts']['unknown']+=sum(n.get('mapping_count',0) for n in detail['validation_notes'] if n.get('code')=='MAPPING_TABLE_INCOMPLETE')
+        if detail.get('validation_notes'):
+            summary['validation_notes']=detail['validation_notes']
+        if any(m.get('source_scope',{}).get('kind')=='UNKNOWN' for o in detail['options'] for m in o['mappings']):
+            summary['unresolved_aspects'].append('SOURCE_MAPPING')
         summary["lifecycle"]=detail["facts"].get("lifecycle")
         summary["material_caveats"]=detail["facts"].get("caveats",[])
         out=envelope({"activities":[summary],"facts":facts,"snippets":snippets,"changes":[]},snapshot=snapshot,
                      status="PARTIAL" if partial else "OK",count=len(facts),partial=partial,reason="CONTENT_BUDGET" if partial else None)
-        tier_ids=set()
+        tier_ids={str(t.id) for t in self.session.scalars(select(MembershipTier).where(MembershipTier.program_id.in_([UUID(ref) for ref in mentioned_programs])))}
         for option in detail['options']:
-            tier_ids.update(option['source_scope'].get('tier_ids',[]))
+            if option['source_scope'].get('program_id') in mentioned_programs:
+                tier_ids.update(option['source_scope'].get('tier_ids',[]))
             for mapping in option['mappings']:
-                tier_ids.add(mapping['target_tier_id']);tier_ids.update(mapping['source_scope'].get('tier_ids',[]))
+                tier_ids.add(mapping['target_tier_id'])
+                if mapping['source_scope'].get('program_id') in mentioned_programs or (len(option['mappings'])<=6 and (not topics or 'ELIGIBILITY' in topics)):
+                    tier_ids.update(mapping['source_scope'].get('tier_ids',[]))
         out['data']['catalog']=[{'tier_ref':str(t.id),'tier_name':t.display_name,'program_ref':str(t.program_id),'program_name':self.session.get(MembershipProgram,t.program_id).display_name}
             for t in self.session.scalars(select(MembershipTier).where(MembershipTier.id.in_([UUID(x) for x in tier_ids])))]
         out["expansions"]=[{"ref":r,"kind":"SECTION","aspects":list(topics),"reason":"尚未展开的完整来源片段"} for r in expansions]
