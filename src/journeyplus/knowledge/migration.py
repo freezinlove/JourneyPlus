@@ -59,7 +59,7 @@ def migration_manifest(session:Session)->dict:
         'RETAIN_PROCESS_AUDIT':{'statusmatch_watches','statusmatch_watch_pages','statusmatch_change_sets','statusmatch_article_routes','statusmatch_article_supplements'},
         'RETAIN_READ_ONLY_HISTORY':{'briefs','article_briefs'},
         'PRESERVE_USER_BUSINESS':{'status_holdings','agent_wait_goals','user_business_operations'},
-        'EXPIRING_WORKSPACE':{'agent_interactions','agent_turns','agent_workspace_messages'},
+        'EXPIRING_WORKSPACE':{'agent_interactions','agent_turns','agent_workspace_messages','agent_delivery_runs','agent_delivery_events'},
         'UNIFIED_KNOWLEDGE':{'activities','membership_programs','knowledge_migration_links','membership_tiers','activity_knowledge_versions',
             'activity_observation_state','application_options','membership_aliases','activity_briefs','activity_documents','application_option_versions',
             'document_sections','evidence_references','option_mappings','option_price_mappings','option_prices','activity_edition_reviews'},

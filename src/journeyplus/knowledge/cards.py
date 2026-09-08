@@ -38,3 +38,18 @@ def activity_card(detail):
         'challenge':'UNKNOWN' if not challenges or 'UNKNOWN' in challenges else 'NONE' if all(c=='NONE' for c in challenges) else 'REQUIRED',
         'eligibility_note':'不同申请方式的资格及适用限制，请在详情中逐项核对。',
         'fee_note':None if fees else '尚无已核实费用，不能据此推断免费。'}
+
+
+def focused_activity_card(detail,question):
+    """Use exact disclosed tier names to keep a question's preview relevant."""
+    import re
+    from copy import deepcopy
+    targets={m['target_tier_id'] for o in detail.get('options',[]) for m in o.get('mappings',[])
+             if len(m.get('to_tier',''))>=4 and re.search(r'(?<!\w)'+re.escape(m['to_tier'])+r'(?!\w)',question,re.I)}
+    if not targets:return activity_card(detail)
+    selected=deepcopy(detail)
+    selected['options']=[o for o in selected.get('options',[]) if any(m['target_tier_id'] in targets for m in o.get('mappings',[]))]
+    for option in selected['options']:
+        option['mappings']=[m for m in option['mappings'] if m['target_tier_id'] in targets]
+        option['prices']=[p for p in option.get('prices',[]) if p.get('target_scope')!='EXACT' or p.get('target_tier_id') in targets]
+    return activity_card(selected)

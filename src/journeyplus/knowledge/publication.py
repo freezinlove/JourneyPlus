@@ -175,7 +175,8 @@ class CatalogService:
                 aliases.setdefault(program_id,[]).append(alias)
             for p in self.session.scalars(select(MembershipProgram).order_by(MembershipProgram.canonical_key)):
                 names=[p.canonical_key,*aliases.get(p.id,[])]
-                if any(len(n.replace(' ',''))>=4 and n.replace(' ','') in compact for n in names):matches.append(p)
+                if any((len(n.replace(' ',''))>=4 or re.fullmatch(r'[\u3400-\u9fff]{2,}',n))
+                       and n.replace(' ','') in compact for n in names):matches.append(p)
             rows=matches[:limit+1]
         from journeyplus.knowledge.catalog_identity import program_key,tier_label
         grouped={};program_tiers={}

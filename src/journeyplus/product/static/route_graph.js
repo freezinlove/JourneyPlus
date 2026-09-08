@@ -1,4 +1,4 @@
-import {el,money,labels} from './knowledge_ui.js';
+import {el,money,labels} from './knowledge_ui.js?v=20260907-agent-repair';
 const observers=new Set();let graphId=0;
 export function disposeGraphs(){for(const observer of observers)observer.disconnect();observers.clear();}
 

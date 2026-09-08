@@ -41,6 +41,18 @@ class StepResearchService:
             mapping=self.companies.get(target.to_program_ref)
             if not mapping or not mapping.get('verified_at'):
                 results.append({'step_ref':target.step_ref,'status':'UNAVAILABLE','reason':'COMPANY_MAPPING_UNVERIFIED'});continue
+            step_identities=dict(identities)
+            for candidate_mapping in self.companies.values():
+                for name,identity in candidate_mapping.get('identities',{}).items():step_identities.setdefault(name,identity)
+            step_identities.update(self.companies.get(target.from_program_ref,{}).get('identities',{}))
+            step_identities.update(mapping.get('identities',{}))
+            from journeyplus.knowledge.publication import canonical_key
+            for program_id,tier_id in [(target.from_program_ref,target.from_tier_ref),(target.to_program_ref,target.to_tier_ref)]:
+                item=self.companies.get(program_id,{})
+                label=item.get('tier_labels',{}).get(tier_id)
+                if label:
+                    step_identities[canonical_key(item['title']+' '+label)]={'program_ref':program_id,'tier_ref':tier_id}
+                    if label.startswith('elite '):step_identities[canonical_key(item['title']+' '+label[6:])]={'program_ref':program_id,'tier_ref':tier_id}
             reports=[];stopped=None
             try:
                 url=permitted_url(mapping['verified_url'])
@@ -59,15 +71,15 @@ class StepResearchService:
                     except ValueError as exc:
                         if isinstance(exc,ResearchBudgetExceeded):raise
                         stopped='PARSE_ERROR';break
-                for candidate in select_report_candidates(candidates,target,identities,now.date()):
+                for candidate in select_report_candidates(candidates,target,step_identities,now.date()):
                     report_url=candidate['url']
                     if report_url not in run.reports:
                         if run.detail_count>=8:
                             stopped='REPORT_BUDGET';break
                         run.detail_count+=1
                         html,final_url=read_research_html(self.client,report_url,run.budget,response_limit=self.response_limit,timeout_seconds=self.timeout_seconds)
-                        run.reports[report_url]=parse_report_detail(html,final_url,identities)
-                    report=run.reports[report_url]
+                        run.reports[report_url]=(html,final_url)
+                    report=parse_report_detail(*run.reports[report_url],step_identities)
                     if report.to_program_ref==target.to_program_ref and (target.from_program_ref is None or report.from_program_ref==target.from_program_ref):
                         reports.append(report)
             except ResearchBudgetExceeded as exc:
@@ -94,10 +106,13 @@ def research_decision_packet(result):
         summary['ref']=step['step_ref']
         from journeyplus.agent.research_recheck import needs_official_recheck
         summary['official_recheck_needed']=needs_official_recheck({'citations':step.get('reports',[])})
-        summary['citations']=[{'report_ref':r['report_ref'],'url':r['url'],'outcome':r['normalized_outcome'],
+        comparisons={o['report_ref']:o.get('comparability') for o in step.get('observations',[])}
+        summary['citations']=[{'submitted_at':r.get('submitted_at'),'application_at':r.get('application_at'),
+                               'original_from':r.get('original_from'),'original_to':r.get('original_to'),
+                               'comparability':comparisons.get(r['report_ref']), 'report_ref':r['report_ref'],'url':r['url'],'outcome':r['normalized_outcome'],
                                'evidence_excerpt':r.get('evidence_excerpt')} for r in step.get('reports',[])[:3]]
         observations.append(summary)
-    return {'schema_version':1,'status':result['status'],'data':{'step_observations':observations},
+    return {'schema_version':1,'status':result['status'],'cache_hit':bool(observations) and all(s.get('cache_hit',False) for s in observations),'data':{'step_observations':observations},
             'coverage':{**result.get('coverage',{}),'search_complete':False,'http_requests':result.get('http_requests',0)},
             'caveats':['用户自报案例只提供经验线索，不代表实际审批概率。']}
 
@@ -113,7 +128,10 @@ def research_answer_text(results,steps):
         step=steps.get(ref,{})
         label=((step.get('from') or '公开申请')+' → '+step['to']) if step.get('to') else '所选步骤'
         if observation.get('status')=='UNAVAILABLE':lines.append(label+'：经验资料暂不可用。');continue
-        lines.append(label+'：以下为有限范围的自报案例。')
+        if not observation.get('windows'):
+            lines.append(label+'：本次没有找到足够可比的申请案例，不能据此判断申请结果。')
+        else:lines.append(label+'：以下为有限范围的自报案例。')
+        if observation.get('incomparable_count'):lines.append(f"另有 {observation['incomparable_count']} 个案例的来源或目标等级不同，未计入可比样本。")
         for window,counts in observation.get('windows',{}).items():
             parts=[]
             for kind,label_kind in [('exact_counts','精确可比'),('partial_counts','部分可比')]:

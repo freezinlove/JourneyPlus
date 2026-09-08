@@ -16,3 +16,14 @@ def test_card_never_shows_an_unscoped_minimum_and_retains_unknown_challenge():
 def test_no_prices_is_not_free_and_other_remains_a_card():
     card=activity_card({'version_ref':'v','kind':'OTHER','facts':{},'options':[]})
     assert card['kind']=='OTHER' and card['fees']==[] and '不能据此推断免费' in card['fee_note']
+
+
+def test_named_tier_preview_excludes_other_tier_fee_without_changing_full_detail():
+    from journeyplus.knowledge.cards import focused_activity_card
+    detail={'options':[{'label':'Airline','mappings':[{'target_tier_id':'g','to_tier':'Gold Sparrow'},{'target_tier_id':'s','to_tier':'Silver Jay'}],
+        'prices':[{'ref':'gfee','target_scope':'EXACT','target_tier_id':'g','known_state':'KNOWN','amount':'149','currency':'USD'},
+                  {'ref':'sfee','target_scope':'EXACT','target_tier_id':'s','known_state':'KNOWN','amount':'49','currency':'USD'}]}]}
+    card=focused_activity_card(detail,'Gold Sparrow 费用多少？')
+    assert [f['value'] for f in card['fees']]==['USD 149']
+    assert len(detail['options'][0]['prices'])==2
+    assert len(focused_activity_card(detail,'所有等级费用多少？')['fees'])==2

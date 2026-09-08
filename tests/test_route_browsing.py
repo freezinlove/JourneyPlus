@@ -39,7 +39,7 @@ def test_browse_paginates_without_messages_models_or_candidate_loss(factory):
     assert len(first['messages'])==1 and not page['next_steps']
     focused=service.focus(wid,page['blocks'][0]['subject_refs'][0],page['id'],first['revision'])
     second=browse_routes(service,wid,BrowseRoutesRequest(anchor_ref=subjects[0],presentation_id='original',cursor=page['browse_cursor'],expected_revision=focused['revision']))
-    selected=[r['ref'] for p in second['explorations'] for r in p['blocks'][0]['payload']['routes']]
+    selected=[*subjects,*[r['ref'] for p in second['explorations'] for r in p['blocks'][0]['payload']['routes']]]
     assert len(selected)==len(set(selected))==12
     assert second['explorations'][-1]['browse_cursor'] is None
     with factory() as s:
@@ -90,4 +90,34 @@ def test_page_numbers_follow_full_query_order(factory):
     view=browse_routes(service,wid,BrowseRoutesRequest(anchor_ref=subjects[0],presentation_id='original',expected_revision=0))
     first=view['explorations'][-1]
     second=browse_routes(service,wid,BrowseRoutesRequest(anchor_ref=subjects[0],presentation_id='original',cursor=first['browse_cursor'],expected_revision=view['revision']))
-    assert [r['presentation_index'] for r in second['explorations'][-1]['blocks'][0]['payload']['routes']]==[9,10,11,12]
+    assert [r['presentation_index'] for r in first['blocks'][0]['payload']['routes']]==list(range(3,11))
+    assert [r['presentation_index'] for r in second['explorations'][-1]['blocks'][0]['payload']['routes']]==[11,12]
+
+
+def test_browsing_earlier_public_routes_does_not_inherit_current_source_scope(factory):
+    service=WorkspaceService(factory,None);wid,subjects=seed(service,factory)
+    with factory.begin() as s:
+        row=s.get(AgentInteraction,wid);row.state={**row.state,'unrestricted_route_active':True,'current_route_mode':'EXPLORE'}
+    view=browse_routes(service,wid,BrowseRoutesRequest(anchor_ref=subjects[0],presentation_id='original',expected_revision=0))
+    assert all(r['from'] is None for r in view['explorations'][-1]['blocks'][0]['payload']['routes'])
+    with factory() as s:assert s.get(AgentInteraction,wid).state['unrestricted_route_active'] is True
+
+
+def test_explicit_form_can_change_source_and_target_after_broad_chat(factory):
+    from journeyplus.agent.route_browsing import explore_routes
+    from journeyplus.product.knowledge_api import ExploreRoutesRequest
+    from journeyplus.knowledge.routes import RouteQuery
+    from journeyplus.knowledge.models import MembershipTier
+    with factory.begin() as s:
+        old,_=edge(s);new,target=edge(s)
+        target_program=s.get(MembershipTier,target).program_id
+    service=WorkspaceService(factory,None);view=service.create();wid=UUID(view['id'])
+    with factory.begin() as s:
+        row=s.get(AgentInteraction,wid)
+        row.state={**row.state,'query':{'starting_tier_ids':[str(old)],'use_saved_holdings':False},'unrestricted_route_active':True,'source_change_requested':False,'turn_route_plan':{'source_action':'REPLACE','target_action':'ANY'},'planned_source_programs':[],'source_identity_pending':True,'task_context':{'intent':'ROUTES','target_scope':'ANY','category_scope':'ANY'}}
+    explore_routes(service,wid,ExploreRoutesRequest(query=RouteQuery(starting_tier_ids=[new],target_program_id=target_program,use_saved_holdings=False),expected_revision=view['revision']))
+    with factory() as s:
+        state=s.get(AgentInteraction,wid).state
+        assert state['query']['starting_tier_ids']==[str(new)]
+        assert state['query']['target_program_id']==str(target_program)
+        assert state['task_context']['target_scope']=='SELECTED'

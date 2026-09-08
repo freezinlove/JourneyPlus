@@ -104,7 +104,11 @@ function researchDetail(observations,parent){
   if(!observations.length)return;const section=el('section',undefined,'detail-option');section.append(el('h3','申请经验'));
   for(const observation of observations){const item=el('details');item.append(el('summary',observation.direction),el('p',observation.text));
     for(const citation of observation.citations||[]){try{const url=new URL(citation.url);if(url.protocol!=='https:'||!['statusmatcher.com','www.statusmatcher.com'].includes(url.hostname))continue;
-      const p=el('p'),link=el('a','查看这条自报案例');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';p.append(link);if(citation.evidence_excerpt)p.append(el('small',citation.evidence_excerpt));item.append(p);}catch{}}
+      const p=el('p'),link=el('a','查看这条自报案例');link.href=url.href;link.target='_blank';link.rel='noopener noreferrer';p.append(link);
+      const comparison=({EXACT:'精确可比',PARTIAL:'部分可比',INCOMPARABLE:'未计入可比样本'})[citation.comparability?.state]||'可比性待核实';
+      p.append(el('small',`${comparison} · 报告提交：${readable(citation.submitted_at)} · 实际申请：${readable(citation.application_at)}`));
+      if(citation.original_from||citation.original_to)p.append(el('small',`${citation.original_from||'来源等级未知'} → ${citation.original_to||'目标等级未知'}`));
+      if(citation.evidence_excerpt)p.append(el('small',citation.evidence_excerpt));item.append(p);}catch{}}
     section.append(item);
   }parent.append(section);
 }

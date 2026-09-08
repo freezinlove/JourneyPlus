@@ -1,4 +1,4 @@
-"""Conservative page adapter; live layout remains unverified while permission is off."""
+"""Conservative page adapter; company/report layouts verified on 2026-09-07."""
 import re
 from urllib.parse import urljoin, urlsplit
 from datetime import date
@@ -24,8 +24,11 @@ def list_report_urls(html, base_url):
 def parse_report_detail(html,url,identities):
     tree=HTMLParser(html)
     article=tree.css_first('article')
+    live=article is None
+    article=article or tree.body
     if article is None:raise ValueError('REPORT_DETAIL_NOT_FOUND')
-    heading=article.css_first('h1');body=article.css_first('.instructions')
+    heading=article.css_first('h1') if not live else article.css_first('.instructions').parent.css_first('h4') if article.css_first('.instructions') else None
+    body=article.css_first('.instructions')
     if heading is None or body is None:raise ValueError('REPORT_DETAIL_FIELDS_MISSING')
     title=' '.join(heading.text(separator=' ').split())
     direction=re.split(r'\s+to\s+',re.sub(r'^From\s+','',title,flags=re.I),maxsplit=1,flags=re.I)
@@ -37,10 +40,13 @@ def parse_report_detail(html,url,identities):
     right=identities.get(canonical_key(direction[1]),{})
     denied=bool(re.search(r'\b(?:was denied|was rejected|request denied|application denied)\b',text,re.I))
     challenge=bool(re.search(r'\b(?:offered a challenge|required to (?:fly|stay)|must (?:fly|stay)|challenge required)\b',text,re.I))
-    matched=bool(re.search(r'\b(?:status was matched|match was approved|application was approved)\b',text,re.I))
+    matched=bool(re.search(r'\b(?:status was matched|match was approved|application was approved|was approved almost instantly|status matched successfully)\b',text,re.I))
     outcome='UNKNOWN' if denied and (matched or challenge) else 'DENIED' if denied else 'CHALLENGE' if challenge else 'DIRECT_MATCH' if matched else 'UNKNOWN'
     if len(text)>600:outcome='UNKNOWN'  # Do not assert an outcome whose full context is not retained.
     label=article.css_first('.result-box span');reported=label.text(strip=True).upper() if label else None
+    if live:
+        header=article.css_first('h3')
+        if header and 'Report:' in header.text():reported=header.text().split('Report:',1)[1].strip().upper()
     dates={};notes=[]
     for node in article.css('dt'):
         name=node.text(strip=True).casefold();value=node.next
@@ -49,6 +55,12 @@ def parse_report_detail(html,url,identities):
         try:parsed=date.fromisoformat(raw)
         except ValueError:continue
         dates['submitted_at' if name=='submitted' else 'application_at']={'precision':'DATE','date':parsed,'raw_text':raw}
+    if live:
+        stamp=re.search(r'From:\s*.*?\bon ([A-Z][a-z]+ \d{1,2}, \d{4})',article.text(separator=' ',strip=True))
+        if stamp:
+            from datetime import datetime
+            try:dates['submitted_at']={'precision':'DATE','date':datetime.strptime(stamp[1],'%B %d, %Y').date(),'raw_text':stamp[1]}
+            except ValueError:pass
     if 'application_at' not in dates:notes.append('申请日期未知；提交日期不替代申请日期。')
     notes.append('未核实活动期次及来源取得方式。')
     return ReportObservation(report_ref=urlsplit(url).path.rstrip('/').split('/')[-1],url=url,

@@ -304,7 +304,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if settings.ai_base_url and settings.ai_api_key
             else None
         )
-        experience_researcher = _statusmatcher_experience_client(settings)
+        from journeyplus.agent.live_research import build_researcher
+        experience_researcher = build_researcher(settings,factory)
         uvicorn.run(
             create_product_app(
                 factory,

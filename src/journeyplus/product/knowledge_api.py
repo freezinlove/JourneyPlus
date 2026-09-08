@@ -66,9 +66,16 @@ def route_activity_detail(reader,step):
 
 
 def knowledge_router(factory,provider,*,ttl_hours=24,max_calls=3,researcher=None):
-    router=APIRouter(prefix="/v2")
-    workspace=WorkspaceService(factory,provider,ttl_hours=ttl_hours,max_calls=max_calls,researcher=researcher)
+    workspace=WorkspaceService(factory,provider,ttl_hours=ttl_hours,max_calls=max_calls,researcher=researcher,plan_route_turns=True)
     waiting=WorkspaceWaitService(factory)
+    from journeyplus.agent.delivery import DeliveryService
+    delivery=DeliveryService(workspace)
+    from contextlib import asynccontextmanager
+    @asynccontextmanager
+    async def lifespan(app):
+        try:yield
+        finally:delivery.pool.shutdown(wait=False,cancel_futures=True)
+    router=APIRouter(prefix="/v2",lifespan=lifespan)
 
     def run(fn,*args,**kwargs):
         try:return fn(*args,**kwargs)
@@ -82,6 +89,16 @@ def knowledge_router(factory,provider,*,ttl_hours=24,max_calls=3,researcher=None
 
     @router.post("/agent/workspaces/{id}/messages")
     def message(id:UUID,request:MessageRequest):return run(workspace.message,id,request)
+
+    @router.post('/agent/workspaces/{id}/deliveries')
+    def start_delivery(id:UUID,request:MessageRequest):return run(delivery.start,id,request)
+
+    @router.get('/agent/workspaces/{id}/deliveries/{run_id}/events')
+    def stream_delivery(id:UUID,run_id:UUID,after:int=0):
+        from fastapi.responses import StreamingResponse
+        run(delivery.events,id,run_id,after)
+        return StreamingResponse(delivery.stream(id,run_id,max(0,after)),media_type='text/event-stream',
+            headers={'Cache-Control':'no-cache','X-Accel-Buffering':'no'})
 
     @router.post("/agent/workspaces/{id}/focus")
     def focus(id:UUID,request:FocusRequest):return run(workspace.focus,id,request.ref,request.presentation_id,request.expected_revision)

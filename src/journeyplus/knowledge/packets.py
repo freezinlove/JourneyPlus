@@ -144,8 +144,8 @@ def decision_packet(result: dict, *, max_bytes: int = 15000) -> dict:
         references=[{'ref':entry['ref'],'kind':entry.get('kind','OBJECT')} for entry in packet.get('expansions',[]) if entry.get('ref')]
         fallback={'schema_version': 1, 'status': 'NEEDS_INSPECTION', 'snapshot_ref': packet.get('snapshot_ref'),
                 'next_cursor':packet.get('next_cursor'),
-                'data': {}, 'coverage': {**packet.get('coverage', {}), 'content_complete': False},
-                'caveats': ['完整对象超出预算；先按本页引用展开，不能把下一页当作本页省略项。'],
+                'data': {'catalog':data['catalog']} if data.get('catalog') and encoded_bytes(data['catalog'])<max_bytes//2 else {}, 'coverage': {**packet.get('coverage', {}), 'content_complete': False},
+                'caveats': ['完整事实对象超出预算；已保留的 catalog 仍是有效项目/等级身份，可直接用于路径查询。事实需按引用展开，不能把下一页当作本页省略项。'],
                 'expansions':references}
         if encoded_bytes(fallback)>max_bytes:
             # If even all page references cannot fit, never expose a cursor

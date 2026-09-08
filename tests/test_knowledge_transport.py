@@ -36,3 +36,14 @@ def test_identifier_arguments_cannot_address_an_undisclosed_cached_object():
     short=refs.encode('1234567890abcdef')
     refs.require_disclosed({'route_refs':[short]})
     refs.require_disclosed({'selector':{'text':'Example'},'query':{'max_amount':100,'currency':'USD'}})
+
+
+def test_oversized_facts_do_not_remove_catalog_needed_for_next_route_query():
+    from journeyplus.knowledge.packets import decision_packet,encoded_bytes
+    packet={'status':'OK','snapshot_ref':'snapshot','data':{'catalog':[{'program_ref':'program','tier_ref':'tier','tier_name':'Gold'}],
+        'facts':[{'ref':'fact','value':'full indivisible source '+('x'*12000)}]},'provenance':[{'text':'x'*4000}]}
+    bounded=decision_packet(packet,max_bytes=3000)
+    assert encoded_bytes(bounded)<=3000
+    assert bounded['data']['catalog'][0]['tier_ref']=='tier'
+    assert not bounded['data'].get('facts')
+    assert bounded['snapshot_ref']=='snapshot' and bounded['status']=='NEEDS_INSPECTION'

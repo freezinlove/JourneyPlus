@@ -566,3 +566,398 @@ def test_public_opportunity_search_does_not_require_optional_target_preference(f
     assert not answer.get('error')
     assert any(row['tool']=='query_membership_routes' for row in answer['basis'])
     assert '未找到' in answer['text'] or '未核实路径' in answer['text'] or '尚未找到' in answer['text']
+
+
+def test_public_scope_cannot_be_reasked_after_query_or_on_short_reply(factory,monkeypatch):
+    from journeyplus.agent.task_context import prepare_task,public_scope_question,public_query
+    state={}
+    assert prepare_task(state,'假设我没有任何已有会籍，找不需要已有会籍就能申请的匹配或挑战机会。')
+    assert public_scope_question(state,'您希望匹配哪个项目？')
+    assert prepare_task(state,'所有都行')
+    assert public_scope_question(state,'您偏好酒店还是航空？')
+    assert public_query(state,{'target_program_id':'wrong','use_saved_holdings':True})['target_program_id'] is None
+    assert state['query']['use_saved_holdings'] is False
+    assert not prepare_task(state,'今天心情不错')
+    assert not public_scope_question(state,'您偏好什么？')
+
+
+def test_public_explicit_target_is_preserved_and_chat_can_change_topic():
+    from journeyplus.agent.task_context import prepare_task,public_query,apply_task_update
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={}
+    prepare_task(state,'找不需要已有会籍的 Hilton 匹配机会')
+    apply_task_update(state,TaskUpdate(intent='PUBLIC_OPPORTUNITIES',target_scope='SELECTED'),'找 Hilton')
+    assert public_query(state,{'target_program_id':'hilton'})['target_program_id']=='hilton'
+    prepare_task(state,'你好')
+    apply_task_update(state,TaskUpdate(intent='CHAT'),'你好')
+    assert state['task_context']['intent']=='CHAT'
+    assert not prepare_task(state,'所有都行')
+
+
+def test_route_cache_reuses_search_without_copying_all_routes(factory):
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    state={'routes':{},'steps':{}}
+    args={'mode':'EXPLORE','query':{'use_saved_holdings':False,'starting_tier_ids':[]}}
+    from copy import deepcopy
+    first=service._tool('query_membership_routes',deepcopy(args),state,'查路径')
+    second=service._tool('query_membership_routes',deepcopy(args),state,'查路径')
+    assert second['cache_hit'] is True
+    assert first['data']['cards']==second['data']['cards']
+    assert len(state['route_searches'])==1
+    entry=next(iter(state['route_read_cache'].values()))
+    assert set(entry)=={'at','search_ref'}
+
+
+def test_catalog_identity_does_not_require_an_activity(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Marriott Bonvoy',category='HOTEL');t=c.tier(p.id,'Platinum Elite')
+        tier_id=str(t.id)
+        c.alias('万豪',p.id)
+    service=WorkspaceService(factory,SequenceAIProvider([]));state={}
+    for name in ['万豪','万豪白金','Marriott Bonvoy']:
+        packet=service._tool('query_activity_materials',{'selector':{'text':name},'view':'CATALOG'},state,'找所有路径')
+        assert packet['status']=='CATALOG_ONLY'
+        assert packet['data']['activities']==[]
+        assert packet['data']['catalog']['programs'][0]['tiers'][0]['id']==tier_id
+    assert service._tool('query_activity_materials',{'selector':{'text':'不存在的计划'},'view':'CATALOG'},state,'找路径')['status']=='CATALOG_NOT_FOUND'
+
+
+def test_unrestricted_routes_preserve_source_and_do_not_request_target():
+    from journeyplus.agent.task_context import prepare_task,public_scope_question,public_query,apply_task_update
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={'query':{'starting_tier_ids':['old']}}
+    prepare_task(state,'我有万豪白金，给我所有可能的匹配路径')
+    assert state['query']['starting_tier_ids']==[] and not state['public_task_active']
+    apply_task_update(state,TaskUpdate(intent='ROUTES',target_scope='ANY'),'原问题')
+    assert state['task_context']['intent']=='ROUTES'
+    assert public_scope_question(state,'请明确你指的是哪一个活动？')
+    q=public_query(state,{'starting_tier_ids':['marriott-platinum'],'use_saved_holdings':False,'target_program_id':None})
+    assert q['starting_tier_ids']==['marriott-platinum'] and q['target_program_id'] is None
+    state['query']=q
+    prepare_task(state,'所有都要')
+    assert state['explicit_broad_reply'] and state['query']['starting_tier_ids']==['marriott-platinum']
+    assert public_scope_question(state,'你希望匹配到哪个酒店或航空常旅客计划？')
+    prepare_task(state,'今天心情不错')
+    assert not public_scope_question(state,'您偏好什么？')
+    prepare_task(state,'只看 Royal Jordanian')
+    assert not state['unrestricted_route_active']
+
+
+def test_unresolved_route_source_does_not_fallback_to_choosing_activity(factory):
+    read={'action':'READ','payload':{'requests':[{'tool':'query_activity_materials','args':{'selector':{'text':'不存在的项目'},'view':'CATALOG'}}]}}
+    service=WorkspaceService(factory,SequenceAIProvider([read,read,read]))
+    result=send(service,service.create(),'我有不存在的项目白金，给我所有匹配路径')
+    answer=result['messages'][-1]
+    assert '哪一个活动' not in answer['text']
+    assert answer['incomplete_tasks']==['SOURCE_IDENTITY','ROUTE_EVALUATION']
+
+
+def test_catalog_failure_exposes_actual_attempt_to_next_decision(factory):
+    class InspectAttempts:
+        metadata=SequenceAIProvider([]).metadata
+        def __init__(self):self.calls=0
+        def generate_structured(self,**kwargs):
+            self.calls+=1
+            if self.calls==1:
+                decision={'action':'READ','payload':{'requests':[{'tool':'query_activity_materials','args':{'selector':{'text':'Unknown Brand'},'view':'CATALOG'}}]}}
+            else:
+                assert 'read_attempts' in kwargs['user_prompt']
+                assert 'Unknown Brand' in kwargs['user_prompt']
+                assert 'CATALOG_NOT_FOUND' in kwargs['user_prompt']
+                decision={'action':'ASK','payload':{'question':'起点会籍的官方名称是什么？'}}
+            return kwargs['output_model'].model_validate(decision)
+    provider=InspectAttempts();service=WorkspaceService(factory,provider)
+    result=send(service,service.create(),'我有不明白金，给我所有路径')
+    assert provider.calls==2
+    assert '官方名称' in result['messages'][-1]['text']
+    assert result['messages'][-1]['input_observations'][0]['reads'][0]['args']['selector']['text']=='Unknown Brand'
+
+
+def test_catalog_without_selector_does_not_dump_directory(factory):
+    with factory.begin() as s:CatalogService(s).program('Example')
+    packet=WorkspaceService(factory,SequenceAIProvider([]))._tool('query_activity_materials',{'selector':{},'view':'CATALOG'}, {},'目录')
+    assert packet['status']=='CATALOG_NOT_FOUND' and packet['data']['catalog']['programs']==[]
+
+
+def test_catalog_batched_language_names_retrieve_existing_ids_only(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Example Loyalty');t=c.tier(p.id,'Gold');identity=str(t.id)
+        c.program('Unrelated Loyalty')
+    service=WorkspaceService(factory,SequenceAIProvider([]));state={}
+    packet=service._tool('query_activity_materials',{'view':'CATALOG','selector':{'text':'未入库的中文简称','alternate_names':['Example Loyalty','Example']}},state,'查路径')
+    assert packet['status']=='CATALOG_ONLY'
+    assert len(packet['data']['catalog']['programs'])==1
+    assert packet['data']['catalog']['programs'][0]['tiers'][0]['id']==identity
+    assert len(packet['queries'])==3
+    assert not packet['data']['activities']
+
+
+def test_optional_scope_guard_keeps_genuine_source_clarification():
+    from journeyplus.agent.task_context import prepare_task,public_scope_question
+    state={};prepare_task(state,'我有金卡，给我所有匹配路径')
+    assert not public_scope_question(state,'起点会籍的官方名称是什么？')
+    assert public_scope_question(state,'你希望匹配到哪个酒店或航空计划？')
+
+
+def test_unrelated_all_request_does_not_execute_previous_routes():
+    from journeyplus.agent.task_context import prepare_task,public_scope_question
+    state={'task_context':{'intent':'ROUTES'},'query':{'starting_tier_ids':['first']}}
+    prepare_task(state,'所有歌曲都要')
+    assert not state['explicit_broad_reply'] and not state['route_task_active']
+    assert not public_scope_question(state,'你喜欢什么？')
+    prepare_task(state,'我是另一个项目的钻石会员，给我所有路径')
+    assert state['query']['starting_tier_ids']==[] and not state['explicit_broad_reply']
+
+
+def test_bare_rank_is_not_a_substring_programme_match(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Golden Circle');c.tier(p.id,'Gold')
+        other=c.program('Other Club');c.tier(other.id,'Gold')
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    result=service._tool('query_activity_materials',{'view':'CATALOG','selector':{'text':'金卡','alternate_names':['Gold']}},{},'我有金卡，给我所有路径')
+    assert result['status']=='CATALOG_NOT_FOUND'
+    assert result['data']['catalog']['programs']==[]
+    assert result['missing_input']=='SOURCE_PROGRAM'
+    from journeyplus.agent.task_context import prepare_task,public_scope_question
+    state={};prepare_task(state,'我有金卡，给我所有路径')
+    assert not public_scope_question(state,'你的金卡属于哪个项目？')
+
+
+def test_target_change_cannot_replace_established_start(factory):
+    from uuid import uuid4
+    original=str(uuid4());other=str(uuid4())
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    state={'query':{'starting_tier_ids':[original],'use_saved_holdings':False},'routes':{},'steps':{}}
+    with pytest.raises(WorkspaceError,match='不能用目标等级替换起点'):
+        service._tool('query_membership_routes',{'mode':'EXPLORE','query':{'starting_tier_ids':[other]}},state,'只看另一个目标')
+    assert state['query']['starting_tier_ids']==[original]
+
+
+def test_bare_rank_requests_source_without_extra_model_loop(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Golden Circle');c.tier(p.id,'Gold')
+    provider=SequenceAIProvider([{'action':'READ','payload':{'requests':[{'tool':'query_activity_materials','args':{'view':'CATALOG','selector':{'text':'Gold'}}}]}}])
+    service=WorkspaceService(factory,provider)
+    result=send(service,service.create(),'我有金卡，给我所有可能的匹配路径')
+    assert len(provider.calls)==1
+    assert '属于哪个' in result['messages'][-1]['text']
+    assert not result['messages'][-1]['blocks']
+
+
+def test_unused_optional_null_lists_do_not_need_model_repair():
+    from journeyplus.agent.workspace_contracts import WorkspaceDecision
+    decision=WorkspaceDecision.model_validate({'action':'READ','payload':{'requests':[{'tool':'query_membership_routes','args':{'mode':'EXPLORE','query':{'starting_tier_ids':['K1'],'preferences':None},'route_refs':None}}]}})
+    args=decision.root.payload.requests[0].args
+    assert args.query.starting_tier_ids==['K1']
+    assert args.query.preferences==[] and args.route_refs==[]
+    from pydantic import ValidationError
+    for bad in [None,[], 'anything']:
+        with pytest.raises(ValidationError):WorkspaceDecision.model_validate({'action':'READ','payload':{'requests':bad}})
+    with pytest.raises(ValidationError):
+        WorkspaceDecision.model_validate({'action':'READ','payload':{'requests':[{'tool':'query_membership_routes','args':{'route_refs':'K1'}}]}})
+
+
+def test_broad_continuation_cannot_hide_target_question_in_answer(factory):
+    from journeyplus.models import AgentInteraction
+    provider=SequenceAIProvider([
+        {'action':'ANSWER','payload':{'text':'请告诉我你感兴趣的目标项目。'}},
+        {'action':'READ','payload':{'requests':[{'tool':'query_membership_routes','args':{'query':{'use_saved_holdings':False,'starting_tier_ids':[]}}}]}},
+        {'action':'ANSWER','payload':{'text':'当前资料暂无已核实路径。'}}])
+    service=WorkspaceService(factory,provider);view=service.create()
+    with factory.begin() as s:
+        row=s.get(AgentInteraction,UUID(view['id']));row.state={**row.state,'task_context':{'intent':'ROUTES','target_scope':'ANY'},'query':None}
+    answer=send(service,view,'所有活动都给我列出来，我不知道有啥会籍')['messages'][-1]
+    assert any(b['tool']=='query_membership_routes' for b in answer['basis'])
+    assert '请告诉我你感兴趣' not in answer['text']
+
+
+@pytest.mark.parametrize('question',[
+    '我有金卡，给我所有可能的匹配路径 → 国泰航空',
+    '给我所有到 Royal Jordanian 的路径，我有金卡',
+    'I have Gold, show all paths to Vietnam Airlines',
+])
+def test_all_paths_does_not_preempt_semantic_destination(question):
+    from journeyplus.agent.task_context import prepare_task,apply_task_update,public_query
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={};prepare_task(state,question)
+    assert not state['explicit_broad_reply']
+    apply_task_update(state,TaskUpdate(intent='ROUTES',target_scope='SELECTED',target_text='requested destination'),question)
+    assert state['task_context']['target_scope']=='SELECTED'
+    assert public_query(state,{'target_program_id':'destination'})['target_program_id']=='destination'
+
+
+@pytest.mark.parametrize('scope',['UNSPECIFIED','ANY','SELECTED'])
+def test_source_clarification_cannot_drop_selected_target(scope):
+    from journeyplus.agent.task_context import prepare_task,apply_task_update,public_query
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={'task_context':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'chosen target'},
+           'query':{'target_program_id':'target','target_tier_id':'target-tier','max_amount':100},
+           'unresolved_question':{'field':'SOURCE_PROGRAM'}}
+    prepare_task(state,'源项目金卡')
+    apply_task_update(state,TaskUpdate(intent='ROUTES',target_scope=scope,source_changed=True),'源项目金卡')
+    assert state['task_context']['target_scope']=='SELECTED'
+    assert state['task_context']['target_text']=='chosen target'
+    q=public_query(state,{'starting_tier_ids':['source']})
+    assert q['target_program_id']=='target' and q['target_tier_id']=='target-tier'
+
+
+def test_supplied_destination_survives_stale_any_in_real_execution(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Source');t=c.tier(p.id,'Gold');source=str(t.id)
+        destination=str(c.program('Destination').id)
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    state={'routes':{},'steps':{},'task_context':{'intent':'ROUTES','target_scope':'ANY','category_scope':'ANY'},'unrestricted_route_active':True}
+    service._tool('query_membership_routes',{'query':{'starting_tier_ids':[source],'use_saved_holdings':False,'target_program_id':destination}},state,'补充来源')
+    assert state['query']['target_program_id']==destination
+    assert state['query']['starting_tier_ids']==[source]
+    assert state['task_context']['target_scope']=='SELECTED'
+
+
+def test_unresolved_selected_target_cannot_execute_unfiltered(factory):
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    state={'task_context':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'Desired Club'}}
+    with pytest.raises(WorkspaceError,match='不能执行全目标查询'):
+        service._tool('query_membership_routes',{'query':{'use_saved_holdings':False}},state,'来源金卡')
+    assert not state.get('route_searches')
+
+
+def test_explicit_target_change_removes_old_tier_and_explicit_any_clears_target():
+    from journeyplus.agent.task_context import prepare_task,apply_task_update,public_query
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={'task_context':{'intent':'ROUTES','target_scope':'SELECTED'},'query':{'starting_tier_ids':['source'],'target_program_id':'old','target_tier_id':'old-gold'}}
+    prepare_task(state,'改看另一个目标')
+    apply_task_update(state,TaskUpdate(intent='ROUTES',target_scope='SELECTED',target_changed=True,target_text='new'),'改看另一个目标')
+    q=public_query(state,{'target_program_id':'new'})
+    assert not q.get('target_tier_id')
+    state['query']={**state['query'],**q}
+    prepare_task(state,'目标不限，所有航司都可以')
+    apply_task_update(state,TaskUpdate(intent='ROUTES',target_scope='ANY',target_changed=True),'目标不限，所有航司都可以')
+    q=public_query(state,{})
+    assert not q.get('target_program_id') and not q.get('target_tier_id')
+    assert state['query']['starting_tier_ids']==['source']
+
+
+def test_missing_source_does_not_skip_independent_target_read(factory):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Golden Circle');c.tier(p.id,'Gold');c.program('Destination')
+    read={'action':'READ','task_update':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'Destination'},'payload':{'requests':[
+        {'tool':'query_activity_materials','args':{'view':'CATALOG','selector':{'text':'Gold'}}},
+        {'tool':'query_activity_materials','args':{'view':'CATALOG','selector':{'text':'Destination'}}}]}}
+    service=WorkspaceService(factory,SequenceAIProvider([read]));view=send(service,service.create(),'我有金卡，给我所有到 Destination 的匹配路径')
+    answer=view['messages'][-1]
+    assert len(answer['basis'])==2
+    assert '目标可以保持不限' not in answer['text']
+    from journeyplus.models import AgentInteraction
+    with factory() as s:
+        state=s.get(AgentInteraction,UUID(view['id'])).state
+        assert state['task_context']['target_text']=='Destination'
+        assert state['unresolved_question']['field']=='SOURCE_PROGRAM'
+
+
+def test_all_within_selected_scope_does_not_clear_destination():
+    from journeyplus.agent.task_context import prepare_task
+    state={'task_context':{'intent':'ROUTES','target_scope':'SELECTED'},'query':{'starting_tier_ids':['source'],'target_program_id':'target'}}
+    prepare_task(state,'所有都要')
+    assert not state['explicit_broad_reply']
+    assert state['query']['target_program_id']=='target'
+
+
+def test_unresolved_explicit_source_cannot_use_saved_or_all_identity_candidates(factory):
+    service=WorkspaceService(factory,SequenceAIProvider([]))
+    state={'source_identity_pending':True,'task_context':{'intent':'ROUTES','source_count':1}}
+    with pytest.raises(WorkspaceError,match='不能回退已保存会籍'):
+        service._tool('query_membership_routes',{'query':{'use_saved_holdings':True}},state,'金卡')
+    with pytest.raises(WorkspaceError,match='身份候选不等于'):
+        service._tool('query_membership_routes',{'query':{'starting_tier_ids':['a','b'],'use_saved_holdings':False}},state,'金卡')
+    assert not state.get('route_searches')
+
+
+def test_selected_target_allows_real_source_tier_clarification(factory):
+    provider=SequenceAIProvider([{'action':'ASK','task_update':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'Target'},'payload':{'question':'该金卡是哪个等级？','field':'SOURCE_TIER'}}])
+    service=WorkspaceService(factory,provider)
+    answer=send(service,service.create(),'我有金卡，给我所有到 Target 的匹配路径')['messages'][-1]
+    assert answer['text']=='该金卡是哪个等级？'
+    assert len(provider.calls)==1 and not answer['basis']
+
+
+def test_source_reply_is_looked_up_before_repeating_clarification(factory):
+    from journeyplus.models import AgentInteraction
+    ask={'action':'ASK','task_update':{'intent':'ROUTES','target_scope':'SELECTED'},'payload':{'field':'SOURCE_PROGRAM','question':'这个项目叫什么？'}}
+    read={'action':'READ','payload':{'requests':[{'tool':'query_activity_materials','args':{'view':'CATALOG','selector':{'text':'Unknown Programme'}}}]}}
+    provider=SequenceAIProvider([ask,read,ask]);service=WorkspaceService(factory,provider);view=service.create()
+    with factory.begin() as s:
+        row=s.get(AgentInteraction,UUID(view['id']));row.state={**row.state,'task_context':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'Target'},'unresolved_question':{'field':'SOURCE_PROGRAM'}}
+    answer=send(service,view,'Unknown Programme Gold')['messages'][-1]
+    assert any(b.get('view')=='CATALOG' for b in answer['basis'])
+    assert 'IDENTITY_CHECK_REQUIRED' in provider.calls[1]['user_prompt']
+
+
+@pytest.mark.parametrize('rank',['Gold','金卡'])
+def test_rank_lookup_cannot_invent_a_programme_via_alternate_names(factory,rank):
+    with factory.begin() as s:
+        c=CatalogService(s);p=c.program('Example Club');c.tier(p.id,'Gold')
+    result=WorkspaceService(factory,SequenceAIProvider([]))._tool('query_activity_materials',{'view':'CATALOG','selector':{'text':rank,'alternate_names':['Example Club']}},{},'我有金卡')
+    assert result['missing_input']=='SOURCE_PROGRAM'
+    assert result['data']['catalog']['programs']==[]
+
+
+def test_explicit_target_removal_rejects_stale_target_arguments(factory):
+    state={'task_context':{'intent':'ROUTES','target_scope':'ANY'},'target_change_requested':True}
+    with pytest.raises(WorkspaceError,match='取消了目标限制'):
+        WorkspaceService(factory,SequenceAIProvider([]))._tool('query_membership_routes',{'query':{'target_program_id':'old'}},state,'目标不限')
+    assert not state.get('route_searches')
+
+
+def test_explicit_target_reset_keeps_source_and_airline_filter():
+    from journeyplus.agent.task_context import prepare_task,public_query,explicit_target_reset
+    state={'task_context':{'intent':'ROUTES','target_scope':'SELECTED','target_text':'Prior target'},'query':{'starting_tier_ids':['source'],'target_program_id':'old','target_tier_id':'old-gold','max_amount':100}}
+    prepare_task(state,'目标不限，所有航司都可以')
+    assert state['explicit_broad_reply']
+    q=public_query(state,state['query'])
+    assert q['starting_tier_ids']==['source'] and q['max_amount']==100
+    assert q['target_program_id'] is None and q['target_tier_id'] is None
+    assert q['category']=='AIRLINE'
+    assert explicit_target_reset('目标不限，但只看某个项目') is None
+    assert explicit_target_reset('给我所有到某个项目的路径') is None
+
+
+def test_destination_update_retains_independent_category():
+    from journeyplus.agent.task_context import public_query
+    state={'query':{'category':'AIRLINE','target_program_id':'old'},'target_change_requested':True}
+    query=public_query(state,{'target_program_id':'new'})
+    assert query['category']=='AIRLINE' and query['target_program_id']=='new'
+
+
+def test_source_switch_invalidates_old_query_once_and_keeps_target():
+    from journeyplus.agent.task_context import prepare_task,apply_task_update
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={'query':{'starting_tier_ids':['old'],'target_program_id':'target','max_amount':100},'task_context':{'intent':'ROUTES','target_scope':'SELECTED'}}
+    prepare_task(state,'另一个项目金卡呢')
+    update=TaskUpdate(intent='ROUTES',source_changed=True,source_text='New Club Gold')
+    apply_task_update(state,update,'另一个项目金卡呢')
+    assert state['query']['starting_tier_ids']==[]
+    assert state['query']['target_program_id']=='target' and state['query']['max_amount']==100
+    assert state['replaced_source_ids']==['old']
+    state['query']['starting_tier_ids']=['new'];state['source_identity_pending']=False
+    apply_task_update(state,update,'另一个项目金卡呢')
+    assert state['query']['starting_tier_ids']==['new'] and not state['source_identity_pending']
+    apply_task_update(state,TaskUpdate(intent='ROUTES'),'另一个项目金卡呢')
+    assert state['query']['starting_tier_ids']==['new']
+
+
+def test_declared_source_switch_cannot_execute_old_source(factory):
+    state={'source_identity_pending':True,'replaced_source_ids':['old'],'source_change_requested':True,'task_context':{'intent':'ROUTES','source_count':1}}
+    with pytest.raises(WorkspaceError,match='被替换的旧起点'):
+        WorkspaceService(factory,SequenceAIProvider([]))._tool('query_membership_routes',{'query':{'starting_tier_ids':['old'],'use_saved_holdings':False}},state,'新项目金卡呢')
+    assert not state.get('route_searches')
+
+
+def test_simultaneous_source_and_scope_change_removes_both_old_conditions():
+    from journeyplus.agent.task_context import prepare_task,apply_task_update
+    from journeyplus.agent.workspace_contracts import TaskUpdate
+    state={'query':{'starting_tier_ids':['old'],'target_program_id':'old-target'},'task_context':{'intent':'ROUTES','target_scope':'SELECTED'}}
+    prepare_task(state,'把之前那个项目所有路径都给我')
+    apply_task_update(state,TaskUpdate(intent='ROUTES',source_changed=True,source_text='Earlier Gold',target_changed=True,target_scope='ANY'),'把之前那个项目所有路径都给我')
+    assert not state['query']['starting_tier_ids'] and not state['query'].get('target_program_id')
+    assert state['task_context']['target_scope']=='ANY'
+    assert state['task_context']['source_text']=='Earlier Gold'

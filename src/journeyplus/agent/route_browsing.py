@@ -27,7 +27,12 @@ def browse_routes(service,workspace_id,request):
         record=state.get('route_searches',{}).get(search_id)
         if record is None:raise WorkspaceError('原路径浏览快照已过期，请重新查询')
         route_service=RouteService(session)
-        packet=continue_search(state,request.cursor or _cursor(state,search_id,0),current_snapshot=route_service.current_snapshot(),query_hash=record['query_hash'],evaluation_context=route_service.evaluation_context())
+        shown=set(refs.decode([ref for block in original.get('blocks',[]) for ref in block.get('subject_refs',[])]))
+        offset=0
+        # Skip only a prefix actually displayed. A recommended subset may be
+        # non-contiguous; never skip undisclosed candidates between its items.
+        while offset<len(record['route_refs']) and record['route_refs'][offset] in shown:offset+=1
+        packet=continue_search(state,request.cursor or _cursor(state,search_id,offset),current_snapshot=route_service.current_snapshot(),query_hash=record['query_hash'],evaluation_context=route_service.evaluation_context())
         if packet['status']=='EXPIRED':raise WorkspaceError('资料、会籍或浏览快照已变化，请重新查询；原卡片保持不变')
     return _save_page(service,workspace_id,request.expected_revision,state,packet,key)
 
@@ -38,6 +43,16 @@ def explore_routes(service,workspace_id,request):
         row=service._load(session,workspace_id)
         if row.active_turn_id or row.revision!=request.expected_revision:raise WorkspaceError('工作区已改变，请刷新后重试')
         state=deepcopy(row.state)
+    # Form selections are explicit user input, not an inferred chat follow-up.
+    # Old conversational guards must not erase filters or reject a new source.
+    state.update(public_task_active=False,unrestricted_route_active=False,source_change_requested=True)
+    for field in ('turn_route_plan','planned_source_programs','planned_target_programs','planned_source_tier_groups','replaced_source_ids','source_identity_pending','target_change_requested','unresolved_question'):
+        state.pop(field,None)
+    query=request.query
+    public=query.use_saved_holdings is False and not query.starting_tier_ids
+    state['task_context']={'intent':'PUBLIC_OPPORTUNITIES' if public else 'ROUTES','hypothetical_empty':public,
+                          'target_scope':'SELECTED' if query.target_program_id or query.target_tier_id else 'ANY',
+                          'category_scope':'SELECTED' if query.category else 'ANY'}
     packet=service._tool('query_membership_routes',{'mode':'EXPLORE','query':request.query.model_dump(mode='json')},state,'按页面明确选择的条件探索')
     pending=state.get('pending_action')
     if pending and pending.get('kind')=='QUERY_ADJUST' and pending.get('query_hash')!=signature(state.get('query')):state.pop('pending_action',None)
@@ -53,8 +68,8 @@ def _save_page(service,workspace_id,revision,state,packet,key):
     # Applying the model token limit here could skip candidates as the cursor advances.
     refs.encode({'data':{'cards':packet['data']['cards'],'steps':packet['data']['steps']}})
     selected=[r['ref'] for r in packet['data']['cards']]
-    saved={key:state.get(key) for key in ('comparison_scope','current_question','current_research_results','last_research_state')}
-    state.update(comparison_scope=[],current_question='浏览原查询的匹配关系',current_research_results=[],last_research_state='NOT_REQUESTED')
+    saved={key:state.get(key) for key in ('comparison_scope','current_question','current_research_results','last_research_state','unrestricted_route_active')}
+    state.update(comparison_scope=[],current_question='浏览原查询的匹配关系',current_research_results=[],last_research_state='NOT_REQUESTED',unrestricted_route_active=False)
     presentation=service._assemble({'text':'原查询的路径浏览','blocks':[{'type':'route_graph','graph_mode':'EXPLORE','subject_refs':refs.encode(selected),'fact_refs':[]}] if selected else [],'next_steps':[]},state,refs)
     for block in presentation['blocks']:
         for route in block['payload'].get('routes',[]):
