@@ -1,6 +1,8 @@
 """Independent catalogue and version-bound activity reading."""
+from journeyplus.agent.harness.execution import blocking_tool
 from uuid import UUID
 from sqlalchemy import select
+from sqlalchemy.orm import load_only
 from journeyplus.knowledge.models import MembershipProgram, MembershipTier, MembershipAlias
 from journeyplus.knowledge.reads import ActivityReadService
 from journeyplus.agent.harness.contracts import ToolResult
@@ -13,7 +15,8 @@ def digest(value):
     return hashlib.sha256(json.dumps(value,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
 
 
-async def catalog(args, ctx):
+@blocking_tool
+def catalog(args, ctx):
     request=args.model_dump(mode='json',exclude={'cursor','limit'})
     request['query']=canonical(args.query)
     query_hash=digest(request)
@@ -23,8 +26,8 @@ async def catalog(args, ctx):
         if data.get('catalog_query_hash')!=query_hash or not offset.isdigit():raise ValueError('STALE_REFERENCE: catalog cursor does not match the query')
         return catalog_page(data['candidates'],ref,int(offset),args.limit)
     with ctx.services['knowledge'].read() as s:
-        programs = list(s.scalars(select(MembershipProgram).order_by(MembershipProgram.display_name)))
-        tiers = list(s.scalars(select(MembershipTier).order_by(MembershipTier.display_name)))
+        programs = list(s.scalars(select(MembershipProgram).options(load_only(MembershipProgram.id,MembershipProgram.display_name,MembershipProgram.canonical_key,MembershipProgram.category)).order_by(MembershipProgram.display_name)))
+        tiers = list(s.scalars(select(MembershipTier).options(load_only(MembershipTier.id,MembershipTier.program_id,MembershipTier.display_name,MembershipTier.canonical_key)).order_by(MembershipTier.display_name)))
         aliases = list(s.scalars(select(MembershipAlias)))
         allowed = None
         if args.program:
@@ -51,7 +54,7 @@ async def catalog(args, ctx):
                     combined=canonical(program.display_name+' '+tier.display_name+' '+' '.join(a['name'] for a in pa+ta))
                     if query in canonical(tier.display_name) or any(query in canonical(a['name']) for a in ta) or all(token in combined for token in query.split()):
                         results.append({'ref':'tier:'+str(tier.id),'program_ref':pref,'program_name':program.display_name,'name':tier.display_name,'aliases':ta,'match_basis':'tier_name_or_alias'})
-    ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'catalog_query_hash':query_hash,'candidates':results},call_id=ctx.call_id)
+    ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'catalog_query_hash':query_hash,'candidates':results},call_id=ctx.call_id,turn_id=ctx.turn_id)
     return catalog_page(results,ref,0,args.limit)
 
 
@@ -62,7 +65,8 @@ def catalog_page(results,ref,offset,limit):
         coverage={'complete':len(results)<=offset+limit,'returned':len(selected),'total':len(results),'omissions':[]})
 
 
-async def activity(args, ctx):
+@blocking_tool
+def activity(args, ctx):
     query_hash=digest(args.model_dump(mode='json',exclude={'cursor','limit'}))
     if args.cursor:
         ref,_,offset=args.cursor.rpartition('|')
@@ -126,7 +130,7 @@ async def activity(args, ctx):
             row=s.get(Activity,identity)
             selected_version=scoped_versions.get(identity,version) or (str(row.current_version_id) if row and row.current_version_id else None)
             if selected_version:selectors.append({'activity_ref':str(identity),'version_ref':selected_version})
-    collection=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'activity_query_hash':query_hash,'activity_selectors':selectors},call_id=ctx.call_id)
+    collection=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'activity_query_hash':query_hash,'activity_selectors':selectors},call_id=ctx.call_id,turn_id=ctx.turn_id)
     return material_page(selectors,collection,0,args,ctx)
 
 
@@ -158,7 +162,7 @@ def material_page(selectors,collection,offset,args,ctx):
     refs=[]
     summaries=[]
     for detail in details:
-        ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',detail,call_id=ctx.call_id)
+        ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',detail,call_id=ctx.call_id,turn_id=ctx.turn_id)
         refs.append(ref)
         summaries.append(summary(detail,ref,args.view))
     end=min(offset+args.limit,len(selectors))

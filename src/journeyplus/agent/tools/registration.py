@@ -2,6 +2,7 @@
 from journeyplus.agent.harness.contracts import ToolDefinition, ToolResult
 from .contracts import INPUTS
 from .results import OUTPUTS
+from .projection import trim_for
 
 METADATA = {
     'catalog.lookup': ('Search program and tier names and aliases. Optional; other tools accept names directly.', 'READ', 10, '查找名称目录'),
@@ -23,7 +24,7 @@ def definitions(handlers):
     async def unavailable(args, ctx):
         return ToolResult.failure('UNAVAILABLE','Capability not available in this runtime assembly',status='UNAVAILABLE')
     return [ToolDefinition(name=name,description=description,input_model=INPUTS[name],handler=handlers.get(name,unavailable),
-                          effect=effect,timeout_seconds=timeout,progress_label=label,output_model=OUTPUTS[name],
+                          effect=effect,version='2',trim_projection=trim_for(name),timeout_seconds=timeout,progress_label=label,output_model=OUTPUTS[name],
                           operation_result_max_bytes=({'inspect':24000,'compare':24000} if name=='routes.evaluate' else
                                                       {'detail':24000,'evidence':24000} if name=='activity.read' else {}),
                           result_budget_field='view' if name=='activity.read' else 'operation',

@@ -60,7 +60,7 @@ def test_postgres_atomic_effect_replay_and_crash_receipt(pg_factory):
         assert s.scalar(select(func.count()).select_from(StatusHolding).where(StatusHolding.program_display_name==program))==1
         assert s.scalar(select(func.count()).select_from(UserBusinessOperation))==before+1
     assert store.completed_operations(run)==[results[0].data['operation_ref']]
-    runtime.cancel(run);asyncio.run(runtime.run(run))
+    asyncio.run(runtime.cancel(run));asyncio.run(runtime.run(run))
     assert store.read(w['id'])['operations'][0]['operation_ref']==results[0].data['operation_ref']
 
 
@@ -94,6 +94,7 @@ def test_postgres_resume_pending_write_after_committed_effect(pg_factory):
         operation_key='save',authorization={'message_refs':[message.id],'quotes':[quote]})
     call={'call_id':'pending-write','name':'holdings.write','arguments':args.model_dump(mode='json',exclude_unset=True)}
     store.append_message(run,owner,ModelMessage(role='assistant',content=[Part(type='tool_call',**call)]))
+    call['tool_version']=runtime.ports.registry.validate(call['name'],call['arguments'])[0][0].version
     store.save_checkpoint(run,owner,phase='TOOLS_PENDING',pending_calls=[call])
     store.tool_intent(run,owner,call,'USER_WRITE')
     ctx=ExecutionContext(workspace['id'],state['turn_id'],call['call_id'],'local-user',

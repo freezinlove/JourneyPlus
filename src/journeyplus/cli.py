@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 from collections.abc import Sequence
@@ -119,6 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     product.add_argument("--host", default="127.0.0.1")
     product.add_argument("--port", default=8000, type=int)
+    product.add_argument("--no-agent", action="store_true", help="Serve business pages without constructing or probing an Agent model")
     collect = subparsers.add_parser("collect", help="Manually collect one source")
     collect.add_argument("source_id", choices=SOURCE_IDS)
     collect.add_argument("--idempotency-key")
@@ -291,12 +294,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error(str(exc))
         from journeyplus.agent.adapters.config import AgentConfig
         from journeyplus.agent.adapters.model import AgentModel
-        config=AgentConfig.from_env()
+        from journeyplus.agent.adapters.lazy_model import LazyModel
+        model = None if args.no_agent else LazyModel(lambda: AgentModel(AgentConfig.from_env()))
         uvicorn.run(
             create_product_app(
                 factory,
-                agent_model=AgentModel(config),
-                agent_network_enabled=config.network_enabled,
+                agent_model=model,
+                agent_network_enabled=not args.no_agent and os.getenv("JOURNEYPLUS_AGENT_NETWORK_ENABLED", "false").lower() == "true",
                 knowledge_read_mode=settings.knowledge_read_mode,
                 knowledge_user_writes_paused=settings.knowledge_user_writes_paused,
             ),

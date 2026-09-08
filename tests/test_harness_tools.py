@@ -1,6 +1,6 @@
 import asyncio
 from time import monotonic
-from uuid import UUID
+from uuid import UUID, uuid4
 import pytest
 from journeyplus.agent.composition import compose_business
 from journeyplus.agent.harness.contracts import ExecutionContext
@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 def context(factory):
     runtime,store=compose_business(factory,FakeModel([]));w=store.create()
-    return runtime,store,w,ExecutionContext(w['id'],'test','call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
+    return runtime,store,w,ExecutionContext(w['id'],str(uuid4()),'call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
 
 
 def test_identity_exact_and_ambiguity_never_guess(session_factory):

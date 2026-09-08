@@ -3,6 +3,7 @@ from journeyplus.agent.harness.contracts import Capabilities, ModelUnavailable
 
 
 class UnconfiguredModel:
+    disabled = True
     configuration_id = 'unconfigured-no-provider'
     protocol = 'native'
 

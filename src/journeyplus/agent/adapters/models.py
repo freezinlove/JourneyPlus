@@ -1,7 +1,7 @@
 """Additive runtime persistence. Durable operation receipts outlive workspaces."""
 from datetime import datetime
 from uuid import UUID, uuid4
-from sqlalchemy import ForeignKey, Integer, String, DateTime, Boolean, UniqueConstraint, Uuid, Index
+from sqlalchemy import ForeignKey, Integer, String, DateTime, Boolean, UniqueConstraint, Uuid, Index, text
 from sqlalchemy.orm import Mapped, mapped_column
 from journeyplus.models import Base, now_utc
 from journeyplus.knowledge.models import J
@@ -26,13 +26,17 @@ class RunCheckpoint(Base):
 
 class Artifact(Base):
     __tablename__ = 'agent_artifacts'
-    __table_args__ = (Index('ix_agent_artifact_scope_kind_time', 'workspace_id', 'kind', 'created_at'),)
+    __table_args__ = (Index('ix_agent_artifact_scope_kind_time', 'workspace_id', 'kind', 'created_at'),
+        Index('uq_agent_presentation_call_scope', 'workspace_id', 'created_by_turn_id', 'created_by_call_id',
+              unique=True, postgresql_where=text("kind = 'PRESENTATION' AND created_by_turn_id IS NOT NULL"),
+              sqlite_where=text("kind = 'PRESENTATION' AND created_by_turn_id IS NOT NULL")),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey('agent_interactions.id', ondelete='CASCADE'))
     kind: Mapped[str] = mapped_column(String(30))
     payload: Mapped[dict] = mapped_column(J)
     content_hash: Mapped[str] = mapped_column(String(64))
     source_refs: Mapped[list] = mapped_column(J, default=list)
+    created_by_turn_id: Mapped[UUID | None] = mapped_column(Uuid)
     created_by_call_id: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

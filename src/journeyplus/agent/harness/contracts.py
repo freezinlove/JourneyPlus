@@ -94,6 +94,12 @@ class ToolResult(DTO):
     cache: dict = Field(default_factory=lambda: {'hit': False, 'observed_at': None})
     metrics: dict = Field(default_factory=dict)
 
+    @model_validator(mode='after')
+    def error_has_no_implicit_complete_coverage(self):
+        if self.error is not None and 'coverage' not in self.model_fields_set:
+            self.coverage={'complete':False,'returned':0,'total':None,'omissions':['operation_not_completed']}
+        return self
+
     @classmethod
     def failure(cls, code, message, *, status='ERROR', **details):
         return cls(status=status, error=ToolError(code=code, message=message, **details),
@@ -111,9 +117,11 @@ class ExecutionContext:
     server_owner: str
     deadline: float
     cancel_token: asyncio.Event
-    artifact_port: Any
-    authorization_port: Any
+    artifact_port: ArtifactStore
+    authorization_port: WorkspacePort
     services: dict = field(default_factory=dict)
+    run_id: str | None = None
+    lease_owner: str | None = None
 
 
 @dataclass
@@ -133,6 +141,7 @@ class ToolDefinition:
     result_max_bytes: int = 12000
     operation_result_max_bytes: dict[str, int] = field(default_factory=dict)
     result_budget_field: str = 'operation'
+    trim_projection: Callable[[ToolResult], int | None] | None = None
 
     @property
     def input_schema(self):
@@ -155,12 +164,35 @@ class SessionStore(Protocol):
     def load_context_index(self, workspace_id: str) -> dict: ...
     def save_checkpoint(self, run_id: str, owner: str, **values) -> None: ...
     def finish_run(self, run_id: str, owner: str, status: str) -> None: ...
+    def heartbeat(self, run_id: str, owner: str) -> bool: ...
+    def request_cancel(self, run_id: str) -> None: ...
+    def tool_intent(self, run_id: str, owner: str, call: dict, effect: Effect) -> dict | None: ...
+    def tool_result(self, run_id: str, owner: str, call: dict, result: ToolResult) -> str: ...
+
 
 
 class ArtifactStore(Protocol):
     def put(self, workspace_id: str, kind: str, payload: dict, **metadata) -> str: ...
+    def put_once(self, workspace_id: str, kind: str, payload: dict, **metadata) -> str: ...
     def read(self, workspace_id: str, ref: str) -> dict: ...
     def search(self, workspace_id: str, **filters) -> dict: ...
+
+
+class WorkspacePort(Protocol):
+    def committed_call_result(self, workspace_id: str, turn_id: str, call_id: str) -> ToolResult | None: ...
+    def history(self, workspace_id: str, query=None, refs=None, cursor=None, limit=10) -> dict: ...
+    def load_context_index(self, workspace_id: str) -> dict: ...
+    def validate_reference(self, workspace_id: str, ref: str) -> None: ...
+    def save_note(self, workspace_id: str, turn_id: str, call_id: str, expected_revision: int,
+                  content: str, source_message_refs: list[str]) -> ToolResult: ...
+    def save_presentation(self, workspace_id: str, turn_id: str, call_id: str,
+                          replace_ref: str | None, build: Callable[[], dict]) -> tuple[str, dict]: ...
+
+
+class ToolRegistry(Protocol):
+    def definitions(self) -> list[ToolDefinition]: ...
+    def validate(self, name: str, arguments: dict) -> tuple: ...
+    async def execute(self, validated: tuple, context: ExecutionContext) -> ToolResult: ...
 
 
 class EventSink(Protocol):
@@ -172,6 +204,7 @@ class RuntimePorts:
     model: AgentModelPort
     sessions: SessionStore
     artifacts: ArtifactStore
-    registry: Any
+    registry: ToolRegistry
     events: EventSink
     clock: Callable[[], float]
+    workspace: WorkspacePort | None = None

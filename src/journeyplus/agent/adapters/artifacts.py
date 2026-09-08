@@ -1,4 +1,5 @@
 """Scoped temporary objects; a reference cannot grant cross-workspace access."""
+from journeyplus.agent.adapters.transactions import read_session
 import hashlib
 import json
 from uuid import UUID
@@ -27,26 +28,44 @@ class ArtifactStore:
     def __init__(self, factory):
         self.factory = factory
 
-    def put(self, workspace_id, kind, payload, *, call_id=None, source_refs=None):
-        with self.factory.begin() as s:
-            return self.put_in(s, workspace_id, kind, payload, call_id=call_id, source_refs=source_refs)
+    def put(self, workspace_id, kind, payload, *, call_id=None, turn_id=None, source_refs=None):
+        from journeyplus.agent.adapters.transactions import transaction
+        with transaction(self.factory) as s:
+            return self.put_in(s, workspace_id, kind, payload, call_id=call_id, turn_id=turn_id, source_refs=source_refs)
 
-    def put_in(self, s, workspace_id, kind, payload, *, call_id=None, source_refs=None):
+    def put_in(self, s, workspace_id, kind, payload, *, call_id=None, turn_id=None, source_refs=None):
         workspace = s.get(AgentInteraction, UUID(str(workspace_id)))
         if workspace is None or aware(workspace.expires_at) <= now_utc():
             raise LookupError('Workspace expired or missing')
         if len(json.dumps(payload, ensure_ascii=False, default=str).encode()) > 1_000_000:
             raise ValueError('Artifact exceeds one megabyte; split into referenced sections')
         row = Artifact(workspace_id=workspace.id, kind=kind, payload=payload,
-            content_hash=digest(payload), source_refs=source_refs or [], created_by_call_id=call_id,
+            content_hash=digest(payload), source_refs=source_refs or [], created_by_call_id=call_id, created_by_turn_id=UUID(str(turn_id)) if turn_id else None,
             expires_at=workspace.expires_at)
         s.add(row)
         s.flush()
         return 'artifact:'+str(row.id)
 
+    def put_once(self, workspace_id, kind, payload, *, call_id=None, turn_id=None, source_refs=None):
+        """Reuse an identical immutable view while this workspace remains alive."""
+        from journeyplus.agent.adapters.transactions import transaction
+        with transaction(self.factory) as session:
+            workspace = session.get(AgentInteraction, UUID(str(workspace_id)), with_for_update=True)
+            if workspace is None or aware(workspace.expires_at) <= now_utc():
+                raise LookupError('Workspace expired or missing')
+            old = session.scalar(select(Artifact).where(
+                Artifact.workspace_id == workspace.id, Artifact.kind == kind,
+                Artifact.content_hash == digest(payload), Artifact.source_refs == (source_refs or []),
+                Artifact.expires_at > now_utc())
+                .order_by(Artifact.created_at, Artifact.id).limit(1))
+            if old and old.source_refs == (source_refs or []):
+                return 'artifact:'+str(old.id)
+            return self.put_in(session, workspace_id, kind, payload, call_id=call_id,
+                               turn_id=turn_id, source_refs=source_refs)
+
     def read(self, workspace_id, ref):
         identity, fragment = parse_ref(ref)
-        with self.factory() as s:
+        with read_session(self.factory) as s:
             row = s.get(Artifact, identity)
             if row is None or row.workspace_id != UUID(str(workspace_id)) or aware(row.expires_at) <= now_utc():
                 raise LookupError('Artifact missing, expired or outside workspace')
@@ -60,13 +79,19 @@ class ArtifactStore:
             return {'ref': ref, 'kind': row.kind, 'payload': payload, 'source_refs': row.source_refs}
 
     def search(self, workspace_id, *, kind=None, limit=10, cursor=None, query=None):
-        with self.factory() as s:
+        with read_session(self.factory) as s:
             stmt = select(Artifact).where(Artifact.workspace_id == UUID(str(workspace_id)), Artifact.expires_at > now_utc())
             if kind:
                 stmt = stmt.where(Artifact.kind == kind)
-            rows = list(s.scalars(stmt.order_by(Artifact.created_at, Artifact.id)))
             if query:
-                rows = [r for r in rows if query.casefold() in json.dumps(r.payload, ensure_ascii=False).casefold()]
+                from .search import json_search
+                predicate=json_search(Artifact.payload,query,s.bind.dialect.name)
+                if predicate is not None:stmt=stmt.where(predicate)
+                matches=[row.id for row in s.scalars(stmt) if query.casefold() in json.dumps(row.payload,ensure_ascii=False).casefold()]
+                stmt=stmt.where(Artifact.id.in_(matches))
+            # Pagination and listing need no raw material/report/tool-result body.
+            rows=list(s.execute(stmt.with_only_columns(Artifact.id,Artifact.kind,Artifact.source_refs,
+                               Artifact.content_hash,Artifact.created_at).order_by(Artifact.created_at,Artifact.id)))
             from .pagination import page
             selected, next_cursor, total = page(rows, binding=[str(workspace_id), kind, query],
                 identity=lambda row: str(row.id), cursor=cursor, limit=limit)

@@ -16,7 +16,7 @@ def setup(factory):
     runtime,store=compose_business(factory,FakeModel([]))
     w=store.create();r=store.start(w['id'],'请保存我的测试俱乐部金卡。','save',0)
     message=store.load_context_index(w['id'])['messages'][0]
-    context=ExecutionContext(w['id'],'test','call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
+    context=ExecutionContext(w['id'],message.metadata['turn_id'],'call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
     args=HoldingsWriteInput(operation='create',identity={'program_name':'测试俱乐部','tier_name':'金卡'},authorization={'message_refs':[message.id],'quotes':['请保存我的测试俱乐部金卡。']},operation_key='save-one')
     return runtime,store,w,r,context,args
 

@@ -12,11 +12,23 @@ def matches(value,query):
     return query in str(value).casefold()
 
 
-def view(records,*,cursor=None,query=None):
+def view(records,*,cursor=None,query=None,limit=30):
+    if not 1 <= limit <= 30:raise ValueError('Artifact view limit must be between 1 and 30')
     encoded=json.dumps(records,ensure_ascii=False,sort_keys=True)
     key=hashlib.sha256((encoded+'\n'+(query or '')).encode()).hexdigest()[:24]
-    if len(encoded.encode())<=2500 and not cursor and not query:
-        return {'artifacts':records,'next_cursor':None}
+    small = len(encoded.encode()) <= 2500 and not query
+    if small:
+        offset = 0
+        if cursor:
+            saved, separator, raw = cursor.partition('|')
+            if saved != key or not separator or not raw.isdigit():
+                raise ValueError('STALE_REFERENCE: artifact cursor does not match these refs and query')
+            offset = int(raw)
+            if offset > len(records):raise ValueError('Invalid artifact cursor offset')
+        selected = records[offset:offset+limit]
+        end = offset+len(selected)
+        return {'artifacts': selected, 'total': len(records),
+                'next_cursor': key+'|'+str(end) if end<len(records) else None}
     chunks=[]
     def walk(ref,value,path,ancestors=()):
         serialized=json.dumps(value,ensure_ascii=False)
@@ -66,6 +78,6 @@ def view(records,*,cursor=None,query=None):
     selected=[];size=0
     for chunk in chunks[offset:]:
         length=len(json.dumps(chunk,ensure_ascii=False).encode())
-        if selected and size+length>2500:break
+        if len(selected)>=limit or selected and size+length>2500:break
         selected.append(chunk);size+=length
     return {'sections':selected,'section_count':len(chunks),'next_cursor':key+'|'+str(offset+len(selected)) if offset+len(selected)<len(chunks) else None}

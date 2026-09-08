@@ -1,0 +1,2683 @@
+{
+  "baseline": "6e18623",
+  "retirement_commit": "0dac715",
+  "count": 197,
+  "status": "系统侧整改回归和人工双视角检查完成；六规格矩阵见 remediation-review.md。模型语义验收待用户批准，不以历史 manual-evidence 代替。",
+  "items": [
+    {
+      "id": "T001",
+      "old_file": "tests/test_activity_research.py",
+      "old_test": "test_direct_activity_research_needs_no_route_or_holding_and_does_not_inherit_other_query",
+      "old_line": 10,
+      "disposition": "接口替代",
+      "reason": "research.parse 独立输入 PAGE/subject，无需路线；逐段披露保留来源。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_audit_boundaries.py"
+      ]
+    },
+    {
+      "id": "T002",
+      "old_file": "tests/test_activity_research.py",
+      "old_test": "test_activity_research_subjects_have_separate_disclosure_limit",
+      "old_line": 23,
+      "disposition": "接口替代",
+      "reason": "research.parse 独立输入 PAGE/subject，无需路线；逐段披露保留来源。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_audit_boundaries.py"
+      ]
+    },
+    {
+      "id": "T003",
+      "old_file": "tests/test_adjustments.py",
+      "old_test": "test_original_explicit_cap_survives_model_omission_or_relaxation",
+      "old_line": 7,
+      "disposition": "旧控制逻辑退役",
+      "reason": "不再按用户关键词覆盖模型参数；显式 query/patch 与原文历史保持可检查。",
+      "new_evidence": [
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_original_results_and_user_conditions"
+      ]
+    },
+    {
+      "id": "T004",
+      "old_file": "tests/test_adjustments.py",
+      "old_test": "test_guard_does_not_guess_ambiguous_or_unrelated_intent",
+      "old_line": 22,
+      "disposition": "旧控制逻辑退役",
+      "reason": "不再按用户关键词覆盖模型参数；显式 query/patch 与原文历史保持可检查。",
+      "new_evidence": [
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_original_results_and_user_conditions"
+      ]
+    },
+    {
+      "id": "T005",
+      "old_file": "tests/test_adjustments.py",
+      "old_test": "test_budget_adjustment_does_not_add_unrequested_free_or_no_challenge_constraints",
+      "old_line": 27,
+      "disposition": "旧控制逻辑退役",
+      "reason": "不再按用户关键词覆盖模型参数；显式 query/patch 与原文历史保持可检查。",
+      "new_evidence": [
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_original_results_and_user_conditions"
+      ]
+    },
+    {
+      "id": "T006",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_agent_page_and_unavailable_provider_do_not_break_product",
+      "old_line": 21,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T007",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_agent_api_exposes_typed_state_and_transition_errors",
+      "old_line": 51,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T008",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_agent_state_cleans_expired_short_term_interactions",
+      "old_line": 102,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T009",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_agent_provider_failure_is_isolated_from_deterministic_apis",
+      "old_line": 146,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T010",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_wait_hit_is_returned_once_without_leaking_raw_pending_state",
+      "old_line": 163,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T011",
+      "old_file": "tests/test_agent_api.py",
+      "old_test": "test_database_failure_returns_typed_service_unavailable",
+      "old_line": 210,
+      "disposition": "接口替代",
+      "reason": "v1 状态机退役；v3 生命周期、revision、幂等、过期与产品故障隔离继续保留。",
+      "new_evidence": [
+        "test_agent_lifecycle.py",
+        "test_harness_api.py",
+        "test_harness_memory.py"
+      ]
+    },
+    {
+      "id": "T012",
+      "old_file": "tests/test_agent_automation.py",
+      "old_test": "test_daily_wait_check_makes_zero_model_calls_without_hit",
+      "old_line": 23,
+      "disposition": "接口替代",
+      "reason": "命中和未命中都由确定性维护处理，不自动唤醒模型或消耗旧 pending。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_agent_lifecycle.py"
+      ]
+    },
+    {
+      "id": "T013",
+      "old_file": "tests/test_agent_automation.py",
+      "old_test": "test_daily_first_hit_resumes_agent_once",
+      "old_line": 42,
+      "disposition": "接口替代",
+      "reason": "命中和未命中都由确定性维护处理，不自动唤醒模型或消耗旧 pending。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_agent_lifecycle.py"
+      ]
+    },
+    {
+      "id": "T014",
+      "old_file": "tests/test_agent_automation.py",
+      "old_test": "test_daily_wait_hit_does_not_advance_when_model_budget_runs_out",
+      "old_line": 102,
+      "disposition": "接口替代",
+      "reason": "命中和未命中都由确定性维护处理，不自动唤醒模型或消耗旧 pending。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_agent_lifecycle.py"
+      ]
+    },
+    {
+      "id": "T015",
+      "old_file": "tests/test_agent_automation.py",
+      "old_test": "test_daily_maintenance_cleans_expired_workspace_without_model",
+      "old_line": 148,
+      "disposition": "接口替代",
+      "reason": "命中和未命中都由确定性维护处理，不自动唤醒模型或消耗旧 pending。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_agent_lifecycle.py"
+      ]
+    },
+    {
+      "id": "T016",
+      "old_file": "tests/test_agent_config.py",
+      "old_test": "test_agent_runtime_defaults_are_bounded",
+      "old_line": 11,
+      "disposition": "契约替代",
+      "reason": "旧三次模型/两页门槛退役，采用配置与 harness 总预算、单工具期限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_runtime.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T017",
+      "old_file": "tests/test_agent_config.py",
+      "old_test": "test_agent_runtime_rejects_limits_above_product_boundary",
+      "old_line": 39,
+      "disposition": "契约替代",
+      "reason": "旧三次模型/两页门槛退役，采用配置与 harness 总预算、单工具期限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_runtime.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T018",
+      "old_file": "tests/test_agent_config.py",
+      "old_test": "test_runtime_components_reject_unbounded_direct_configuration",
+      "old_line": 48,
+      "disposition": "契约替代",
+      "reason": "旧三次模型/两页门槛退役，采用配置与 harness 总预算、单工具期限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_runtime.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T019",
+      "old_file": "tests/test_agent_contracts.py",
+      "old_test": "test_candidate_target_and_maximum_are_strict",
+      "old_line": 22,
+      "disposition": "契约替代",
+      "reason": "旧策略动作 DTO 退役；严格模型协议、12 工具输入输出与报告 DTO 仍受限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_model.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T020",
+      "old_file": "tests/test_agent_contracts.py",
+      "old_test": "test_agent_turn_message_and_recommendation_bounds_are_strict",
+      "old_line": 34,
+      "disposition": "契约替代",
+      "reason": "旧策略动作 DTO 退役；严格模型协议、12 工具输入输出与报告 DTO 仍受限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_model.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T021",
+      "old_file": "tests/test_agent_contracts.py",
+      "old_test": "test_statusmatcher_observation_has_bounded_reports",
+      "old_line": 51,
+      "disposition": "契约替代",
+      "reason": "旧策略动作 DTO 退役；严格模型协议、12 工具输入输出与报告 DTO 仍受限。",
+      "new_evidence": [
+        "test_harness_contracts.py",
+        "test_harness_model.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T022",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_new_holding_requires_confirmation_before_persisting",
+      "old_line": 68,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T023",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_existing_holding_can_go_directly_to_recommendation",
+      "old_line": 138,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T024",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_unknown_route_is_explained_without_being_recommended",
+      "old_line": 162,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T025",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_provider_failure_after_confirmed_holding_keeps_write_and_degrades",
+      "old_line": 205,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T026",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_illegal_strategy_action_is_rejected",
+      "old_line": 239,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T027",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_research_path_obeys_three_call_budget",
+      "old_line": 278,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T028",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_explicit_research_request_cannot_be_silently_skipped",
+      "old_line": 333,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T029",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_no_solution_proposes_one_adjustment_then_offers_waiting",
+      "old_line": 357,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T030",
+      "old_file": "tests/test_agent_controller.py",
+      "old_test": "test_confirmed_adjustment_requeries_only_changed_condition",
+      "old_line": 422,
+      "disposition": "旧控制逻辑退役",
+      "reason": "CONFIRM/RECOMMEND/PROPOSE_ADJUSTMENT 等强制策略状态机退役；授权、预算和已提交事实由通用运行层保留。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_execution_boundaries.py"
+      ]
+    },
+    {
+      "id": "T031",
+      "old_file": "tests/test_agent_delivery.py",
+      "old_test": "test_delivery_persists_terminal_and_resumes_without_duplicate_turn",
+      "old_line": 11,
+      "disposition": "接口替代",
+      "reason": "增量事件、持久化中断文本、终态与恢复，改由 delivery/checkpoint 实现。",
+      "new_evidence": [
+        "test_harness_recovery.py",
+        "test_harness_postgres.py"
+      ]
+    },
+    {
+      "id": "T032",
+      "old_file": "tests/test_agent_delivery.py",
+      "old_test": "test_stale_delivery_is_marked_incomplete_once",
+      "old_line": 25,
+      "disposition": "接口替代",
+      "reason": "增量事件、持久化中断文本、终态与恢复，改由 delivery/checkpoint 实现。",
+      "new_evidence": [
+        "test_harness_recovery.py",
+        "test_harness_postgres.py"
+      ]
+    },
+    {
+      "id": "T033",
+      "old_file": "tests/test_agent_delivery.py",
+      "old_test": "test_failed_partial_stream_is_durable_and_expires_with_workspace",
+      "old_line": 40,
+      "disposition": "接口替代",
+      "reason": "增量事件、持久化中断文本、终态与恢复，改由 delivery/checkpoint 实现。",
+      "new_evidence": [
+        "test_harness_recovery.py",
+        "test_harness_postgres.py"
+      ]
+    },
+    {
+      "id": "T034",
+      "old_file": "tests/test_agent_narration.py",
+      "old_test": "test_actual_incremental_sentence_delivery_before_generator_finishes",
+      "old_line": 4,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除关键词数值过滤与服务端重写回答；原始证据、币种、UNKNOWN 必须完整提供，最终语言正确性属于待批准的模型验收。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T035",
+      "old_file": "tests/test_agent_narration.py",
+      "old_test": "test_unverified_numeric_claim_not_released",
+      "old_line": 16,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除关键词数值过滤与服务端重写回答；原始证据、币种、UNKNOWN 必须完整提供，最终语言正确性属于待批准的模型验收。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T036",
+      "old_file": "tests/test_agent_narration.py",
+      "old_test": "test_currency_and_amount_cannot_be_swapped_or_invented",
+      "old_line": 25,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除关键词数值过滤与服务端重写回答；原始证据、币种、UNKNOWN 必须完整提供，最终语言正确性属于待批准的模型验收。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T037",
+      "old_file": "tests/test_agent_narration.py",
+      "old_test": "test_research_does_not_reintroduce_qualification_or_ask_for_preferences",
+      "old_line": 31,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除关键词数值过滤与服务端重写回答；原始证据、币种、UNKNOWN 必须完整提供，最终语言正确性属于待批准的模型验收。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T038",
+      "old_file": "tests/test_agent_narration.py",
+      "old_test": "test_unknown_price_can_be_explained_without_claiming_free_or_paid",
+      "old_line": 43,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除关键词数值过滤与服务端重写回答；原始证据、币种、UNKNOWN 必须完整提供，最终语言正确性属于待批准的模型验收。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T039",
+      "old_file": "tests/test_agent_waiting.py",
+      "old_test": "test_wait_check_uses_no_agent_until_first_new_hit_and_deduplicates",
+      "old_line": 81,
+      "disposition": "契约替代",
+      "reason": "取消/持久化/去重保留；首次命中调用模型、读取即消费、旧 COMPLETE 命令退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_regressions.py::test_waiting_replay_preserves_receipt_refs"
+      ]
+    },
+    {
+      "id": "T040",
+      "old_file": "tests/test_agent_waiting.py",
+      "old_test": "test_wait_goal_cancel_stops_future_checks",
+      "old_line": 136,
+      "disposition": "契约替代",
+      "reason": "取消/持久化/去重保留；首次命中调用模型、读取即消费、旧 COMPLETE 命令退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_regressions.py::test_waiting_replay_preserves_receipt_refs"
+      ]
+    },
+    {
+      "id": "T041",
+      "old_file": "tests/test_agent_waiting.py",
+      "old_test": "test_wait_goal_can_be_explicitly_finished",
+      "old_line": 150,
+      "disposition": "契约替代",
+      "reason": "取消/持久化/去重保留；首次命中调用模型、读取即消费、旧 COMPLETE 命令退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_regressions.py::test_waiting_replay_preserves_receipt_refs"
+      ]
+    },
+    {
+      "id": "T042",
+      "old_file": "tests/test_agent_waiting.py",
+      "old_test": "test_wait_hit_failure_does_not_advance_signature",
+      "old_line": 161,
+      "disposition": "契约替代",
+      "reason": "取消/持久化/去重保留；首次命中调用模型、读取即消费、旧 COMPLETE 命令退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_regressions.py::test_waiting_replay_preserves_receipt_refs"
+      ]
+    },
+    {
+      "id": "T043",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_unknown_challenge_partial_search_and_document_country_are_not_claimed_known",
+      "old_line": 17,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T044",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_real_residency_condition_is_allowed",
+      "old_line": 28,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T045",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_assembly_replaces_contradiction_without_model_and_rejects_hidden_references",
+      "old_line": 33,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T046",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_route_block_rejects_fact_from_different_step",
+      "old_line": 47,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T047",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_route_formal_text_is_not_dependent_on_keyword_guard",
+      "old_line": 54,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T048",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_formal_route_text_preserves_paid_intermediate_membership",
+      "old_line": 65,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T049",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_activity_currency_comparison_preserves_scope_without_subtraction",
+      "old_line": 74,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T050",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_specific_target_fee_and_unmapped_upgrade_caveat_are_not_lost",
+      "old_line": 86,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T051",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_compound_route_question_returns_bound_document_requirements",
+      "old_line": 99,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T052",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_validity_fallback_keeps_duration_anchor_without_extra_model",
+      "old_line": 109,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T053",
+      "old_file": "tests/test_answer_grounding.py",
+      "old_test": "test_activity_price_answer_does_not_mix_old_and_current_versions",
+      "old_line": 116,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "服务端重写正文退役；费用、限定条件、来源版本和选定对象必须可回溯，语义由人工及后续批准的模型验收。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_knowledge.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T054",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_comparison_preserves_intermediate_step_unknowns_and_separate_currencies",
+      "old_line": 8,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T055",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_unknown_model_comparison_dimension_cannot_become_a_formal_claim",
+      "old_line": 21,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T056",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_explicit_validity_dimension_survives_budget_fallback",
+      "old_line": 26,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T057",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_comparison_display_respects_explicit_graph_request",
+      "old_line": 32,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T058",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_explicit_pair_cannot_be_lost_when_model_selects_only_one",
+      "old_line": 39,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T059",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_new_explicit_target_does_not_inherit_old_comparison_scope",
+      "old_line": 48,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T060",
+      "old_file": "tests/test_comparison.py",
+      "old_test": "test_same_turn_two_target_queries_preserve_both_in_fallback",
+      "old_line": 55,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "不从中文关键词生成比较范围；模型显式选择对象/列，保留每步条件与币种。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T061",
+      "old_file": "tests/test_completion.py",
+      "old_test": "test_explicit_assessment",
+      "old_line": 12,
+      "disposition": "旧控制逻辑退役",
+      "reason": "删除正则判定任务是否完成/是否强制查询；模型选择调用，通用预算决定运行终止。",
+      "new_evidence": [
+        "test_harness_runtime.py::test_zero_tool_answer",
+        "test_harness_evaluation.py"
+      ]
+    },
+    {
+      "id": "T062",
+      "old_file": "tests/test_completion.py",
+      "old_test": "test_no_forced_pipeline",
+      "old_line": 24,
+      "disposition": "旧控制逻辑退役",
+      "reason": "删除正则判定任务是否完成/是否强制查询；模型选择调用，通用预算决定运行终止。",
+      "new_evidence": [
+        "test_harness_runtime.py::test_zero_tool_answer",
+        "test_harness_evaluation.py"
+      ]
+    },
+    {
+      "id": "T063",
+      "old_file": "tests/test_display_focus.py",
+      "old_test": "test_clicked_node_narrows_qualification_to_its_visible_route",
+      "old_line": 4,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "显式用户焦点及 ref 进入上下文，不再靠话术正则推断资格问题。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T064",
+      "old_file": "tests/test_display_focus.py",
+      "old_test": "test_unambiguous_qualification_reuses_last_route_but_not_ambiguous_pair",
+      "old_line": 17,
+      "disposition": "接口替代；语义目标保留",
+      "reason": "显式用户焦点及 ref 进入上下文，不再靠话术正则推断资格问题。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T065",
+      "old_file": "tests/test_material_references.py",
+      "old_test": "test_nested_price_and_evidence_are_owned_but_catalog_is_not",
+      "old_line": 4,
+      "disposition": "接口替代",
+      "reason": "版本绑定材料与证据，改为 activity@version/作用域 artifact 与不可变 RouteObject。",
+      "new_evidence": [
+        "test_harness_tools.py::test_activity_read_accepts_computed_route_and_preserves_version",
+        "test_harness_tools.py::test_route_object_rejects_wrong_kind_root_and_missing_steps",
+        "test_knowledge.py::test_evidence_must_belong_to_bound_document"
+      ]
+    },
+    {
+      "id": "T066",
+      "old_file": "tests/test_material_references.py",
+      "old_test": "test_evidence_cannot_cross_activity_versions",
+      "old_line": 12,
+      "disposition": "接口替代",
+      "reason": "版本绑定材料与证据，改为 activity@version/作用域 artifact 与不可变 RouteObject。",
+      "new_evidence": [
+        "test_harness_tools.py::test_activity_read_accepts_computed_route_and_preserves_version",
+        "test_harness_tools.py::test_route_object_rejects_wrong_kind_root_and_missing_steps",
+        "test_knowledge.py::test_evidence_must_belong_to_bound_document"
+      ]
+    },
+    {
+      "id": "T067",
+      "old_file": "tests/test_material_references.py",
+      "old_test": "test_combined_envelope_keeps_nested_fact_ownership",
+      "old_line": 19,
+      "disposition": "接口替代",
+      "reason": "版本绑定材料与证据，改为 activity@version/作用域 artifact 与不可变 RouteObject。",
+      "new_evidence": [
+        "test_harness_tools.py::test_activity_read_accepts_computed_route_and_preserves_version",
+        "test_harness_tools.py::test_route_object_rejects_wrong_kind_root_and_missing_steps",
+        "test_knowledge.py::test_evidence_must_belong_to_bound_document"
+      ]
+    },
+    {
+      "id": "T068",
+      "old_file": "tests/test_presentation_nodes.py",
+      "old_test": "test_shared_target_node_preserves_each_incoming_option_and_history",
+      "old_line": 4,
+      "disposition": "接口替代",
+      "reason": "展示使用不可变路线步骤与模型选择顺序，图节点不能吞掉平行选项。",
+      "new_evidence": [
+        "test_harness_tools.py::test_route_artifact_preserves_explicit_inputs_and_display_order",
+        "test_harness_tools.py::test_same_path_rule_variants_are_counted_across_pages_without_invented_steps",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T069",
+      "old_file": "tests/test_read_basis.py",
+      "old_test": "test_receipt_preserves_versions_and_coverage_without_source_or_report_bodies",
+      "old_line": 4,
+      "disposition": "契约替代",
+      "reason": "旧 basis 摘要退役，ToolResult 的来源、覆盖和完整结果引用继续保留，不能伪造已读取状态。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_audit_regressions.py::test_recovery_uses_same_bounded_projection"
+      ]
+    },
+    {
+      "id": "T070",
+      "old_file": "tests/test_read_basis.py",
+      "old_test": "test_disabled_gate_does_not_fabricate_a_version_or_coverage",
+      "old_line": 14,
+      "disposition": "契约替代",
+      "reason": "旧 basis 摘要退役，ToolResult 的来源、覆盖和完整结果引用继续保留，不能伪造已读取状态。",
+      "new_evidence": [
+        "test_harness_model.py::test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns",
+        "test_harness_audit_regressions.py::test_recovery_uses_same_bounded_projection"
+      ]
+    },
+    {
+      "id": "T071",
+      "old_file": "tests/test_recommendation.py",
+      "old_test": "test_explicit_recommendation_presentation_intent",
+      "old_line": 4,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "不再服务端固定推荐三个/自动排序；模型选择主次和顺序，展示校验角色及对象真实性。",
+      "new_evidence": [
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T072",
+      "old_file": "tests/test_recommendation.py",
+      "old_test": "test_recommendation_has_one_primary_keeps_nearby_distinct_and_preserves_exploration",
+      "old_line": 11,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "不再服务端固定推荐三个/自动排序；模型选择主次和顺序，展示校验角色及对象真实性。",
+      "new_evidence": [
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T073",
+      "old_file": "tests/test_recommendation.py",
+      "old_test": "test_equal_steps_prefers_proven_free_without_guessing_tier_value_or_exchange",
+      "old_line": 22,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "不再服务端固定推荐三个/自动排序；模型选择主次和顺序，展示校验角色及对象真实性。",
+      "new_evidence": [
+        "test_harness_contracts.py::test_display_preserves_order_and_rejects_false_roles",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T074",
+      "old_file": "tests/test_research_cache.py",
+      "old_test": "test_context_change_reuses_reports_but_rechecks_comparability",
+      "old_line": 6,
+      "disposition": "契约替代",
+      "reason": "公开 HTTP 缓存与工作区 PAGE/REPORT 分离；允许显式临时原文，TTL 与引用作用域仍隔离。",
+      "new_evidence": [
+        "test_harness_network.py::test_public_reader_pins_dns_preserves_cache_timestamp_and_refreshes",
+        "test_harness_runtime.py::test_artifact_scope_and_idempotent_start",
+        "test_harness_memory.py::test_workspace_expiry_preserves_operation_receipt"
+      ]
+    },
+    {
+      "id": "T075",
+      "old_file": "tests/test_research_cache.py",
+      "old_test": "test_cache_never_outlives_workspace_and_does_not_store_html",
+      "old_line": 18,
+      "disposition": "契约替代",
+      "reason": "公开 HTTP 缓存与工作区 PAGE/REPORT 分离；允许显式临时原文，TTL 与引用作用域仍隔离。",
+      "new_evidence": [
+        "test_harness_network.py::test_public_reader_pins_dns_preserves_cache_timestamp_and_refreshes",
+        "test_harness_runtime.py::test_artifact_scope_and_idempotent_start",
+        "test_harness_memory.py::test_workspace_expiry_preserves_operation_receipt"
+      ]
+    },
+    {
+      "id": "T076",
+      "old_file": "tests/test_research_cache.py",
+      "old_test": "test_metadata_cannot_smuggle_raw_page_into_workspace",
+      "old_line": 28,
+      "disposition": "契约替代",
+      "reason": "公开 HTTP 缓存与工作区 PAGE/REPORT 分离；允许显式临时原文，TTL 与引用作用域仍隔离。",
+      "new_evidence": [
+        "test_harness_network.py::test_public_reader_pins_dns_preserves_cache_timestamp_and_refreshes",
+        "test_harness_runtime.py::test_artifact_scope_and_idempotent_start",
+        "test_harness_memory.py::test_workspace_expiry_preserves_operation_receipt"
+      ]
+    },
+    {
+      "id": "T077",
+      "old_file": "tests/test_research_intent.py",
+      "old_test": "test_capability_notice_only_for_explicit_request",
+      "old_line": 4,
+      "disposition": "旧控制逻辑退役",
+      "reason": "删除关键词意图/refresh 判断；模型显式选择研究工具和 refresh，网络能力开关继续有效。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T078",
+      "old_file": "tests/test_research_intent.py",
+      "old_test": "test_long_named_step_does_not_hide_disabled_capability",
+      "old_line": 12,
+      "disposition": "旧控制逻辑退役",
+      "reason": "删除关键词意图/refresh 判断；模型显式选择研究工具和 refresh，网络能力开关继续有效。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T079",
+      "old_file": "tests/test_research_intent.py",
+      "old_test": "test_repeat_reuses_cache_unless_fresh_source_is_requested",
+      "old_line": 18,
+      "disposition": "旧控制逻辑退役",
+      "reason": "删除关键词意图/refresh 判断；模型显式选择研究工具和 refresh，网络能力开关继续有效。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T080",
+      "old_file": "tests/test_research_ordering.py",
+      "old_test": "test_step_evidence_dominance_retains_unread_candidate_and_does_not_mutate",
+      "old_line": 15,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "删除服务端经验驱动重排；报告不等于审批概率，不合并不同步骤及不可比样本。",
+      "new_evidence": [
+        "test_step_observations.py",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T081",
+      "old_file": "tests/test_research_ordering.py",
+      "old_test": "test_denials_are_evidence_not_a_false_success_metric",
+      "old_line": 23,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "删除服务端经验驱动重排；报告不等于审批概率，不合并不同步骤及不可比样本。",
+      "new_evidence": [
+        "test_step_observations.py",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T082",
+      "old_file": "tests/test_research_ordering.py",
+      "old_test": "test_ambiguous_context_old_version_partial_cases_or_explicit_preferences_do_not_reorder",
+      "old_line": 31,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "删除服务端经验驱动重排；报告不等于审批概率，不合并不同步骤及不可比样本。",
+      "new_evidence": [
+        "test_step_observations.py",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T083",
+      "old_file": "tests/test_research_ordering.py",
+      "old_test": "test_investigated_near_miss_cannot_outrank_feasible_route",
+      "old_line": 45,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "删除服务端经验驱动重排；报告不等于审批概率，不合并不同步骤及不可比样本。",
+      "new_evidence": [
+        "test_step_observations.py",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T084",
+      "old_file": "tests/test_research_ordering.py",
+      "old_test": "test_multi_step_counts_are_not_pooled",
+      "old_line": 51,
+      "disposition": "旧控制逻辑退役；事实目标保留",
+      "reason": "删除服务端经验驱动重排；报告不等于审批概率，不合并不同步骤及不可比样本。",
+      "new_evidence": [
+        "test_step_observations.py",
+        "test_harness_tools.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T085",
+      "old_file": "tests/test_research_presentation.py",
+      "old_test": "test_presentation_keeps_only_selected_step_and_matching_official_version",
+      "old_line": 5,
+      "disposition": "接口替代",
+      "reason": "模型选定的研究 ref 与展示对象做身份兼容校验，保留真实来源和正式版本。",
+      "new_evidence": [
+        "test_harness_tools.py",
+        "test_harness_audit_boundaries.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T086",
+      "old_file": "tests/test_research_recheck.py",
+      "old_test": "test_recheck_reads_each_activity_once_and_preserves_unreviewed_status",
+      "old_line": 5,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除自动正式重查管线；研究和正式版本读取是独立工具，是否重查由模型决定。",
+      "new_evidence": [
+        "test_harness_tools.py::test_activity_read_accepts_computed_route_and_preserves_version",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T087",
+      "old_file": "tests/test_research_recheck.py",
+      "old_test": "test_signal_after_display_citation_limit_still_triggers_official_read",
+      "old_line": 20,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除自动正式重查管线；研究和正式版本读取是独立工具，是否重查由模型决定。",
+      "new_evidence": [
+        "test_harness_tools.py::test_activity_read_accepts_computed_route_and_preserves_version",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T088",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_browse_paginates_without_messages_models_or_candidate_loss",
+      "old_line": 32,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T089",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_browse_rejects_wrong_presentation_and_changed_knowledge",
+      "old_line": 50,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T090",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_browsed_objects_join_reference_context_without_fake_conversation",
+      "old_line": 60,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T091",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_explicit_explorer_query_uses_filters_without_model_or_holding_writes",
+      "old_line": 69,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T092",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_page_numbers_follow_full_query_order",
+      "old_line": 88,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T093",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_browsing_earlier_public_routes_does_not_inherit_current_source_scope",
+      "old_line": 97,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T094",
+      "old_file": "tests/test_route_browsing.py",
+      "old_test": "test_explicit_form_can_change_source_and_target_after_broad_chat",
+      "old_line": 106,
+      "disposition": "接口替代",
+      "reason": "公共 explore 与工作区展示分页分开；浏览不调用模型，绑定原结果顺序、版本及展示 revision。",
+      "new_evidence": [
+        "test_harness_api.py::test_presentation_paging_scope_order_and_render_failure_context",
+        "test_harness_postgres.py::test_postgres_jsonb_route_pagination_retains_snapshot_order",
+        "test_knowledge_independent_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T095",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_is_disabled_without_network_access",
+      "old_line": 63,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T096",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_parses_only_comparable_obtaining_reports",
+      "old_line": 78,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T097",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_checks_bounded_pages_and_deduplicates_reports",
+      "old_line": 104,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T098",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_unknown_company_fails_closed",
+      "old_line": 128,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T099",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_network_and_parser_failures_degrade",
+      "old_line": 143,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T100",
+      "old_file": "tests/test_statusmatcher_experience.py",
+      "old_test": "test_statusmatcher_response_size_is_bounded",
+      "old_line": 170,
+      "disposition": "契约替代",
+      "reason": "网页搜索/读取/报告解析拆开；固定公司映射、两页额度与列表摘要算报告退役。网络大小、失败、真实身份与未知仍校验。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_report_pages.py",
+        "test_step_observations.py"
+      ]
+    },
+    {
+      "id": "T101",
+      "old_file": "tests/test_step_research.py",
+      "old_test": "test_dual_gate_performs_no_http",
+      "old_line": 8,
+      "disposition": "契约替代",
+      "reason": "旧两列表再八报告的组合工具退役；各网页/报告独立保留，后续失败不抹掉先前证据。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_runtime.py::test_provider_failure_preserves_partial_text_without_format_retry",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T102",
+      "old_file": "tests/test_step_research.py",
+      "old_test": "test_detail_only_observations_survive_later_page_failure_and_cache_without_html",
+      "old_line": 16,
+      "disposition": "契约替代",
+      "reason": "旧两列表再八报告的组合工具退役；各网页/报告独立保留，后续失败不抹掉先前证据。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_runtime.py::test_provider_failure_preserves_partial_text_without_format_retry",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T103",
+      "old_file": "tests/test_step_research.py",
+      "old_test": "test_research_packet_survives_model_allowlist_without_full_report_dump",
+      "old_line": 38,
+      "disposition": "契约替代",
+      "reason": "旧两列表再八报告的组合工具退役；各网页/报告独立保留，后续失败不抹掉先前证据。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_runtime.py::test_provider_failure_preserves_partial_text_without_format_retry",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T104",
+      "old_file": "tests/test_step_research.py",
+      "old_test": "test_two_lists_are_read_before_eight_detail_limit",
+      "old_line": 53,
+      "disposition": "契约替代",
+      "reason": "旧两列表再八报告的组合工具退役；各网页/报告独立保留，后续失败不抹掉先前证据。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_runtime.py::test_provider_failure_preserves_partial_text_without_format_retry",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T105",
+      "old_file": "tests/test_step_research.py",
+      "old_test": "test_unavailable_second_step_does_not_erase_first_step_observations",
+      "old_line": 71,
+      "disposition": "契约替代",
+      "reason": "旧两列表再八报告的组合工具退役；各网页/报告独立保留，后续失败不抹掉先前证据。",
+      "new_evidence": [
+        "test_harness_network.py",
+        "test_harness_runtime.py::test_provider_failure_preserves_partial_text_without_format_retry",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T106",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_plan_replaces_source_before_execution_and_keeps_destination",
+      "old_line": 24,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T107",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_plan_cannot_be_overwritten_by_later_default_task_update",
+      "old_line": 58,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T108",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_plan_missing_source_still_reads_and_keeps_target",
+      "old_line": 65,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T109",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_replaced_source_must_belong_to_planned_catalogue",
+      "old_line": 76,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T110",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_registered_tier_aliases_constrain_selection_without_brand_rules",
+      "old_line": 86,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T111",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_inherited_unresolved_target_is_located_during_source_reply",
+      "old_line": 100,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T112",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_normalized_lookup_finds_catalogue_when_original_language_is_absent",
+      "old_line": 112,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T113",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_compound_lookup_requires_real_rank_in_programme",
+      "old_line": 127,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T114",
+      "old_file": "tests/test_turn_planning.py",
+      "old_test": "test_pending_identities_keep_normalized_terms_across_clarification",
+      "old_line": 138,
+      "disposition": "旧控制逻辑退役；语义目标保留",
+      "reason": "删除 PLAN/任务状态和二次参数覆盖；名称/别名定位、明确来源目标及历史条件通过工具输入和不可变查询暴露。",
+      "new_evidence": [
+        "test_harness_tools.py::test_identity_exact_and_ambiguity_never_guess",
+        "test_harness_tools.py::test_query_patch_replaces_target_and_sources",
+        "test_harness_contracts.py::test_history_preserves_last_search_scope_after_inspect_and_explicit_reset",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T115",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_chat_has_no_business_reads_and_retry_is_idempotent",
+      "old_line": 39,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T116",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_invalid_action_repairs_once_without_forcing_target",
+      "old_line": 52,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T117",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_two_bad_formats_are_recoverable_and_keep_input",
+      "old_line": 60,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T118",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unknown_action_is_distinct_from_missing_schema_fields",
+      "old_line": 69,
+      "disposition": "接口替代",
+      "reason": "未知工具与参数校验错误独立返回，不套旧 action 枚举。",
+      "new_evidence": [
+        "test_harness_runtime.py::test_unknown_tool_returns_to_model",
+        "test_harness_contracts.py::test_registry_keeps_missing_reference_and_output_errors_distinct"
+      ]
+    },
+    {
+      "id": "T119",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_provider_connection_failure_is_not_unstructured_output",
+      "old_line": 77,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T120",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_timeout_after_read_keeps_existing_activity_block",
+      "old_line": 88,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T121",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_third_read_renders_new_routes_without_a_fourth_model_call",
+      "old_line": 111,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T122",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_disabled_research_returns_explicit_state",
+      "old_line": 130,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T123",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_holding_proposal_does_not_write_until_confirmation",
+      "old_line": 141,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T124",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_stale_message_does_not_call_provider",
+      "old_line": 160,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T125",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_confirmation_rejects_changed_holdings",
+      "old_line": 170,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T126",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_workspace_http_preview_and_no_provider_recovery",
+      "old_line": 187,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T127",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_workflow_model_runs_outside_database_transaction",
+      "old_line": 199,
+      "disposition": "补回独立回归",
+      "reason": "仍是 Workflow 的有效事务边界，移出旧 Agent 测试文件。",
+      "new_evidence": [
+        "test_knowledge_workflow_boundaries.py::test_workflow_model_runs_outside_database_transaction"
+      ]
+    },
+    {
+      "id": "T128",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_workflow_rejects_model_changed_source_binding",
+      "old_line": 227,
+      "disposition": "补回独立回归",
+      "reason": "仍是 Workflow 的有效来源绑定规则。",
+      "new_evidence": [
+        "test_knowledge_workflow_boundaries.py::test_workflow_rejects_model_changed_source_binding"
+      ]
+    },
+    {
+      "id": "T129",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_packet_budget_keeps_source_semantic_group_atomic",
+      "old_line": 239,
+      "disposition": "补回审计回归",
+      "reason": "保留原子条目与关联引用，覆盖计数必须等于实际可见数。",
+      "new_evidence": [
+        "test_harness_audit_boundaries.py::test_route_projection_keeps_refs_steps_counts_together_and_defers_source_cursor"
+      ]
+    },
+    {
+      "id": "T130",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_click_reads_exact_version_without_model_or_research",
+      "old_line": 249,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T131",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_expired_workspace_removes_temporary_messages",
+      "old_line": 288,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T132",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_activity_card_cannot_attach_fact_from_another_version",
+      "old_line": 304,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T133",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_final_format_failure_keeps_completed_route_answer",
+      "old_line": 316,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T134",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_zero_routes_after_last_read_is_a_domain_result_not_budget_error",
+      "old_line": 334,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T135",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unverified_source_list_is_not_official_absence",
+      "old_line": 343,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T136",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_all_unknown_source_mappings_use_formal_statement",
+      "old_line": 355,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T137",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_evidence_answer_keeps_selected_earlier_material",
+      "old_line": 368,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T138",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_exact_natural_confirmation_reuses_atomic_idempotent_gate",
+      "old_line": 382,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T139",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_cancel_save_with_topic_change_clears_pending_and_continues_chat",
+      "old_line": 395,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T140",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_ambiguous_acceptance_does_not_commit_holding",
+      "old_line": 408,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T141",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_legacy_holding_edits_update_agent_identity_and_revision",
+      "old_line": 419,
+      "disposition": "补回新接口回归",
+      "reason": "旧会籍页与新 Agent 共享同一身份、自然键和 revision。",
+      "new_evidence": [
+        "test_harness_legacy_holdings.py::test_legacy_edit_then_agent_update_preserves_one_membership"
+      ]
+    },
+    {
+      "id": "T142",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_enabled_research_still_requires_user_intent_and_disclosed_steps",
+      "old_line": 454,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T143",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unresolved_activity_after_three_reads_asks_instead_of_crashing",
+      "old_line": 465,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T144",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_bad_route_selection_can_recover_within_same_turn",
+      "old_line": 480,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T145",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_followup_context_distinguishes_activity_from_route",
+      "old_line": 491,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T146",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_two_clarifying_questions_do_not_turn_valid_natural_language_into_schema_failure",
+      "old_line": 499,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T147",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_complete_server_cache_is_projected_before_model_budgeting",
+      "old_line": 509,
+      "disposition": "补回审计回归",
+      "reason": "正常和恢复均读取同一有界投影，完整结果保存在 artifact。",
+      "new_evidence": [
+        "test_harness_audit_regressions.py::test_recovery_uses_same_bounded_projection"
+      ]
+    },
+    {
+      "id": "T148",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_route_evaluation_preserves_explicit_adjustment_budget",
+      "old_line": 517,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T149",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_guessed_database_identifier_is_rejected_before_tool_read",
+      "old_line": 526,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T150",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_explicit_disabled_research_is_visible_even_if_model_never_calls_tool",
+      "old_line": 538,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T151",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_successful_repair_is_not_replayed_on_next_business_decision",
+      "old_line": 548,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T152",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_public_opportunity_search_does_not_require_optional_target_preference",
+      "old_line": 559,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T153",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_public_scope_cannot_be_reasked_after_query_or_on_short_reply",
+      "old_line": 571,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T154",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_public_explicit_target_is_preserved_and_chat_can_change_topic",
+      "old_line": 584,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T155",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_route_cache_reuses_search_without_copying_all_routes",
+      "old_line": 597,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T156",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_catalog_identity_does_not_require_an_activity",
+      "old_line": 611,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T157",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unrestricted_routes_preserve_source_and_do_not_request_target",
+      "old_line": 625,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T158",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unresolved_route_source_does_not_fallback_to_choosing_activity",
+      "old_line": 646,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T159",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_catalog_failure_exposes_actual_attempt_to_next_decision",
+      "old_line": 655,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T160",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_catalog_without_selector_does_not_dump_directory",
+      "old_line": 676,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T161",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_catalog_batched_language_names_retrieve_existing_ids_only",
+      "old_line": 682,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T162",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_optional_scope_guard_keeps_genuine_source_clarification",
+      "old_line": 695,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T163",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unrelated_all_request_does_not_execute_previous_routes",
+      "old_line": 702,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T164",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_bare_rank_is_not_a_substring_programme_match",
+      "old_line": 712,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T165",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_target_change_cannot_replace_established_start",
+      "old_line": 726,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T166",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_bare_rank_requests_source_without_extra_model_loop",
+      "old_line": 736,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T167",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unused_optional_null_lists_do_not_need_model_repair",
+      "old_line": 747,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T168",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_broad_continuation_cannot_hide_target_question_in_answer",
+      "old_line": 760,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T169",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_all_paths_does_not_preempt_semantic_destination",
+      "old_line": 779,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T170",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_source_clarification_cannot_drop_selected_target",
+      "old_line": 790,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T171",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_supplied_destination_survives_stale_any_in_real_execution",
+      "old_line": 804,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T172",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unresolved_selected_target_cannot_execute_unfiltered",
+      "old_line": 816,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T173",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_explicit_target_change_removes_old_tier_and_explicit_any_clears_target",
+      "old_line": 824,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T174",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_missing_source_does_not_skip_independent_target_read",
+      "old_line": 840,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T175",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_all_within_selected_scope_does_not_clear_destination",
+      "old_line": 857,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T176",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_unresolved_explicit_source_cannot_use_saved_or_all_identity_candidates",
+      "old_line": 865,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T177",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_selected_target_allows_real_source_tier_clarification",
+      "old_line": 875,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T178",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_source_reply_is_looked_up_before_repeating_clarification",
+      "old_line": 883,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T179",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_rank_lookup_cannot_invent_a_programme_via_alternate_names",
+      "old_line": 896,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T180",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_explicit_target_removal_rejects_stale_target_arguments",
+      "old_line": 904,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T181",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_explicit_target_reset_keeps_source_and_airline_filter",
+      "old_line": 911,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T182",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_destination_update_retains_independent_category",
+      "old_line": 924,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T183",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_source_switch_invalidates_old_query_once_and_keeps_target",
+      "old_line": 931,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T184",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_declared_source_switch_cannot_execute_old_source",
+      "old_line": 948,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T185",
+      "old_file": "tests/test_workspace.py",
+      "old_test": "test_simultaneous_source_and_scope_change_removes_both_old_conditions",
+      "old_line": 955,
+      "disposition": "契约替代；语义目标保留",
+      "reason": "旧 workspace 状态机、隐式查询/意图及强制回答修复退役；原文、工具调用、错误、授权、展示与恢复由新端口承接。",
+      "new_evidence": [
+        "test_harness_runtime.py",
+        "test_harness_memory.py",
+        "test_harness_tools.py",
+        "test_harness_api.py",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T186",
+      "old_file": "tests/test_workspace_evaluation.py",
+      "old_test": "test_evaluation_has_separate_holdout_and_required_layers",
+      "old_line": 7,
+      "disposition": "契约替代",
+      "reason": "新矩阵为冻结的 32 case × 2 次；结构断言不冒充语义通过，工具证据不能由文字或另一轮同名调用代替。",
+      "new_evidence": [
+        "test_harness_evaluation.py",
+        "test_route_evaluation.py"
+      ]
+    },
+    {
+      "id": "T187",
+      "old_file": "tests/test_workspace_evaluation.py",
+      "old_test": "test_holdout_is_frozen_and_previously_debugged_cases_are_not_holdout",
+      "old_line": 14,
+      "disposition": "契约替代",
+      "reason": "新矩阵为冻结的 32 case × 2 次；结构断言不冒充语义通过，工具证据不能由文字或另一轮同名调用代替。",
+      "new_evidence": [
+        "test_harness_evaluation.py",
+        "test_route_evaluation.py"
+      ]
+    },
+    {
+      "id": "T188",
+      "old_file": "tests/test_workspace_evaluation.py",
+      "old_test": "test_evaluator_rejects_paid_or_unknown_challenge_formal_match",
+      "old_line": 22,
+      "disposition": "契约替代",
+      "reason": "新矩阵为冻结的 32 case × 2 次；结构断言不冒充语义通过，工具证据不能由文字或另一轮同名调用代替。",
+      "new_evidence": [
+        "test_harness_evaluation.py",
+        "test_route_evaluation.py"
+      ]
+    },
+    {
+      "id": "T189",
+      "old_file": "tests/test_workspace_evaluation.py",
+      "old_test": "test_evaluator_does_not_count_prose_as_a_verified_research_gate",
+      "old_line": 28,
+      "disposition": "契约替代",
+      "reason": "新矩阵为冻结的 32 case × 2 次；结构断言不冒充语义通过，工具证据不能由文字或另一轮同名调用代替。",
+      "new_evidence": [
+        "test_harness_evaluation.py",
+        "test_route_evaluation.py"
+      ]
+    },
+    {
+      "id": "T190",
+      "old_file": "tests/test_workspace_evaluation.py",
+      "old_test": "test_activity_read_alone_cannot_pass_a_route_task",
+      "old_line": 34,
+      "disposition": "契约替代",
+      "reason": "新矩阵为冻结的 32 case × 2 次；结构断言不冒充语义通过，工具证据不能由文字或另一轮同名调用代替。",
+      "new_evidence": [
+        "test_harness_evaluation.py",
+        "test_route_evaluation.py"
+      ]
+    },
+    {
+      "id": "T191",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_seen_result_does_not_repeat_after_observation_changes_but_new_path_can_hit",
+      "old_line": 11,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T192",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_legacy_wait_reader_never_consumes_v2_query",
+      "old_line": 34,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T193",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_adjustment_must_really_make_supporting_route_match",
+      "old_line": 44,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T194",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_old_adjustment_cannot_apply_to_a_changed_query_even_with_current_revision",
+      "old_line": 65,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T195",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_adopting_result_is_not_delivery_and_supports_details_after_reload",
+      "old_line": 88,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T196",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_wait_proposal_discloses_partial_coverage_and_every_active_constraint",
+      "old_line": 108,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    },
+    {
+      "id": "T197",
+      "old_file": "tests/test_workspace_wait_semantics.py",
+      "old_test": "test_budget_adjustment_cannot_exceed_minimum_needed_by_support",
+      "old_line": 121,
+      "disposition": "契约替代",
+      "reason": "显式等待 query/持久回执、旧结果只读保留；自然语言调整和读取即采纳的隐式控制退役。",
+      "new_evidence": [
+        "test_harness_waiting.py",
+        "test_harness_audit_boundaries.py::test_waiting_projection_failure_keeps_commit_and_replay_repairs_view",
+        "manual-evidence.md"
+      ]
+    }
+  ]
+}

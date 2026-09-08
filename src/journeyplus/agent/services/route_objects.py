@@ -1,6 +1,6 @@
 """Shared immutable route-object contract, independent of any tool handler."""
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -10,6 +10,8 @@ class RouteObject:
     route: dict
     steps: dict
     query_ref: str | None = None
+    resolution: dict = field(default_factory=dict)
+    coverage: dict = field(default_factory=dict)
 
     @classmethod
     def read(cls, artifacts, workspace_id, ref):
@@ -27,7 +29,8 @@ class RouteObject:
         if not ids or any(key not in payload.get('steps', {}) for key in ids):
             raise ValueError('Route snapshot is missing its ordered steps')
         return cls(ref, root_ref, deepcopy(route),
-                   {key: deepcopy(payload['steps'][key]) for key in ids}, payload.get('query_ref'))
+                   {key: deepcopy(payload['steps'][key]) for key in ids}, payload.get('query_ref'),
+                   deepcopy(payload.get('resolution',{})),deepcopy(payload.get('coverage',{})))
 
     def display_data(self):
         steps = {self.root_ref+'#step:'+key: {**deepcopy(step), 'ref':self.root_ref+'#step:'+key}

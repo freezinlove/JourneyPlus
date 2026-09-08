@@ -38,9 +38,10 @@ def create_product_app(
 ) -> FastAPI:
     from journeyplus.agent.composition import compose_business
     from journeyplus.agent.adapters.unconfigured import UnconfiguredModel
-    from journeyplus.product.agent_api import create_agent_app
+    from journeyplus.product.agent_api import install_agent
     runtime,store=compose_business(session_factory,agent_model or UnconfiguredModel(),network_enabled=agent_network_enabled)
-    app=create_agent_app(runtime,store,include_home=False)
+    app = FastAPI(title='JourneyPlus personalized status matches')
+    install_agent(app, runtime, store, include_home=False)
     from journeyplus.product.rollout import install_rollout
     install_rollout(app,knowledge_read_mode,knowledge_user_writes_paused)
     from journeyplus.knowledge.user_journal import configure_user_data

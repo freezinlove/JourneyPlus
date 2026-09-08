@@ -19,7 +19,7 @@ def test_cancel_inflight_model_keeps_terminal_state(session_factory):
         runtime,store=compose(session_factory,Slow([]));w=store.create();r=store.start(w['id'],'hello','one',0)
         task=asyncio.create_task(runtime.run(r['run_id']))
         await asyncio.sleep(.05)
-        runtime.cancel(r['run_id']);await task
+        await runtime.cancel(r['run_id']);await task
         assert store.events(w['id'],r['run_id'])[1]=='CANCELED'
         assert store.read(w['id'])['revision']==2
     asyncio.run(scenario())
@@ -80,7 +80,7 @@ def test_crash_after_effect_commit_before_tool_result_keeps_receipt(session_fact
     # No tool_result is recorded: simulate death immediately after business COMMIT.
     assert store.completed_operations(r['run_id'])==[result.data['operation_ref']]
     assert store.read(w['id'])['operations'][0]['operation_ref']==result.data['operation_ref']
-    runtime.cancel(r['run_id'])
+    asyncio.run(runtime.cancel(r['run_id']))
     asyncio.run(runtime.run(r['run_id']))
     assert store.events(w['id'],r['run_id'])[1]=='CANCELED'
     assert store.completed_operations(r['run_id'])==[result.data['operation_ref']]

@@ -9,11 +9,10 @@ from journeyplus.models import Base
 
 
 @pytest.fixture
-def session_factory() -> sessionmaker[Session]:
+def session_factory(tmp_path) -> sessionmaker[Session]:
     engine = create_engine(
-        "sqlite+pysqlite:///:memory:",
+        f"sqlite+pysqlite:///{tmp_path / 'test.sqlite'}",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False, class_=Session)

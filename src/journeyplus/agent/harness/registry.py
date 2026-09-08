@@ -1,9 +1,11 @@
 """Schema validation and effect dispatch, independent of tool semantics."""
 import asyncio
+from dataclasses import replace
 import json
 from time import monotonic
 from pydantic import ValidationError
 from .contracts import ToolDefinition, ToolResult
+from .execution import active_call, blocking_call
 
 
 class Registry:
@@ -51,8 +53,12 @@ class Registry:
             timeout = min(definition.timeout_seconds, context.deadline - monotonic())
             if timeout <= 0:
                 return ToolResult.failure('BUDGET_LIMIT', 'Call deadline exhausted')
-            async with asyncio.timeout(timeout):
-                result = await definition.handler(arguments, context)
+            local=replace(context,deadline=monotonic()+timeout)
+            token=active_call.set(local)
+            try:
+                async with asyncio.timeout(timeout):
+                    result = await definition.handler(arguments, local)
+            finally:active_call.reset(token)
             validated_result = definition.output_model.model_validate(result.model_dump(mode='json') if isinstance(result,ToolResult) else result)
             result = ToolResult.model_validate(validated_result.model_dump(mode='json',exclude_unset=True))
         except TimeoutError:
@@ -68,6 +74,12 @@ class Registry:
             raise
         except Exception:
             result = ToolResult.failure('TOOL_ERROR', 'Tool execution failed', retryable=True)
+        if result.error and result.error.code in {'SOURCE_UNAVAILABLE','TOOL_ERROR','INVALID_TOOL_RESULT'} and validated[2]=='USER_WRITE' and context.authorization_port:
+            committed=await blocking_call(context.authorization_port.committed_call_result,
+                context.workspace_id,context.turn_id,context.call_id)
+            if committed is not None:
+                committed.metrics['post_commit_error_code']=result.error.code
+                result=committed
         result.call_id = context.call_id
         result.effective_input = result.effective_input or arguments.model_dump(mode='json', exclude_unset=True)
         result.metrics['elapsed_ms'] = round((monotonic() - started) * 1000)

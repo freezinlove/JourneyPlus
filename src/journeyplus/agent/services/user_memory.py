@@ -1,4 +1,5 @@
 """Atomic user-authorized effects, journal entries and durable idempotency receipts."""
+from journeyplus.agent.adapters.transactions import read_session
 from datetime import date
 from uuid import UUID
 from sqlalchemy import select, text
@@ -26,16 +27,21 @@ def receipt_result(row):
 
 
 class UserMemory:
-    def __init__(self,factory,identities):
+    def __init__(self,factory,identities,knowledge=None):
         self.factory=factory
         self.identities=identities
+        from journeyplus.knowledge.access import KnowledgePort
+        self.knowledge=knowledge or KnowledgePort(factory)
 
     def read(self,args):
-        with self.factory() as s:
-            rows=list(s.scalars(select(StatusHolding).order_by(StatusHolding.created_at)))
-            rows=[r for r in rows if (args.include_expired or r.valid_until is None or r.valid_until>=date.today())
-                  and (not args.holding_refs or 'holding:'+str(r.id) in args.holding_refs)
-                  and (not args.query or canonical(args.query) in canonical(r.program_display_name+' '+r.tier_display_name))]
+        with read_session(self.factory) as s:
+            statement=select(StatusHolding).order_by(StatusHolding.created_at,StatusHolding.id)
+            if not args.include_expired:
+                statement=statement.where((StatusHolding.valid_until.is_(None))|(StatusHolding.valid_until>=now_utc().date()))
+            if args.holding_refs:
+                statement=statement.where(StatusHolding.id.in_([UUID(ref.removeprefix('holding:')) for ref in args.holding_refs]))
+            rows=list(s.scalars(statement))
+            if args.query:rows=[row for row in rows if canonical(args.query) in canonical(row.program_display_name+' '+row.tier_display_name)]
             return [holding_view(r) for r in rows]
 
     def authorize(self,s,ctx,authorization):
@@ -43,17 +49,25 @@ class UserMemory:
                    WorkspaceMessage.id.in_([UUID(ref) for ref in authorization.message_refs]),WorkspaceMessage.role=='USER')))
         if len(found)!=len(set(authorization.message_refs)):
             raise PermissionError('Authorization must reference user messages in this workspace')
-        if found and all(row.content.get('metadata',{}).get('legacy') for row in found):
-            raise PermissionError('Imported history alone cannot authorize a new operation')
-        originals=['\n'.join(p.get('text') or '' for p in row.content.get('content',[]) if p.get('type')=='text') for row in found]
-        if any(not quote or not any(quote in original for original in originals) for quote in authorization.quotes):
-            raise PermissionError('Authorization quotes must occur verbatim in user messages')
+        sources = [{'id': str(row.id), 'legacy': bool(row.content.get('metadata', {}).get('legacy')),
+                    'text': '\n'.join(part.get('text') or '' for part in row.content.get('content', [])
+                                      if part.get('type') == 'text')} for row in found]
+        bindings = []
+        for quote in authorization.quotes:
+            matches = [source for source in sources if quote and quote in source['text']]
+            if not matches:
+                raise PermissionError('Authorization quotes must occur verbatim in user messages')
+            current = [source['id'] for source in matches if not source['legacy']]
+            if not current:
+                raise PermissionError('Imported quotations cannot authorize a new operation; quote the new user authorization')
+            bindings.append({'quote': quote, 'message_refs': current})
         return {'workspace_id':ctx.workspace_id, 'turn_id':ctx.turn_id, 'call_id':ctx.call_id, 'messages':[{'id':str(row.id),'created_at':row.created_at.isoformat()} for row in found],
-                'quotes':authorization.quotes,'requested_at':now_utc().isoformat()}
+                'quotes':authorization.quotes,'quote_bindings':bindings,'requested_at':now_utc().isoformat()}
 
     def write(self,args,ctx):
         try:
-            with self.factory.begin() as s:
+            from journeyplus.agent.adapters.transactions import transaction
+            with transaction(self.factory) as s:
                 s.info['user_business_journal']=True
                 # Serialize only user-memory effects. No model/network work is held here.
                 if s.bind.dialect.name=='postgresql':s.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
@@ -68,7 +82,8 @@ class UserMemory:
                     return ToolResult(status='ERROR',error={'code':'CONFLICT','message':'Holding missing or revision changed'},data={'current':holding_view(row)})
                 identity=None
                 if args.identity:
-                    resolved=self.identities.resolve(s,args.identity,require_tier=True,context=ctx)
+                    with self.knowledge.read() as knowledge_session:
+                        resolved=self.identities.resolve(knowledge_session,args.identity,require_tier=True,context=ctx)
                     if resolved['status']=='OK':
                         identity={'program_id':UUID(resolved['program_ref'][8:]),'tier_id':UUID(resolved['tier_ref'][5:]),
                             'program_display_name':resolved['program_name'],'tier_display_name':resolved['tier_name'],
@@ -93,6 +108,12 @@ class UserMemory:
                         s.add(row)
                 elif args.operation=='update':
                     if identity:
+                        collision=s.scalar(select(StatusHolding).where(
+                            StatusHolding.program_key==identity['program_key'],StatusHolding.id!=row.id).with_for_update())
+                        if collision:
+                            return ToolResult(status='ERROR',error={'code':'CONFLICT',
+                                'message':'Another holding already represents this program; no records were merged'},
+                                data={'current':holding_view(collision)})
                         for key_name,value in identity.items():setattr(row,key_name,value)
                     if 'valid_until' in args.model_fields_set:row.valid_until=date.fromisoformat(args.valid_until) if args.valid_until else None
                     if holding_view(row)==before:outcome='NOOP'

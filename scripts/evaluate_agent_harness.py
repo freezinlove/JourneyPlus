@@ -114,12 +114,8 @@ async def evaluate(args):
                 record['model_metrics']=model.metrics[metric_start:]
                 with factory() as s:after=set(s.scalars(select(UserBusinessOperation.operation_id)))
                 record['journal_delta']=len(after-before)
-                expected=case['expect']
-                if expected.get('zero_tools') and calls:record['assertion_failures'].append('EXPECTED_ZERO_TOOLS')
-                if expected.get('tool') and not any(p.type=='tool_result' and p.result['status'] in {'OK','PARTIAL','EMPTY'} and any(c.call_id==p.call_id and c.name==expected['tool'] for c in calls) for m in history for p in m.content):record['assertion_failures'].append('MISSING_EXPECTED_CAPABILITY')
-                if expected.get('no_user_write') and after!=before:record['assertion_failures'].append('UNAUTHORIZED_USER_WRITE')
-                receipts=[p.result for m in history for p in m.content if p.type=='tool_result' and p.result['data'].get('operation_ref')]
-                if expected.get('authorized_write') and not receipts:record['assertion_failures'].append('MISSING_AUTHORIZED_RECEIPT')
+                from journeyplus.agent.evaluation import assess_case
+                record['assertion_failures'].extend(assess_case(case['expect'],history,after!=before))
                 record['elapsed_seconds']=monotonic()-started
                 (output/f"{case['id']}-{repeat+1}.json").write_text(json.dumps(record,ensure_ascii=False,indent=2))
                 factory.kw['bind'].dispose()

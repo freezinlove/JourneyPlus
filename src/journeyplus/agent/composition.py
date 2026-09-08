@@ -14,7 +14,8 @@ def compose(factory, model, definitions=(), services=None):
     registry = Registry()
     for definition in definitions:
         registry.register(definition)
-    ports = RuntimePorts(model, store, store.artifacts, registry, store, monotonic)
+    from .adapters.workspace_access import WorkspaceAccess
+    ports = RuntimePorts(model, store, store.artifacts, registry, store, monotonic, WorkspaceAccess(store))
     config=getattr(model,'config',None)
     budget_limits={'soft':{'input_tokens':getattr(config,'input_token_soft',45000)},
                    'hard':{'input_tokens':getattr(config,'input_token_limit',60000)}}
@@ -34,9 +35,17 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     search=HttpJsonSearch(json.loads(os.environ['JOURNEYPLUS_AGENT_SEARCH_CONFIG']) if os.environ.get('JOURNEYPLUS_AGENT_SEARCH_CONFIG') else None)
     from .services import workspace as workspace_service, display
     identities=IdentityService()
-    memory=UserMemory(factory,identities)
-    services={'workspace_read':workspace_service.read,'workspace_note':workspace_service.note,'display':display.present,'knowledge':KnowledgePort(read_factory or factory),'identities':identities,'user_memory':memory,
-              'waiting':WaitingService(factory,memory),'research':PublicResearch(network_enabled,search_backend=search)}
+    from .adapters.user_data import UserData
+    from .services.route_query import RouteQueries
+    from .adapters.connections import knowledge_factory
+    if read_factory is None:read_factory,close_read_connection=knowledge_factory(factory)
+    else:close_read_connection=None
+    knowledge_port=KnowledgePort(read_factory)
+    user_data=UserData(factory)
+    queries=RouteQueries(knowledge_port,user_data,identities)
+    memory=UserMemory(factory,identities,knowledge_port)
+    services={'workspace_read':workspace_service.read,'workspace_note':workspace_service.note,'display':display.present,'knowledge':knowledge_port,'user_data':user_data,'route_queries':queries,'identities':identities,'user_memory':memory,
+              'waiting':WaitingService(factory,memory,queries),'research':PublicResearch(network_enabled,search_backend=search)}
     handlers={'catalog.lookup':knowledge.catalog,'activity.read':knowledge.activity,'routes.evaluate':routes.evaluate,
               'holdings.read':holdings.read,'holdings.write':holdings.write,'workspace.read':workspace.read,'workspace.note':workspace.note,
               'web.search':research.search,'web.read':research.read,'research.parse':research.parse,
@@ -47,5 +56,6 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
         definition.snapshot=snapshot_for(definition.name,services['knowledge'],factory)
     runtime,store=compose(factory,model,registered,services)
     store.published_refs=services['knowledge']
+    services['close_read_connection']=close_read_connection
     services['maintenance']=lambda:{'cleanup':store.cleanup(),'waiting':services['waiting'].check()}
     return runtime,store

@@ -21,9 +21,9 @@ def test_old_writes_retired_and_new_shell_never_initializes_workflow(session_fac
         assert client.get('/agent',follow_redirects=False).headers['location']=='/workspace'
         w=client.post('/v3/agent/workspaces',json={}).json()
         base='/v3/agent/workspaces/'+w['id']
-        run=client.post(base+'/runs',json={'text':'hello','client_message_id':'one','expected_revision':0}).json()
-        events=client.get(base+'/runs/'+run['run_id']+'/events').text
-        assert 'MODEL_NOT_CONFIGURED' in events and 'partial' in events
+        run=client.post(base+'/runs',json={'text':'hello','client_message_id':'one','expected_revision':0})
+        assert run.status_code == 503 and run.json()['detail']['code'] == 'AGENT_DISABLED'
+        assert client.get(base).json()['runs'] == []
         assert client.get('/knowledge').status_code==200
         assert client.get('/explore').status_code==200
 

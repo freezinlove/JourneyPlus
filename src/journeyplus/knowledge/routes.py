@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict, deque
-from datetime import UTC,datetime
+from datetime import UTC,datetime,date
+from dataclasses import dataclass
 from decimal import Decimal
 from time import monotonic
 from typing import Literal
@@ -68,8 +69,22 @@ def conditions_result(groups:list[dict],context:dict)->tuple[str,list[dict]]:
     return result,checks
 
 
+@dataclass(frozen=True)
+class HoldingSnapshot:
+    id: UUID
+    tier_id: UUID | None
+    revision: int
+    valid_until: date | None
+
+
 class RouteService:
-    def __init__(self,session:Session):self.session=session
+    def __init__(self,session:Session,*,holding_snapshot=None):
+        self.session=session
+        self.holding_snapshot=holding_snapshot
+
+    def holdings(self):
+        if self.holding_snapshot is not None:return self.holding_snapshot
+        return list(self.session.scalars(select(StatusHolding).order_by(StatusHolding.id)))
 
     def current_snapshot(self):
         return {str(a):str(v) for a,v in self.session.execute(select(Activity.id,Activity.current_version_id).where(
@@ -80,7 +95,7 @@ class RouteService:
         now=now or datetime.now(UTC)
         holdings=[{'id':str(h.id),'tier':str(h.tier_id),'revision':h.revision,
                    'until':h.valid_until.isoformat() if h.valid_until else None}
-                  for h in self.session.scalars(select(StatusHolding).order_by(StatusHolding.id))]
+                  for h in self.holdings()]
         observations=[{'activity':str(o.activity_id),'freshness':o.freshness,
                        'checked':o.last_checked_at.isoformat() if o.last_checked_at else None}
                       for o in self.session.scalars(select(ActivityObservationState).order_by(ActivityObservationState.activity_id))]
@@ -124,7 +139,7 @@ class RouteService:
         for p in self.session.scalars(select(OptionPrice).where(OptionPrice.knowledge_version_id.in_(version_rows))):prices[p.option_version_id].append(p)
         price_mappings=defaultdict(set)
         for row in self.session.scalars(select(OptionPriceMapping).where(OptionPriceMapping.option_version_id.in_(options))):price_mappings[row.price_id].add(row.mapping_id)
-        holdings=list(self.session.scalars(select(StatusHolding)))
+        holdings=self.holdings()
         remaining_days={}
         for h in holdings:
             if h.tier_id in identities and h.valid_until is not None and h.valid_until>=today:

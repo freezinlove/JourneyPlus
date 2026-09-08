@@ -23,3 +23,14 @@ Agent模型协议/参数/网络开关 SHALL 独立于Workflow；Agent操作 MUST
 #### Scenario: Agent configuration changes
 - **WHEN** 切换Agent模型或启用Agent研究
 - **THEN** Workflow提取参数、发布行为和采集开关保持原值。
+
+### Requirement: Agent availability SHALL NOT gate product startup
+The product SHALL start and serve non-Agent pages while its replaceable model is initializing or unavailable. Disabled Agent mode MUST create no model client, perform no model probe, and leave pending runs unconsumed.
+
+#### Scenario: Slow or failed model initialization
+- **WHEN** model initialization is pending or fails
+- **THEN** ordinary product pages remain available and new Agent runs return a typed unavailable response
+
+#### Scenario: Restricted formal knowledge connection
+- **WHEN** Agent knowledge reads use credentials without access to user holdings or Agent tables
+- **THEN** routes and waiting checks use an explicit user-data snapshot and can read published knowledge without those privileges

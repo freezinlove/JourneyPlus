@@ -119,17 +119,17 @@ def test_matched_intermediate_does_not_inherit_earned_origin(knowledge_session):
 
 
 def test_remaining_validity_uses_saved_holding_expiry(knowledge_session):
-    from datetime import date,timedelta
+    from datetime import datetime,UTC,timedelta
     from journeyplus.models import StatusHolding
     s=knowledge_session;root,target=edge(s,condition={'topic':'MIN_REMAINING_VALIDITY','operator':'GTE',
                                                      'value':90,'raw_text':'At least 90 days remaining'})
     tier=s.get(MembershipTier,root)
     holding=StatusHolding(program_key=str(root),tier_key='gold',program_display_name='Fixture',tier_display_name='Gold',
-                          program_id=tier.program_id,tier_id=root,valid_until=date.today()+timedelta(days=30))
+                          program_id=tier.program_id,tier_id=root,valid_until=datetime.now(UTC).date()+timedelta(days=30))
     s.add(holding);s.flush()
     query=RouteQuery(target_tier_id=target)
     assert RouteService(s).query(query)['data']['cards']==[]
-    holding.valid_until=date.today()+timedelta(days=120);s.flush()
+    holding.valid_until=datetime.now(UTC).date()+timedelta(days=120);s.flush()
     result=RouteService(s).query(query)
     card=result['data']['cards'][0];step=result['data']['steps'][card['step_refs'][0]]
     assert step['constraint_checks'][0]['result']=='PASS'

@@ -107,3 +107,24 @@ def select_report_candidates(candidates,target,identities,today):
         rank=(relevance,recency,-submitted.toordinal() if submitted else 0,item['url'])
         if item['url'] not in selected or rank<selected[item['url']][0]:selected[item['url']]=(rank,item)
     return [item for _,item in sorted(selected.values(),key=lambda value:value[0])]
+
+
+def report_body_complete(html):
+    """Require an explicit closing tag; DOM parsers repair truncated HTML."""
+    from html.parser import HTMLParser as TokenParser
+    class BodyBoundary(TokenParser):
+        def __init__(self):
+            super().__init__()
+            self.stack=[];self.target=None;self.complete=False
+        def handle_starttag(self,tag,attrs):
+            if tag in {'area','base','br','col','embed','hr','img','input','link','meta','param','source','track','wbr'}:return
+            self.stack.append(tag)
+            if self.target is None and 'instructions' in dict(attrs).get('class','').split():
+                self.target=len(self.stack)
+        def handle_endtag(self,tag):
+            if tag not in self.stack:return
+            depth=len(self.stack)-self.stack[::-1].index(tag)
+            if self.target==depth and tag==self.stack[self.target-1]:self.complete=True
+            self.stack=self.stack[:depth-1]
+    parser=BodyBoundary();parser.feed(html)
+    return parser.complete

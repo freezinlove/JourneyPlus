@@ -9,7 +9,10 @@ class KnowledgePort:
     @contextmanager
     def read(self):
         with self._factory() as session:
-            if session.bind.dialect.name=='postgresql':session.execute(text('SET TRANSACTION READ ONLY'))
+            if session.bind.dialect.name=='postgresql':
+                session.execute(text('SET TRANSACTION READ ONLY'))
+                session.execute(text("SET LOCAL statement_timeout = '10s'"))
+                session.execute(text("SET LOCAL lock_timeout = '10s'"))
             try:
                 yield session
                 if session.new or session.dirty or session.deleted:

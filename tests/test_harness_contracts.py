@@ -229,3 +229,30 @@ def test_operation_fields_cannot_be_silently_ignored():
         {**base,'operation':'create','goal_ref':'goal:id','query':{'sources':{'mode':'none'}}},
     ]:
         with pytest.raises(ValidationError):WaitingInput(**invalid)
+
+
+def test_large_prior_result_uses_explicit_index_without_mutating_current_or_history():
+    from copy import deepcopy
+    from journeyplus.agent.harness.context import project
+    from journeyplus.agent.harness.contracts import ModelMessage,Part,Capabilities
+    raw=ToolResult(data={'records':[{'ref':'artifact:object','qualification':'UNKNOWN','text':'evidence '*2000}]},
+                   artifact_refs=['artifact:full']).model_dump(mode='json')
+    messages=[ModelMessage(role='user',content=[Part(type='text',text='Only the specified source, do not save')]),
+              ModelMessage(role='assistant',content=[Part(type='tool_call',call_id='one',name='read',arguments={})]),
+              ModelMessage(role='tool',content=[Part(type='tool_result',call_id='one',result=raw)]),
+              ModelMessage(role='user',content=[Part(type='text',text='Now compare the previous source')]),
+              ModelMessage(role='assistant',content=[Part(type='tool_call',call_id='two',name='read',arguments={})]),
+              ModelMessage(role='tool',content=[Part(type='tool_result',call_id='two',result=raw)])]
+    original=[message.model_dump() for message in messages]
+    selected=project(messages,[],Capabilities(native_tools=True,streaming=True,context_window=32768,max_output=4096))
+    results=[part.result for message in selected for part in message.content if part.type=='tool_result']
+    assert results[0]['coverage']['complete'] is False and results[0]['data']['full_result_ref']=='artifact:full'
+    assert results[0]['data']['records'][0]=={'ref':'artifact:object','projection':'index_only'}
+    assert results[1]==raw and [message.model_dump() for message in messages]==original
+    assert [message.content[0].text for message in selected if message.role=='user']==[
+        'Only the specified source, do not save','Now compare the previous source']
+
+
+def test_failed_tool_does_not_claim_complete_default_coverage():
+    result=ToolResult(status='NOT_FOUND',error={'code':'CATALOG_GAP','message':'Source missing'})
+    assert result.coverage=={'complete':False,'returned':0,'total':None,'omissions':['operation_not_completed']}

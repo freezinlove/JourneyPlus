@@ -123,3 +123,11 @@ web.read的sections接受实际HTML标题（大小写无关）或返回的sectio
 默认正文排除表单控件文字，返回form_controls索引与option_count；include_controls=true可显式读取选项，content_scope明确其范围。下拉框中出现的项目名不是案例或资格规则。sections仍按真实标题/id选择，不补写章节。超过返回预算的原始资料保持引用和显式截断，不把大段正文整体替换成看似已读取的摘要。
 
 路线概览保留from/to作为明确起点和终点，同时保留完整path；inspect只读给定路线，不代表执行新的目标过滤，也不能把经过某项目的路径当成以其为终点的路径。
+
+## 审计澄清（2026-09-09）
+
+`routes.evaluate` 的 ROUTES 快照同时保存 resolved/unresolved sources、resolved target、实际计算输入和算法覆盖。续页不重新绑定当前会籍；inspect/compare 明确说明只读选定对象，同时保留其原始查询范围和缺口。
+
+`research.parse` 只读取已有 PAGE。REPORT 同时记录页面完整性与报告正文完整性：截断正文不能确认结果或方式；页面尾部被截断而正文有明确结束边界时，可以保留正文事实，但页面覆盖仍是 PARTIAL。DOM 自动补全的闭合标签不能用作正文完整性的证据。
+
+工具版本提升为 2；旧运行在配置/工具契约不匹配时保留已完成结果并要求新一轮，不继续执行旧版未完成调用。

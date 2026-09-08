@@ -65,31 +65,8 @@ class PublicResearch:
                     html=body.decode('utf-8',errors='replace')
                     break
             else:raise ValueError('Page unavailable')
-        tree=HTMLParser(html)
-        title=tree.css_first('title')
-        links=[]
-        for node in tree.css('a[href]'):
-            link=urljoin(current,node.attributes['href'])
-            if link.startswith('https://') and link not in {x['url'] for x in links}:
-                links.append({'url':link,'title':node.text(separator=' ',strip=True)[:300]})
-        for node in tree.css('script,style,noscript,nav,footer'):node.decompose()
-        content=(tree.body or tree.root).text(separator=' ',strip=True)
-        result={'url':url,'final_url':current,'title':title.text(strip=True)[:500] if title else '',
-                'text':content[:30000],'links':links,'observed_at':datetime.now(timezone.utc).isoformat(),
-                'content_hash':hashlib.sha256(body).hexdigest(),'content_length':len(content),'truncated':len(content)>max_chars,'raw_html':html,
-                'cache_hit':False,'raw_truncated':raw_truncated,'retained_raw_bytes':len(body)}
-        # The artifact limit includes JSON escaping and extracted metadata, not
-        # just downloaded bytes. Preserve an explicit retained prefix and URL.
-        while len(json.dumps(result,ensure_ascii=False).encode())>950_000:
-            result['raw_truncated']=True
-            if result['links'] and len(json.dumps(result['links'],ensure_ascii=False).encode())>100_000:
-                result['links']=result['links'][:len(result['links'])//2]
-                result['links_truncated']=True
-            else:
-                result['raw_html']=result['raw_html'][:int(len(result['raw_html'])*.8)]
-            result['retained_raw_bytes']=len(result['raw_html'].encode())
-        result['truncated']=result['raw_truncated'] or len(content)>max_chars
-        result['content_hash_scope']='retained_download_prefix' if raw_truncated else 'complete_response'
+        from journeyplus.agent.harness.execution import blocking_call
+        result,content=await blocking_call(parse_page,url,current,body,html,max_chars,raw_truncated)
         self.cache[url]=(monotonic(),result)
         while len(self.cache)>128:self.cache.pop(next(iter(self.cache)))
         return {**result,'text':content[:max_chars]}
@@ -144,3 +121,32 @@ class PublicResearch:
                             'returned':len(results[offset:offset+limit]),'complete':offset+limit>=len(results),
                             'site_search_complete':False,'report_contents_read':False},
                 'next_cursor':identity+'|'+str(offset+limit) if len(results)>offset+limit else None}
+
+
+def parse_page(url,current,body,html,max_chars,raw_truncated):
+    tree=HTMLParser(html)
+    title=tree.css_first('title')
+    links=[]
+    for node in tree.css('a[href]'):
+        link=urljoin(current,node.attributes['href'])
+        if link.startswith('https://') and link not in {x['url'] for x in links}:
+            links.append({'url':link,'title':node.text(separator=' ',strip=True)[:300]})
+    for node in tree.css('script,style,noscript,nav,footer'):node.decompose()
+    content=(tree.body or tree.root).text(separator=' ',strip=True)
+    result={'url':url,'final_url':current,'title':title.text(strip=True)[:500] if title else '',
+            'text':content[:30000],'links':links,'observed_at':datetime.now(timezone.utc).isoformat(),
+            'content_hash':hashlib.sha256(body).hexdigest(),'content_length':len(content),'truncated':len(content)>max_chars,'raw_html':html,
+            'cache_hit':False,'raw_truncated':raw_truncated,'retained_raw_bytes':len(body)}
+    # The artifact limit includes JSON escaping and extracted metadata, not
+    # just downloaded bytes. Preserve an explicit retained prefix and URL.
+    while len(json.dumps(result,ensure_ascii=False).encode())>950_000:
+        result['raw_truncated']=True
+        if result['links'] and len(json.dumps(result['links'],ensure_ascii=False).encode())>100_000:
+            result['links']=result['links'][:len(result['links'])//2]
+            result['links_truncated']=True
+        else:
+            result['raw_html']=result['raw_html'][:int(len(result['raw_html'])*.8)]
+        result['retained_raw_bytes']=len(result['raw_html'].encode())
+    result['truncated']=result['raw_truncated'] or len(content)>max_chars
+    result['content_hash_scope']='retained_download_prefix' if raw_truncated else 'complete_response'
+    return result,content

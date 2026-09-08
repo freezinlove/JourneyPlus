@@ -1,18 +1,14 @@
+from journeyplus.agent.harness.execution import blocking_tool
 from uuid import UUID, uuid5, NAMESPACE_URL
-from sqlalchemy import select,func
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.agent.services.presentations import build_block
-from journeyplus.agent.adapters.models import Artifact
 from .route_objects import RouteObject
 
 
-async def present(args,ctx):
+@blocking_tool
+def present(args,ctx):
     store=ctx.authorization_port
-    with store.factory.begin() as s:
-        workspace=store.workspace(s,ctx.workspace_id,True)
-        old=s.scalar(select(Artifact).where(Artifact.workspace_id==workspace.id,Artifact.kind=='PRESENTATION',Artifact.created_by_call_id==ctx.call_id))
-        if old:
-            return ToolResult(data={'presentation_ref':'artifact:'+str(old.id),**old.payload},artifact_refs=['artifact:'+str(old.id)])
+    def build():
         if args.replace_presentation_ref:
             replaced=ctx.artifact_port.read(ctx.workspace_id,args.replace_presentation_ref)
             if replaced['kind']!='PRESENTATION':raise ValueError('Replacement must reference presentation')
@@ -54,16 +50,12 @@ async def present(args,ctx):
             block=build_block(selection,objects)
             block['payload']['research']=research
             block['research_bindings']=[binding for item in research for binding in item['bindings']]
-            block['id']=str(uuid5(NAMESPACE_URL,ctx.workspace_id+ctx.call_id+str(index)))
+            block['id']=str(uuid5(NAMESPACE_URL,ctx.workspace_id+':'+ctx.turn_id+':'+ctx.call_id+':'+str(index)))
             blocks.append(block)
         for step in args.next_steps:
             for ref in step.subject_refs:store.validate_reference(ctx.workspace_id,ref)
-        state=dict(workspace.state)
-        receipt={'revision':s.scalar(select(func.count()).select_from(Artifact).where(Artifact.workspace_id==workspace.id,Artifact.kind=='PRESENTATION'))+1,'blocks':blocks,'next_steps':[n.model_dump() for n in args.next_steps],'omissions':[]}
-        ref=ctx.artifact_port.put_in(s,ctx.workspace_id,'PRESENTATION',receipt,call_id=ctx.call_id)
-        # Immutable cursor binds the original model-selected order.
-        # Frontends may expand pages without another model request.
-        state['presentation_refs']=[old_ref for old_ref in state['presentation_refs'] if old_ref!=args.replace_presentation_ref]+[ref]
-        workspace.state=state
+        return {'blocks':blocks,'next_steps':[n.model_dump() for n in args.next_steps],'omissions':[]}
+    ref, receipt = store.save_presentation(ctx.workspace_id, ctx.turn_id, ctx.call_id,
+                                          args.replace_presentation_ref, build)
     return ToolResult(data={'presentation_ref':ref,**{k:v for k,v in receipt.items() if k!='blocks'},
-                           'blocks':[{k:v for k,v in b.items() if k!='payload'} for b in blocks]},artifact_refs=[ref])
+                           'blocks':[{k:v for k,v in b.items() if k!='payload'} for b in receipt['blocks']]},artifact_refs=[ref])

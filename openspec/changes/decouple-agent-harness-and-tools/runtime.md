@@ -88,3 +88,11 @@ RuntimeService提供start/read/cancel/resume；transport仅将HTTP输入转换�
 ### 当前审核门
 
 单一 instructions.md 以正确性优先、自主组合、原查询继承、证据范围和授权边界为原则，已清理重复表述。无模型预览使用 UnconfiguredModel，人工诊断通过 ReviewerModel 接入同一 ModelPort；模型与搜索后端探针均不得绕过当前授权或禁网设置。真实 provider 验收留待用户审核后。
+
+## 审计整改后的执行边界（2026-09-09）
+
+- 产品 FastAPI 生命周期不等待模型初始化。Agent 暴露 `INITIALIZING / READY / UNAVAILABLE / DISABLED`；非 READY 时新建运行返回 503，普通产品页面继续可用。禁用模式不构造模型客户端、不探测、不消费已有运行。
+- 模型原生流和 HTTP 保持异步；同步存储、知识读取与计算进入最多六个工作线程，单批最多三个 READ，读写顺序不变。排队时间计入工具期限。
+- 线程取消不等于事务取消。取消请求先通知运行，再持久化；等待已经开始的线程退出后才写运行终态。工具写事务按 checkpoint → workspace／业务锁的顺序验证所有权，提交前再检查取消和期限；PostgreSQL statement/lock timeout 限制 SQL 等待。已提交的用户操作以持久回执为准，后续超时不能伪装成“写入失败”。
+- 正常调用和故障恢复共用同一结果投影；完整工具结果只存一份不可变记录，模型继续读取有界视图。通用 harness 不识别路线、研究或会籍字段；原子投影关系由各工具声明。
+- `WorkspacePort` 只提供受限的历史、引用、笔记、展示与已提交回执能力，不向工具暴露 session factory。模型适配器仍可独立替换；不增加意图分类器、固定业务步骤或第二个模型。

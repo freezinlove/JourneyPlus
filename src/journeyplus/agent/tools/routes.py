@@ -1,13 +1,11 @@
 """Explicit route inputs; immutable query artifacts replace implicit last-query state."""
+from journeyplus.agent.harness.execution import blocking_tool
 from journeyplus.agent.services.route_metrics import metrics
 from journeyplus.agent.services.route_objects import RouteObject
 from copy import deepcopy
 from uuid import UUID
-from journeyplus.models import StatusHolding, now_utc
-from journeyplus.knowledge.routes import RouteService, RouteQuery
 from journeyplus.agent.harness.contracts import ToolResult
 from .contracts import RouteRequest
-from sqlalchemy import select
 import json
 
 
@@ -97,12 +95,22 @@ def coverage(raw,total,returned,offset=0):
             'omissions':['additional_candidates'] if offset+returned<total else []}
 
 
-async def evaluate(args, ctx):
+def scope_coverage(payload,total,returned,offset=0):
+    value=coverage(payload['coverage'],total,returned,offset)
+    if payload.get('resolution',{}).get('unresolved_sources'):
+        value['complete']=False
+        value['omissions']=[*value['omissions'],'unresolved_query_sources']
+    return value
+
+
+@blocking_tool
+def evaluate(args, ctx):
     if args.operation!='search':
-        routes=[];steps={};origin_queries={}
+        routes=[];steps={};origin_queries={};origin_scopes={}
         for ref in args.route_refs:
             obj=RouteObject.read(ctx.artifact_port,ctx.workspace_id,ref)
             root_ref,route=obj.root_ref,obj.route
+            origin_scopes[root_ref]={'result_ref':root_ref,'resolution':obj.resolution,'coverage':obj.coverage}
             if obj.query_ref and obj.query_ref not in origin_queries:
                 original=ctx.artifact_port.read(ctx.workspace_id,obj.query_ref)
                 if original['kind']!='QUERY':raise ValueError('Route origin must identify a QUERY snapshot')
@@ -127,10 +135,15 @@ async def evaluate(args, ctx):
               'retrieval_scope':{'operation':args.operation,'new_search_performed':False,
                                  'origin_queries':[{'query_ref':ref,'effective_query':query}
                                                    for ref,query in origin_queries.items()],
+                                 'origin_scopes':list(origin_scopes.values()),
                                  'meaning':'Selected result objects only; their endpoints are not new user query constraints.'}}
         if args.operation=='inspect':data['steps']=list(steps.values())
         else:data['metrics']={key:value for key,value in metrics(routes).items() if key!='items'}
-        return ToolResult(data=data,coverage={"complete":True,"returned":len(routes),"total":len(routes),"omissions":[]})
+        incomplete=any(scope['resolution'].get('unresolved_sources') for scope in origin_scopes.values())
+        return ToolResult(status='PARTIAL' if incomplete else 'OK',data=data,
+            coverage={'complete':not incomplete,'retrieval_complete':True,'scope':'selected_objects',
+                      'returned':len(routes),'total':len(routes),
+                      'omissions':['unresolved_query_sources'] if incomplete else []})
     if args.query:
         query=args.query
     else:
@@ -145,57 +158,28 @@ async def evaluate(args, ctx):
             refs=result.get('route_order',sorted(result['routes']))
             if int(offset)>len(refs):raise ValueError('Invalid route cursor offset')
             selected,next_cursor=result_page(result,result_ref,int(offset),args.limit)
-            return ToolResult(status='PARTIAL' if not result['coverage'].get('search_complete') else 'OK',
+            return ToolResult(status='PARTIAL' if result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('search_complete') else 'OK',
                 data={'query_ref':args.query_ref,'effective_query':previous['payload'],
-                'route_refs':[r['ref'] for r in selected], 'candidates':selected},coverage=coverage(result['coverage'],len(refs),len(selected),int(offset)),
+                'route_refs':[r['ref'] for r in selected], 'candidates':selected,**result.get('resolution',{})},
+                coverage=scope_coverage(result,len(refs),len(selected),int(offset)),
+                artifact_refs=[args.query_ref,result_ref],effective_input=result.get('effective_input',{}),
                 next_cursor=next_cursor)
         query=merge_query(previous['payload'],args.patch)
-    unresolved=[];sources=[]
-    with ctx.services['knowledge'].read() as s:
-        identities=list(query.sources.identities)
-        if query.sources.mode=='saved':
-            holdings=list(s.scalars(select(StatusHolding).where((StatusHolding.valid_until.is_(None)) | (StatusHolding.valid_until>=now_utc().date()))))
-        elif query.sources.holding_refs:
-            holdings=[]
-            for ref in query.sources.holding_refs:
-                holding=s.get(StatusHolding,UUID(ref.removeprefix('holding:')))
-                if holding is None:raise LookupError('Holding does not exist')
-                holdings.append(holding)
-        else:
-            holdings=[]
-        for h in holdings:
-            if h.tier_id:
-                identities.append({'ref':'tier:'+str(h.tier_id)})
-            else:
-                unresolved.append({'holding_ref':'holding:'+str(h.id),'program_name':h.program_display_name,'tier_name':h.tier_display_name,'code':'CATALOG_GAP'})
-        for identity in identities:
-            resolved=ctx.services['identities'].resolve(s,identity,require_tier=True,context=ctx)
-            if resolved['status']!='OK':unresolved.append(resolved)
-            else:sources.append(resolved)
-        target=ctx.services['identities'].resolve(s,query.target,context=ctx) if query.target else None
-        if target and target['status']!='OK':
-            return ToolResult.failure(target['code'],'Target identity could not be bound',status=target['status'],candidates=target['candidates'])
-        if unresolved and (query.sources.mode=='explicit' or not sources):
-            ambiguous=any(item.get('status')=='AMBIGUOUS' for item in unresolved)
-            return ToolResult(status='AMBIGUOUS' if ambiguous else 'NOT_FOUND',
-                data={'resolved_sources':sources,'unresolved_sources':unresolved},
-                error={'code':'IDENTITY_AMBIGUOUS' if ambiguous else 'CATALOG_GAP',
-                       'message':'Requested sources could not all be resolved',
-                       'candidates':[candidate for item in unresolved for candidate in item.get('candidates',[])][:10]})
-        actual=RouteQuery(starting_tier_ids=list({UUID(r['tier_ref'][5:]) for r in sources}), use_saved_holdings=False,
-            target_program_id=UUID(target['program_ref'][8:]) if target else None,
-            target_tier_id=UUID(target['tier_ref'][5:]) if target and target['tier_ref'] else None,
-            alliance=query.alliance,category=query.category,preferences=query.preferences,**query.constraints.model_dump())
-        result=RouteService(s).query(actual,shortlist=args.limit)
-    query_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY',query.model_dump(mode='json'),call_id=ctx.call_id)
+    evaluation=ctx.services['route_queries'].evaluate(query,context=ctx,limit=args.limit)
+    if evaluation.get('error'):return evaluation['error']
+    result,actual=evaluation['result'],evaluation['actual']
+    sources,target,unresolved=evaluation['sources'],evaluation['target'],evaluation['unresolved']
+    query_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY',query.model_dump(mode='json'),call_id=ctx.call_id,turn_id=ctx.turn_id)
     payload={'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
-             'route_order':list(result['server_routes']),'coverage':result['coverage']}
-    ref=ctx.artifact_port.put(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id)
+             'route_order':list(result['server_routes']),'coverage':result['coverage'],
+             'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
+             'effective_input':actual.model_dump(mode='json')}
+    ref=ctx.artifact_port.put(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id,turn_id=ctx.turn_id)
     ids=list(payload['routes'])
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
     return ToolResult(status='PARTIAL' if unresolved or not result['coverage']['search_complete'] else 'OK' if candidates else 'EMPTY',
         data={'query_ref':query_ref,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
               'unresolved_sources':unresolved,'route_refs':[r['ref'] for r in candidates],'candidates':candidates,
               },
-        artifact_refs=[query_ref,ref],coverage={**coverage(result['coverage'],len(ids),len(candidates)),**({'complete':False} if unresolved else {})},effective_input=actual.model_dump(mode='json'),
+        artifact_refs=[query_ref,ref],coverage=scope_coverage(payload,len(ids),len(candidates)),effective_input=actual.model_dump(mode='json'),
         next_cursor=next_cursor)
