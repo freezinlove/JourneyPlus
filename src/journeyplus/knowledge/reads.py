@@ -48,7 +48,8 @@ class ActivityReadService:
     def snapshot(self)->dict[str,str]:
         return {str(a):str(v) for a,v in self.session.execute(select(Activity.id,Activity.current_version_id).where(Activity.current_version_id.is_not(None),Activity.merged_into_id.is_(None)))}
 
-    def locate(self, *, ref:str|None=None, text:str|None=None, limit:int=5)->list[Activity]:
+    def locate(self, *, ref:str|None=None, text:str|None=None, limit:int=5, offset:int=0)->list[Activity]:
+        if offset<0:raise ValueError('Activity offset must be non-negative')
         if ref:
             try: row=self.session.get(Activity,UUID(ref))
             except ValueError: row=None
@@ -62,7 +63,7 @@ class ActivityReadService:
                     from journeyplus.knowledge.catalog_identity import program_key
                     actual=self.session.get(MembershipProgram,program_id)
                     ids=[p.id for p in self.session.scalars(select(MembershipProgram)) if program_key(p)==program_key(actual)]
-                    return list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
+                    return list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).offset(offset).limit(limit+1)))
             except ValueError:pass
         query=canonical_key(text or "")
         direction=re.search(r'(?:\bto\b|匹配到|匹配至|→|->)\s*(.+)$',query)
@@ -82,9 +83,9 @@ class ActivityReadService:
             for program in self.session.scalars(select(MembershipProgram)):
                 tokens=set(re.findall(r'[a-z0-9]+',program.canonical_key))-stop
                 if tokens and tokens <= query_tokens:program_ids.add(program.id)
-            related=list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(program_ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(limit+1)))
+            related=list(self.session.scalars(select(Activity).where(Activity.primary_program_id.in_(program_ids),Activity.merged_into_id.is_(None)).order_by(Activity.identity_key).limit(offset+limit+1)))
             rows=list({a.id:a for a in rows+related}.values())
-        return rows[:limit+1]
+        return rows[offset:offset+limit+1]
 
     def detail(self, activity_id:UUID, version_id:UUID|None=None)->dict:
         a=self.session.get(Activity,activity_id)

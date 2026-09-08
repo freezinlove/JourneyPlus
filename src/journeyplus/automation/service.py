@@ -11,13 +11,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
-from journeyplus.agent.contracts import WaitCheckStatus, WaitCheckSummary
-from journeyplus.agent.controller import (
-    AgentController,
-    ExperienceResearcher,
-    cleanup_expired_interactions,
-)
-from journeyplus.agent.waiting import WaitGoalService
 from journeyplus.article_operations import (
     GENERIC_PUBLIC_SOURCE_ID,
     pending_article_count,
@@ -243,9 +236,6 @@ def run_daily_cycle(
     generic_pipeline_mode: str = "v2",
     generic_title_drop_enabled: bool = True,
     knowledge_publish_enabled: bool = False,
-    agent_experience_researcher: ExperienceResearcher | None = None,
-    agent_interaction_ttl: timedelta = timedelta(hours=24),
-    agent_max_model_calls: int = 3,
 ) -> DailyCycleSummary:
     if generic_pipeline_mode not in {"v1", "v2"}:
         raise ValueError("generic_pipeline_mode must be v1 or v2")
@@ -283,7 +273,7 @@ def run_daily_cycle(
     budgeted = BudgetedAIProvider(provider, resolved_limits.model_calls)
     backlog = 0
     needs_review = 0
-    waiting = WaitCheckSummary(status=WaitCheckStatus.NO_GOAL)
+
     global_error: str | None = None
     try:
         with session_factory.begin() as session:
@@ -492,20 +482,8 @@ def run_daily_cycle(
                 "buy_points_processing": asdict(buy_points_processing),
             }
 
-        # V2 waiting owns a short transaction and never invokes a model. Keep its
-        # query schema away from the legacy controller during staged rollout.
-        from journeyplus.agent.workspace import WorkspaceWaitService,WorkspaceService
-        try:
-            removed=WorkspaceService(session_factory,None).cleanup(at=current)
-            processing_payload['workspace_cleanup']={'status':'COMPLETED','removed_workspaces':removed}
-        except Exception as exc:
-            processing_payload['workspace_cleanup']={'status':'FAILED','error_type':type(exc).__name__}
-        try:
-            paused=session_factory.kw.get('info',{}).get('user_business_writes_paused',False)
-            workspace_waiting = {'status':'PAUSED','model_calls':0} if paused else WorkspaceWaitService(session_factory).check()
-        except Exception as exc:
-            workspace_waiting = {"status": "FAILED", "model_calls": 0, "error_type": type(exc).__name__}
-        processing_payload["workspace_waiting"] = workspace_waiting
+        # Agent scheduling is owned by the independent Agent maintenance entry.
+        processing_payload['agent_waiting']={'status':'INDEPENDENT_AGENT','agent_called':False}
 
         with session_factory.begin() as session:
             lifecycle = advance_lifecycles(session, now=current)
@@ -517,24 +495,6 @@ def run_daily_cycle(
                 "status_events": asdict(lifecycle),
                 "article_opportunities": asdict(article_lifecycle),
             }
-            waiting = WaitCheckSummary(status='PAUSED',agent_called=False) if session.info.get('user_business_writes_paused') else WaitGoalService(session).check_current(
-                lambda goal, result: AgentController(
-                    session,
-                    budgeted,
-                    interaction_ttl=agent_interaction_ttl,
-                    max_model_calls=agent_max_model_calls,
-                    experience_researcher=agent_experience_researcher,
-                    degrade_provider_errors=False,
-                ).resume_wait_goal(goal, result)
-            )
-            if workspace_waiting['status']!='NO_ACTIVE_GOAL':
-                waiting=WaitCheckSummary(status=workspace_waiting['status'],goal_id=workspace_waiting.get('goal_id'),
-                    matching_count=workspace_waiting.get('matching_count',0),agent_called=False,
-                    error=workspace_waiting.get('error_type'))
-            processing_payload["agent_waiting"] = waiting.model_dump(mode="json")
-            processing_payload["expired_agent_interactions_deleted"] = (
-                cleanup_expired_interactions(session, now=current)
-            )
             backlog = (
                 pending_article_count(
                     session,
@@ -674,10 +634,10 @@ def run_daily_cycle(
         statusmatch_article_outputs=tuple(
             asdict(item) for item in article_processing.routes
         ),
-        agent_wait_status=waiting.status,
-        agent_wait_matching_count=waiting.matching_count,
-        agent_wait_model_called=waiting.agent_called,
-        agent_wait_error=waiting.error,
+        agent_wait_status="INDEPENDENT_AGENT",
+        agent_wait_matching_count=0,
+        agent_wait_model_called=False,
+        agent_wait_error=None,
         backlog_count=backlog,
         needs_review_count=needs_review,
         knowledge_outputs=tuple(processing_payload.get("knowledge_outputs", [])),
@@ -1389,7 +1349,7 @@ def _skipped_summary(day_bucket: date, reason: str) -> DailyCycleSummary:
         statusmatch_article_model_calls=0,
         statusmatch_article_errors=(),
         statusmatch_article_outputs=(),
-        agent_wait_status=WaitCheckStatus.NO_GOAL,
+        agent_wait_status="INDEPENDENT_AGENT",
         agent_wait_matching_count=0,
         agent_wait_model_called=False,
         agent_wait_error=None,

@@ -782,4 +782,4 @@ class GoldCaseRecord(Base, TimestampMixin):
 
 # Register the source-neutral knowledge tables with the same metadata/migrations.
 from journeyplus.knowledge import models as _knowledge_models  # noqa: E402,F401
-from journeyplus.agent import workspace_models as _workspace_models  # noqa: E402,F401
+from journeyplus import workspace_models as _workspace_models  # noqa: E402,F401

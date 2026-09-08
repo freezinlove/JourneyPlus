@@ -9,7 +9,7 @@ from journeyplus.knowledge.contracts import KnowledgeDraft,PriceDraft
 from journeyplus.knowledge.publication import PublicationService,CatalogService
 from journeyplus.knowledge.refresh import KnowledgeRefreshService
 from journeyplus.knowledge.models import Activity,ActivityBrief,ActivityObservationState
-from tests.test_workspace import factory
+from tests.db_fixture import factory
 from tests.test_knowledge import fixture_draft
 
 

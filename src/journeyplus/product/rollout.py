@@ -7,11 +7,14 @@ def install_rollout(app,mode='legacy',user_writes_paused=False):
     if mode not in {'legacy','unified','rollback'}:raise ValueError('Invalid knowledge read mode')
     paused=user_writes_paused or mode=='rollback'
     entries={'/':'/knowledge','/agent':'/workspace','/matches':'/explore','/briefs':'/knowledge'}
-    legacy_business=('/v1/agent','/v1/personalized-matches','/v1/briefs','/v1/match-opportunities')
+    legacy_business=('/v1/personalized-matches','/v1/briefs','/v1/match-opportunities')
 
     @app.middleware('http')
     async def consumer_boundary(request,call_next):
         path=request.url.path
+        if request.method not in {'GET','HEAD','OPTIONS'} and path.startswith(('/v1/agent/','/v2/agent/','/v2/wait-goal')):
+            from journeyplus.product.knowledge_api import retired_response
+            return retired_response()
         user_mutation=(path.startswith('/v1/status-holdings') or path.startswith('/v2/wait-goal')
                        or (path.startswith('/v2/agent/workspaces/') and path.endswith(('/confirm','/messages'))))
         if paused and request.method not in {'GET','HEAD','OPTIONS'} and user_mutation:

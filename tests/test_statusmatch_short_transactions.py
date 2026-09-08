@@ -1,5 +1,5 @@
 from sqlalchemy import event, select
-from tests.test_workspace import factory
+from tests.db_fixture import factory
 from tests.test_statusmatch_monitoring import PageFetcher, _active_responses
 from journeyplus.sources.registry import seed_sources
 from journeyplus.statusmatch.watchlist import ensure_statusmatch_watch

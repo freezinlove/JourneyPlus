@@ -31,12 +31,6 @@ class Settings:
     knowledge_user_writes_paused: bool = False
     generic_article_pipeline: str = "v2"
     generic_title_drop_enabled: bool = True
-    agent_interaction_ttl_hours: int = 24
-    agent_max_model_calls: int = 3
-    statusmatcher_enabled: bool = False
-    statusmatcher_timeout_seconds: int = 12
-    statusmatcher_max_response_bytes: int = 1_000_000
-    statusmatcher_max_pages: int = 2
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -84,26 +78,7 @@ class Settings:
             generic_title_drop_enabled=_boolean_env(
                 "JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED", True
             ),
-            agent_interaction_ttl_hours=_positive_env_int(
-                "JOURNEYPLUS_AGENT_INTERACTION_TTL_HOURS", 24
-            ),
-            agent_max_model_calls=_bounded_env_int(
-                "JOURNEYPLUS_AGENT_MAX_MODEL_CALLS", 3, maximum=3
-            ),
-            statusmatcher_enabled=_boolean_env(
-                "JOURNEYPLUS_STATUSMATCHER_ENABLED", False
-            ),
-            statusmatcher_timeout_seconds=_bounded_env_int(
-                "JOURNEYPLUS_STATUSMATCHER_TIMEOUT_SECONDS", 12, maximum=30
-            ),
-            statusmatcher_max_response_bytes=_bounded_env_int(
-                "JOURNEYPLUS_STATUSMATCHER_MAX_RESPONSE_BYTES",
-                1_000_000,
-                maximum=1_000_000,
-            ),
-            statusmatcher_max_pages=_bounded_env_int(
-                "JOURNEYPLUS_STATUSMATCHER_MAX_PAGES", 2, maximum=2
-            ),
+
         )
 
     def require_ai(self) -> "Settings":
@@ -136,13 +111,6 @@ def _positive_env_int(name: str, default: int) -> int:
     value = int(os.getenv(name, str(default)))
     if value < 1:
         raise ValueError(f"{name} must be a positive integer")
-    return value
-
-
-def _bounded_env_int(name: str, default: int, *, maximum: int) -> int:
-    value = _positive_env_int(name, default)
-    if value > maximum:
-        raise ValueError(f"{name} must not exceed {maximum}")
     return value
 
 

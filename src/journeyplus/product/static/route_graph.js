@@ -57,8 +57,9 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
   const descriptions=el('ol',undefined,'graph-routes');
   for(const [index,route] of payload.routes.entries()){
     const item=el('li');const path=[route.from||'公开申请',...route.step_refs.map(ref=>payload.steps[ref].to)].join(' → ');
-    const role=route.classification==='MATCH'?(block.graph_mode==='RECOMMEND'?(route.presentation_role==='PRIMARY'?'首选':'备选'):'符合查询条件'):(labels[route.classification]||'待核实');
-    item.append(el('strong',`方案 ${route.presentation_index||index+1} · ${role}`),el('div',path),el('div',money(route.cost)));
+    const role=route.classification==='MATCH'?(block.graph_mode==='RECOMMEND'?(route.presentation_role==='PRIMARY'?'首选':route.presentation_role==='ALTERNATIVE'?'备选':block.model_owned_roles?'符合查询条件':'备选'):'符合查询条件'):(labels[route.classification]||'待核实');
+    const fee=money(route.cost);
+    item.append(el('strong',`方案 ${route.presentation_index||index+1} · ${role}`),el('div',path),el('div',route.cost.state==='PARTIAL'?`已知部分：${fee}；总费用未知`:fee));
     if(block.graph_mode==='RECOMMEND'&&route.recommendation_basis)item.append(el('small',route.recommendation_basis));
     const investigated=(payload.research||[]).filter(o=>route.step_refs.includes(o.step_ref));
     if(investigated.length)item.append(el('small',`已查 ${investigated.length}/${route.step_refs.length} 步经验，样本限制见节点详情`));

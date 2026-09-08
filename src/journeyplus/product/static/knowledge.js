@@ -17,7 +17,18 @@ async function load(){
 }
 async function start(){
   await load();
-  const legacy=new URLSearchParams(location.search).get('legacy_opportunity');
+  const params=new URLSearchParams(location.search);
+  const activityId=params.get('activity_id'),version=params.get('version_ref');
+  if(activityId&&version){
+    await openActivity({ref:activityId,version_ref:version});
+    if(params.get('section')==='brief'){
+      const sections=[...document.querySelectorAll('#detail-content details')];
+      const brief=sections.find(d=>d.querySelector('summary')?.textContent.trim()==='活动简报');
+      if(brief){brief.open=true;brief.scrollIntoView({block:'nearest'});}else{$('#detail-content').prepend(el('p','此版本尚无已生成简报，以下为同版本资料详情。'));}
+    }
+    return;
+  }
+  const legacy=params.get('legacy_opportunity');
   if(!legacy)return;
   try{
     const resolved=await api(`/v2/legacy/opportunities/${encodeURIComponent(legacy)}`);

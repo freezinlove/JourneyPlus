@@ -1,4 +1,4 @@
-from tests.test_workspace import factory
+from tests.db_fixture import factory
 from journeyplus.knowledge.publication import CatalogService
 from journeyplus.knowledge.catalog_metadata import sync_catalog_metadata
 from journeyplus.knowledge.routes import RouteService

@@ -5,7 +5,7 @@ from sqlalchemy import select,create_engine
 from sqlalchemy.orm import sessionmaker
 from journeyplus.models import Base,StatusHolding,AgentWaitGoal,UserBusinessOperation
 from journeyplus.knowledge.user_journal import enable_journal,export_operations,replay_operations,snapshot
-from tests.test_workspace import factory
+from tests.db_fixture import factory
 
 
 def holding():

@@ -66,15 +66,13 @@ JOURNEYPLUS_AUTOMATION_MODEL_CALL_LIMIT=100
 JOURNEYPLUS_AUTOMATION_LEASE_SECONDS=3600
 JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE=v2
 JOURNEYPLUS_GENERIC_TITLE_DROP_ENABLED=true
-JOURNEYPLUS_AGENT_INTERACTION_TTL_HOURS=24
-JOURNEYPLUS_AGENT_MAX_MODEL_CALLS=3
-JOURNEYPLUS_STATUSMATCHER_ENABLED=false
-JOURNEYPLUS_STATUSMATCHER_TIMEOUT_SECONDS=12
-JOURNEYPLUS_STATUSMATCHER_MAX_RESPONSE_BYTES=1000000
-JOURNEYPLUS_STATUSMATCHER_MAX_PAGES=2
 ```
 
-StatusMatcher 调查默认关闭。只有取得自动读取许可或其他明确授权后，才可把 `JOURNEYPLUS_STATUSMATCHER_ENABLED` 设为 `true`；即使服务端启用，Agent 也只会在用户要求实际申请经验且数据库已经产生正式候选时调查最多三条候选，不会借此发现数据库之外的新路线。
+Agent 已迁移到独立的模型适配器、harness 和工具注册器。旧 v1/v2 Agent 写入口返回 410；历史会话只读，可显式导入新工作区。等待检查由独立 Agent maintenance 运行，不再由每日 Workflow 唤醒。Agent 联网由 `JOURNEYPLUS_AGENT_NETWORK_ENABLED` 独立控制，允许读取公开资料，无须先存在正式路线。
+
+Agent 配置见 `.env.example`，旧三次调用和 StatusMatcher 专用开关已退役。工作区临时资料保留 24 小时，已成功的用户操作回执单独持久保存。
+
+当前实施与审核边界见 [Agent 解耦实施总纲](openspec/changes/decouple-agent-harness-and-tools/charter.md)。无需调用模型的本地页面可用 `uv run python -m journeyplus.agent.server --no-model` 启动；人工模型席位调试使用 `scripts/review_agent_harness.py` 并显式指定隔离数据库。普通 Agent 服务启动会初始化模型协议，须在用户审核许可后使用。
 
 ## 配置
 
@@ -111,7 +109,7 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`；单 Agent 的实施与验收任务位于 `openspec/changes/implement-membership-strategy-agent/`。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针、Agent 专项方针和当前实施 change 为准。
+当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`；当前 Agent 的实施与验收任务位于 `openspec/changes/decouple-agent-harness-and-tools/`。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针、Agent 专项方针和当前实施 change 为准。
 
 ## 当前已知限制
 
@@ -123,4 +121,4 @@ uv run python scripts/smoke_public_sources.py
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
-- 会籍策略 Agent 已落到页面、回合 API、短期交互状态和每日等待检查；模型未配置时 Agent 明确不可用，但其他确定性页面和 API 不受影响。StatusMatcher 正式自动调查仍以取得书面许可、授权接口或其他明确授权为前提，并保持默认关闭。
+- 会籍策略 Agent 使用 v3 工作区、持久运行、独立工具及确定性等待检查。模型未配置时会明确报告不可用，知识、简报和完整图可独立浏览。当前 change 的真实模型验收须等待用户审核批准。

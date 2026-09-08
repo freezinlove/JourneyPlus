@@ -11,20 +11,6 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from journeyplus.agent.contracts import (
-    AgentStateResponse,
-    AgentTurnRequest,
-    AgentTurnResponse,
-)
-from journeyplus.agent.controller import (
-    AgentController,
-    AgentProviderError,
-    AgentStateError,
-    ExperienceResearcher,
-    cleanup_expired_interactions,
-)
-from journeyplus.agent.waiting import WaitGoalError, WaitGoalService
-from journeyplus.ai.provider import AIProvider
 from journeyplus.membership.contracts import MembershipCatalog
 from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.product.briefs import ProductBriefService
@@ -45,53 +31,20 @@ _STATIC_DIR = Path(__file__).with_name("static")
 def create_product_app(
     session_factory: sessionmaker[Session],
     *,
-    ai_provider: AIProvider | None = None,
-    experience_researcher: ExperienceResearcher | None = None,
-    agent_interaction_ttl_hours: int = 24,
-    agent_max_model_calls: int = 3,
+    agent_model=None,
+    agent_network_enabled: bool = False,
     knowledge_read_mode: str = 'legacy',
     knowledge_user_writes_paused: bool = False,
 ) -> FastAPI:
-    app = FastAPI(
-        title="JourneyPlus personalized status matches",
-        docs_url="/docs",
-        redoc_url=None,
-    )
-    app.mount("/assets", StaticFiles(directory=_STATIC_DIR), name="assets")
+    from journeyplus.agent.composition import compose_business
+    from journeyplus.agent.adapters.unconfigured import UnconfiguredModel
+    from journeyplus.product.agent_api import create_agent_app
+    runtime,store=compose_business(session_factory,agent_model or UnconfiguredModel(),network_enabled=agent_network_enabled)
+    app=create_agent_app(runtime,store,include_home=False)
     from journeyplus.product.rollout import install_rollout
     install_rollout(app,knowledge_read_mode,knowledge_user_writes_paused)
     from journeyplus.knowledge.user_journal import configure_user_data
     configure_user_data(session_factory,knowledge_read_mode.casefold(),knowledge_user_writes_paused)
-    from journeyplus.product.knowledge_api import knowledge_router
-    app.include_router(knowledge_router(session_factory,ai_provider,
-        ttl_hours=agent_interaction_ttl_hours,max_calls=agent_max_model_calls,researcher=experience_researcher))
-
-    @app.get("/workspace", response_class=HTMLResponse, include_in_schema=False)
-    def workspace_page() -> str:
-        return (_STATIC_DIR / "workspace.html").read_text(encoding="utf-8")
-
-    @app.get('/knowledge',response_class=HTMLResponse,include_in_schema=False)
-    def knowledge_page() -> str:
-        return (_STATIC_DIR / 'knowledge.html').read_text(encoding='utf-8')
-
-    @app.get('/explore',response_class=HTMLResponse,include_in_schema=False)
-    def explore_page() -> str:
-        return (_STATIC_DIR / 'explore.html').read_text(encoding='utf-8')
-
-    def agent_controller(session: Session) -> AgentController:
-        if ai_provider is None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="会籍策略 Agent 暂不可用：服务端尚未配置模型。",
-            )
-        return AgentController(
-            session,
-            ai_provider,
-            interaction_ttl=timedelta(hours=agent_interaction_ttl_hours),
-            max_model_calls=agent_max_model_calls,
-            experience_researcher=experience_researcher,
-        )
-
     @app.exception_handler(SQLAlchemyError)
     async def database_unavailable(_request, _exc) -> JSONResponse:
         return JSONResponse(
@@ -113,41 +66,15 @@ def create_product_app(
             catalog = UnifiedMembershipTreeService(session).catalog(query=q)
             return catalog.model_copy(update={"nodes": catalog.nodes[:limit]})
 
-    @app.post("/v1/agent/turn", response_model=AgentTurnResponse)
-    def agent_turn(request: AgentTurnRequest) -> AgentTurnResponse:
-        try:
-            with session_factory.begin() as session:
-                return agent_controller(session).turn(request)
-        except HTTPException:
-            raise
-        except (AgentStateError, WaitGoalError, LookupError) as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
-        except AgentProviderError as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    @app.get("/v1/agent/state", response_model=AgentStateResponse)
-    def agent_state() -> AgentStateResponse:
-        with session_factory.begin() as session:
-            cleanup_expired_interactions(session)
-            wait_service = WaitGoalService(session)
-            pending = wait_service.consume_pending()
-            latest = (
-                agent_controller(session).latest_response()
-                if ai_provider is not None
-                else None
-            )
-            if (
-                pending is not None
-                and latest is not None
-                and pending.interaction_id == latest.interaction_id
-            ):
-                latest = None
-            return AgentStateResponse(
-                available=ai_provider is not None,
-                interaction=latest,
-                wait_goal=wait_service.current(),
-                pending_result=pending,
-            )
+    @app.get('/v1/agent/state')
+    def legacy_agent_state():
+        from sqlalchemy import select
+        from journeyplus.models import AgentInteraction
+        with session_factory() as session:
+            row=session.scalar(select(AgentInteraction).where(AgentInteraction.schema_version.not_in(['workspace-1','harness-2']))
+                               .order_by(AgentInteraction.updated_at.desc()).limit(1))
+            return {'available':False,'read_only':True,'interaction':row.last_response if row else None,
+                    'wait_goal':None,'pending_result':None,'workspace_url':'/workspace'}
 
     @app.get("/v1/status-holdings", response_model=list[StatusHoldingView])
     def list_status_holdings() -> list[StatusHoldingView]:
@@ -232,7 +159,7 @@ def create_product_app(
 
     @app.get("/agent", response_class=HTMLResponse, include_in_schema=False)
     def agent_page() -> str:
-        return _page("agent", "会籍策略 Agent")
+        return RedirectResponse("/workspace",status_code=307)
 
     @app.get("/matches", response_class=HTMLResponse, include_in_schema=False)
     def matches_page() -> str:

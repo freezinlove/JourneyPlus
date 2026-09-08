@@ -11,7 +11,6 @@ from journeyplus.config import Settings
 from journeyplus.db import create_session_factory, engine_from_settings, session_scope
 from journeyplus.ai.provider import OpenAICompatibleProvider
 from journeyplus.ai.smoke import run_ai_smoke
-from journeyplus.agent.statusmatcher import StatusMatcherExperienceClient
 from journeyplus.automation.service import (
     AutomationLimits,
     automation_status,
@@ -68,15 +67,6 @@ from journeyplus.sources.base import HttpxFetcher
 
 
 SOURCE_IDS = [item.source_id for item in SOURCE_REGISTRY]
-
-
-def _statusmatcher_experience_client(settings: Settings) -> StatusMatcherExperienceClient:
-    return StatusMatcherExperienceClient(
-        enabled=settings.statusmatcher_enabled,
-        timeout_seconds=settings.statusmatcher_timeout_seconds,
-        max_response_bytes=settings.statusmatcher_max_response_bytes,
-        max_pages=settings.statusmatcher_max_pages,
-    )
 
 
 def _positive_int(value: str) -> int:
@@ -299,20 +289,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             prepare_product_database(settings, engine)
         except ProductDatabaseUnavailable as exc:
             parser.error(str(exc))
-        agent_provider = (
-            OpenAICompatibleProvider(settings)
-            if settings.ai_base_url and settings.ai_api_key
-            else None
-        )
-        from journeyplus.agent.live_research import build_researcher
-        experience_researcher = build_researcher(settings,factory)
+        from journeyplus.agent.adapters.config import AgentConfig
+        from journeyplus.agent.adapters.model import AgentModel
+        config=AgentConfig.from_env()
         uvicorn.run(
             create_product_app(
                 factory,
-                ai_provider=agent_provider,
-                experience_researcher=experience_researcher,
-                agent_interaction_ttl_hours=settings.agent_interaction_ttl_hours,
-                agent_max_model_calls=settings.agent_max_model_calls,
+                agent_model=AgentModel(config),
+                agent_network_enabled=config.network_enabled,
                 knowledge_read_mode=settings.knowledge_read_mode,
                 knowledge_user_writes_paused=settings.knowledge_user_writes_paused,
             ),
@@ -548,11 +532,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             generic_pipeline_mode=settings.generic_article_pipeline,
             generic_title_drop_enabled=settings.generic_title_drop_enabled,
             knowledge_publish_enabled=settings.knowledge_publish_enabled,
-            agent_experience_researcher=_statusmatcher_experience_client(settings),
-            agent_interaction_ttl=timedelta(
-                hours=settings.agent_interaction_ttl_hours
-            ),
-            agent_max_model_calls=settings.agent_max_model_calls,
         )
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0

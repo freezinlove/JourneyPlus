@@ -1,0 +1,172 @@
+import asyncio
+from uuid import UUID
+from journeyplus.agent.harness.contracts import DTO, ModelEvent, Capabilities, ToolDefinition, ToolResult
+from journeyplus.agent.composition import compose
+from journeyplus.agent.adapters.models import RunCheckpoint, ToolCall
+from sqlalchemy import select
+
+
+class FakeModel:
+    def __init__(self, batches):self.batches=iter(batches);self.inputs=[]
+    def capabilities(self):return Capabilities(native_tools=True,streaming=True,context_window=32768,max_output=4096)
+    async def stream(self,messages,definitions,limits,cancel_token):
+        self.inputs.append(messages)
+        for event in next(self.batches):yield ModelEvent(**event)
+
+
+def answer(text='done'):
+    return [{'type':'text_delta','text':text},{'type':'turn_end','finish_reason':'stop'}]
+
+
+def call(name='echo',value='hi',id='call-1'):
+    return [{'type':'tool_call_ready','call_id':id,'name':name,'arguments':{'value':value}},{'type':'turn_end','finish_reason':'tool_calls'}]
+
+
+class Echo(DTO):value:str
+async def echo(args,context):return ToolResult(data={'value':args.value})
+
+
+def execute(factory,model,definitions=()):
+    runtime,store=compose(factory,model,definitions)
+    workspace=store.create()
+    run=store.start(workspace['id'],'hello','client-1',0)
+    asyncio.run(runtime.run(run['run_id']))
+    return store,workspace,run
+
+
+def test_zero_tool_answer(session_factory):
+    store,w,r=execute(session_factory,FakeModel([answer('Hello')]))
+    assert store.read(w['id'])['messages'][-1]['content'][0]['text']=='Hello'
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+
+
+def test_registered_detail_capacity_preserves_large_atomic_evidence(session_factory):
+    class Input(DTO):view:str
+    body='evidence '*1900
+    async def read(args,ctx):return ToolResult(data={'section':{'text':body,'qualification':'UNKNOWN'}})
+    model=FakeModel([[{'type':'tool_call_ready','call_id':'detail','name':'documents.read','arguments':{'view':'detail'}},
+                      {'type':'turn_end','finish_reason':'tool_calls'}],answer()])
+    definition=ToolDefinition('documents.read','Read documents',Input,read,
+        operation_result_max_bytes={'detail':24000},result_budget_field='view')
+    store,w,r=execute(session_factory,model,[definition])
+    result=next(p.result for m in model.inputs[-1] for p in m.content if p.type=='tool_result')
+    assert result['data']['section']=={'text':body,'qualification':'UNKNOWN'}
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+
+
+def test_more_than_three_model_calls_and_tool_pairing(session_factory):
+    model=FakeModel([call(value=str(i),id=str(i)) for i in range(4)]+[answer()])
+    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,echo)])
+    assert len(model.inputs)==5
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+    final=model.inputs[-1]
+    assert [p.call_id for m in final for p in m.content if p.type=='tool_call']==[str(i) for i in range(4)]
+    assert [p.call_id for m in final for p in m.content if p.type=='tool_result']==[str(i) for i in range(4)]
+
+
+def test_reserve_uses_final_request_without_schemas_before_hard_admission(session_factory):
+    batches=[call(value=str(i),id=str(i)) for i in range(2)]+[answer()]
+    for index,batch in enumerate(batches):
+        batch.insert(-1,{'type':'usage','usage':{'input':900 if index<2 else 200,'output':20}})
+    class Model(FakeModel):
+        limits=[]
+        async def stream(self,messages,definitions,limits,cancel_token):
+            self.limits.append(limits)
+            async for event in super().stream(messages,definitions,limits,cancel_token):yield event
+        def estimate_input(self,messages,definitions):return 1000 if len(self.inputs)<2 else 1500
+        def estimate_final_input(self,messages,definitions):return 200
+    model=Model(batches);seen=[]
+    async def handler(args,ctx):
+        seen.append(args.value)
+        return ToolResult(data={'value':args.value})
+    runtime,store=compose(session_factory,model,[ToolDefinition('echo','Echo',Echo,handler)])
+    runtime.budget_limits={'soft':{'input_tokens':2500},'hard':{'input_tokens':3000}}
+    w=store.create();r=store.start(w['id'],'read two values then answer','one',0)
+    asyncio.run(runtime.run(r['run_id']))
+    assert seen==['0','1'] and len(model.inputs)==3
+    assert model.limits[-1]['tools_allowed'] is False
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+    with session_factory() as session:
+        assert session.get(RunCheckpoint,UUID(r['run_id'])).remaining_budget['input_tokens']==2000
+
+
+def test_unknown_tool_returns_to_model(session_factory):
+    model=FakeModel([call('missing'),answer('I can answer directly')])
+    store,w,r=execute(session_factory,model)
+    result=[p.result for m in model.inputs[-1] for p in m.content if p.type=='tool_result'][0]
+    assert result['error']['code']=='UNKNOWN_TOOL'
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+
+
+def test_partial_arguments_never_execute(session_factory):
+    model=FakeModel([[{'type':'tool_call_delta','call_id':'x','name':'echo','arguments_fragment':'{"value":'}, {'type':'turn_end','finish_reason':'error'}],answer()])
+    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,echo)])
+    with session_factory() as s:assert not list(s.scalars(select(ToolCall)))
+
+
+def test_artifact_scope_and_idempotent_start(session_factory):
+    runtime,store=compose(session_factory,FakeModel([]))
+    a,b=store.create(),store.create()
+    ref=store.artifacts.put(a['id'],'NOTE',{'note':'private'})
+    import pytest
+    with pytest.raises(LookupError):store.artifacts.read(b['id'],ref)
+    run=store.start(a['id'],'hello','same',0)
+    assert store.start(a['id'],'hello','same',0)==run
+    with pytest.raises(ValueError):store.start(a['id'],'different','same',0)
+
+
+def test_provider_failure_preserves_partial_text_without_format_retry(session_factory):
+    from journeyplus.agent.harness.contracts import ModelUnavailable
+    class Unavailable(FakeModel):
+        async def stream(self,*args):
+            self.inputs.append(args[0])
+            yield ModelEvent(type='text_delta',text='Already received text')
+            raise ModelUnavailable(400,'Arrearage')
+    model=Unavailable([]);runtime,store=compose(session_factory,model)
+    workspace=store.create();run=store.start(workspace['id'],'hello','one',0)
+    asyncio.run(runtime.run(run['run_id']))
+    events,status=store.events(workspace['id'],run['run_id'])
+    assert status=='PARTIAL' and len(model.inputs)==1
+    assert any(event['payload'].get('provider_code')=='Arrearage' for event in events)
+    assert store.read(workspace['id'])['messages'][-1]['metadata']['interrupted'] is True
+
+
+def test_repeated_calls_stop_before_third_execution_with_prior_receipts(session_factory):
+    seen=[]
+    async def handler(args,ctx):
+        seen.append(args.value)
+        return ToolResult(data={'value':args.value})
+    model=FakeModel([call(id=str(i)) for i in range(4)])
+    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,handler)])
+    assert seen==['hi','hi']
+    results=[p.result for m in model.inputs[-1] for p in m.content if p.type=='tool_result']
+    assert results[-1]['error']['code']=='REPEATED_CALL'
+    assert len(results[-1]['data']['prior_result_refs'])==2
+    assert store.events(w['id'],r['run_id'])[1]=='PARTIAL'
+
+
+def test_changed_snapshot_allows_same_arguments_to_make_progress(session_factory):
+    state={'version':1,'calls':0}
+    async def handler(args,ctx):
+        state['calls']+=1
+        if state['calls']==2:state['version']=2
+        return ToolResult(data={'version':state['version']})
+    model=FakeModel([call(id=str(i)) for i in range(3)]+[answer()])
+    definition=ToolDefinition('echo','Echo',Echo,handler,snapshot=lambda args,ctx:str(state['version']))
+    store,w,r=execute(session_factory,model,[definition])
+    assert state['calls']==3
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+
+
+def test_context_capacity_stops_explicitly_and_preserves_evidence(session_factory):
+    class SmallModel(FakeModel):
+        def capabilities(self):return Capabilities(native_tools=True,streaming=True,context_window=8192,max_output=4096)
+    model=SmallModel([answer()])
+    runtime,store=compose(session_factory,model)
+    workspace=store.create();original='长证据'*2000
+    run=store.start(workspace['id'],original,'capacity',0)
+    asyncio.run(runtime.run(run['run_id']))
+    events,status=store.events(workspace['id'],run['run_id'])
+    assert status=='PARTIAL' and 'CONTEXT_CAPACITY' in str(events)
+    assert not model.inputs
+    assert store.load_context_index(workspace['id'])['messages'][0].content[0].text==original
