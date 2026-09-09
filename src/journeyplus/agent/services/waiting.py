@@ -151,7 +151,9 @@ class WaitingService:
         query=RouteRequest.model_validate(raw)
         evaluation=self.queries.evaluate(query)
         if evaluation.get('error') or evaluation['unresolved']:
-            return {'status':'CATALOG_GAP','model_calls':0}
+            coverage=(evaluation['error'].coverage if evaluation.get('error')
+                      else evaluation['result']['coverage'])
+            return {'status':'CATALOG_GAP','model_calls':0,'coverage':coverage}
         result=evaluation['result']
         matches={key:r for key,r in result['server_routes'].items() if r['classification']=='MATCH'}
         if not matches:return {'status':'NO_HIT','model_calls':0,'coverage':result['coverage']}

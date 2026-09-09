@@ -29,6 +29,9 @@ class RouteQueries:
                 if resolved['status']!='OK':unresolved.append(resolved)
                 else:sources.append(resolved)
             target=self.identities.resolve(s,query.target,context=context) if query.target else None
+            # Resolution happens before the knowledge-only route query. Its
+            # saved-holding counter cannot see identities excluded here.
+            unresolved_holding_count=len({item['holding_ref'] for item in unresolved if item.get('holding_ref')})
             if target and target['status']!='OK':
                 return {'error':ToolResult.failure(target['code'],'Target identity could not be bound',status=target['status'],candidates=target['candidates'])}
             if unresolved and (query.sources.mode=='explicit' or not sources):
@@ -38,7 +41,8 @@ class RouteQueries:
                     error={'code':'IDENTITY_AMBIGUOUS' if ambiguous else 'CATALOG_GAP',
                            'message':'Requested sources could not all be resolved',
                            'candidates':[candidate for item in unresolved for candidate in item.get('candidates',[])][:10]},
-                    coverage={'complete':False,'returned':0,'total':None,'omissions':['unresolved_query_sources']})}
+                    coverage={'complete':False,'returned':0,'total':None,'omissions':['unresolved_query_sources'],
+                              'unresolved_holding_count':unresolved_holding_count})}
             actual=RouteQuery(starting_tier_ids=sorted({UUID(r['tier_ref'][5:]) for r in sources},key=str), use_saved_holdings=False,
                 target_program_id=UUID(target['program_ref'][8:]) if target else None,
                 target_tier_id=UUID(target['tier_ref'][5:]) if target and target['tier_ref'] else None,
@@ -48,5 +52,11 @@ class RouteQueries:
                         holding['revision'],date.fromisoformat(holding['valid_until']) if holding['valid_until'] else None)
                       for holding in holdings]
             result=RouteService(s,holding_snapshot=snapshot).query(actual,shortlist=limit)
+            result['coverage']['unresolved_holding_count']=unresolved_holding_count
+            if unresolved_holding_count:
+                result['coverage'].setdefault('searched_published_graph_complete',result['coverage']['search_complete'])
+                result['coverage']['search_complete']=False
+                result['coverage']['stopped_reason']=result['coverage'].get('stopped_reason') or 'CATALOG_METADATA_GAPS'
+                result['status']='PARTIAL'
         return {'result':result,'actual':actual,'sources':sources,'target':target,'unresolved':unresolved,
                 'holding_snapshot':holdings}

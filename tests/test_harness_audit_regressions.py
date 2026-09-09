@@ -127,9 +127,30 @@ def test_saved_route_next_page_preserves_unresolved_scope(session_factory):
         s.add(StatusHolding(program_key='unresolved:other',tier_key='gold',program_display_name='Other',tier_display_name='Gold',identity_status='NEEDS_CONFIRMATION'))
     first = asyncio.run(evaluate(RoutesInput(operation='search',query={'sources':{'mode':'saved'}},limit=1),ctx))
     assert first.data['unresolved_sources'] and first.next_cursor
+    assert first.coverage['unresolved_holding_count'] == 1
     second = asyncio.run(evaluate(RoutesInput(operation='search',query_ref=first.data['query_ref'],cursor=first.next_cursor,limit=1),ctx))
     assert second.data.get('unresolved_sources') == first.data['unresolved_sources'], second.model_dump()
     assert second.coverage['complete'] is False
+    assert second.coverage['unresolved_holding_count'] == 1
+    for operation in ('inspect','compare'):
+        detail = asyncio.run(evaluate(RoutesInput(operation=operation,route_refs=first.data['route_refs']),ctx))
+        scope = detail.data['retrieval_scope']['origin_scopes'][0]
+        assert scope['coverage']['unresolved_holding_count'] == 1
+        assert scope['resolution']['unresolved_sources'] == first.data['unresolved_sources']
+
+    # Waiting uses the shared service, not the tool's presentation envelope.
+    from journeyplus.agent.tools.contracts import RouteRequest, WaitingInput
+    shared = runtime.services['route_queries'].evaluate(RouteRequest(sources={'mode':'saved'}))
+    assert shared['result']['coverage']['unresolved_holding_count'] == 1
+    assert shared['result']['coverage']['search_complete'] is False
+    assert shared['result']['coverage']['searched_published_graph_complete'] is True
+    store.start(w['id'],'Create my waiting task','wait',0)
+    auth={'message_refs':[store.load_context_index(w['id'])['messages'][0].id],'quotes':['Create my waiting task']}
+    waiting=runtime.services['waiting']
+    assert not waiting.manage(WaitingInput(operation='create',query={'sources':{'mode':'saved'}},authorization=auth,operation_key='new'),ctx).error
+    checked=waiting.check()
+    assert checked['status']=='CATALOG_GAP'
+    assert checked['coverage']['unresolved_holding_count']==1
 
 
 def test_waiting_replay_preserves_receipt_refs(session_factory):
