@@ -1,0 +1,82 @@
+{
+  "schema": {
+    "runtime_estimated_tokens": 7593,
+    "wire_bytes": 23218,
+    "wire_estimated_tokens": 8354,
+    "tool_count": 12,
+    "type": "offline conservative estimate, no provider token measurement",
+    "greeting_project_accepts": true
+  },
+  "completion_counterexample": {
+    "input": "One catalogue tool call; no write or display receipt; final text claims save/display with empty deliveries",
+    "accepted": true,
+    "partial": false,
+    "meaning": "checks declarations only; does not prove arbitrary prose claims"
+  },
+  "run_outcomes": [
+    {
+      "status": "PARTIAL",
+      "count": 9
+    },
+    {
+      "status": "COMPLETED",
+      "count": 5
+    }
+  ],
+  "workspace_versions": [
+    {
+      "schema_version": "harness-2",
+      "model": "qwen3.8-flash",
+      "prompt_version": "harness-327a11eec7e914c3",
+      "count": 9
+    },
+    {
+      "schema_version": "2",
+      "model": "deepseek-v4-flash",
+      "prompt_version": "membership-strategy-agent-v2",
+      "count": 2
+    }
+  ],
+  "brief_states": [
+    {
+      "status": "READY",
+      "generator_version": "knowledge-3",
+      "count": 8
+    }
+  ],
+  "orphan_current_versions": [
+    {
+      "count": 0
+    }
+  ],
+  "published_without_ready_brief": [
+    {
+      "count": 0
+    }
+  ],
+  "latest_production": [
+    {
+      "latest_finished": "2026-09-05 05:06:49.493494+00:00",
+      "count": 10
+    }
+  ],
+  "backlog_states": [
+    {
+      "status": "SUCCEEDED",
+      "count": 321
+    }
+  ],
+  "holdings_identity_status": [
+    {
+      "identity_status": "CONFIRMED",
+      "count": 2
+    }
+  ],
+  "live_database_identity": [
+    {
+      "name": "journeyplus",
+      "read_only": "on"
+    }
+  ],
+  "disk_instructions_sha256": "58c30098ae93b89cb393139209e340f64db978744ae3e0a4e57206f169e292d2"
+}

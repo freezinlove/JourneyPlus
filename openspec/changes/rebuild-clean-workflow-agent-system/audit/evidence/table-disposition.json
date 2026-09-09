@@ -1,0 +1,287 @@
+{
+  "alembic_version": {
+    "group": "基础与来源（保留职责）",
+    "rows": 1,
+    "disposition": "保留唯一目标版本标识；空库最终不能仍创建已退出的旧表。"
+  },
+  "document_versions": {
+    "group": "基础与来源（保留职责）",
+    "rows": 214,
+    "disposition": "保留不可变原文、规范正文、哈希与时间；清旧数据不删源邮箱邮件。"
+  },
+  "source_items": {
+    "group": "基础与来源（保留职责）",
+    "rows": 160,
+    "disposition": "保留真实邮件/URL 身份、发表时间和采集状态。"
+  },
+  "sources": {
+    "group": "基础与来源（保留职责）",
+    "rows": 9,
+    "disposition": "保留来源配置；一次性清单不写成长期来源禁用。"
+  },
+  "collection_runs": {
+    "group": "基础与来源（保留职责）",
+    "rows": 55,
+    "disposition": "保留采集状态与实际范围。"
+  },
+  "job_runs": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 321,
+    "disposition": "保留幂等/错误/重试，工作类型改为最终生产阶段。"
+  },
+  "analysis_runs": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 356,
+    "disposition": "保留提取与分类执行记录；event_id 外键退出旧 status_events，结果明确为草稿。"
+  },
+  "status_events": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 8,
+    "disposition": "替换生产身份和所有消费后删除；不能本轮直接删。"
+  },
+  "event_revisions": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 17,
+    "disposition": "事实演进由正式版本/处理记录承担后删除旧演进链。"
+  },
+  "event_evidence": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 30,
+    "disposition": "正式 activity_documents/evidence_references 接管后删除。"
+  },
+  "fact_sets": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 66,
+    "disposition": "StatusMatch 提取直接产出目标草稿后删除旧权威事实。"
+  },
+  "briefs": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 68,
+    "disposition": "正式版本简报取代后删除旧模型简报。"
+  },
+  "review_decisions": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 0,
+    "disposition": "改为目标草稿/正式期次/证据审核，记录明确对象，不继续修改旧事件事实。"
+  },
+  "gold_cases": {
+    "group": "非核心/验收专用（范围待定）",
+    "rows": 0,
+    "disposition": "当前 0 行，评价用途应离正常产品 schema；核对 evaluation/review 消费后退出。"
+  },
+  "statusmatch_watches": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 7,
+    "disposition": "保留来源监控；current_event_id 改为正式活动/来源绑定，需完成身份契约。"
+  },
+  "statusmatch_watch_pages": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 21,
+    "disposition": "保留同一项目三页版本及检查状态。"
+  },
+  "statusmatch_article_routes": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 2,
+    "disposition": "必要文章到活动关联改用正式身份；不以旧 event_id 永久桥接。"
+  },
+  "statusmatch_change_sets": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 49,
+    "disposition": "正式版本差异/更新简报接管后删除旧 fact-set 差分链。"
+  },
+  "article_analyses": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 62,
+    "disposition": "保留分类/拆分的处理记录；analysis_run/document/source 关系继续可追溯。"
+  },
+  "automation_leases": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 1,
+    "disposition": "保留调度互斥；清库前必须核对所有写入者，不只租约。"
+  },
+  "automation_runs": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 10,
+    "disposition": "统一目标发布/简报/失败计数与来源范围。"
+  },
+  "source_automation_states": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 7,
+    "disposition": "重建后新的增量边界；不能旧 cursor 导致漏重读邮件。"
+  },
+  "initialization_runs": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 1,
+    "disposition": "保留批次状态，移除固定历史日期与旧产物完成标准。"
+  },
+  "article_briefs": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 23,
+    "disposition": "文章目标简报发布接管后删除。"
+  },
+  "statusmatch_article_supplements": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 16,
+    "disposition": "第三方证据/草稿及统一简报接管后删除旧简报补丁。"
+  },
+  "buy_points_snapshots": {
+    "group": "非核心/验收专用（范围待定）",
+    "rows": 4,
+    "disposition": "手工买分功能仍消费；先明确范围，不能按废表删除。"
+  },
+  "article_opportunities": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 23,
+    "disposition": "改成有范围的活动草稿/来源关联，退出旧 current brief、legacy 业务生命周期及权威事实消费。可重命名，不能仅改表名。"
+  },
+  "buy_points_offers": {
+    "group": "非核心/验收专用（范围待定）",
+    "rows": 65,
+    "disposition": "同上，与 snapshot 的真实子记录关系保留至范围明确。"
+  },
+  "knowledge_migration_links": {
+    "group": "旧权威事实及兼容（依赖退出后删除）",
+    "rows": 1147,
+    "disposition": "生产身份、期次合并记录及 legacy URL 消费全部迁出后删除。"
+  },
+  "activities": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 8,
+    "disposition": "保留稳定活动身份/期次/当前指针；去 legacy identity 生产依赖。"
+  },
+  "membership_programs": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 128,
+    "disposition": "保留规范项目和有出处元数据。"
+  },
+  "membership_tiers": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 433,
+    "disposition": "保留项目内等级及组合约束，不将相似级别误合并。"
+  },
+  "activity_knowledge_versions": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 8,
+    "disposition": "保留不可变事实、base/extraction/fact/source 哈希；发布状态需绑定必要产物就绪。"
+  },
+  "activity_observation_state": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 8,
+    "disposition": "保留最新检查/失败/新鲜度，区别事实版本。"
+  },
+  "application_options": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 16,
+    "disposition": "保留跨版本的方案身份。"
+  },
+  "membership_aliases": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 22,
+    "disposition": "保留别名与出处，生产时整理身份；前端/Agent 共用。"
+  },
+  "activity_briefs": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 8,
+    "disposition": "保留版本派生产物；调整先准备后发布，避免 pending brief 已切当前版本。"
+  },
+  "activity_documents": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 22,
+    "disposition": "保留正式版本与来源绑定；不能代替尚未发布活动的身份发现契约。"
+  },
+  "application_option_versions": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 16,
+    "disposition": "保留单版本方案事实和活动/版本组合外键。"
+  },
+  "status_holdings": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 2,
+    "disposition": "保留实际会籍、未解析姓名与原话出处、revision；不能因无目录ID就删用户表达。"
+  },
+  "document_sections": {
+    "group": "基础与来源（保留职责）",
+    "rows": 4944,
+    "disposition": "保留正文/表格的精确定位；ROW 与 TABLE 是层次结构，不以文本重复就判冗余。"
+  },
+  "evidence_references": {
+    "group": "基础与来源（保留职责）",
+    "rows": 697,
+    "disposition": "保留来源定位和逐字证据；不把引用存在等同语义支持。"
+  },
+  "option_mappings": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 591,
+    "disposition": "保留明确来源→目标和条件，不把全部项目类别当具体映射。"
+  },
+  "option_price_mappings": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 6,
+    "disposition": "保留显式收费适用映射关系。"
+  },
+  "agent_turns": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 14,
+    "disposition": "保留轮次、幂等与状态。"
+  },
+  "agent_wait_goals": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 1,
+    "disposition": "归用户业务数据，保留独立确定性检查；去旧研究/控制器字段前核对 WaitingService 使用。"
+  },
+  "agent_workspace_messages": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 161,
+    "disposition": "保留原话、调用与结果，受会话作用域约束。"
+  },
+  "agent_interactions": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 10,
+    "disposition": "保留会话实体；去旧 schema/state/last_response 导入分支，清理字段要依新会话消费者。"
+  },
+  "option_prices": {
+    "group": "正式知识与产物（保留改造）",
+    "rows": 35,
+    "disposition": "保留未知、币种、范围、条件、收费角色；不能为省表将关系压成自由文本。"
+  },
+  "activity_edition_reviews": {
+    "group": "任务与生产审核（整理契约）",
+    "rows": 0,
+    "disposition": "保留期次审查；source_table/source_id 不再只允许两种旧业务表，改为明确来源身份。"
+  },
+  "user_business_operations": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 0,
+    "disposition": "保留有明确恢复用途的业务日志；退出旧 payload 补字段兼容，不当聊天记忆。"
+  },
+  "agent_delivery_runs": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 14,
+    "disposition": "保留实际运行/取消/状态；补部署指纹与观察关联。"
+  },
+  "agent_artifacts": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 142,
+    "disposition": "保留结果/展示快照和证据引用，生命周期与恢复明确。"
+  },
+  "agent_delivery_events": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 262,
+    "disposition": "保留可重放 SSE/展示事件，不将事件成功当用户目标成功。"
+  },
+  "agent_run_checkpoints": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 14,
+    "disposition": "保留恢复/累计预算；另补有范围的单次模型请求观察。"
+  },
+  "agent_tool_calls": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 61,
+    "disposition": "保留参数/效果/状态与结果引用，支持同轮追踪。"
+  },
+  "agent_operation_receipts": {
+    "group": "用户与 Agent（保留职责、移除历史兼容）",
+    "rows": 0,
+    "disposition": "保留跨会话寿命的实际写回执；无强级联是有用途的，不误判孤儿。"
+  }
+}

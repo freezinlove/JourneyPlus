@@ -1,5 +1,11 @@
 # JourneyPlus
 
+> **当前重建目标**：[新 OpenSpec change](openspec/changes/rebuild-clean-workflow-agent-system/README.md) · [目标架构与模块职责](openspec/changes/rebuild-clean-workflow-agent-system/target-architecture.md)。两个板块：AIWorkflow 生产并存储正式知识，提供简报和完整匹配图；Agent 消费同一数据库中的知识并引用简报。本分支已完成目标定义与[首轮仓库审计](openspec/changes/rebuild-clean-workflow-agent-system/audit/report.md)，尚未重建或完成系统验收。
+
+## 历史实现与运行记录（待按目标架构审计）
+
+以下为既有系统说明，保留作审计参考，不作为新架构已实现或旧命令仍适用的证明。
+
 > 统一知识库与 Agent 重构正在隔离验收，默认入口尚未切换。当前新设计、已实现能力、许可关闭及剩余事项见[统一基线](doc/unified-knowledge-agent-baseline.md)，进度见[OpenSpec任务](openspec/changes/rebuild-membership-knowledge-and-agent/tasks.md)。下文原产品描述及 `/v1` 属于默认 legacy 模式；新预览入口为 `/knowledge`、`/explore`、`/workspace`。
 
 JourneyPlus 当前收敛为一个默认面向中国用户的个性化常旅客会籍匹配产品。用户从规范化目录选择自己已有的会籍，系统沿现有官方与普通文章映射图计算完整可达关系，匹配图对每个会籍只绘制一次并只展示离已有会籍最近的到达路径；产品同时展示匹配/挑战机会、分路线价格、原始证据和中文简报。中国地区只生成提示，不过滤、不阻止、不替换任何机会或价格。

@@ -1,0 +1,217 @@
+{
+  "tracked_count": 604,
+  "tracked_by_root": {
+    "(root)": 8,
+    "doc": 18,
+    "evaluation": 26,
+    "gold": 17,
+    "migrations": 30,
+    "openspec": 157,
+    "scripts": 17,
+    "src": 224,
+    "tests": 107
+  },
+  "scripts": [
+    {
+      "path": "scripts/audit_agent_context.py",
+      "sha256": "86cd786c9d30ff4c9b9cff017136b4ae0b4d991fb186f21eef05383c7372c0bf",
+      "lines": 52
+    },
+    {
+      "path": "scripts/build_phase1_gold.py",
+      "sha256": "9ba80ddf1901416cdf5ac67f7f9bc52a5733e3e5512d99a00b14b534bad8caea",
+      "lines": 1017
+    },
+    {
+      "path": "scripts/build_phase1_gold_zh_review.py",
+      "sha256": "59f559253f9fd01c51d3c79635c37d3dd9a78e06c86296eafb1238537f087afd",
+      "lines": 418
+    },
+    {
+      "path": "scripts/collect_real_lifecycle_cases.py",
+      "sha256": "28244fb8c84d5f68272ce8a97cc8c303211c15c5e8b4ed27039e4ea65feac1ea",
+      "lines": 214
+    },
+    {
+      "path": "scripts/compare_knowledge_reads.py",
+      "sha256": "25b4eea4ed8d6ac5e176f9d2a42ae2ff4aa64145be0b745abfcc37d3a3d5cdfc",
+      "lines": 76
+    },
+    {
+      "path": "scripts/evaluate_agent_harness.py",
+      "sha256": "54756663b2be4b7cea57a31850b4695e1b1307cd050dd5a84f4c0bbc8fc680f5",
+      "lines": 162
+    },
+    {
+      "path": "scripts/evaluate_packet_formats.py",
+      "sha256": "cfe04b566489978c46e91fa8c1f575fdb5f35c94eaaadd7539ea933edb72c44c",
+      "lines": 123
+    },
+    {
+      "path": "scripts/export_validation_snapshot.py",
+      "sha256": "a5b19103a3894416c4c265d0ec38889fbe3d21bd52279381802048986cd33008",
+      "lines": 49
+    },
+    {
+      "path": "scripts/migrate_agent_evaluation.py",
+      "sha256": "a37372cf6dcba218bfb82f7c684e22bd08ea0263cb1c14bdb41fd631904f0ad1",
+      "lines": 31
+    },
+    {
+      "path": "scripts/promote_knowledge_snapshot.py",
+      "sha256": "01b547c0c0ae21b5f27ce8b991f512d32efcf004cbe508d231f9645ab40c6c77",
+      "lines": 103
+    },
+    {
+      "path": "scripts/review_agent_harness.py",
+      "sha256": "28d7eca55278d3b1d132ec4675b58b771b8246f8b245dd50e2102624a8e02909",
+      "lines": 122
+    },
+    {
+      "path": "scripts/revise_phase1_gold_v2.py",
+      "sha256": "240792ab5a73f311cc9af0a0465e0993fae0817c0f461dd9f7a056a0f9aa12c8",
+      "lines": 180
+    },
+    {
+      "path": "scripts/revise_phase1_gold_v3.py",
+      "sha256": "07e7b7dfa701c1854aa7726b147bbcafa3863db679e5c3b10c947a065f86abee",
+      "lines": 159
+    },
+    {
+      "path": "scripts/revise_phase1_gold_v4.py",
+      "sha256": "c68118784e86559c9c973164a9ff5653d2f3db9a0e48eb2245c26e3ff8187c39",
+      "lines": 173
+    },
+    {
+      "path": "scripts/smoke_public_sources.py",
+      "sha256": "87bd7c51297eaeddaafd3e2e91639571db9d67c1427abd29786983ef6a58eacf",
+      "lines": 69
+    },
+    {
+      "path": "scripts/user_operation_journal.py",
+      "sha256": "c89ae226466f46db705286a6ba221b7822279681bbb6ae843dd5f738cfa1f9fb",
+      "lines": 39
+    },
+    {
+      "path": "scripts/verify_user_journal_postgres.py",
+      "sha256": "2dc9fb612070e7beb4a0de85470378a72eb1b73a59f1ebf3d1254b11a164da5b",
+      "lines": 106
+    }
+  ],
+  "migration_files": [
+    "migrations/env.py",
+    "migrations/script.py.mako",
+    "migrations/versions/0001_status_opportunity_v1.py",
+    "migrations/versions/0002_remove_opportunity_type.py",
+    "migrations/versions/0003_status_event_lifecycle.py",
+    "migrations/versions/0004_daily_automation.py",
+    "migrations/versions/0005_document_parser_versions.py",
+    "migrations/versions/0006_statusmatch_monitoring.py",
+    "migrations/versions/0007_statusmatch_project_workflow.py",
+    "migrations/versions/0008_statusmatch_changeset.py",
+    "migrations/versions/0009_statusmatch_articles.py",
+    "migrations/versions/0010_generic_article_v2.py",
+    "migrations/versions/0011_article_mapping_visibility.py",
+    "migrations/versions/0012_source_discovery_cursor.py",
+    "migrations/versions/0013_buy_points_promotions.py",
+    "migrations/versions/0014_simplify_statusmatch_highlights.py",
+    "migrations/versions/0015_simple_buy_points.py",
+    "migrations/versions/0016_personalized_match.py",
+    "migrations/versions/0017_statusmatch_terms_pricing.py",
+    "migrations/versions/0018_membership_strategy_agent.py",
+    "migrations/versions/0019_activity_knowledge_unified_activity_knowledge.py",
+    "migrations/versions/0020_agent_workspaces_temporary_agent_workspaces.py",
+    "migrations/versions/0021_explicit_free_currency.py",
+    "migrations/versions/0022_activity_edition_reviews.py",
+    "migrations/versions/0023_wait_seen_candidates.py",
+    "migrations/versions/0024_user_business_journal.py",
+    "migrations/versions/0025_agent_delivery_events.py",
+    "migrations/versions/0026_agent_harness.py",
+    "migrations/versions/0027_agent_artifact_turn_scope.py",
+    "migrations/versions/0028_agent_business_provenance.py"
+  ],
+  "static_files": [
+    "src/journeyplus/product/static/agent_text.js",
+    "src/journeyplus/product/static/app.css",
+    "src/journeyplus/product/static/app.js",
+    "src/journeyplus/product/static/explore.css",
+    "src/journeyplus/product/static/explore.html",
+    "src/journeyplus/product/static/explore.js",
+    "src/journeyplus/product/static/knowledge.css",
+    "src/journeyplus/product/static/knowledge.html",
+    "src/journeyplus/product/static/knowledge.js",
+    "src/journeyplus/product/static/knowledge_ui.js",
+    "src/journeyplus/product/static/route_graph.js",
+    "src/journeyplus/product/static/route_step.js",
+    "src/journeyplus/product/static/workspace.css",
+    "src/journeyplus/product/static/workspace_v3.css",
+    "src/journeyplus/product/static/workspace_v3.html",
+    "src/journeyplus/product/static/workspace_v3.js"
+  ],
+  "project_ignored_resources": [
+    {
+      "path": ".secrets/agent-harness",
+      "files": 1591,
+      "bytes": 113004683,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/agent-repair",
+      "files": 119,
+      "bytes": 70072799,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/architecture-restart",
+      "files": 20,
+      "bytes": 302670,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/backups",
+      "files": 11,
+      "bytes": 14537670,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/knowledge-validation",
+      "files": 268,
+      "bytes": 48486871,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/normal-db-repair-20260909",
+      "files": 35,
+      "bytes": 5066113,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/normal-web-acceptance-20260909",
+      "files": 24,
+      "bytes": 1075262,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/project-audit-20260909",
+      "files": 18,
+      "bytes": 731198,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/service-logs",
+      "files": 2,
+      "bytes": 24376,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    },
+    {
+      "path": ".secrets/user-failure-20260909",
+      "files": 18,
+      "bytes": 1091410,
+      "disposition": "Inspect purpose before deletion; credentials are not audit payloads"
+    }
+  ],
+  "python_runtime_pids": [
+    "66382     1 /Users/xd/Documents/ChatGPT/JourneyPlus/.venv/bin/python3"
+  ],
+  "launch_agents_project_refs": []
+}
