@@ -29,6 +29,9 @@ def catalog(args, ctx):
         programs = list(s.scalars(select(MembershipProgram).options(load_only(MembershipProgram.id,MembershipProgram.display_name,MembershipProgram.canonical_key,MembershipProgram.category)).order_by(MembershipProgram.display_name)))
         tiers = list(s.scalars(select(MembershipTier).options(load_only(MembershipTier.id,MembershipTier.program_id,MembershipTier.display_name,MembershipTier.canonical_key)).order_by(MembershipTier.display_name)))
         aliases = list(s.scalars(select(MembershipAlias)))
+        if not programs:
+            return ToolResult.failure('KNOWLEDGE_NOT_READY',
+                'The configured knowledge catalogue is empty. This is a deployment/data readiness issue, not absence of the requested membership. Rephrasing names cannot repair it.',status='UNAVAILABLE')
         allowed = None
         if args.program:
             resolved=ctx.services['identities'].resolve(s,args.program,context=ctx)
@@ -42,7 +45,8 @@ def catalog(args, ctx):
             if allowed and pref!=allowed:
                 continue
             pa=[{'name':a.normalized_alias,'locale':a.locale,'origin':a.origin} for a in aliases if a.program_id==program.id and a.tier_id is None]
-            match=any(query in canonical(n) for n in [program.display_name,program.canonical_key,*[a['name'] for a in pa]])
+            match=any(query in canonical(n) or len(canonical(n))>=4 and canonical(n) in query
+                      for n in [program.display_name,program.canonical_key,*[a['name'] for a in pa]])
             if args.kind!='tier' and match:
                 results.append({'ref':pref,'name':program.display_name,'category':program.category,'aliases':pa,
                     'tiers_preview':[{'ref':'tier:'+str(t.id),'name':t.display_name} for t in tiers if t.program_id==program.id][:10],'match_basis':'name_or_alias'})

@@ -12,6 +12,8 @@ from tests.test_harness_tools import context
 
 
 def test_catalog_and_membership_string_queries_pass_runtime_snapshot(session_factory):
+    from tests.test_knowledge_routes import edge
+    with session_factory.begin() as session:edge(session)
     from journeyplus.agent.composition import compose_business
     from tests.test_harness_runtime import FakeModel,answer
     model=FakeModel([[{'type':'tool_call_ready','call_id':'catalog','name':'catalog.lookup',
@@ -81,6 +83,8 @@ def test_route_projection_keeps_refs_steps_counts_together_and_defers_source_cur
 
 
 def test_formal_connection_never_reads_user_tables(session_factory):
+    from tests.test_knowledge_routes import edge
+    with session_factory.begin() as session:edge(session)
     from journeyplus.agent.composition import compose_business
     from journeyplus.agent.tools.routes import evaluate
     from journeyplus.agent.tools.contracts import RoutesInput

@@ -155,7 +155,9 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
         def home_page():return (static/'knowledge.html').read_text()
     @router.get('/v3/agent/status')
     def availability():
-        return {'status': lifecycle.status, 'error_type': lifecycle.error}
+        knowledge=runtime.services['knowledge'].availability()
+        return {'status': lifecycle.status, 'error_type': lifecycle.error,
+                'knowledge':knowledge,'ready_for_route_queries':lifecycle.status=='READY' and knowledge['status']=='AVAILABLE'}
 
     app.include_router(router)
     return app

@@ -60,7 +60,8 @@ class Constraints(DTO):
     max_amount: str | None = Field(default=None, pattern=r'^\d+(\.\d+)?$')
     currency: str | None = Field(default=None, pattern=r'^[A-Z]{3}$')
     allow_challenge: bool | None = None
-    source_acquisition: Literal['EARNED', 'MATCHED', 'UNKNOWN'] = 'UNKNOWN'
+    source_acquisition: Literal['EARNED', 'MATCHED', 'UNKNOWN'] = Field(default='UNKNOWN',
+        description='How the user ALREADY OBTAINED the starting/held status. MATCHED means that existing card was obtained by a prior match, not that the user wants a status match now. Keep UNKNOWN unless the user states its origin. This does not filter the method of target activities.')
     residency: str | None = None
     prior_participation: str | None = None
     require_proven_eligibility: bool = False
@@ -108,7 +109,7 @@ class RoutesInput(DTO):
     source_message_refs: list[str] = Field(default_factory=list,max_length=5,
         description='Optional user-message evidence for this interpretation; default is the current user turn. References establish provenance, not proof of semantic correctness.')
     route_refs: list[str] = Field(default_factory=list, max_length=12)
-    cursor: str | None = Field(default=None,description='With query_ref only; omit query and patch.')
+    cursor: str | None = Field(default=None,description='Continue returned next_cursor with operation="search" and the same query_ref; omit query and patch. There is no next_page operation.')
     limit: int = Field(default=8, ge=1, le=20)
 
     @model_validator(mode='after')

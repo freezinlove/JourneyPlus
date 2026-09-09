@@ -50,6 +50,11 @@ class RouteQueries:
             return self._evaluate(query,context=context,limit=limit,session=session)
 
     def _evaluate(self,query,*,context,limit,session):
+        from sqlalchemy import select
+        from journeyplus.knowledge.models import MembershipProgram
+        if session.scalar(select(MembershipProgram.id).limit(1)) is None:
+            return {'error':ToolResult.failure('KNOWLEDGE_NOT_READY',
+                'The configured catalogue is empty: published knowledge has not been connected. No route search was performed. Do not infer that this membership or matching routes do not exist.',status='UNAVAILABLE')}
         prepared=self.prepare(query,context=context,_session=session)
         sources,target,unresolved,holdings=(prepared[k] for k in ('sources','target','unresolved','holding_snapshot'))
         count=len({item['holding_ref'] for item in unresolved if item.get('holding_ref')})

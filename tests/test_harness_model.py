@@ -80,9 +80,10 @@ def test_native_final_request_omits_definitions_but_keeps_call_result_evidence()
         client=httpx.AsyncClient(base_url='https://test/',transport=httpx.MockTransport(respond))
         model=AgentModel(AgentConfig('test','https://test/','',32768),client);model.protocol='native'
         assert model.estimate_final_input(history,[definition])<model.estimate_input(history,[definition])
-        _=[event async for event in model.stream(history,[definition],{'tools_allowed':False},asyncio.Event())]
+        _=[event async for event in model.stream(history,[definition],{'tools_allowed':False,'response_format':'json_object'},asyncio.Event())]
         assert 'tools' not in payloads[0]
         assert payloads[0]['tool_choice']=='none'
+        assert payloads[0]['response_format']=={'type':'json_object'}
         assert payloads[0]['messages'][0]['tool_calls'][0]['function']['name']=='evidence_read'
         assert json.loads(payloads[0]['messages'][1]['content'])['data']=={'qualification':'UNKNOWN','version':'v1'}
         await model.close()
@@ -212,13 +213,14 @@ def test_adapter_decodes_nested_containers_before_emitting_calls(protocol):
 def test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns():
     from journeyplus.agent.adapters.model import wire_result
     from journeyplus.agent.harness.contracts import ToolResult
-    original=ToolResult(data={'amount':None,'free':False,'unknowns':[], 'text':'原话'},
+    original=ToolResult(call_id='provider-call-17',data={'amount':None,'free':False,'unknowns':[], 'text':'原话'},
         coverage={'complete':False,'omissions':['unread']},artifact_refs=['artifact:full']).model_dump(mode='json')
     compact=wire_result(original)
     assert compact['data']==original['data']
     assert compact['coverage']==original['coverage']
     assert compact['artifact_refs']==['artifact:full']
-    assert 'call_id' not in compact and 'metrics' not in compact and 'cache' not in compact
+    assert compact['call_id']==original['call_id']  # Completion receipts need the actual transport ID in model-visible content.
+    assert 'metrics' not in compact and 'cache' not in compact
 
 
 def test_provider_account_error_is_diagnostic_not_protocol_fallback():

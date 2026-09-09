@@ -53,10 +53,19 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
             value['cost']['total']='UNKNOWN'
         for key in ('alternative_items','conditional_items'):
             if not value['cost'].get(key):value['cost'].pop(key,None)
+            elif not detail:
+                # Search returns the cost assessment, not repeated full fee
+                # conditions for every path sharing the same step. The immutable
+                # route and inspect retain every fee, condition and association.
+                value['cost'][key+'_count']=len(value['cost'].pop(key))
+                value['cost']['details_omitted']=True
+                value['needs_inspection']=True
     caveats=value.get('material_caveats',[])
-    value['material_caveats']=caveats if detail else caveats[:1]
+    value['material_caveats']=caveats if detail else []
     value['material_caveat_count']=len(caveats)
-    value['caveats_truncated']=not detail and len(caveats)>1
+    value['caveats_truncated']=not detail and bool(caveats)
+    if value['caveats_truncated']:
+        value['needs_inspection']=True
     classification=value.pop('classification',None)
     value.pop('classification_scope',None)
     value['constraint_match']={'NEARBY':'CONFLICT','EXCLUDED':'CONFLICT','MATCH':'SATISFIES','CONFLICT':'CONFLICT','UNKNOWN':'UNKNOWN'}.get(classification,classification)
@@ -90,7 +99,10 @@ def result_page(payload,root_ref,offset,limit):
 
 
 def coverage(raw,total,returned,offset=0):
-    return {**raw,'complete':bool(raw.get('search_complete')) and offset+returned>=total,
+    searched=bool(raw.get('searched_published_graph_complete',raw.get('search_complete')))
+    return {**raw,'search_complete':searched,'complete':searched and offset+returned>=total,
+            **({'stopped_reason':None,'knowledge_gap_reason':'KNOWLEDGE_GAPS'}
+               if searched and raw.get('stopped_reason')=='KNOWLEDGE_GAPS' else {}),
             **({'knowledge_gap_scope':'catalog_wide; not evidence of missing routes for this query'}
                if raw.get('pending_activity_count') or raw.get('incomplete_published_activity_count') else {}),
             'returned':returned,'returned_count':returned,'total':total,'offset':offset,
@@ -164,9 +176,8 @@ def evaluate(args, ctx):
             refs=result.get('route_order',sorted(result['routes']))
             if int(offset)>len(refs):raise ValueError('Invalid route cursor offset')
             selected,next_cursor=result_page(result,result_ref,int(offset),args.limit)
-            return ToolResult(status='PARTIAL' if result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('search_complete') else 'OK',
-                data={'query_ref':args.query_ref,'effective_query':previous['payload'],
-                'query_context':read_context(ctx.artifact_port,ctx.workspace_id,previous),
+            return ToolResult(status='PARTIAL' if result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('searched_published_graph_complete',result['coverage'].get('search_complete')) else 'OK',
+                data={'query_ref':args.query_ref,'search_metrics':result.get('search_metrics'),
                 'route_refs':[r['ref'] for r in selected], 'candidates':selected,**result.get('resolution',{})},
                 coverage=scope_coverage(result,len(refs),len(selected),int(offset)),
                 artifact_refs=[args.query_ref,result_ref],effective_input=result.get('effective_input',{}),
@@ -187,15 +198,35 @@ def evaluate(args, ctx):
         return error
     result,actual=evaluation['result'],evaluation['actual']
     sources,target,unresolved=evaluation['sources'],evaluation['target'],evaluation['unresolved']
+    # The graph engine also retains nearby/unknown alternatives for inspection.
+    # They are not matches to the caller's explicit filters (for example, paid
+    # alternatives to free_only). Keep them retrievable without paging them as
+    # if they fulfilled the query.
+    from collections import Counter
+    classifications=Counter(r['classification'] for r in result['server_routes'].values())
+    matching=[key for key,r in result['server_routes'].items() if r['classification']=='MATCH']
     payload={'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
-             'route_order':list(result['server_routes']),'coverage':result['coverage'],
+             'route_order':matching,'coverage':result['coverage'],
+             'search_metrics':{'matching_count':len(matching),'candidate_counts':dict(classifications),
+                               'scope':'Only candidates satisfying explicit query filters are paged. All assessed alternatives remain in this result artifact; UNKNOWN is not a proven match.'},
              'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
              'effective_input':actual.model_dump(mode='json')}
+    # The fields exposed by search must exist at the returned immutable member
+    # reference too. Keep legacy calculation fields for renderers, and persist
+    # the explicit subtotal/path view instead of returning uncitable aliases.
+    for route in payload['routes'].values():
+        view=route_summary(route,'',payload['steps'],detail=True)
+        for key in ('path','source_versions','constraint_match','assessment_scope'):
+            route[key]=deepcopy(view[key])
+        if route.get('cost',{}).get('state')!='KNOWN':
+            route['cost']['known_subtotal']=deepcopy(view['cost'].get('known_subtotal',[]))
+            route['cost']['total']='UNKNOWN'
     ref=ctx.artifact_port.put(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id,turn_id=ctx.turn_id)
-    ids=list(payload['routes'])
+    ids=payload['route_order']
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
-    return ToolResult(status='PARTIAL' if unresolved or not result['coverage']['search_complete'] else 'OK' if candidates else 'EMPTY',
+    return ToolResult(status='PARTIAL' if unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',
         data={'query_ref':query_ref,'query_context':lineage,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
+              'search_metrics':payload['search_metrics'],
               'unresolved_sources':unresolved,'route_refs':[r['ref'] for r in candidates],'candidates':candidates,
               },
         artifact_refs=[query_ref,ref],coverage=scope_coverage(payload,len(ids),len(candidates)),effective_input=actual.model_dump(mode='json'),

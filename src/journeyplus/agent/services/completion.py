@@ -43,7 +43,9 @@ def pointer(value, path):
 
 
 class BusinessCompletion:
-    version = 'referenced-delivery-v1'
+    response_format = 'json_object'
+    output_schema = Answer.model_json_schema()
+    version = 'referenced-delivery-v2-explicit-schema'
 
     def check(self, text, messages, context):
         current = [m for m in messages if m.metadata.get('turn_id') == context.turn_id]
@@ -54,13 +56,17 @@ class BusinessCompletion:
             return CompletionCheck(accepted=True)
         try:
             answer = Answer.model_validate_json(text)
-        except ValidationError:
+        except ValidationError as error:
             if not calls:
                 return CompletionCheck(accepted=True)
-            return CompletionCheck(accepted=False, feedback=[
+            fields=[{'field':'.'.join(map(str,item['loc'])),'error':item['type']}
+                    for item in error.errors(include_input=False)][:10]
+            return CompletionCheck(accepted=False, feedback=[json.dumps(fields,ensure_ascii=False),
                 'Return final JSON {status:"complete"|"partial",parts:[text or {ref,path}],'
                 'deliveries:[{kind:"presentation"|"operation"|"coverage",call_id,type?,columns?,minimum_objects?}],'
                 'remaining:[]}. Include all user-requested deliveries, not just successful ones. '
+                'minimum_objects must be >=1. There is no status field inside deliveries. '
+                'For partial coverage, put missing work in remaining; do not invent call IDs. '
                 'Use immutable artifact JSON pointers for exact facts. Tool calls remain native.'])
         findings = []
         # Repair may replace a failed call id, but cannot silently weaken a
@@ -129,8 +135,13 @@ class BusinessCompletion:
                 continue
             try:
                 record = context.artifact_port.read(context.workspace_id, part.ref)
-                if record['kind'] not in {'ROUTES','MATERIAL','REPORT','PAGE'}:
+                if record['kind'] not in {'ROUTES','MATERIAL','REPORT'}:
                     raise ValueError('Notes, task interpretations and presentation labels are not source facts')
+                payload=record['payload']
+                if record['kind']=='MATERIAL' and (
+                        'page_ref' in payload or 'page_ref' in payload.get('data',{}) or
+                        'url' in payload and 'text' in payload):
+                    raise ValueError('Raw web pages contain navigation and unverified scope; use parsed evidence rather than rendering the page as a fact')
                 value = pointer(record['payload'], part.path)
                 # A citation addresses an exact snapshot; no model-provided value exists to override it.
                 rendered.append(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False))
@@ -140,9 +151,10 @@ class BusinessCompletion:
             return CompletionCheck(accepted=False, feedback=findings[:20])
         output = '\n'.join(rendered)
         if answer.remaining:
-            output += '\n\n尚未完成：'+'；'.join([*answer.remaining,*unmet])
+            output += '\n\n尚未完成：'+'；'.join(answer.remaining)
         sources=list(dict.fromkeys(part.ref for part in answer.parts if isinstance(part,Fact)))
         ref=context.artifact_port.put_once(context.workspace_id,'RESPONSE',
-                                           {'turn_id':context.turn_id,'answer':answer.model_dump(mode='json')},
+                                           {'turn_id':context.turn_id,'answer':answer.model_dump(mode='json'),
+                                            'unmet_receipts':unmet},
                                            turn_id=context.turn_id,source_refs=sources)
         return CompletionCheck(accepted=True, text=output, partial=answer.status == 'partial',artifact_refs=[ref])

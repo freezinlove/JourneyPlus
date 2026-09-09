@@ -26,7 +26,8 @@ def test_slow_and_failed_initialization_do_not_gate_product(session_factory):
                 break
             import time
             time.sleep(.005)
-        assert status == {'status': 'UNAVAILABLE', 'error_type': 'ValueError'}
+        assert status['status']=='UNAVAILABLE' and status['error_type']=='ValueError'
+        assert status['ready_for_route_queries'] is False
         assert model.closed
         w = client.post('/v3/agent/workspaces', json={}).json()
         reply = client.post('/v3/agent/workspaces/'+w['id']+'/runs', json={

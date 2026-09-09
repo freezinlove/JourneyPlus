@@ -121,9 +121,9 @@ def wire_messages(messages, tool_names=None):
 
 
 def wire_result(value):
-    """Omit empty transport bookkeeping, never remove domain values/unknowns."""
+    """Omit empty bookkeeping; retain call_id because completion cites receipts."""
     return {key: item for key, item in value.items()
-            if key not in {'call_id', 'metrics'} and not
+            if key not in {'metrics'} and not
             (key in {'error', 'next_cursor', 'provenance', 'effective_input', 'artifact_refs'}
              and item in (None, [], {})) and not
             (key == 'cache' and item == {'hit': False, 'observed_at': None})}
@@ -141,7 +141,7 @@ class AgentModel:
     @property
     def configuration_id(self):
         import hashlib
-        value=['portable-native-names-schema-v5-container-decoding',self.config.model,self.config.base_url,self.protocol,self.config.temperature,self.config.thinking,self.config.context_window]
+        value=['portable-native-names-schema-v7-visible-receipts',self.config.model,self.config.base_url,self.protocol,self.config.temperature,self.config.thinking,self.config.context_window]
         return hashlib.sha256(json.dumps(value).encode()).hexdigest()
 
     def estimate_input(self,messages,definitions,*,tools_allowed=True):
@@ -262,6 +262,8 @@ class AgentModel:
                 yield ModelEvent(type='turn_end', finish_reason='tool_calls' if action.calls else 'stop' if action.finished else 'error')
                 return
             payload.update(messages=wire_messages(messages,names), stream=True, stream_options={'include_usage': True})
+            if limits.get('response_format'):
+                payload['response_format'] = {'type': limits['response_format']}
             if schema:
                 payload.update(tools=schema, tool_choice='auto' if limits.get('tools_allowed', True) else 'none')
             elif not limits.get('tools_allowed',True):

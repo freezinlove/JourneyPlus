@@ -117,7 +117,11 @@ class Runtime:
         messages = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id))['messages']
         messages = [m for m in messages if m.metadata.get('turn_id') == context.turn_id
                     or not (m.metadata.get('completion_rejected') or m.metadata.get('completion_feedback'))]
-        messages = [ModelMessage(role='system', content=[Part(type='text', text=self.instructions)])] + messages
+        output_schema = getattr(self.ports.completion, 'output_schema', None)
+        instructions = self.instructions
+        if output_schema:
+            instructions += '\nFinal response JSON schema (native tool calls remain unchanged): ' + json.dumps(output_schema,ensure_ascii=False,separators=(',',':'))
+        messages = [ModelMessage(role='system', content=[Part(type='text', text=instructions)])] + messages
         if state.get('interrupted'):
             notice = ModelMessage(role='system', content=[Part(type='text', text='runtime_interruption: Previous execution was interrupted. Reuse completed receipts. Incomplete text is marked interrupted.')])
             messages.append(notice)
@@ -138,7 +142,7 @@ class Runtime:
             note = None
             if workspace_state.get('note_ref'):
                 note = (await blocking_call(self.ports.artifacts.read, context.workspace_id, workspace_state['note_ref']))['payload']
-            projected = project(messages, definitions, capabilities, note=note, focus=workspace_state.get('focus'),
+            projected = await blocking_call(project, messages, definitions, capabilities, note=note, focus=workspace_state.get('focus'),
                                 reserved_output=budget.limits(capabilities)['max_output'])
             estimator=getattr(self.ports.model,'estimate_input',None)
             projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
@@ -173,7 +177,12 @@ class Runtime:
             await self._publish(run_id, owner, 'assistant.started', {'message_id': message_id})
             try:
                 async with asyncio.timeout(budget.limits(capabilities)['timeout']):
-                    async for event in self.ports.model.stream(projected, definitions, budget.limits(capabilities), context.cancel_token):
+                    limits = budget.limits(capabilities)
+                    if budget.tools and self.ports.completion is not None:
+                        response_format = getattr(self.ports.completion, 'response_format', None)
+                        if response_format:
+                            limits['response_format'] = response_format
+                    async for event in self.ports.model.stream(projected, definitions, limits, context.cancel_token):
                         if context.cancel_token.is_set():
                             break
                         if event.type == 'text_delta':
@@ -238,7 +247,10 @@ class Runtime:
                     await self._publish(run_id, owner, 'resource.notice', {
                         'code':'COMPLETION_REJECTED','message':'交付检查未通过，正在补齐缺项。',
                         'findings':verdict.feedback})
-                    if budget.finalizing or budget.completion_failures >= 2:
+                    if budget.completion_failures >= 2:
+                        await self._publish(run_id, owner, 'resource.notice', {
+                            'code':'COMPLETION_FAILED',
+                            'message':'回答未通过交付检查，本轮未完成。已完成的操作和资料仍保留。'})
                         return 'PARTIAL'
                     continue
                 text = verdict.text if verdict.text is not None else text
@@ -308,7 +320,7 @@ class Runtime:
             definitions=self.ports.registry.definitions()
             workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
             note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
-            projected=project(messages,definitions,self.ports.model.capabilities(),note=note,focus=workspace_state.get('focus'),
+            projected=await blocking_call(project,messages,definitions,self.ports.model.capabilities(),note=note,focus=workspace_state.get('focus'),
                               reserved_output=budget.limits(self.ports.model.capabilities())['max_output'])
             future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*sum(capacities))])]
             estimator=getattr(self.ports.model,'estimate_final_input',None)

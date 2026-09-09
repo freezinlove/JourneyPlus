@@ -54,6 +54,8 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     registered=definitions(handlers)
     for definition in registered:
         definition.snapshot=snapshot_for(definition.name,services['knowledge'],factory)
+        if definition.name in {'catalog.lookup','activity.read','routes.evaluate'}:
+            definition.availability=knowledge_port.availability
         if definition.name=='web.search':
             definition.availability=lambda:{'statusmatcher':'AVAILABLE' if network_enabled else 'DISABLED',
                 'web':'AVAILABLE' if network_enabled and search.enabled else (search.failure or 'DISABLED')}

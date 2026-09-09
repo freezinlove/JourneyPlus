@@ -6,6 +6,18 @@ from sqlalchemy import text
 class KnowledgePort:
     def __init__(self,factory):self._factory=factory
 
+    def availability(self):
+        from sqlalchemy import select, func
+        from .models import MembershipProgram, MembershipTier, ActivityKnowledgeVersion
+        with self.read() as session:
+            programs=session.scalar(select(func.count()).select_from(MembershipProgram))
+            tiers=session.scalar(select(func.count()).select_from(MembershipTier))
+            published=session.scalar(select(func.count()).select_from(ActivityKnowledgeVersion).where(ActivityKnowledgeVersion.status=='PUBLISHED'))
+        return {'status':'AVAILABLE' if programs and tiers and published else 'UNAVAILABLE',
+                'program_count':programs,'tier_count':tiers,'published_version_count':published,
+                'message':None if programs and tiers and published else
+                    '当前服务尚未接入已发布的会籍匹配知识，暂不能查询匹配路线。旧版活动和简报数据不等于新版知识已接入。'}
+
     @contextmanager
     def read(self):
         with self._factory() as session:

@@ -3,7 +3,7 @@ import json
 from .budget import estimate
 from .contracts import ModelMessage, Part
 
-CONTEXT_POLICY_VERSION = 'pressure-only-views-v3-observation-reserve'
+CONTEXT_POLICY_VERSION = 'pressure-only-views-v5-explicit-result-root'
 
 
 class ContextCapacityError(ValueError):
@@ -109,7 +109,14 @@ def bounded_result(result, full_ref, max_bytes=12000, *, trim=None):
     result=result.model_copy(deep=True)
     result.artifact_refs=list(dict.fromkeys([*result.artifact_refs,full_ref]))
     original_coverage=dict(result.coverage)
-    target=max_bytes-768
+    # Source/member references and the stored ToolResult have different shapes.
+    # Always identify the exact root of the visible data for field citations.
+    result.coverage['full_result_ref']=full_ref
+    result.coverage['data_path']='/data'
+    # A trimmed page embeds its original coverage and retrieval pointers below.
+    # Reserve their actual size before trimming; the fixed 768-byte reserve
+    # could overflow after adding metadata and erase every retained candidate.
+    target=max_bytes-max(768,len(json.dumps(original_coverage,ensure_ascii=False).encode())+len(full_ref)*4+512)
     omitted=False
     def size():return len(result.model_dump_json().encode())
     def generic_trim(value):

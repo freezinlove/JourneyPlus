@@ -341,3 +341,48 @@ def test_source_search_matches_price_content_not_uuid_substrings():
     result=view([{'ref':'artifact:x','payload':{'snippets':snippets}}],query='149')
     assert 'FAQ navigation' not in str(result['sections'])
     assert 'unless otherwise stated' in str(result['sections'])
+
+
+def test_search_subtotal_and_path_are_citable_at_returned_member_reference(session_factory):
+    with session_factory.begin() as session:
+        source,_=edge(session,unknown_price=True)
+    runtime,store,workspace,ctx=context(session_factory)
+    result=asyncio.run(evaluate(RoutesInput(operation='search',query={
+        'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}}),ctx))
+    from journeyplus.agent.services.completion import pointer
+    for candidate in result.data['candidates']:
+        snapshot=store.artifacts.read(workspace['id'],candidate['ref'])['payload']
+        assert pointer(snapshot,'/path')==candidate['path']
+        assert pointer(snapshot,'/cost/known_subtotal')==candidate['cost']['known_subtotal']
+        assert pointer(snapshot,'/cost/total')=='UNKNOWN'
+        assert candidate['cost']['details_omitted']
+        assert snapshot['cost']['conditional_items']  # Expansion retains all fee evidence.
+
+
+def test_complete_candidate_retrieval_is_independent_of_global_knowledge_gaps():
+    from journeyplus.agent.tools.routes import coverage
+    raw={'search_complete':False,'searched_published_graph_complete':True,
+         'knowledge_complete':False,'stopped_reason':'KNOWLEDGE_GAPS',
+         'incomplete_published_activity_count':1}
+    assert not coverage(raw,23,8,0)['complete']
+    final=coverage(raw,23,3,20)
+    assert final['complete'] and final['retrieval_complete'] and final['search_complete']
+    assert not final['knowledge_complete']
+    assert final['knowledge_gap_reason']=='KNOWLEDGE_GAPS'
+    assert final['stopped_reason'] is None
+    capped=coverage({'search_complete':False,'stopped_reason':'STATE_BUDGET'},23,23)
+    assert not capped['complete'] and capped['stopped_reason']=='STATE_BUDGET'
+
+
+def test_explicit_free_filter_does_not_page_paid_nearby_routes_as_matches(session_factory):
+    with session_factory.begin() as session:
+        source,_=edge(session)
+    runtime,store,workspace,ctx=context(session_factory)
+    result=asyncio.run(evaluate(RoutesInput(operation='search',query={
+        'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]},
+        'constraints':{'free_only':True}}),ctx))
+    assert result.status=='EMPTY' and result.data['candidates']==[]
+    assert result.data['search_metrics']['candidate_counts']['NEARBY']==1
+    snapshot=store.artifacts.read(workspace['id'],result.artifact_refs[-1])['payload']
+    assert len(snapshot['routes'])==1 and snapshot['route_order']==[]
+    assert result.coverage['retrieval_complete']  # No invisible "next free" page.

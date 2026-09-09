@@ -127,6 +127,18 @@ class ConditionSet(StrictModel):
 
 
 class Temporal(StrictModel):
+    # Expose the same discriminated shape that precision_shape enforces. Without
+    # this, a schema consumer cannot know which nullable value is required.
+    model_config = ConfigDict(json_schema_extra={"oneOf": [
+        {"properties": {"precision": {"const": precision},
+                        **{field: ({"not": {"type": "null"}} if field == selected else {"type": "null"})
+                           for field in ("instant", "date", "month", "offset_days")},
+                        **({"anchor": {"enum": ["APPROVAL", "APPLICATION", "COMPLETION"]}} if precision == "RELATIVE" else {})},
+         "required": ["precision", *([selected] if selected else []),
+                      *(["anchor"] if precision == "RELATIVE" else [])]}
+        for precision, selected in [("INSTANT", "instant"), ("DATE", "date"),
+                                    ("MONTH", "month"), ("RELATIVE", "offset_days"), ("UNKNOWN", None)]
+    ]})
     precision: Literal["INSTANT", "DATE", "MONTH", "RELATIVE", "UNKNOWN"]
     instant: datetime | None = None
     date: DateValue | None = None
@@ -142,7 +154,7 @@ class Temporal(StrictModel):
         values = {"INSTANT": self.instant, "DATE": self.date, "MONTH": self.month, "RELATIVE": self.offset_days}
         active = [k for k, v in values.items() if v is not None]
         if active != ([] if self.precision == "UNKNOWN" else [self.precision]):
-            raise ValueError("Temporal precision must match exactly one value")
+            raise ValueError("Temporal precision requires exactly its value: INSTANT→instant, DATE→date, MONTH→month, RELATIVE→offset_days plus anchor; UNKNOWN→all values null. Unspecified calendar deadlines are UNKNOWN, not RELATIVE.")
         if self.instant and self.instant.tzinfo is None:
             raise ValueError("Instant requires timezone")
         if self.precision == "RELATIVE" and self.anchor is None:
