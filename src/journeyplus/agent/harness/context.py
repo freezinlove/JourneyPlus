@@ -3,7 +3,7 @@ import json
 from .budget import estimate
 from .contracts import ModelMessage, Part
 
-CONTEXT_POLICY_VERSION = 'older-turn-artifact-index-v1'
+CONTEXT_POLICY_VERSION = 'pressure-only-views-v3-observation-reserve'
 
 
 class ContextCapacityError(ValueError):
@@ -20,6 +20,8 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
     # Original messages and full results remain immutable in persistence.
     # Only older-turn model views may become explicitly expandable indexes.
     additions = {}
+    availability={d.name:d.availability() for d in definitions if d.availability}
+    if availability:additions['capability_availability']=availability
     if note:
         additions['model_authored_note'] = note
     if focus:
@@ -31,20 +33,49 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
             groups.append([])
         groups[-1].append(message)
     definitions_by_name={definition.name:definition for definition in definitions}
-    for group in groups[:-1]:
+    seen={}
+    for group in reversed(groups):
+        names={p.call_id:p.name for m in group for p in m.content if p.type=='tool_call'}
+        for message in reversed(group):
+            for part in message.content:
+                if part.type!='tool_result' or not part.result:continue
+                definition=definitions_by_name.get(names.get(part.call_id))
+                raw=part.result
+                if not definition or definition.effect!='READ' or definition.operation_effects or raw.get('error'):continue
+                # Same data, effective parameters, coverage and source versions
+                # only. Different snapshots or mutations are never deduplicated.
+                stable={k:v for k,v in raw.items() if k not in {'call_id','metrics','cache','artifact_refs'}}
+                stable['coverage']={k:v for k,v in raw.get('coverage',{}).items() if k!='full_result_ref'}
+                signature=json.dumps(stable,sort_keys=True,ensure_ascii=False)
+                full_ref=raw.get('coverage',{}).get('full_result_ref') or next((r for r in reversed(raw.get('artifact_refs',[])) if r.startswith('artifact:')),None)
+                if signature in seen and full_ref and len(signature)>1500:
+                    part.result={**raw,'data':{'context_projection':'duplicate_read','same_result_as_message':seen[signature],
+                                             'full_result_ref':full_ref},
+                        'coverage':{**raw.get('coverage',{}),'complete':False,'omissions':['duplicate_body_available_by_reference']}}
+                else:seen[signature]=message.id
+    current_pressure=(schema_tokens+estimate([m.model_dump(mode='json') for m in system+conversation])+estimate(additions)
+                      >min(24000,limit))
+    for index,group in enumerate(groups):
         call_names={part.call_id:part.name for message in group for part in message.content if part.type=='tool_call'}
+        latest_calls=next(({p.call_id for p in m.content if p.type=='tool_call'} for m in reversed(group)
+                           if any(p.type=='tool_call' for p in m.content)),set())
         for message in group:
             for part in message.content:
                 if part.type!='tool_result' or not part.result:continue
                 raw=part.result
                 full_ref=raw.get('coverage',{}).get('full_result_ref') or next(
                     (ref for ref in reversed(raw.get('artifact_refs',[])) if ref.startswith('artifact:')),None)
-                if full_ref and len(json.dumps(raw,ensure_ascii=False).encode())>3000:
+                # Latest observation stays fully available. Earlier observations
+                # in this turn can use the tool's atomic expandable projection.
+                current=index==len(groups)-1
+                if current and (not current_pressure or part.call_id in latest_calls):continue
+                capacity=6000 if current else 3000
+                if full_ref and not raw.get('error') and len(json.dumps(raw,ensure_ascii=False).encode())>capacity:
                     from .contracts import ToolResult
                     definition=definitions_by_name.get(call_names.get(part.call_id))
-                    view=bounded_result(ToolResult.model_validate(raw),full_ref,3000,
+                    view=bounded_result(ToolResult.model_validate(raw),full_ref,capacity,
                                         trim=definition.trim_projection if definition else None)
-                    view.data['context_projection']='older_turn; expand full_result_ref before relying on omitted facts'
+                    view.data['context_projection']='expand full_result_ref before relying on omitted facts; persisted original is unchanged'
                     part.result=view.model_dump(mode='json')
     selected = []
     def visible_count(items):

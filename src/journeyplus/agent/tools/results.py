@@ -14,6 +14,8 @@ class ActivityData(DTO):
 
 
 class RouteData(DTO):
+    readiness: dict | None = None
+    query_context: dict | None = None
     retrieval_scope: dict | None = None
     steps: list[dict] | None = None
     query_ref: str | None = None

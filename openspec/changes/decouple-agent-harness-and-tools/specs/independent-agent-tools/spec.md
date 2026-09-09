@@ -47,3 +47,11 @@ Agent读取和研究工具 MUST NOT 调用Workflow采集提取发布或写正式
 #### Scenario: Directory gap
 - **WHEN** 用户名称无法绑定目录
 - **THEN** 返回CATALOG_GAP或候选，不能创建正式MembershipTier充当已知身份。
+
+### Requirement: Identity readiness is distinct from search emptiness
+
+工具 SHALL 区分候选、需等级、未收录和无效引用；等待任务 SHALL 共用查询准备服务并持久化就绪状态，未绑定条件 MUST NOT 标记 ACTIVE。
+
+#### Scenario: Partial program name
+- **WHEN** 输入有正式项目候选但尚未绑定
+- **THEN** 返回候选和未执行搜索的范围，不宣称现实机会不存在；等待可保存为 NEEDS_RECONFIRMATION。

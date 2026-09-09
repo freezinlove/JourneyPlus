@@ -16,6 +16,7 @@ ACTIVE={'ACTIVE','RESULT_PENDING','NEEDS_RECONFIRMATION'}
 
 def goal_view(row):
     return {'ref':'goal:'+str(row.id),'revision':row.revision,'status':row.status,'query':row.query,
+            'readiness':row.readiness or {},
             'conditions_schema_version':row.conditions_schema_version,
             'pending_result':row.pending_result,'result_ref':str(row.result_id) if row.result_id and row.pending_result else None}
 
@@ -93,6 +94,10 @@ class WaitingService:
             obj=ctx.artifact_port.read(ctx.workspace_id,args.query_ref)
             if obj['kind']!='QUERY':raise ValueError('query_ref must reference a QUERY')
             query=RouteRequest.model_validate(obj['payload'])
+        # Preparation does no graph search and holds no user-write transaction.
+        prepared=self.queries.prepare(query,context=ctx) if query else None
+        if prepared:
+            query=RouteRequest.model_validate(prepared['bound_query'])
         try:
             from journeyplus.agent.adapters.transactions import transaction
             with transaction(self.factory) as s:
@@ -103,20 +108,14 @@ class WaitingService:
                 hashed=digest(args.model_dump(mode='json',exclude_unset=True))
                 old=s.scalar(select(OperationReceipt).where(OperationReceipt.owner_key==ctx.server_owner,OperationReceipt.idempotency_key==key))
                 if old:return receipt_result(old) if old.payload_hash==hashed else ToolResult.failure('CONFLICT','Operation key payload changed')
-                if query:
-                    raw=query.model_dump(mode='json')
-                    with ctx.services['knowledge'].read() as knowledge_session:
-                        identities=[*raw['sources']['identities'],*([raw['target']] if raw.get('target') else [])]
-                        for identity in identities:
-                            if identity.get('ref','').startswith('artifact:'):
-                                bound=self.memory.identities.resolve(knowledge_session,identity,context=ctx)
-                                if bound['status']!='OK':return ToolResult.failure('STALE_REFERENCE','Waiting query needs a durable identity')
-                                identity.clear();identity['ref']=bound['tier_ref'] or bound['program_ref']
-                    query=RouteRequest.model_validate(raw)
+                if prepared and self.queries.user_data.route_sources(query.sources.mode,query.sources.holding_refs)!=prepared['holding_snapshot']:
+                    return ToolResult.failure('CONFLICT','Source memberships changed during query preparation; retry with current data')
                 if args.operation=='create':
                     active=s.scalar(select(AgentWaitGoal).where(AgentWaitGoal.status.in_(ACTIVE)).with_for_update())
                     if active:return ToolResult(data={'existing':goal_view(active)},error={'code':'CONFLICT','message':'An active waiting goal already exists'},status='ERROR')
-                    row=AgentWaitGoal(source_interaction_id=UUID(ctx.workspace_id),status='ACTIVE',query=query.model_dump(mode='json'),conditions_schema_version=3)
+                    row=AgentWaitGoal(source_interaction_id=UUID(ctx.workspace_id),
+                        status='ACTIVE' if prepared['readiness']['ready'] else 'NEEDS_RECONFIRMATION',
+                        readiness=prepared['readiness'],query=query.model_dump(mode='json'),conditions_schema_version=3)
                     before=None;s.add(row)
                 else:
                     row=s.get(AgentWaitGoal,UUID(args.goal_ref.removeprefix('goal:')),with_for_update=True)
@@ -129,7 +128,10 @@ class WaitingService:
                     before=goal_view(row)
                     if args.operation=='cancel':row.status='CANCELLED';row.ended_at=now_utc()
                     else:
-                        row.query=query.model_dump(mode='json');row.status='ACTIVE';row.conditions_schema_version=3
+                        row.query=query.model_dump(mode='json')
+                        row.readiness=prepared['readiness']
+                        row.status='ACTIVE' if prepared['readiness']['ready'] else 'NEEDS_RECONFIRMATION'
+                        row.conditions_schema_version=3
                         row.ended_at=None
                     row.pending_result=None;row.result_id=None;row.last_candidate_signature=None;row.revision+=1
                 s.flush()
@@ -146,14 +148,31 @@ class WaitingService:
         with read_session(self.factory) as session:
             row=session.scalar(select(AgentWaitGoal).where(
                 AgentWaitGoal.status=='ACTIVE',AgentWaitGoal.conditions_schema_version==3))
-            if row is None:return {'status':'NO_ACTIVE_GOAL','model_calls':0}
+            if row is None:
+                pending=session.scalar(select(AgentWaitGoal).where(AgentWaitGoal.status=='NEEDS_RECONFIRMATION',AgentWaitGoal.conditions_schema_version==3))
+                if pending is not None:
+                    return {'status':'NEEDS_RECONFIRMATION','model_calls':0,'readiness':pending.readiness,
+                            'coverage':{'complete':False,'search_performed':False,
+                                        'unresolved_holding_count':(pending.readiness or {}).get('unresolved_holding_count',0)}}
+                return {'status':'NO_ACTIVE_GOAL','model_calls':0}
             identity,revision,raw=row.id,row.revision,deepcopy(row.query)
         query=RouteRequest.model_validate(raw)
         evaluation=self.queries.evaluate(query)
         if evaluation.get('error') or evaluation['unresolved']:
             coverage=(evaluation['error'].coverage if evaluation.get('error')
                       else evaluation['result']['coverage'])
-            return {'status':'CATALOG_GAP','model_calls':0,'coverage':coverage}
+            readiness=evaluation['readiness']
+            from journeyplus.agent.adapters.transactions import transaction
+            with transaction(self.factory) as session:
+                session.info['user_business_journal']=True
+                if session.bind.dialect.name=='postgresql':session.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
+                current=session.get(AgentWaitGoal,identity,with_for_update=True)
+                if current is None or current.revision!=revision or current.status!='ACTIVE':
+                    return {'status':'STALE_CHECK','model_calls':0}
+                if self.queries.user_data.route_sources(query.sources.mode,query.sources.holding_refs)!=evaluation['holding_snapshot']:
+                    return {'status':'STALE_CHECK','model_calls':0}
+                current.status='NEEDS_RECONFIRMATION';current.readiness=readiness;current.revision+=1
+            return {'status':'NEEDS_RECONFIRMATION','model_calls':0,'coverage':coverage,'readiness':readiness}
         result=evaluation['result']
         matches={key:r for key,r in result['server_routes'].items() if r['classification']=='MATCH'}
         if not matches:return {'status':'NO_HIT','model_calls':0,'coverage':result['coverage']}

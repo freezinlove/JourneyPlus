@@ -39,3 +39,19 @@
 #### Scenario: Worker recovery
 - **WHEN** 用户写入已commit但worker尚未发送结果即中断
 - **THEN** 新worker查操作回执并回送原结果，不重复执行写入。
+
+### Requirement: Soft warning preserves executable work
+
+软预算 SHALL 仅预警；harness SHALL 按通用硬预算收尾预留决定禁用工具，MUST NOT 因软预算到达而直接阻止尚可执行的必要动作。
+
+#### Scenario: Display remains affordable
+- **WHEN** 已触发软预算提醒但下一轮及收尾仍可容纳于硬上限
+- **THEN** 模型仍可调用工具取得展示或操作回执。
+
+### Requirement: Application completion checks are replaceable
+
+harness SHALL 通过注入的通用端口接收业务交付校验，不导入业务规则或安排下一工具。校验拒绝 SHALL 回送具体缺项并持久化修复次数；修复预算不足 SHALL 以 PARTIAL 结束。校验实现版本 SHALL 纳入恢复配置摘要。
+
+#### Scenario: Missing presentation receipt
+- **WHEN** 模型以查询回执声称完成已声明的展示交付
+- **THEN** 业务校验拒绝正文，模型可自主补做展示；修复成功才能完成，预算耗尽不能标为完成。

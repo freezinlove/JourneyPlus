@@ -142,10 +142,17 @@ class ToolDefinition:
     operation_result_max_bytes: dict[str, int] = field(default_factory=dict)
     result_budget_field: str = 'operation'
     trim_projection: Callable[[ToolResult], int | None] | None = None
+    availability: Callable[[], dict] | None = None
 
     @property
     def input_schema(self):
-        return self.input_model.model_json_schema()
+        def without_titles(node):
+            if isinstance(node,list):return [without_titles(value) for value in node]
+            if not isinstance(node,dict):return node
+            return {key:({name:without_titles(value) for name,value in child.items()}
+                         if key in {'properties','$defs'} else without_titles(child))
+                    for key,child in node.items() if key!='title'}
+        return without_titles(self.input_model.model_json_schema())
 
     @property
     def output_schema(self):
@@ -179,6 +186,7 @@ class ArtifactStore(Protocol):
 
 
 class WorkspacePort(Protocol):
+    def user_message_refs(self, workspace_id: str, turn_id: str) -> list[str]: ...
     def committed_call_result(self, workspace_id: str, turn_id: str, call_id: str) -> ToolResult | None: ...
     def history(self, workspace_id: str, query=None, refs=None, cursor=None, limit=10) -> dict: ...
     def load_context_index(self, workspace_id: str) -> dict: ...
@@ -199,6 +207,19 @@ class EventSink(Protocol):
     def append_and_publish(self, run_id: str, kind: str, payload: dict, *, owner: str | None = None) -> None: ...
 
 
+class CompletionCheck(DTO):
+    """Application verdict, without teaching the loop application semantics."""
+    accepted: bool
+    feedback: list[str] = Field(default_factory=list, max_length=20)
+    text: str | None = None
+    partial: bool = False
+    artifact_refs: list[str] = Field(default_factory=list)
+
+
+class CompletionPort(Protocol):
+    def check(self, text: str, messages: list[ModelMessage], context: ExecutionContext) -> CompletionCheck: ...
+
+
 @dataclass
 class RuntimePorts:
     model: AgentModelPort
@@ -208,3 +229,4 @@ class RuntimePorts:
     events: EventSink
     clock: Callable[[], float]
     workspace: WorkspacePort | None = None
+    completion: CompletionPort | None = None

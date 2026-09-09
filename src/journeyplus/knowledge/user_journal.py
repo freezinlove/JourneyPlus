@@ -1,7 +1,7 @@
 """Transactional, opt-in user-operation journaling and conflict-safe replay.
 
-This journal is never an Agent memory source. It contains no conversations,
-model output or research reports; only the two explicit business entities.
+This journal is never an Agent memory source. It holds the two explicit business
+entities, including their original authorization statements, not chat history.
 """
 from datetime import UTC,date,datetime
 from uuid import UUID,uuid4
@@ -109,6 +109,12 @@ def replay_operations(session,operations):
             row=session.get(model,identity,with_for_update=True);current=snapshot(model,row)
             before=operation['before_state'];after=operation['after_state']
             columns={c.name:c for c in model.__table__.columns if c.name not in IGNORED}
+            # Older immutable journal checksums remain valid after additive
+            # provenance columns. Fill only these known absent defaults for
+            # comparison/replay, never rewrite the historical operation.
+            addition='source_record' if model is StatusHolding else 'readiness'
+            before={addition:{},**before} if before is not None else None
+            after={addition:{},**after} if after is not None else None
             for state in [before,after]:
                 if state is not None and (set(state)!=set(columns) or state['id']!=str(identity)):
                     raise ValueError('Invalid user-operation state')
@@ -125,7 +131,7 @@ def replay_operations(session,operations):
                             elif isinstance(kind,Date):item=date.fromisoformat(item)
                         setattr(row,name,item)
             session.add(UserBusinessOperation(operation_id=op_id,entity_kind=operation['entity_kind'],entity_id=identity,
-                before_state=before,after_state=after,payload_hash=operation['payload_hash'],created_at=datetime.fromisoformat(operation['created_at'])))
+                before_state=operation['before_state'],after_state=operation['after_state'],payload_hash=operation['payload_hash'],created_at=datetime.fromisoformat(operation['created_at'])))
             session.flush();applied+=1
         return {'applied':applied,'duplicates':duplicates}
     finally:session.info['replaying_user_operations']=previous

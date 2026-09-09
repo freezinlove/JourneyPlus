@@ -15,10 +15,14 @@ from .identities import canonical
 
 def holding_view(row):
     if row is None:return None
+    source=row.source_record or {}
     return {'ref':'holding:'+str(row.id),'revision':row.revision,'program_name':row.program_display_name,
             'tier_name':row.tier_display_name,'program_ref':'program:'+str(row.program_id) if row.program_id else None,
             'tier_ref':'tier:'+str(row.tier_id) if row.tier_id else None,'valid_until':row.valid_until.isoformat() if row.valid_until else None,
-            'identity_status':row.identity_status}
+            'identity_status':row.identity_status,'source_record':source,
+            'name_authority':'CATALOG' if row.program_id and row.tier_id else 'UNVERIFIED_EXTRACTION',
+            'display_statement':'\n'.join(item['text'] for item in source.get('original_statements',[]))
+                if not row.program_id else None}
 
 
 def receipt_result(row):
@@ -41,7 +45,9 @@ class UserMemory:
             if args.holding_refs:
                 statement=statement.where(StatusHolding.id.in_([UUID(ref.removeprefix('holding:')) for ref in args.holding_refs]))
             rows=list(s.scalars(statement))
-            if args.query:rows=[row for row in rows if canonical(args.query) in canonical(row.program_display_name+' '+row.tier_display_name)]
+            if args.query:rows=[row for row in rows if canonical(args.query) in canonical(
+                row.program_display_name+' '+row.tier_display_name+' '+
+                ' '.join(item['text'] for item in (row.source_record or {}).get('original_statements',[])))]
             return [holding_view(r) for r in rows]
 
     def authorize(self,s,ctx,authorization):
@@ -62,7 +68,9 @@ class UserMemory:
                 raise PermissionError('Imported quotations cannot authorize a new operation; quote the new user authorization')
             bindings.append({'quote': quote, 'message_refs': current})
         return {'workspace_id':ctx.workspace_id, 'turn_id':ctx.turn_id, 'call_id':ctx.call_id, 'messages':[{'id':str(row.id),'created_at':row.created_at.isoformat()} for row in found],
-                'quotes':authorization.quotes,'quote_bindings':bindings,'requested_at':now_utc().isoformat()}
+                'quotes':authorization.quotes,'quote_bindings':bindings,
+                'original_statements':[{'message_ref':item['id'],'text':item['text']} for item in sources if not item['legacy']],
+                'requested_at':now_utc().isoformat()}
 
     def write(self,args,ctx):
         try:
@@ -94,9 +102,20 @@ class UserMemory:
                             'tier_display_name':args.identity.tier_name,'program_key':'unresolved:'+canonical(args.identity.program_name),
                             'tier_key':canonical(args.identity.tier_name),'identity_status':'NEEDS_CONFIRMATION'}
                     else:return ToolResult.failure('INVALID_ARGUMENT','A program and tier name or uniquely bound tier is required')
+                    # Original statements are selected from stored USER messages,
+                    # never supplied/reworded by the model as canonical facts.
+                    source_record={'original_statements':authorization['original_statements'],
+                                   'extracted_identity':args.identity.model_dump(mode='json'),
+                                   'binding_state':resolved['resolution_state'],
+                                   'binding_basis':resolved.get('binding_basis'),
+                                   'interpretation_verified':False}
                 if args.operation=='create':
                     row=s.scalar(select(StatusHolding).where(StatusHolding.program_key==identity['program_key']).with_for_update())
                     if row:
+                        if not row.program_id and {item['text'] for item in (row.source_record or {}).get('original_statements',[])} != {item['text'] for item in source_record['original_statements']}:
+                            return ToolResult(status='ERROR',error={'code':'CONFLICT',
+                                'message':'An unverified name index matches an existing statement. It does not prove the same membership; use its holding reference for an explicit update.'},
+                                data={'current':holding_view(row)})
                         same=row.tier_key==identity['tier_key'] and row.valid_until==(date.fromisoformat(args.valid_until) if args.valid_until else None)
                         if not same:return ToolResult(status='ERROR',error={'code':'CONFLICT','message':'Program already has a different holding; explicit update required'},data={'current':holding_view(row)})
                 before=holding_view(row)
@@ -104,7 +123,7 @@ class UserMemory:
                 if args.operation=='create':
                     if row:outcome='NOOP'
                     else:
-                        row=StatusHolding(**identity,valid_until=date.fromisoformat(args.valid_until) if args.valid_until else None)
+                        row=StatusHolding(**identity,source_record=source_record,valid_until=date.fromisoformat(args.valid_until) if args.valid_until else None)
                         s.add(row)
                 elif args.operation=='update':
                     if identity:
@@ -117,7 +136,9 @@ class UserMemory:
                         for key_name,value in identity.items():setattr(row,key_name,value)
                     if 'valid_until' in args.model_fields_set:row.valid_until=date.fromisoformat(args.valid_until) if args.valid_until else None
                     if holding_view(row)==before:outcome='NOOP'
-                    else:row.revision+=1
+                    else:
+                        if identity:row.source_record=source_record
+                        row.revision+=1
                 else:s.delete(row)
                 s.flush()
                 after=holding_view(row) if args.operation!='delete' else None

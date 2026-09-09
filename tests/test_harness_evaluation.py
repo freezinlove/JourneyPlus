@@ -28,3 +28,14 @@ def test_prose_or_different_capability_cannot_pass_required_route_read():
 def test_write_assertions_require_ledger_and_actual_success_receipt():
     assert assess_case({'no_user_write':True},[],True)==['UNAUTHORIZED_USER_WRITE']
     assert assess_case({'authorized_write':True},[],False)==['MISSING_AUTHORIZED_RECEIPT']
+
+
+def test_query_constraints_and_each_turn_delivery_are_checked_separately():
+    messages=[ModelMessage(role='user',content=[Part(type='text',text='hotels only')]),
+        ModelMessage(role='assistant',content=[Part(type='tool_call',call_id='a',name='routes.evaluate',arguments={'operation':'search'})]),
+        ModelMessage(role='tool',content=[Part(type='tool_result',call_id='a',result={'status':'OK','data':{'effective_query':{'category':None}}})]),
+        ModelMessage(role='user',content=[Part(type='text',text='show again')]),
+        ModelMessage(role='assistant',content=[Part(type='tool_call',call_id='b',name='display.present',arguments={})]),
+        ModelMessage(role='tool',content=[Part(type='tool_result',call_id='b',result={'status':'OK','data':{'blocks':[{'columns':['cost']}]}})])]
+    failures=assess_case({'query_fields':{'/category':'HOTEL'},'per_turn':{'0':{'tool':'display.present'},'1':{'presentation_columns':['conditions']}}},messages,False)
+    assert failures==['QUERY_FIELD_MISMATCH:/category','TURN_0:MISSING_EXPECTED_CAPABILITY','TURN_1:PRESENTATION_COLUMNS_MISSING']

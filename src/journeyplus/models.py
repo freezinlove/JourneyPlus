@@ -89,6 +89,7 @@ class StatusHolding(Base, TimestampMixin):
     tier_id: Mapped[UUID | None] = mapped_column(Uuid)
     revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     identity_status: Mapped[str] = mapped_column(String(30), default="NEEDS_CONFIRMATION", server_default="NEEDS_CONFIRMATION")
+    source_record: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}", nullable=False)
 
 
 class AgentInteraction(Base, TimestampMixin):
@@ -148,6 +149,7 @@ class AgentWaitGoal(Base, TimestampMixin):
     revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     holding_snapshot: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
     conditions_schema_version: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    readiness: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}", nullable=False)
     last_checked_snapshot: Mapped[str | None] = mapped_column(String(64))
     result_id: Mapped[UUID | None] = mapped_column(Uuid)
     result_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

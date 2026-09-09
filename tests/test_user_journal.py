@@ -67,3 +67,25 @@ def test_maintenance_fences_background_orm_writes(factory):
     with pytest.raises(ValueError,match='USER_WRITES_PAUSED'),factory.begin() as s:
         s.scalar(select(AgentWaitGoal)).status='COMPLETED'
     with factory() as s:assert s.scalar(select(AgentWaitGoal)).status=='ACTIVE'
+
+
+def test_pre_provenance_journal_replays_without_rewriting_original_hash(factory):
+    from journeyplus.knowledge.user_journal import digest,payload
+    enable_journal(factory)
+    with factory.begin() as s:
+        row=holding();s.add(row);s.flush();hid=row.id
+    with factory.begin() as s:s.get(StatusHolding,hid).tier_key='silver'
+    with factory() as s:operations=export_operations(s)
+    for operation in operations:
+        for key in ('before_state','after_state'):
+            if operation[key] is not None:operation[key].pop('source_record')
+        operation['payload_hash']=digest(payload(operation['entity_kind'],operation['entity_id'],operation['before_state'],operation['after_state']))
+    engine=create_engine('sqlite://');Base.metadata.create_all(engine);clone=sessionmaker(engine)
+    with clone.begin() as s:
+        assert replay_operations(s,operations)=={'applied':2,'duplicates':0}
+        assert s.get(StatusHolding,hid).source_record=={}
+        assert s.get(StatusHolding,hid).tier_key=='silver'
+        saved=export_operations(s)
+        assert [r['payload_hash'] for r in saved]==[r['payload_hash'] for r in operations]
+        assert all('source_record' not in r['after_state'] for r in saved)
+    engine.dispose()

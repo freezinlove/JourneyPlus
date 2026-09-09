@@ -20,7 +20,8 @@ def test_same_call_id_across_turns_attaches_only_its_own_presentation(session_fa
         return [{'type':'tool_call_ready','call_id':'shared','name':'display.present','arguments':{
             'blocks':[],'next_steps':[{'label':title,'message':title}]}},
             {'type':'turn_end','finish_reason':'tool_calls'}]
-    model=FakeModel([batch('first'),answer(),batch('second'),answer()])
+    final='{"status":"complete","parts":["已展示建议"],"deliveries":[]}'
+    model=FakeModel([batch('first'),answer(final),batch('second'),answer(final)])
     runtime,store=compose_business(session_factory,model);w=store.create()
     for i in range(2):
         r=store.start(w['id'],str(i),str(i),store.read(w['id'])['revision']);asyncio.run(runtime.run(r['run_id']))

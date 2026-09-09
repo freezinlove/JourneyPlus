@@ -17,7 +17,13 @@ def build_block(selection, objects):
         for brief in value.get('brief_links',[]):
             link={'object_ref':ref,'url':brief['url'],'version_ref':brief['version_ref']}
             if link not in links:links.append(link)
+        if selection.type=='comparison':
+            value['comparison_values']={column:[{'step_ref':ref,'version_ref':step['version_ref'],
+                'label':str(index+1)+' · '+str(step.get('to') or ''),
+                'value':deepcopy(step.get({'window':'application_window','validity':'status_validity','conditions':'constraint_checks'}[column]))}
+                for index,(ref,step) in enumerate(value.get('steps',{}).items())]
+                for column in selection.columns if column in {'window','validity','conditions'}}
         payload['objects'].append({'ref':ref,'data':value})
-    return {'type':selection.type,'title':selection.title,'reason':selection.reason,
+    return {'object_count':len(objects),'type':selection.type,'title':selection.title,'reason':selection.reason,
             'ordered_refs':selection.object_refs,'roles':[r.model_dump() for r in selection.roles],
             'columns':selection.columns,'labels':[obj.get('name',obj.get('title',obj.get('to',''))) for obj in objects],'links':links,'payload':payload}

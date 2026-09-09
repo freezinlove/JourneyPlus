@@ -6,6 +6,9 @@ class WorkspaceAccess:
     def history(self, workspace_id, query=None, refs=None, cursor=None, limit=10):
         return self._store.history(workspace_id, query, refs, cursor, limit)
 
+    def user_message_refs(self,workspace_id,turn_id):
+        return self._store.user_message_refs(workspace_id,turn_id)
+
     def load_context_index(self, workspace_id):
         return self._store.load_context_index(workspace_id)
 

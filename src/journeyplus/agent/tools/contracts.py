@@ -82,11 +82,31 @@ class RouteRequest(DTO):
     preferences: list[Literal['FEWER_STEPS', 'LOWER_KNOWN_FEE', 'LESS_UNCERTAINTY']] = Field(default_factory=list, max_length=3)
 
 
+class QueryPatch(DTO):
+    sources: Sources | None = None
+    target: IdentityInput | None = None
+    category: Literal['AIRLINE', 'HOTEL', 'CRUISE', 'OTHER'] | None = None
+    alliance: str | None = None
+    constraints: dict | None = None
+    preferences: list[Literal['FEWER_STEPS', 'LOWER_KNOWN_FEE', 'LESS_UNCERTAINTY']] | None = None
+
+
+class ConstraintChange(DTO):
+    field: str = Field(pattern=r'^/')
+    message_ref: str
+    quote: str = Field(min_length=1, max_length=1000)
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class RoutesInput(DTO):
     operation: Literal['search', 'inspect', 'compare']
     query: RouteRequest | None = None
-    query_ref: str | None = Field(default=None,description='QUERY ref: use with cursor for pages, or patch for changes.')
-    patch: dict | None = Field(default=None,description='RFC7396 RouteRequest patch with query_ref. sources/target replace whole objects.')
+    query_ref: str | None = Field(default=None,description='QUERY ref: replay unchanged, use cursor for pages or patch for changes.')
+    patch: QueryPatch | None = Field(default=None,description='RFC7396 RouteRequest patch with query_ref. sources/target replace whole objects. Null clears, omission inherits.')
+    constraint_changes: list[ConstraintChange] = Field(default_factory=list,max_length=12,
+        description='Explicit evidence for changing existing category, alliance or constraints; field is a JSON pointer. Quotes establish provenance, not semantic approval.')
+    source_message_refs: list[str] = Field(default_factory=list,max_length=5,
+        description='Optional user-message evidence for this interpretation; default is the current user turn. References establish provenance, not proof of semantic correctness.')
     route_refs: list[str] = Field(default_factory=list, max_length=12)
     cursor: str | None = Field(default=None,description='With query_ref only; omit query and patch.')
     limit: int = Field(default=8, ge=1, le=20)
@@ -95,11 +115,11 @@ class RoutesInput(DTO):
     def check_operation(self):
         if self.operation == 'search':
             full = self.query is not None and not self.query_ref and self.patch is None and not self.cursor
-            patched = self.query is None and bool(self.query_ref) and self.patch is not None and not self.cursor
+            patched = self.query is None and bool(self.query_ref) and not self.cursor
             paged = self.query is None and bool(self.query_ref) and self.patch is None and bool(self.cursor)
             if not (full or patched or paged) or self.route_refs:
-                raise ValueError('search requires query OR query_ref+patch OR query_ref+cursor')
-        elif not self.route_refs or any(x is not None for x in (self.query, self.query_ref, self.patch, self.cursor)):
+                raise ValueError('search requires query OR query_ref with optional patch OR query_ref+cursor')
+        elif not self.route_refs or self.source_message_refs or self.constraint_changes or any(x is not None for x in (self.query, self.query_ref, self.patch, self.cursor)):
             raise ValueError('inspect/compare require only route_refs')
         return self
 
@@ -210,7 +230,7 @@ class BlockSelection(DTO):
     title: str | None = Field(default=None, max_length=100)
     reason: str | None = Field(default=None, max_length=500)
     roles: list[SelectionRole] = Field(default_factory=list,description='Optional; at most one primary, all others alternative.')
-    columns: list[Literal['cost', 'steps', 'challenge', 'eligibility', 'window', 'validity']] = Field(default_factory=list, max_length=6, description='For comparison blocks only.')
+    columns: list[Literal['cost', 'steps', 'challenge', 'eligibility', 'window', 'validity', 'conditions']] = Field(default_factory=list, max_length=7, description='Comparison only: conditions is verbatim rule text; eligibility is PASS/FAIL/UNKNOWN; window and validity are per-step facts.')
     research_refs: list[str] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode='after')

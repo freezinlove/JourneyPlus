@@ -29,7 +29,7 @@ def test_routes_require_explicit_query_shape():
     with pytest.raises(ValidationError):RoutesInput(operation='search')
     with pytest.raises(ValidationError):RoutesInput(operation='search',query={'sources':{'mode':'saved','identities':[{'program_name':'X'}]}})
     with pytest.raises(ValidationError):RoutesInput(operation='inspect',query={'sources':{'mode':'none'}})
-    assert RoutesInput(operation='search',query_ref='artifact:x',patch={'target':None}).patch=={'target':None}
+    assert RoutesInput(operation='search',query_ref='artifact:x',patch={'target':None}).patch.model_dump(exclude_unset=True)=={'target':None}
 
 
 def test_display_preserves_order_and_rejects_false_roles():

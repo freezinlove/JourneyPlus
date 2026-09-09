@@ -18,7 +18,7 @@ def test_catalog_and_membership_string_queries_pass_runtime_snapshot(session_fac
                       'arguments':{'query':'Example','limit':1}},
                      {'type':'tool_call_ready','call_id':'holdings','name':'holdings.read',
                       'arguments':{'query':'Example'}},
-                     {'type':'turn_end','finish_reason':'tool_calls'}],answer()])
+                     {'type':'turn_end','finish_reason':'tool_calls'}],answer('{"status":"complete","parts":["没有找到对应条目"],"deliveries":[]}')])
     runtime,store=compose_business(session_factory,model)
     workspace=store.create();run=store.start(workspace['id'],'Find Example','snapshot-strings',0)
     asyncio.run(runtime.run(run['run_id']))

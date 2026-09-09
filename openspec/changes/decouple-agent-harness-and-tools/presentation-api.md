@@ -57,3 +57,7 @@ UI增加可取消、恢复中、真实工具label、操作回执；不增加一�
 ## 5. 前端与模型一致性
 
 模型选择顺序等于render receipt等于用户可见顺序。UI因窄屏折叠可改变布局，不改变推荐排名。点击对象包含presentation_id+object_ref+版本，不能只发送“第一个”交后端正则猜。正文中的自然指代由模型结合最近receipt理解；多个候选无法确定时模型自行问，不写新的序号话术规则。
+
+### 2026-09-09 比较事实列
+
+comparison 增加 conditions 列；window、validity 和 conditions 从每个选中路线的有序步骤快照生成 comparison_values，保留 step_ref/version_ref。前端展示原始条件及每步窗口/有效期，模型仅选择对象、顺序、列与角色，不提交事实值。回执包含 object_count，由实际展示对象数量计算。历史无 comparison_values 的展示保持旧读取兼容。

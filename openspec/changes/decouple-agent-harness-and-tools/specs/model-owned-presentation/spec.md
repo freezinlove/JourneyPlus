@@ -39,3 +39,19 @@ Agent展示 SHALL 能打开对应版本简报/详情，MUST NOT 启动Workflow�
 #### Scenario: Reconnect during answer
 - **WHEN** 浏览器中途断开并按after重连
 - **THEN** 正文和图卡不重复，已经成功的写入回执不丢失。
+
+### Requirement: Referenced comparison facts
+
+比较表 SHALL 从所选不可变对象生成费用、逐步条件、窗口和有效期，保留版本；模型 MUST NOT 通过展示参数覆盖这些事实。
+
+#### Scenario: Multi-step validity
+- **WHEN** 路线各步有效期不同
+- **THEN** 比较表逐步展示，不将中间等级有效期当最终等级有效期。
+
+### Requirement: Checked prose does not leak before acceptance
+
+启用业务交付校验时，系统 SHALL 暂存候选正文，通过后按模型选择顺序发布；拒绝草稿 SHALL 可审计但不在用户会话回放中显示。该模式 MUST 明确是校验后正文交付，不能声称逐 token 原生正文流式。精确字段引用 SHALL 从限定工作区的不可变快照解析，并保留回答引用记录。
+
+#### Scenario: Reconnect after rejected draft
+- **WHEN** 模型草稿被拒绝，用户重新加载工作区
+- **THEN** 拒绝草稿不作为回答出现，已执行的图卡与写入回执仍可读取。

@@ -36,7 +36,7 @@ provenance项：`{kind:published|source|user|calculated,url?,version_ref?,messag
 ### T3 routes.evaluate — READ，默认10秒（算法单搜索原有2秒上限）
 
 输入`{operation:search|inspect|compare,query?:RouteRequest,query_ref?:string,patch?:object,route_refs?:string[],cursor?,limit:1..20=8}`。
-search严格三选一：完整query；query_ref+patch；query_ref+cursor。inspect/compare必须route_refs（1..12）；不能暗中改为search。
+search选择完整query，或显式query_ref；后者可带patch或cursor，两者互斥，不带两者则原样重查。source_message_refs可显式指出本会话用户消息；缺省记录当前轮用户消息。inspect/compare必须route_refs（1..12）；不能暗中改为search。
 
 RouteRequest字段：
 - `sources:{mode:explicit|saved|none,identities?:IdentityInput[],holding_refs?:string[]}`，必填；explicit允许两列表合并去重，总1..20；saved表示调用时读取全部未过期会籍并返回实际清单；none明确没有起点。默认不偷用已保存会籍。
@@ -114,7 +114,7 @@ READ不可写正式知识/用户持有会籍，仅可写临时结果缓存或执
 
 ### 实施中的有界视图约定
 
-路线页的limit是返回数量上限；响应还受字节预算约束，实际可少于limit，cursor必须按实际返回数量前进，不能跳过未返回候选。search候选中的material_caveats是至多一条原文预览，material_caveat_count和caveats_truncated仅说明预览是否截断，不表示资格已核实。inspect返回完整caveats和步骤条件；candidate.ref用于inspect，step_refs指向同一不可变ROUTES中的完整条件。classification_scope说明分类是查询约束评价，不是个人资格或申请成功保证；展示始终读取完整计算对象。诊断中的expanded_states/checked_edges不是路径数量，实际候选总数由coverage.total/total_candidate_count表达。
+路线页的limit是返回数量上限；响应还受字节预算约束，实际可少于limit，cursor必须按实际返回数量前进，不能跳过未返回候选。search候选中的material_caveats是至多一条原文预览，material_caveat_count和caveats_truncated仅说明预览是否截断，不表示资格已核实。inspect返回完整caveats和步骤条件；candidate.ref用于inspect，step_refs指向同一不可变ROUTES中的完整条件。constraint_match=SATISFIES/CONFLICT/UNKNOWN及assessment_scope说明分类是查询约束评价，不是个人资格或申请成功保证；展示始终读取完整计算对象。诊断中的expanded_states/checked_edges不是路径数量，实际候选总数由coverage.total/total_candidate_count表达。
 
 web.read的sections接受实际HTML标题（大小写无关）或返回的section-N标识；按文档顺序选择，不用模型补写章节。未命中标题通过missing_sections明确返回，截断标记不代表网页没有更多内容。
 
@@ -131,3 +131,15 @@ web.read的sections接受实际HTML标题（大小写无关）或返回的sectio
 `research.parse` 只读取已有 PAGE。REPORT 同时记录页面完整性与报告正文完整性：截断正文不能确认结果或方式；页面尾部被截断而正文有明确结束边界时，可以保留正文事实，但页面覆盖仍是 PARTIAL。DOM 自动补全的闭合标签不能用作正文完整性的证据。
 
 工具版本提升为 2；旧运行在配置/工具契约不匹配时保留已完成结果并要求新一轮，不继续执行旧版未完成调用。
+
+### 2026-09-09 契约整改
+
+身份解析显式提供 resolution_state：BOUND、CANDIDATES、TIER_REQUIRED、NOT_INDEXED、INVALID_REFERENCE；候选保留 ref、match_basis 和原始请求，不自动绑定。引用种类错误与真实缺库分开。search 身份失败提供 readiness 和 resolution_path 指向本响应的完整解析结果，候选不重复拷贝到多个位置。
+
+查询成功保存独立 QUERY_CONTEXT artifact 并由 QUERY.source_refs 链接；返回 query_context 的 parent_query_ref、changes、field_origins 及来源含义。默认字段不冒充用户陈述；模型指定来源仅证明可追溯，不证明自然语言理解正确。
+
+等待创建/更新共用 RouteQueries.prepare，只绑定执行条件而不进行图搜索；未绑定条件保存 NEEDS_RECONFIRMATION 和 readiness，不能 ACTIVE。后台发现已存条件失效时持久化未就绪状态。正常无路径为 NO_HIT，不能改报缺库；用户会籍快照改变时拒绝提交过时准备结果。
+
+composition 为工具注入实时 availability 元数据，通过通用上下文投影公开。泛 web 搜索未配置、网络禁用、内置 StatusMatcher 发现分别表达；不根据用户意图隐藏工具。
+
+身份解析失败同样保留 QUERY 和 QUERY_CONTEXT，响应返回 query_ref/effective_query，允许显式 patch 修正身份而保留其他条件；不会生成虚假 ROUTES。该查询引用表示条件快照，不表示搜索已执行。

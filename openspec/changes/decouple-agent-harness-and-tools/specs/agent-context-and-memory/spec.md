@@ -39,3 +39,19 @@
 #### Scenario: Repeated request
 - **WHEN** 相同operation_key和payload在网络恢复后再次到达
 - **THEN** 返回原回执，实际记录和revision不会重复改变。
+
+### Requirement: Preserve original statement independently from interpretation
+
+系统 SHALL 将服务器读取的授权用户原文与模型提取、目录绑定分开持久化，并明确提取未独立验证；工作区过期和 journal 回放 MUST NOT 丢失原文。
+
+#### Scenario: Lossy model extraction
+- **WHEN** 模型漏掉会籍项目名前缀而提交保存
+- **THEN** 原始完整陈述仍随记录和回执保留，提取不被伪装为已验证原文。
+
+### Requirement: Explicit query lineage
+
+查询 SHALL 保留显式父引用、字段差异与用户来源，MUST NOT 把 schema 默认值标记为用户要求。
+
+#### Scenario: Change only source
+- **WHEN** 模型通过 query_ref 和 patch 更换来源
+- **THEN** 目标与其他未修改字段继承原查询且保留原来源，差异只记录实际变化。

@@ -60,11 +60,12 @@ class Runtime:
         budget.soft.update(self.budget_limits.get('soft',{}))
         budget.hard.update(self.budget_limits.get('hard',{}))
         saved = state.get('budget') or {}
-        for key in ('requests', 'tools', 'input_tokens', 'output_tokens', 'estimated', 'notified', 'repeat_state'):
+        for key in ('requests', 'tools', 'input_tokens', 'output_tokens', 'estimated', 'notified', 'finalizing', 'repeat_state', 'completion_failures'):
             if key in saved:
                 setattr(budget, key, saved[key])
         budget.started -= saved.get('seconds', 0)
         configuration=[getattr(self.ports.model,'configuration_id',None),self.instructions,self.budget_limits,CONTEXT_POLICY_VERSION,
+                       getattr(self.ports.completion,'version',None),
                        [(item.name,item.version,item.description,item.input_schema,item.output_schema,item.effect,item.operation_effects,
                          item.result_max_bytes,item.operation_result_max_bytes,item.result_budget_field)
                         for item in self.ports.registry.definitions()]]
@@ -114,6 +115,8 @@ class Runtime:
             await self._publish(run_id,owner,'resource.notice',{'code':'MODEL_CONFIGURATION_CHANGED','message':'模型、指令或工具配置已改变，保留上次结果，请发起新一轮。'})
             return 'PARTIAL'
         messages = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id))['messages']
+        messages = [m for m in messages if m.metadata.get('turn_id') == context.turn_id
+                    or not (m.metadata.get('completion_rejected') or m.metadata.get('completion_feedback'))]
         messages = [ModelMessage(role='system', content=[Part(type='text', text=self.instructions)])] + messages
         if state.get('interrupted'):
             notice = ModelMessage(role='system', content=[Part(type='text', text='runtime_interruption: Previous execution was interrupted. Reuse completed receipts. Incomplete text is marked interrupted.')])
@@ -125,7 +128,7 @@ class Runtime:
         while not context.cancel_token.is_set() and not budget.reached('hard'):
             if budget.reached('soft') and not budget.notified:
                 budget.notified = True
-                notice = {'remaining': {k: v-budget.values()[k] for k, v in budget.hard.items()}, 'message': 'Resources nearing limit. Conclude with available results.'}
+                notice = {'remaining': {k: v-budget.values()[k] for k, v in budget.hard.items()}, 'message': 'Soft resource warning. Tools remain available while final-response reserve fits. Prioritize missing deliverables, avoid redundant reads, and report any unfinished work.'}
                 await self._publish(run_id, owner, 'resource.notice', notice)
                 messages.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(notice))]))
             (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='MODEL_RUNNING', remaining_budget=budget.snapshot()))
@@ -140,13 +143,20 @@ class Runtime:
             estimator=getattr(self.ports.model,'estimate_input',None)
             projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
             final_estimator=getattr(self.ports.model,'estimate_final_input',None)
-            final_tokens=final_estimator(projected,definitions) if final_estimator else projected_tokens
-            if not budget.notified and budget.input_tokens + projected_tokens + final_tokens >= budget.hard['input_tokens']:
-                budget.notified = True
+            # The next final request also carries this model response and its
+            # observations. Reserving only the pre-call history can strand a
+            # large tool result without enough input budget to explain it.
+            growth_bytes=6000+3*budget.limits(capabilities)['max_output']
+            future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*growth_bytes)])]
+            final_tokens=final_estimator(future,definitions) if final_estimator else projected_tokens+estimate('x'*growth_bytes)
+            if not budget.finalizing and (budget.input_tokens + projected_tokens + final_tokens >= budget.hard['input_tokens']
+                    or budget.requests+2>budget.hard['requests'] or budget.tools>=budget.hard['tools']
+                    or budget.output_tokens+1024>=budget.hard['output_tokens']):
+                budget.finalizing = True
                 notice = 'Resource reserve: provide a final response from available evidence; no more tool calls.'
                 projected.append(ModelMessage(role='system',content=[Part(type='text',text=notice)]))
                 await self._publish(run_id, owner,'resource.notice',{'message':'正在根据已取得的资料整理回答。'})
-            if budget.notified and final_estimator:
+            if budget.finalizing and final_estimator:
                 projected_tokens=final_estimator(projected,definitions)
             if budget.input_tokens + projected_tokens > budget.hard['input_tokens']:
                 return 'PARTIAL'
@@ -168,7 +178,8 @@ class Runtime:
                             break
                         if event.type == 'text_delta':
                             text += event.text or ''
-                            await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
+                            if self.ports.completion is None:
+                                await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
                         elif event.type == 'tool_call_ready':
                             calls.append({'call_id': event.call_id, 'name': event.name, 'arguments': event.arguments})
                         elif event.type == 'usage':
@@ -192,7 +203,8 @@ class Runtime:
                 parts.append(Part(type='text', text=text))
             if finish not in {'stop', 'tool_calls'} or context.cancel_token.is_set():
                 if parts:
-                    interrupted = ModelMessage(id=message_id, role='assistant', content=parts, metadata={'interrupted': True})
+                    interrupted = ModelMessage(id=message_id, role='assistant', content=parts,
+                        metadata={'interrupted': True, 'completion_rejected':self.ports.completion is not None})
                     (await blocking_call(self.ports.sessions.append_message, run_id, owner, interrupted))
                     messages.append(interrupted)
                     await self._publish(run_id, owner, 'assistant.interrupted', {'message_id': message_id})
@@ -208,9 +220,43 @@ class Runtime:
                 messages.append(ModelMessage(role='system', content=[Part(type='text', text='INVALID_MODEL_OUTPUT: Complete valid tool parameters or provide an answer. No incomplete calls were executed. '+protocol_feedback)]))
                 continue
             format_failures = 0
+            completion_refs = []
+            if not calls and text and self.ports.completion is not None:
+                verdict = await blocking_call(self.ports.completion.check, text, messages, context)
+                if not verdict.accepted:
+                    budget.completion_failures += 1
+                    rejected = ModelMessage(id=message_id, role='assistant', content=parts,
+                        metadata={'completion_rejected': True})
+                    await blocking_call(self.ports.sessions.append_message, run_id, owner, rejected)
+                    messages.append(rejected)
+                    feedback = ModelMessage(role='system', metadata={'completion_feedback':True},
+                        content=[Part(type='text', text='COMPLETION_REJECTED: '+json.dumps(verdict.feedback, ensure_ascii=False))])
+                    await blocking_call(self.ports.sessions.append_message, run_id, owner, feedback)
+                    messages.append(feedback)
+                    await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner,
+                                        remaining_budget=budget.snapshot())
+                    await self._publish(run_id, owner, 'resource.notice', {
+                        'code':'COMPLETION_REJECTED','message':'交付检查未通过，正在补齐缺项。',
+                        'findings':verdict.feedback})
+                    if budget.finalizing or budget.completion_failures >= 2:
+                        return 'PARTIAL'
+                    continue
+                text = verdict.text if verdict.text is not None else text
+                completion_refs = verdict.artifact_refs
+                parts = [Part(type='text', text=text)]
+                await self._publish(run_id, owner, 'text_delta', {'message_id':message_id,'text':text})
+                if verdict.partial:
+                    message = ModelMessage(id=message_id, role='assistant', content=parts,
+                                           metadata={'partial':True,'completion_refs':completion_refs})
+                    await blocking_call(self.ports.sessions.append_message, run_id, owner, message)
+                    return 'PARTIAL'
             if calls:
                 parts.extend(Part(type='tool_call', **{key:call[key] for key in ('call_id','name','arguments')}) for call in calls)
-            message = ModelMessage(id=message_id, role='assistant', content=parts)
+                if self.ports.completion is not None:
+                    # Tool-associated prose is a private draft, not a verified answer.
+                    parts = [part for part in parts if part.type != 'text']
+            message = ModelMessage(id=message_id, role='assistant', content=parts,
+                                   metadata={'completion_refs':completion_refs} if completion_refs else {})
             (await blocking_call(self.ports.sessions.append_message, run_id, owner, message))
             messages.append(message)
             if not calls:
@@ -247,6 +293,30 @@ class Runtime:
         semaphore = asyncio.Semaphore(3)
         results = [None]*len(calls)
         reads = []
+        # Once calls are known, admit their declared maximum observations before
+        # executing effects. Reserve an error response instead of silently losing
+        # an executed result when a large batch cannot fit the final request.
+        capacities=[]
+        for call in calls:
+            validated,_=self.ports.registry.validate(call['name'],call['arguments'])
+            if validated:
+                definition,arguments,_=validated
+                capacity=definition.operation_result_max_bytes.get(getattr(arguments,definition.result_budget_field,None),definition.result_max_bytes)
+            else:capacity=2000
+            capacities.append(min(capacity,32000//max(1,len(calls))))
+        if not budget.finalizing:
+            definitions=self.ports.registry.definitions()
+            workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
+            note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
+            projected=project(messages,definitions,self.ports.model.capabilities(),note=note,focus=workspace_state.get('focus'),
+                              reserved_output=budget.limits(self.ports.model.capabilities())['max_output'])
+            future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*sum(capacities))])]
+            estimator=getattr(self.ports.model,'estimate_final_input',None)
+            final_size=estimator(future,definitions) if estimator else estimate([m.model_dump(mode='json') for m in future])
+            if budget.input_tokens+final_size>budget.hard['input_tokens']:
+                budget.finalizing=True
+                await self._publish(run_id,owner,'resource.notice',{'code':'OBSERVATION_RESERVE',
+                    'message':'剩余预算不足以容纳本批工具结果及收尾，已保留完成的操作，本批新动作未执行。'})
 
         async def execute(index, call, validated):
             effect = validated[2] if validated else 'READ'
@@ -257,7 +327,7 @@ class Runtime:
                 result = ToolResult.model_validate(cached['result'])
                 full_ref = cached['full_ref']
             else:
-                if context.cancel_token.is_set() or budget.reached('hard') or budget.notified:
+                if context.cancel_token.is_set() or budget.reached('hard') or budget.finalizing:
                     result = ToolResult.failure('BUDGET_LIMIT', 'No new calls may start after cancellation or budget exhaustion')
                 elif len(calls) > 8:
                     result = ToolResult.failure('INVALID_ARGUMENT', 'At most eight calls per batch')

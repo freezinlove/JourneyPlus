@@ -149,7 +149,7 @@ def test_saved_route_next_page_preserves_unresolved_scope(session_factory):
     waiting=runtime.services['waiting']
     assert not waiting.manage(WaitingInput(operation='create',query={'sources':{'mode':'saved'}},authorization=auth,operation_key='new'),ctx).error
     checked=waiting.check()
-    assert checked['status']=='CATALOG_GAP'
+    assert checked['status']=='NEEDS_RECONFIRMATION'
     assert checked['coverage']['unresolved_holding_count']==1
 
 

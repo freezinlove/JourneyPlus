@@ -13,6 +13,39 @@ def canonical(value):
 
 class IdentityService:
     def resolve(self, session, identity, *, require_tier=False, context=None):
+        value = identity.model_dump(exclude_none=True) if hasattr(identity, 'model_dump') else dict(identity)
+        reference=value.get('ref','')
+        if reference and reference.partition(':')[0] not in {'program','tier','artifact'}:
+            return {'status':'NOT_FOUND','code':'INVALID_REFERENCE','resolution_state':'INVALID_REFERENCE',
+                    'requested':value,'candidates':[],
+                    'needed':'Use program: or tier: references; saved memberships belong in sources.holding_refs.'}
+        result=self._resolve(session,value,require_tier=require_tier,context=context)
+        if result['status']=='OK':
+            return {**result,'resolution_state':'BOUND','binding_basis':'reference' if reference else 'exact_name_or_registered_alias'}
+        candidates=result.get('candidates',[])
+        # A partial program name can locate a candidate without binding it.
+        # Include its matching tier candidates so the caller need not start over.
+        if require_tier and value.get('tier_name') and candidates:
+            expanded=[]
+            for candidate in candidates:
+                if candidate.get('tier_ref'):
+                    expanded.append(candidate);continue
+                pref=candidate.get('program_ref','')
+                if not pref.startswith('program:'):continue
+                program=session.get(MembershipProgram,UUID(pref[8:]))
+                items=list(session.scalars(select(MembershipTier).where(MembershipTier.program_id==program.id)))
+                exact=[item for item in items if canonical(value['tier_name']) in {canonical(item.display_name),canonical(item.canonical_key)}]
+                expanded.extend({**self.view(program,item),'match_basis':'candidate_program; tier_exact' if exact else 'candidate_program; tier_choice'} for item in (exact or items)[:10])
+            if expanded:candidates=expanded[:10]
+        state=('INVALID_REFERENCE' if result.get('code')=='STALE_REFERENCE' else
+               'TIER_REQUIRED' if require_tier and result.get('program') and not value.get('tier_name') else
+               'CANDIDATES' if candidates else 'NOT_INDEXED')
+        return {**result,'code':('IDENTITY_UNBOUND' if candidates and result['status']!='AMBIGUOUS' else result['code']),
+                'resolution_state':state,'requested':value,'candidates':candidates,
+                'needed':'Choose a candidate reference or clarify the identity; no search was performed.' if candidates else
+                         'Identity not resolved in the current catalogue; this does not prove it or a real-world route does not exist.'}
+
+    def _resolve(self, session, identity, *, require_tier=False, context=None):
         value = identity.model_dump(exclude_none=True) if hasattr(identity, 'model_dump') else identity
         if value.get('ref','').startswith('artifact:'):
             if context is None:return {'status':'NOT_FOUND','code':'STALE_REFERENCE','candidates':[]}
@@ -36,7 +69,7 @@ class IdentityService:
             except ValueError:return {'status':'NOT_FOUND','code':'STALE_REFERENCE','candidates':[]}
             tier=session.get(MembershipTier,identity_id) if kind=='tier' else None
             program=session.get(MembershipProgram,tier.program_id if tier else identity_id) if kind=='program' or tier else None
-            if program is None:return {'status':'NOT_FOUND','code':'CATALOG_GAP','candidates':[]}
+            if program is None:return {'status':'NOT_FOUND','code':'STALE_REFERENCE','candidates':[]}
             if require_tier and tier is None:
                 tiers=session.scalars(select(MembershipTier).where(MembershipTier.program_id==program.id).order_by(MembershipTier.id).limit(10))
                 return {'status':'AMBIGUOUS','code':'IDENTITY_AMBIGUOUS','program':self.view(program),

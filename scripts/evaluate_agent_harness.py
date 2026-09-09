@@ -48,12 +48,21 @@ async def evaluate(args):
                        input_token_soft=args.soft_input_tokens,input_token_limit=args.max_input_tokens)
     factory=sessionmaker(create_engine(url.set(database=args.database)),expire_on_commit=False)
     model=AgentModel(config)
+    wire_count=0
+    async def record_request(request):
+        nonlocal wire_count
+        wire_count+=1
+        # Body only: never persist authentication headers or the endpoint secret.
+        payload=json.loads(await request.aread())
+        (output/f'wire-request-{wire_count:04d}.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2))
+    model.client.event_hooks['request'].append(record_request)
     try:await model.initialize()
     except Exception:
         (output/'startup-failure.json').write_text(json.dumps({'model':config.model,'protocol':args.protocol,'probe':model.probe_diagnostics,'metrics':model.metrics},indent=2))
         await model.close();factory.kw['bind'].dispose()
         raise RuntimeError('Model capability probe failed; diagnostic evidence preserved') from None
     runtime,store=compose_business(factory,model,network_enabled=True)
+    if runtime.services['research'].search_backend:await runtime.services['research'].search_backend.initialize()
     manifest={'database_alias':args.database,'model':config.model,'protocol':model.protocol,'thinking':config.thinking,
               'temperature':config.temperature,'context_window':config.context_window,'fixture_sha256':hashlib.sha256(fixture.read_bytes()).hexdigest(),
               'split':args.split,'repeat':args.repeat,'semantic_review_required':True,'probe':model.probe_diagnostics,
@@ -121,6 +130,7 @@ async def evaluate(args):
                 factory.kw['bind'].dispose()
                 print(case['id'],repeat+1,'assertions='+str(record['assertion_failures']),round(record['elapsed_seconds'],1),flush=True)
     finally:
+        (output/'all-request-metrics.json').write_text(json.dumps({'metrics':model.metrics,'wire_requests':wire_count},ensure_ascii=False,indent=2))
         if args.input_price is not None and args.output_price is not None:
             (output/'cost-estimate.json').write_text(json.dumps({'estimated_yuan':estimated_cost(model.metrics,args.input_price,args.output_price,args.max_input_tokens),
                 'input_yuan_per_million':args.input_price,'output_yuan_per_million':args.output_price,'requests':len(model.metrics),

@@ -10,6 +10,8 @@ import json
 
 
 def merge_query(base, patch):
+    if hasattr(patch,'model_dump'):
+        patch=patch.model_dump(mode='json',exclude_unset=True)
     allowed=set(RouteRequest.model_fields)
     if set(patch)-allowed:
         raise ValueError('Unknown RouteRequest patch fields')
@@ -55,7 +57,10 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
     value['material_caveats']=caveats if detail else caveats[:1]
     value['material_caveat_count']=len(caveats)
     value['caveats_truncated']=not detail and len(caveats)>1
-    value['classification_scope']='query_constraint_evaluation; not personal eligibility or application approval'
+    classification=value.pop('classification',None)
+    value.pop('classification_scope',None)
+    value['constraint_match']={'NEARBY':'CONFLICT','EXCLUDED':'CONFLICT','MATCH':'SATISFIES','CONFLICT':'CONFLICT','UNKNOWN':'UNKNOWN'}.get(classification,classification)
+    value['assessment_scope']='constraint_match only evaluates query filters. eligibility is personal eligibility; challenge describes challenge requirements independently.'
     return value
 
 
@@ -105,6 +110,7 @@ def scope_coverage(payload,total,returned,offset=0):
 
 @blocking_tool
 def evaluate(args, ctx):
+    from journeyplus.agent.services.query_lineage import build,read_context
     if args.operation!='search':
         routes=[];steps={};origin_queries={};origin_scopes={}
         for ref in args.route_refs:
@@ -160,16 +166,27 @@ def evaluate(args, ctx):
             selected,next_cursor=result_page(result,result_ref,int(offset),args.limit)
             return ToolResult(status='PARTIAL' if result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('search_complete') else 'OK',
                 data={'query_ref':args.query_ref,'effective_query':previous['payload'],
+                'query_context':read_context(ctx.artifact_port,ctx.workspace_id,previous),
                 'route_refs':[r['ref'] for r in selected], 'candidates':selected,**result.get('resolution',{})},
                 coverage=scope_coverage(result,len(refs),len(selected),int(offset)),
                 artifact_refs=[args.query_ref,result_ref],effective_input=result.get('effective_input',{}),
                 next_cursor=next_cursor)
-        query=merge_query(previous['payload'],args.patch)
+        query=merge_query(previous['payload'],args.patch or {})
+    lineage=build(ctx,args,query.model_dump(mode='json'),previous if not args.query else None)
+    from journeyplus.agent.services.query_lineage import validate_changes
+    conflict=validate_changes(ctx,args,lineage)
+    if conflict:
+        return conflict
+    context_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY_CONTEXT',lineage,call_id=ctx.call_id,turn_id=ctx.turn_id)
+    query_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY',query.model_dump(mode='json'),call_id=ctx.call_id,turn_id=ctx.turn_id,source_refs=[context_ref])
     evaluation=ctx.services['route_queries'].evaluate(query,context=ctx,limit=args.limit)
-    if evaluation.get('error'):return evaluation['error']
+    if evaluation.get('error'):
+        error=evaluation['error']
+        error.data.update(query_ref=query_ref,query_context=lineage,effective_query=query.model_dump(mode='json'))
+        error.artifact_refs.append(query_ref)
+        return error
     result,actual=evaluation['result'],evaluation['actual']
     sources,target,unresolved=evaluation['sources'],evaluation['target'],evaluation['unresolved']
-    query_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY',query.model_dump(mode='json'),call_id=ctx.call_id,turn_id=ctx.turn_id)
     payload={'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
              'route_order':list(result['server_routes']),'coverage':result['coverage'],
              'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
@@ -178,7 +195,7 @@ def evaluate(args, ctx):
     ids=list(payload['routes'])
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
     return ToolResult(status='PARTIAL' if unresolved or not result['coverage']['search_complete'] else 'OK' if candidates else 'EMPTY',
-        data={'query_ref':query_ref,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
+        data={'query_ref':query_ref,'query_context':lineage,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
               'unresolved_sources':unresolved,'route_refs':[r['ref'] for r in candidates],'candidates':candidates,
               },
         artifact_refs=[query_ref,ref],coverage=scope_coverage(payload,len(ids),len(candidates)),effective_input=actual.model_dump(mode='json'),

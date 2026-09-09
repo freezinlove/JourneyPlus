@@ -8,7 +8,7 @@ def metrics(routes):
         cost=route.get('cost',{})
         item={'ref':route['ref'],'steps':route.get('step_count'),'cost':cost,
               'challenge':route.get('challenge','UNKNOWN'),'eligibility':route.get('eligibility','UNKNOWN'),
-              'classification':route.get('classification','UNKNOWN')}
+              'constraint_match':route.get('constraint_match',{'NEARBY':'CONFLICT','EXCLUDED':'CONFLICT','MATCH':'SATISFIES'}.get(route.get('classification'),route.get('classification','UNKNOWN')))}
         items.append(item)
         totals=cost.get('totals',[])
         if cost.get('state')=='KNOWN' and len(totals)==1 and totals[0].get('currency'):
