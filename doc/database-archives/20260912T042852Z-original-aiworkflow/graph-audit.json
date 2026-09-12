@@ -1,0 +1,46 @@
+{
+  "schema_version": "1",
+  "watch_ids": [
+    "619e8988-4bc1-450b-af47-0956c5d53882"
+  ],
+  "event_ids": [
+    "839fa8c4-ffe5-4a04-8051-e9ad90dc7675"
+  ],
+  "fact_set_ids": [
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f"
+  ],
+  "fidelity": {
+    "expected_claim_count": 97,
+    "represented_claim_count": 97,
+    "missing_claim_ids": [],
+    "invented_claim_ids": [],
+    "duplicate_claim_ids": [],
+    "material_mismatch_claim_ids": [],
+    "direction_mismatch_claim_ids": [],
+    "missing_evidence_claim_ids": [],
+    "unavailable_mapping_count": 26
+  },
+  "topology": {
+    "program_count": 27,
+    "node_count": 100,
+    "edge_count": 97,
+    "rule_count": 0,
+    "self_loop_edge_ids": [],
+    "strongly_connected_components": [],
+    "conditional_edge_count": 44,
+    "conflicting_edge_count": 0,
+    "wildcard_rule_count": 0,
+    "uncertain_rule_count": 0,
+    "alias_ambiguities": [],
+    "representative_roots": [
+      "aegean airlines miles+bonus::gold",
+      "aegean airlines miles+bonus::platinum",
+      "aegean airlines miles+bonus::silver",
+      "air canada aeroplan::elite 25k",
+      "air canada aeroplan::elite 35k"
+    ],
+    "representative_cycle_count": 0,
+    "representative_cross_reference_count": 0,
+    "representative_truncated_count": 0
+  }
+}

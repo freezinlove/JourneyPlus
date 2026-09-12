@@ -1,0 +1,5130 @@
+{
+  "schema_version": "1",
+  "watch_ids": [
+    "619e8988-4bc1-450b-af47-0956c5d53882"
+  ],
+  "event_ids": [
+    "839fa8c4-ffe5-4a04-8051-e9ad90dc7675"
+  ],
+  "fact_set_ids": [
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f"
+  ],
+  "programs": [
+    {
+      "key": "aegean airlines miles+bonus",
+      "label": "aegean airlines miles+bonus",
+      "aliases": [
+        "Aegean Airlines Miles+Bonus",
+        "aegean airlines miles+bonus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "air canada aeroplan",
+      "label": "air canada aeroplan",
+      "aliases": [
+        "Air Canada Aeroplan",
+        "air canada aeroplan"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "air china phoenixmiles",
+      "label": "air china phoenixmiles",
+      "aliases": [
+        "Air China PhoenixMiles",
+        "air china phoenixmiles"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "air india maharaja club",
+      "label": "air india maharaja club",
+      "aliases": [
+        "air india maharaja club",
+        "Air India Maharaja Club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "american airlines aadvantage",
+      "label": "american airlines aadvantage",
+      "aliases": [
+        "american airlines aadvantage",
+        "American Airlines AAdvantage"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "ana mileage club",
+      "label": "ana mileage club",
+      "aliases": [
+        "ana mileage club",
+        "ANA Mileage Club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "asiana airlines asiana club",
+      "label": "asiana airlines asiana club",
+      "aliases": [
+        "Asiana Airlines Asiana Club",
+        "asiana airlines asiana club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "avianca lifemiles",
+      "label": "avianca lifemiles",
+      "aliases": [
+        "avianca lifemiles",
+        "Avianca LifeMiles"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "british airways club",
+      "label": "british airways club",
+      "aliases": [
+        "british airways club",
+        "British Airways Club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "cathay pacific cathay",
+      "label": "cathay pacific cathay",
+      "aliases": [
+        "cathay pacific cathay",
+        "Cathay Pacific Cathay"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "china southern sky pearl club",
+      "label": "china southern sky pearl club",
+      "aliases": [
+        "China Southern Sky Pearl Club",
+        "china southern sky pearl club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "emirates skywards",
+      "label": "emirates skywards",
+      "aliases": [
+        "Emirates Skywards",
+        "emirates skywards"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "eva air infinity mileagelands",
+      "label": "eva air infinity mileagelands",
+      "aliases": [
+        "eva air infinity mileagelands",
+        "EVA Air Infinity MileageLands"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "finnair plus",
+      "label": "finnair plus",
+      "aliases": [
+        "Finnair Plus",
+        "finnair plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "flying blue",
+      "label": "Flying Blue",
+      "aliases": [
+        "Flying Blue"
+      ],
+      "categories": [],
+      "target_program": true
+    },
+    {
+      "key": "gulf air falconflyer",
+      "label": "gulf air falconflyer",
+      "aliases": [
+        "gulf air falconflyer",
+        "Gulf Air Falconflyer"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "hainan airlines fortune wings club",
+      "label": "hainan airlines fortune wings club",
+      "aliases": [
+        "hainan airlines fortune wings club",
+        "Hainan Airlines Fortune Wings Club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "iberia club",
+      "label": "iberia club",
+      "aliases": [
+        "Iberia Club",
+        "iberia club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "ita airways miles more",
+      "label": "ita airways miles more",
+      "aliases": [
+        "ita airways miles more",
+        "ITA Airways Miles&More"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "latam latam pass",
+      "label": "latam latam pass",
+      "aliases": [
+        "latam latam pass",
+        "LATAM LATAM Pass"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "lufthansa miles more",
+      "label": "lufthansa miles more",
+      "aliases": [
+        "Lufthansa Miles & More",
+        "lufthansa miles more"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "oman air sindbad",
+      "label": "oman air sindbad",
+      "aliases": [
+        "Oman Air Sindbad",
+        "oman air sindbad"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "qatar airways privilege club",
+      "label": "qatar airways privilege club",
+      "aliases": [
+        "qatar airways privilege club",
+        "Qatar Airways Privilege Club"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "singapore airlines krisflyer",
+      "label": "singapore airlines krisflyer",
+      "aliases": [
+        "Singapore Airlines KrisFlyer",
+        "singapore airlines krisflyer"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "thai airways royal orchid plus",
+      "label": "thai airways royal orchid plus",
+      "aliases": [
+        "Thai Airways Royal Orchid Plus",
+        "thai airways royal orchid plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "turkish airlines miles smiles",
+      "label": "turkish airlines miles smiles",
+      "aliases": [
+        "turkish airlines miles smiles",
+        "Turkish Airlines Miles&Smiles"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    },
+    {
+      "key": "united airlines mileageplus",
+      "label": "united airlines mileageplus",
+      "aliases": [
+        "united airlines mileageplus",
+        "United Airlines MileagePlus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ],
+      "target_program": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "aegean airlines miles+bonus::gold",
+      "program_key": "aegean airlines miles+bonus",
+      "tier_key": "gold",
+      "program": "aegean airlines miles+bonus",
+      "tier": "Gold",
+      "aliases": [
+        "Aegean Airlines Miles+Bonus Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "aegean airlines miles+bonus::platinum",
+      "program_key": "aegean airlines miles+bonus",
+      "tier_key": "platinum",
+      "program": "aegean airlines miles+bonus",
+      "tier": "Platinum",
+      "aliases": [
+        "Aegean Airlines Miles+Bonus Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "aegean airlines miles+bonus::silver",
+      "program_key": "aegean airlines miles+bonus",
+      "tier_key": "silver",
+      "program": "aegean airlines miles+bonus",
+      "tier": "Silver",
+      "aliases": [
+        "Aegean Airlines Miles+Bonus Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air canada aeroplan::elite 25k",
+      "program_key": "air canada aeroplan",
+      "tier_key": "elite 25k",
+      "program": "air canada aeroplan",
+      "tier": "Elite 25K",
+      "aliases": [
+        "Air Canada Aeroplan Elite 25K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air canada aeroplan::elite 35k",
+      "program_key": "air canada aeroplan",
+      "tier_key": "elite 35k",
+      "program": "air canada aeroplan",
+      "tier": "Elite 35K",
+      "aliases": [
+        "Air Canada Aeroplan Elite 35K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air canada aeroplan::elite 50k",
+      "program_key": "air canada aeroplan",
+      "tier_key": "elite 50k",
+      "program": "air canada aeroplan",
+      "tier": "Elite 50K",
+      "aliases": [
+        "Air Canada Aeroplan Elite 50K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air canada aeroplan::elite 75k",
+      "program_key": "air canada aeroplan",
+      "tier_key": "elite 75k",
+      "program": "air canada aeroplan",
+      "tier": "Elite 75K",
+      "aliases": [
+        "Air Canada Aeroplan Elite 75K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air canada aeroplan::super elite 100k",
+      "program_key": "air canada aeroplan",
+      "tier_key": "super elite 100k",
+      "program": "air canada aeroplan",
+      "tier": "Super Elite 100K",
+      "aliases": [
+        "Air Canada Aeroplan Super Elite 100K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air china phoenixmiles::gold",
+      "program_key": "air china phoenixmiles",
+      "tier_key": "gold",
+      "program": "air china phoenixmiles",
+      "tier": "Gold",
+      "aliases": [
+        "Air China PhoenixMiles Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air china phoenixmiles::platinum",
+      "program_key": "air china phoenixmiles",
+      "tier_key": "platinum",
+      "program": "air china phoenixmiles",
+      "tier": "Platinum",
+      "aliases": [
+        "Air China PhoenixMiles Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air china phoenixmiles::silver",
+      "program_key": "air china phoenixmiles",
+      "tier_key": "silver",
+      "program": "air china phoenixmiles",
+      "tier": "Silver",
+      "aliases": [
+        "Air China PhoenixMiles Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air india maharaja club::gold",
+      "program_key": "air india maharaja club",
+      "tier_key": "gold",
+      "program": "air india maharaja club",
+      "tier": "Gold",
+      "aliases": [
+        "Air India Maharaja Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air india maharaja club::platinum",
+      "program_key": "air india maharaja club",
+      "tier_key": "platinum",
+      "program": "air india maharaja club",
+      "tier": "Platinum",
+      "aliases": [
+        "Air India Maharaja Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "air india maharaja club::silver",
+      "program_key": "air india maharaja club",
+      "tier_key": "silver",
+      "program": "air india maharaja club",
+      "tier": "Silver",
+      "aliases": [
+        "Air India Maharaja Club Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "american airlines aadvantage::concierge key",
+      "program_key": "american airlines aadvantage",
+      "tier_key": "concierge key",
+      "program": "american airlines aadvantage",
+      "tier": "Concierge Key",
+      "aliases": [
+        "American Airlines AAdvantage Concierge Key"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "american airlines aadvantage::executive platinum",
+      "program_key": "american airlines aadvantage",
+      "tier_key": "executive platinum",
+      "program": "american airlines aadvantage",
+      "tier": "Executive Platinum",
+      "aliases": [
+        "American Airlines AAdvantage Executive Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "american airlines aadvantage::gold",
+      "program_key": "american airlines aadvantage",
+      "tier_key": "gold",
+      "program": "american airlines aadvantage",
+      "tier": "Gold",
+      "aliases": [
+        "American Airlines AAdvantage Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "american airlines aadvantage::platinum",
+      "program_key": "american airlines aadvantage",
+      "tier_key": "platinum",
+      "program": "american airlines aadvantage",
+      "tier": "Platinum",
+      "aliases": [
+        "American Airlines AAdvantage Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "american airlines aadvantage::platinum pro",
+      "program_key": "american airlines aadvantage",
+      "tier_key": "platinum pro",
+      "program": "american airlines aadvantage",
+      "tier": "Platinum Pro",
+      "aliases": [
+        "American Airlines AAdvantage Platinum Pro"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ana mileage club::bronze",
+      "program_key": "ana mileage club",
+      "tier_key": "bronze",
+      "program": "ana mileage club",
+      "tier": "Bronze",
+      "aliases": [
+        "ANA Mileage Club Bronze"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ana mileage club::diamond",
+      "program_key": "ana mileage club",
+      "tier_key": "diamond",
+      "program": "ana mileage club",
+      "tier": "Diamond",
+      "aliases": [
+        "ANA Mileage Club Diamond"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ana mileage club::platinum",
+      "program_key": "ana mileage club",
+      "tier_key": "platinum",
+      "program": "ana mileage club",
+      "tier": "Platinum",
+      "aliases": [
+        "ANA Mileage Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ana mileage club::super flyers",
+      "program_key": "ana mileage club",
+      "tier_key": "super flyers",
+      "program": "ana mileage club",
+      "tier": "Super Flyers",
+      "aliases": [
+        "ANA Mileage Club Super Flyers"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "asiana airlines asiana club::diamond",
+      "program_key": "asiana airlines asiana club",
+      "tier_key": "diamond",
+      "program": "asiana airlines asiana club",
+      "tier": "Diamond",
+      "aliases": [
+        "Asiana Airlines Asiana Club Diamond"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "asiana airlines asiana club::diamond plus",
+      "program_key": "asiana airlines asiana club",
+      "tier_key": "diamond plus",
+      "program": "asiana airlines asiana club",
+      "tier": "Diamond Plus",
+      "aliases": [
+        "Asiana Airlines Asiana Club Diamond Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "asiana airlines asiana club::gold",
+      "program_key": "asiana airlines asiana club",
+      "tier_key": "gold",
+      "program": "asiana airlines asiana club",
+      "tier": "Gold",
+      "aliases": [
+        "Asiana Airlines Asiana Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "asiana airlines asiana club::platinum",
+      "program_key": "asiana airlines asiana club",
+      "tier_key": "platinum",
+      "program": "asiana airlines asiana club",
+      "tier": "Platinum",
+      "aliases": [
+        "Asiana Airlines Asiana Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "avianca lifemiles::diamond",
+      "program_key": "avianca lifemiles",
+      "tier_key": "diamond",
+      "program": "avianca lifemiles",
+      "tier": "Diamond",
+      "aliases": [
+        "Avianca LifeMiles Diamond"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "avianca lifemiles::gold",
+      "program_key": "avianca lifemiles",
+      "tier_key": "gold",
+      "program": "avianca lifemiles",
+      "tier": "Gold",
+      "aliases": [
+        "Avianca LifeMiles Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "avianca lifemiles::silver",
+      "program_key": "avianca lifemiles",
+      "tier_key": "silver",
+      "program": "avianca lifemiles",
+      "tier": "Silver",
+      "aliases": [
+        "Avianca LifeMiles Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "british airways club::bronze",
+      "program_key": "british airways club",
+      "tier_key": "bronze",
+      "program": "british airways club",
+      "tier": "Bronze",
+      "aliases": [
+        "British Airways Club Bronze"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "british airways club::gold",
+      "program_key": "british airways club",
+      "tier_key": "gold",
+      "program": "british airways club",
+      "tier": "Gold",
+      "aliases": [
+        "British Airways Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "british airways club::gold guest list",
+      "program_key": "british airways club",
+      "tier_key": "gold guest list",
+      "program": "british airways club",
+      "tier": "Gold Guest List",
+      "aliases": [
+        "British Airways Club Gold Guest List"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "british airways club::premier",
+      "program_key": "british airways club",
+      "tier_key": "premier",
+      "program": "british airways club",
+      "tier": "Premier",
+      "aliases": [
+        "British Airways Club Premier"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "british airways club::silver",
+      "program_key": "british airways club",
+      "tier_key": "silver",
+      "program": "british airways club",
+      "tier": "Silver",
+      "aliases": [
+        "British Airways Club Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "cathay pacific cathay::diamond",
+      "program_key": "cathay pacific cathay",
+      "tier_key": "diamond",
+      "program": "cathay pacific cathay",
+      "tier": "Diamond",
+      "aliases": [
+        "Cathay Pacific Cathay Diamond"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "cathay pacific cathay::diamond plus",
+      "program_key": "cathay pacific cathay",
+      "tier_key": "diamond plus",
+      "program": "cathay pacific cathay",
+      "tier": "Diamond Plus",
+      "aliases": [
+        "Cathay Pacific Cathay Diamond Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "cathay pacific cathay::gold",
+      "program_key": "cathay pacific cathay",
+      "tier_key": "gold",
+      "program": "cathay pacific cathay",
+      "tier": "Gold",
+      "aliases": [
+        "Cathay Pacific Cathay Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "cathay pacific cathay::invitation",
+      "program_key": "cathay pacific cathay",
+      "tier_key": "invitation",
+      "program": "cathay pacific cathay",
+      "tier": "Invitation",
+      "aliases": [
+        "Cathay Pacific Cathay Invitation"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "cathay pacific cathay::silver",
+      "program_key": "cathay pacific cathay",
+      "tier_key": "silver",
+      "program": "cathay pacific cathay",
+      "tier": "Silver",
+      "aliases": [
+        "Cathay Pacific Cathay Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "china southern sky pearl club::gold",
+      "program_key": "china southern sky pearl club",
+      "tier_key": "gold",
+      "program": "china southern sky pearl club",
+      "tier": "Gold",
+      "aliases": [
+        "China Southern Sky Pearl Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "china southern sky pearl club::platinum",
+      "program_key": "china southern sky pearl club",
+      "tier_key": "platinum",
+      "program": "china southern sky pearl club",
+      "tier": "Platinum",
+      "aliases": [
+        "China Southern Sky Pearl Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "china southern sky pearl club::silver",
+      "program_key": "china southern sky pearl club",
+      "tier_key": "silver",
+      "program": "china southern sky pearl club",
+      "tier": "Silver",
+      "aliases": [
+        "China Southern Sky Pearl Club Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "emirates skywards::gold",
+      "program_key": "emirates skywards",
+      "tier_key": "gold",
+      "program": "emirates skywards",
+      "tier": "Gold",
+      "aliases": [
+        "Emirates Skywards Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "emirates skywards::platinum",
+      "program_key": "emirates skywards",
+      "tier_key": "platinum",
+      "program": "emirates skywards",
+      "tier": "Platinum",
+      "aliases": [
+        "Emirates Skywards Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "emirates skywards::silver",
+      "program_key": "emirates skywards",
+      "tier_key": "silver",
+      "program": "emirates skywards",
+      "tier": "Silver",
+      "aliases": [
+        "Emirates Skywards Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "eva air infinity mileagelands::diamond",
+      "program_key": "eva air infinity mileagelands",
+      "tier_key": "diamond",
+      "program": "eva air infinity mileagelands",
+      "tier": "Diamond",
+      "aliases": [
+        "EVA Air Infinity MileageLands Diamond"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "eva air infinity mileagelands::gold",
+      "program_key": "eva air infinity mileagelands",
+      "tier_key": "gold",
+      "program": "eva air infinity mileagelands",
+      "tier": "Gold",
+      "aliases": [
+        "EVA Air Infinity MileageLands Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "eva air infinity mileagelands::silver",
+      "program_key": "eva air infinity mileagelands",
+      "tier_key": "silver",
+      "program": "eva air infinity mileagelands",
+      "tier": "Silver",
+      "aliases": [
+        "EVA Air Infinity MileageLands Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "finnair plus::gold",
+      "program_key": "finnair plus",
+      "tier_key": "gold",
+      "program": "finnair plus",
+      "tier": "Gold",
+      "aliases": [
+        "Finnair Plus Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "finnair plus::platinum",
+      "program_key": "finnair plus",
+      "tier_key": "platinum",
+      "program": "finnair plus",
+      "tier": "Platinum",
+      "aliases": [
+        "Finnair Plus Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "finnair plus::platinum lumo",
+      "program_key": "finnair plus",
+      "tier_key": "platinum lumo",
+      "program": "finnair plus",
+      "tier": "Platinum Lumo",
+      "aliases": [
+        "Finnair Plus Platinum Lumo"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "finnair plus::silver",
+      "program_key": "finnair plus",
+      "tier_key": "silver",
+      "program": "finnair plus",
+      "tier": "Silver",
+      "aliases": [
+        "Finnair Plus Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "flying blue::gold",
+      "program_key": "flying blue",
+      "tier_key": "gold",
+      "program": "Flying Blue",
+      "tier": "GOLD",
+      "aliases": [
+        "Flying Blue GOLD"
+      ],
+      "categories": []
+    },
+    {
+      "id": "flying blue::platinum",
+      "program_key": "flying blue",
+      "tier_key": "platinum",
+      "program": "Flying Blue",
+      "tier": "PLATINUM",
+      "aliases": [
+        "Flying Blue PLATINUM"
+      ],
+      "categories": []
+    },
+    {
+      "id": "flying blue::silver",
+      "program_key": "flying blue",
+      "tier_key": "silver",
+      "program": "Flying Blue",
+      "tier": "SILVER",
+      "aliases": [
+        "Flying Blue SILVER"
+      ],
+      "categories": []
+    },
+    {
+      "id": "gulf air falconflyer::black",
+      "program_key": "gulf air falconflyer",
+      "tier_key": "black",
+      "program": "gulf air falconflyer",
+      "tier": "Black",
+      "aliases": [
+        "Gulf Air Falconflyer Black"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "gulf air falconflyer::gold",
+      "program_key": "gulf air falconflyer",
+      "tier_key": "gold",
+      "program": "gulf air falconflyer",
+      "tier": "Gold",
+      "aliases": [
+        "Gulf Air Falconflyer Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "gulf air falconflyer::silver",
+      "program_key": "gulf air falconflyer",
+      "tier_key": "silver",
+      "program": "gulf air falconflyer",
+      "tier": "Silver",
+      "aliases": [
+        "Gulf Air Falconflyer Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "hainan airlines fortune wings club::gold",
+      "program_key": "hainan airlines fortune wings club",
+      "tier_key": "gold",
+      "program": "hainan airlines fortune wings club",
+      "tier": "Gold",
+      "aliases": [
+        "Hainan Airlines Fortune Wings Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "hainan airlines fortune wings club::platinum",
+      "program_key": "hainan airlines fortune wings club",
+      "tier_key": "platinum",
+      "program": "hainan airlines fortune wings club",
+      "tier": "Platinum",
+      "aliases": [
+        "Hainan Airlines Fortune Wings Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "hainan airlines fortune wings club::silver",
+      "program_key": "hainan airlines fortune wings club",
+      "tier_key": "silver",
+      "program": "hainan airlines fortune wings club",
+      "tier": "Silver",
+      "aliases": [
+        "Hainan Airlines Fortune Wings Club Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "iberia club::infinita",
+      "program_key": "iberia club",
+      "tier_key": "infinita",
+      "program": "iberia club",
+      "tier": "Infinita",
+      "aliases": [
+        "Iberia Club Infinita"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "iberia club::infinita prime",
+      "program_key": "iberia club",
+      "tier_key": "infinita prime",
+      "program": "iberia club",
+      "tier": "Infinita Prime",
+      "aliases": [
+        "Iberia Club Infinita Prime"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "iberia club::oro",
+      "program_key": "iberia club",
+      "tier_key": "oro",
+      "program": "iberia club",
+      "tier": "Oro",
+      "aliases": [
+        "Iberia Club Oro"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "iberia club::plata",
+      "program_key": "iberia club",
+      "tier_key": "plata",
+      "program": "iberia club",
+      "tier": "Plata",
+      "aliases": [
+        "Iberia Club Plata"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "iberia club::platino",
+      "program_key": "iberia club",
+      "tier_key": "platino",
+      "program": "iberia club",
+      "tier": "Platino",
+      "aliases": [
+        "Iberia Club Platino"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ita airways miles more::executive",
+      "program_key": "ita airways miles more",
+      "tier_key": "executive",
+      "program": "ita airways miles more",
+      "tier": "Executive",
+      "aliases": [
+        "ITA Airways Miles&More Executive"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ita airways miles more::executive per sempre",
+      "program_key": "ita airways miles more",
+      "tier_key": "executive per sempre",
+      "program": "ita airways miles more",
+      "tier": "Executive per sempre",
+      "aliases": [
+        "ITA Airways Miles&More Executive per sempre"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ita airways miles more::plus",
+      "program_key": "ita airways miles more",
+      "tier_key": "plus",
+      "program": "ita airways miles more",
+      "tier": "Plus",
+      "aliases": [
+        "ITA Airways Miles&More Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "ita airways miles more::premium",
+      "program_key": "ita airways miles more",
+      "tier_key": "premium",
+      "program": "ita airways miles more",
+      "tier": "Premium",
+      "aliases": [
+        "ITA Airways Miles&More Premium"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "latam latam pass::black",
+      "program_key": "latam latam pass",
+      "tier_key": "black",
+      "program": "latam latam pass",
+      "tier": "Black",
+      "aliases": [
+        "LATAM LATAM Pass Black"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "latam latam pass::black signature",
+      "program_key": "latam latam pass",
+      "tier_key": "black signature",
+      "program": "latam latam pass",
+      "tier": "Black Signature",
+      "aliases": [
+        "LATAM LATAM Pass Black Signature"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "latam latam pass::gold",
+      "program_key": "latam latam pass",
+      "tier_key": "gold",
+      "program": "latam latam pass",
+      "tier": "Gold",
+      "aliases": [
+        "LATAM LATAM Pass Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "latam latam pass::gold plus",
+      "program_key": "latam latam pass",
+      "tier_key": "gold plus",
+      "program": "latam latam pass",
+      "tier": "Gold Plus",
+      "aliases": [
+        "LATAM LATAM Pass Gold Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "latam latam pass::platinum",
+      "program_key": "latam latam pass",
+      "tier_key": "platinum",
+      "program": "latam latam pass",
+      "tier": "Platinum",
+      "aliases": [
+        "LATAM LATAM Pass Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "lufthansa miles more::frequent traveller",
+      "program_key": "lufthansa miles more",
+      "tier_key": "frequent traveller",
+      "program": "lufthansa miles more",
+      "tier": "Frequent Traveller",
+      "aliases": [
+        "Lufthansa Miles & More Frequent Traveller"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "lufthansa miles more::hon circle",
+      "program_key": "lufthansa miles more",
+      "tier_key": "hon circle",
+      "program": "lufthansa miles more",
+      "tier": "HON Circle",
+      "aliases": [
+        "Lufthansa Miles & More HON Circle"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "lufthansa miles more::senator",
+      "program_key": "lufthansa miles more",
+      "tier_key": "senator",
+      "program": "lufthansa miles more",
+      "tier": "Senator",
+      "aliases": [
+        "Lufthansa Miles & More Senator"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "oman air sindbad::gold",
+      "program_key": "oman air sindbad",
+      "tier_key": "gold",
+      "program": "oman air sindbad",
+      "tier": "Gold",
+      "aliases": [
+        "Oman Air Sindbad Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "oman air sindbad::platinum",
+      "program_key": "oman air sindbad",
+      "tier_key": "platinum",
+      "program": "oman air sindbad",
+      "tier": "Platinum",
+      "aliases": [
+        "Oman Air Sindbad Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "oman air sindbad::silver",
+      "program_key": "oman air sindbad",
+      "tier_key": "silver",
+      "program": "oman air sindbad",
+      "tier": "Silver",
+      "aliases": [
+        "Oman Air Sindbad Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "qatar airways privilege club::gold",
+      "program_key": "qatar airways privilege club",
+      "tier_key": "gold",
+      "program": "qatar airways privilege club",
+      "tier": "Gold",
+      "aliases": [
+        "Qatar Airways Privilege Club Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "qatar airways privilege club::platinum",
+      "program_key": "qatar airways privilege club",
+      "tier_key": "platinum",
+      "program": "qatar airways privilege club",
+      "tier": "Platinum",
+      "aliases": [
+        "Qatar Airways Privilege Club Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "qatar airways privilege club::silver",
+      "program_key": "qatar airways privilege club",
+      "tier_key": "silver",
+      "program": "qatar airways privilege club",
+      "tier": "Silver",
+      "aliases": [
+        "Qatar Airways Privilege Club Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "singapore airlines krisflyer::gold",
+      "program_key": "singapore airlines krisflyer",
+      "tier_key": "gold",
+      "program": "singapore airlines krisflyer",
+      "tier": "Gold",
+      "aliases": [
+        "Singapore Airlines KrisFlyer Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "singapore airlines krisflyer::pps",
+      "program_key": "singapore airlines krisflyer",
+      "tier_key": "pps",
+      "program": "singapore airlines krisflyer",
+      "tier": "PPS",
+      "aliases": [
+        "Singapore Airlines KrisFlyer PPS"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "singapore airlines krisflyer::pps solitaire",
+      "program_key": "singapore airlines krisflyer",
+      "tier_key": "pps solitaire",
+      "program": "singapore airlines krisflyer",
+      "tier": "PPS Solitaire",
+      "aliases": [
+        "Singapore Airlines KrisFlyer PPS Solitaire"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "singapore airlines krisflyer::silver",
+      "program_key": "singapore airlines krisflyer",
+      "tier_key": "silver",
+      "program": "singapore airlines krisflyer",
+      "tier": "Silver",
+      "aliases": [
+        "Singapore Airlines KrisFlyer Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "thai airways royal orchid plus::gold",
+      "program_key": "thai airways royal orchid plus",
+      "tier_key": "gold",
+      "program": "thai airways royal orchid plus",
+      "tier": "Gold",
+      "aliases": [
+        "Thai Airways Royal Orchid Plus Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "thai airways royal orchid plus::platinum",
+      "program_key": "thai airways royal orchid plus",
+      "tier_key": "platinum",
+      "program": "thai airways royal orchid plus",
+      "tier": "Platinum",
+      "aliases": [
+        "Thai Airways Royal Orchid Plus Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "thai airways royal orchid plus::silver",
+      "program_key": "thai airways royal orchid plus",
+      "tier_key": "silver",
+      "program": "thai airways royal orchid plus",
+      "tier": "Silver",
+      "aliases": [
+        "Thai Airways Royal Orchid Plus Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "turkish airlines miles smiles::classic plus",
+      "program_key": "turkish airlines miles smiles",
+      "tier_key": "classic plus",
+      "program": "turkish airlines miles smiles",
+      "tier": "Classic Plus",
+      "aliases": [
+        "Turkish Airlines Miles&Smiles Classic Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "turkish airlines miles smiles::elite",
+      "program_key": "turkish airlines miles smiles",
+      "tier_key": "elite",
+      "program": "turkish airlines miles smiles",
+      "tier": "Elite",
+      "aliases": [
+        "Turkish Airlines Miles&Smiles Elite"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "turkish airlines miles smiles::elite plus",
+      "program_key": "turkish airlines miles smiles",
+      "tier_key": "elite plus",
+      "program": "turkish airlines miles smiles",
+      "tier": "Elite Plus",
+      "aliases": [
+        "Turkish Airlines Miles&Smiles Elite Plus"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "united airlines mileageplus::global services",
+      "program_key": "united airlines mileageplus",
+      "tier_key": "global services",
+      "program": "united airlines mileageplus",
+      "tier": "Global Services",
+      "aliases": [
+        "United Airlines MileagePlus Global Services"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "united airlines mileageplus::premier 1k",
+      "program_key": "united airlines mileageplus",
+      "tier_key": "premier 1k",
+      "program": "united airlines mileageplus",
+      "tier": "Premier 1K",
+      "aliases": [
+        "United Airlines MileagePlus Premier 1K"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "united airlines mileageplus::premier gold",
+      "program_key": "united airlines mileageplus",
+      "tier_key": "premier gold",
+      "program": "united airlines mileageplus",
+      "tier": "Premier Gold",
+      "aliases": [
+        "United Airlines MileagePlus Premier Gold"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "united airlines mileageplus::premier platinum",
+      "program_key": "united airlines mileageplus",
+      "tier_key": "premier platinum",
+      "program": "united airlines mileageplus",
+      "tier": "Premier Platinum",
+      "aliases": [
+        "United Airlines MileagePlus Premier Platinum"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    },
+    {
+      "id": "united airlines mileageplus::premier silver",
+      "program_key": "united airlines mileageplus",
+      "tier_key": "premier silver",
+      "program": "united airlines mileageplus",
+      "tier": "Premier Silver",
+      "aliases": [
+        "United Airlines MileagePlus Premier Silver"
+      ],
+      "categories": [
+        "AIRLINE"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge:1c22bfd4960ca1c468b7e0d4",
+      "source_node_id": "aegean airlines miles+bonus::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:5:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Aegean Airlines Miles+Bonus",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 4: Aegean Airlines Miles+Bonus -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:50f3edbfb1da0d8ef4419be1",
+      "source_node_id": "aegean airlines miles+bonus::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:6:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Aegean Airlines Miles+Bonus",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 4: Aegean Airlines Miles+Bonus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:648fc4bd56b95cd1a3bbc24a",
+      "source_node_id": "aegean airlines miles+bonus::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:4:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Aegean Airlines Miles+Bonus",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 4: Aegean Airlines Miles+Bonus -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:a83587d8aa20a8e9f5bc6846",
+      "source_node_id": "air canada aeroplan::elite 25k",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:8:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air Canada Aeroplan",
+          "source_tier": "Elite 25K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 5: Air Canada Aeroplan -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:ed081603221bde2d0a1b99ba",
+      "source_node_id": "air canada aeroplan::elite 35k",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:8:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air Canada Aeroplan",
+          "source_tier": "Elite 35K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 5: Air Canada Aeroplan -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:d075de0fdea71b07f0144bd0",
+      "source_node_id": "air canada aeroplan::elite 50k",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:9:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air Canada Aeroplan",
+          "source_tier": "Elite 50K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 5: Air Canada Aeroplan -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:31057905d4f4afa78c7e5419",
+      "source_node_id": "air canada aeroplan::elite 75k",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:10:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air Canada Aeroplan",
+          "source_tier": "Elite 75K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 5: Air Canada Aeroplan -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:b99f688bc8e5b7d96ece7525",
+      "source_node_id": "air canada aeroplan::super elite 100k",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:10:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air Canada Aeroplan",
+          "source_tier": "Super Elite 100K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 5: Air Canada Aeroplan -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:ecc47bae2a92852683265666",
+      "source_node_id": "air china phoenixmiles::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:13:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air China PhoenixMiles",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 6: Air China PhoenixMiles -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:0424e4d8aa1ec2abd4a3bdab",
+      "source_node_id": "air china phoenixmiles::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:14:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air China PhoenixMiles",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 6: Air China PhoenixMiles -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:567343c5dced3aca17826da1",
+      "source_node_id": "air china phoenixmiles::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:12:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air China PhoenixMiles",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 6: Air China PhoenixMiles -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:f230045a704da93f56f1511e",
+      "source_node_id": "air india maharaja club::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:17:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air India Maharaja Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 7: Air India Maharaja Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:b44fff41b89afd0340b29aca",
+      "source_node_id": "air india maharaja club::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:18:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air India Maharaja Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 7: Air India Maharaja Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:dd8bdb8eea12c17d6d06bbf6",
+      "source_node_id": "air india maharaja club::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:16:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Air India Maharaja Club",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 7: Air India Maharaja Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:f713924d67efaa362dfca243",
+      "source_node_id": "american airlines aadvantage::concierge key",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "American Airlines AAdvantage",
+          "source_tier": "Concierge Key",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 8: American Airlines AAdvantage -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:664b1d6deaa816443d1a5d61",
+      "source_node_id": "american airlines aadvantage::executive platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "American Airlines AAdvantage",
+          "source_tier": "Executive Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 8: American Airlines AAdvantage -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:09cbf9028afcfe1f09bec823",
+      "source_node_id": "american airlines aadvantage::gold",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:20:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "American Airlines AAdvantage",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 8: American Airlines AAdvantage -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:cf1a0eee41baaa1a1a924dfe",
+      "source_node_id": "american airlines aadvantage::platinum",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:21:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "American Airlines AAdvantage",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 8: American Airlines AAdvantage -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:74cafe2a742bf18742c5153b",
+      "source_node_id": "american airlines aadvantage::platinum pro",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:2",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "American Airlines AAdvantage",
+          "source_tier": "Platinum Pro",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 8: American Airlines AAdvantage -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:bd0d3de8f175f481e603fd9b",
+      "source_node_id": "ana mileage club::bronze",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:0:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ANA Mileage Club",
+          "source_tier": "Bronze",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 3: ANA Mileage Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:1191099efa3f7952d6b8f7ec",
+      "source_node_id": "ana mileage club::diamond",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:2:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ANA Mileage Club",
+          "source_tier": "Diamond",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 3: ANA Mileage Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:275eaed6ac4a261565c5184b",
+      "source_node_id": "ana mileage club::platinum",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:1:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ANA Mileage Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 3: ANA Mileage Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:866e40a038e8fbfe5a7a85f6",
+      "source_node_id": "ana mileage club::super flyers",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:2:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ANA Mileage Club",
+          "source_tier": "Super Flyers",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 3: ANA Mileage Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:34421db4b5e9167dc2691035",
+      "source_node_id": "asiana airlines asiana club::diamond",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:25:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Asiana Airlines Asiana Club",
+          "source_tier": "Diamond",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 9: Asiana Airlines Asiana Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:cc14f87640304688cbc80c62",
+      "source_node_id": "asiana airlines asiana club::diamond plus",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:26:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Asiana Airlines Asiana Club",
+          "source_tier": "Diamond Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 9: Asiana Airlines Asiana Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:76acc4b9738f531c69659e2e",
+      "source_node_id": "asiana airlines asiana club::gold",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:24:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Asiana Airlines Asiana Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 9: Asiana Airlines Asiana Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:ee6180c763b8a4b73691e11a",
+      "source_node_id": "asiana airlines asiana club::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:26:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Asiana Airlines Asiana Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 9: Asiana Airlines Asiana Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:15bb32d81f5c9b8117ec1ba7",
+      "source_node_id": "avianca lifemiles::diamond",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:30:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Avianca LifeMiles",
+          "source_tier": "Diamond",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 10: Avianca LifeMiles -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:252fcf5729a54b53f3c042cd",
+      "source_node_id": "avianca lifemiles::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:29:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Avianca LifeMiles",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 10: Avianca LifeMiles -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:73469778948d6de6beda7b64",
+      "source_node_id": "avianca lifemiles::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:28:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Avianca LifeMiles",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 10: Avianca LifeMiles -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:03d36af0e1483433966dfd03",
+      "source_node_id": "british airways club::bronze",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:32:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "British Airways Club",
+          "source_tier": "Bronze",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 11: British Airways Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:fc096dfe13392a71c88b7391",
+      "source_node_id": "british airways club::gold",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "British Airways Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 11: British Airways Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:5b9743057c00300ce5d65a15",
+      "source_node_id": "british airways club::gold guest list",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "British Airways Club",
+          "source_tier": "Gold Guest List",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 11: British Airways Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:4b4c184d9ee9af23243f235e",
+      "source_node_id": "british airways club::premier",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:2",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "British Airways Club",
+          "source_tier": "Premier",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 11: British Airways Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:f91bf4a60a902e14ff0a489a",
+      "source_node_id": "british airways club::silver",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:33:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "British Airways Club",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 11: British Airways Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:23dec6648e5f722627fce1c2",
+      "source_node_id": "cathay pacific cathay::diamond",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Cathay Pacific Cathay",
+          "source_tier": "Diamond",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 12: Cathay Pacific Cathay -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:efe36227c9e874774ab82fb8",
+      "source_node_id": "cathay pacific cathay::diamond plus",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Cathay Pacific Cathay",
+          "source_tier": "Diamond Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 12: Cathay Pacific Cathay -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:18b91f810e30a3e1b3f2293b",
+      "source_node_id": "cathay pacific cathay::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:37:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Cathay Pacific Cathay",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 12: Cathay Pacific Cathay -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:248b8f23b4328e75a5b8310f",
+      "source_node_id": "cathay pacific cathay::invitation",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:2",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Cathay Pacific Cathay",
+          "source_tier": "Invitation",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 12: Cathay Pacific Cathay -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:f8cf8264b51b006cf6873c21",
+      "source_node_id": "cathay pacific cathay::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:36:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Cathay Pacific Cathay",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 12: Cathay Pacific Cathay -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:a60c4d6e595e160ba9f25e83",
+      "source_node_id": "china southern sky pearl club::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:41:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "China Southern Sky Pearl Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 13: China Southern Sky Pearl Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:54bc9c0259f017b9ac98e4ff",
+      "source_node_id": "china southern sky pearl club::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:42:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "China Southern Sky Pearl Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 13: China Southern Sky Pearl Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:3b29ee8b314a1aa752fa1173",
+      "source_node_id": "china southern sky pearl club::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:40:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "China Southern Sky Pearl Club",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 13: China Southern Sky Pearl Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:899c770e7df00395a93bc2ef",
+      "source_node_id": "emirates skywards::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:49:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Emirates Skywards",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 15: Emirates Skywards -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:2412be6a3ba1325c802a0c51",
+      "source_node_id": "emirates skywards::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:50:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Emirates Skywards",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 15: Emirates Skywards -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:616ae09730f58da0465e9095",
+      "source_node_id": "emirates skywards::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:48:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Emirates Skywards",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 15: Emirates Skywards -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:032b2a3edd3d3ade19462f4b",
+      "source_node_id": "eva air infinity mileagelands::diamond",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:46:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "EVA Air Infinity MileageLands",
+          "source_tier": "Diamond",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 14: EVA Air Infinity MileageLands -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:01af387addedfd3abc445679",
+      "source_node_id": "eva air infinity mileagelands::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:45:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "EVA Air Infinity MileageLands",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 14: EVA Air Infinity MileageLands -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:fb47625a49e9c726fc1f4152",
+      "source_node_id": "eva air infinity mileagelands::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:44:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "EVA Air Infinity MileageLands",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 14: EVA Air Infinity MileageLands -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:41813b63158f93bf6824afb4",
+      "source_node_id": "finnair plus::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:53:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Finnair Plus",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 16: Finnair Plus -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:84a7df3e05088a39293ff1a0",
+      "source_node_id": "finnair plus::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:54:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Finnair Plus",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 16: Finnair Plus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:2a38dbd58532f1b5d8055e55",
+      "source_node_id": "finnair plus::platinum lumo",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:54:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Finnair Plus",
+          "source_tier": "Platinum Lumo",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 16: Finnair Plus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:85ee0e95f08bd4610a2d8f38",
+      "source_node_id": "finnair plus::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:52:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Finnair Plus",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 16: Finnair Plus -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:20f58c94e37462c85ee5beb1",
+      "source_node_id": "gulf air falconflyer::black",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:58:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Gulf Air Falconflyer",
+          "source_tier": "Black",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 17: Gulf Air Falconflyer -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:e4cfe3ed96eb9cde981cff92",
+      "source_node_id": "gulf air falconflyer::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:57:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Gulf Air Falconflyer",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 17: Gulf Air Falconflyer -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:11c3e760d009790a75db8d70",
+      "source_node_id": "gulf air falconflyer::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:56:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Gulf Air Falconflyer",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 17: Gulf Air Falconflyer -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:a4fad97bc34c2ffebbb7e956",
+      "source_node_id": "hainan airlines fortune wings club::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:61:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Hainan Airlines Fortune Wings Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 18: Hainan Airlines Fortune Wings Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:726c9d9dca7b4c4a1c9c37f0",
+      "source_node_id": "hainan airlines fortune wings club::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:62:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Hainan Airlines Fortune Wings Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 18: Hainan Airlines Fortune Wings Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:bb0b24afc2fe5c221209117a",
+      "source_node_id": "hainan airlines fortune wings club::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:60:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Hainan Airlines Fortune Wings Club",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 18: Hainan Airlines Fortune Wings Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:d3ee190b92a2450ac5efadfb",
+      "source_node_id": "iberia club::infinita",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Iberia Club",
+          "source_tier": "Infinita",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 20: Iberia Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:7dd89a19987bf9f6823f7d32",
+      "source_node_id": "iberia club::infinita prime",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Iberia Club",
+          "source_tier": "Infinita Prime",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 20: Iberia Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:8fcf5f3fb031174da8714e0d",
+      "source_node_id": "iberia club::oro",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:69:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Iberia Club",
+          "source_tier": "Oro",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 20: Iberia Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:1f48db98d63458382b789ef5",
+      "source_node_id": "iberia club::plata",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:68:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Iberia Club",
+          "source_tier": "Plata",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 20: Iberia Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:65cd244c809e09121589ddff",
+      "source_node_id": "iberia club::platino",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:2",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Iberia Club",
+          "source_tier": "Platino",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 20: Iberia Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:3460b7cf78f21a760c008d9c",
+      "source_node_id": "ita airways miles more::executive",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:66:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ITA Airways Miles&More",
+          "source_tier": "Executive",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 19: ITA Airways Miles&More -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:f8d550baf97591c612c631b7",
+      "source_node_id": "ita airways miles more::executive per sempre",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:66:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ITA Airways Miles&More",
+          "source_tier": "Executive per sempre",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 19: ITA Airways Miles&More -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:47be8fda1511db635549d4bb",
+      "source_node_id": "ita airways miles more::plus",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:64:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ITA Airways Miles&More",
+          "source_tier": "Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 19: ITA Airways Miles&More -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:25095b478000c30781328e36",
+      "source_node_id": "ita airways miles more::premium",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:65:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "ITA Airways Miles&More",
+          "source_tier": "Premium",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 19: ITA Airways Miles&More -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:57d90d5f76daed309d270ce9",
+      "source_node_id": "latam latam pass::black",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:74:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "LATAM LATAM Pass",
+          "source_tier": "Black",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 21: LATAM LATAM Pass -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:045ae6b2704ae154324d0e44",
+      "source_node_id": "latam latam pass::black signature",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:74:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "LATAM LATAM Pass",
+          "source_tier": "Black Signature",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 21: LATAM LATAM Pass -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:27841c37de12b2e622b17106",
+      "source_node_id": "latam latam pass::gold",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:72:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "LATAM LATAM Pass",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 21: LATAM LATAM Pass -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:2fc9239c402911b0f1d10be1",
+      "source_node_id": "latam latam pass::gold plus",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:72:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "LATAM LATAM Pass",
+          "source_tier": "Gold Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 21: LATAM LATAM Pass -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:e2cbd06f4b9b514371a9a022",
+      "source_node_id": "latam latam pass::platinum",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:73:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "LATAM LATAM Pass",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 21: LATAM LATAM Pass -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:d2afc252bfed22a7a342a6a3",
+      "source_node_id": "lufthansa miles more::frequent traveller",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:76:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Lufthansa Miles & More",
+          "source_tier": "Frequent Traveller",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 22: Lufthansa Miles & More -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:f6d889459f3fcb3779265664",
+      "source_node_id": "lufthansa miles more::hon circle",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:78:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Lufthansa Miles & More",
+          "source_tier": "HON Circle",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 22: Lufthansa Miles & More -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:e3e566565e59922f6b54e90c",
+      "source_node_id": "lufthansa miles more::senator",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:77:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Lufthansa Miles & More",
+          "source_tier": "Senator",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 22: Lufthansa Miles & More -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:4e188920f06612494711366d",
+      "source_node_id": "oman air sindbad::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:81:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Oman Air Sindbad",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 23: Oman Air Sindbad -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:227e79a07c2a71d6c917cf08",
+      "source_node_id": "oman air sindbad::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:82:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Oman Air Sindbad",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 23: Oman Air Sindbad -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:0d77c24e044661fa9d23f8c8",
+      "source_node_id": "oman air sindbad::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:80:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Oman Air Sindbad",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 23: Oman Air Sindbad -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:e3e5c93e6c65f234a194204b",
+      "source_node_id": "qatar airways privilege club::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:85:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Qatar Airways Privilege Club",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 24: Qatar Airways Privilege Club -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:b5f31b10c0673763c1ab315b",
+      "source_node_id": "qatar airways privilege club::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:86:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Qatar Airways Privilege Club",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 24: Qatar Airways Privilege Club -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:3e9782f34af13b420267c959",
+      "source_node_id": "qatar airways privilege club::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:84:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Qatar Airways Privilege Club",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 24: Qatar Airways Privilege Club -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:8181adeea693898d2ac7038a",
+      "source_node_id": "singapore airlines krisflyer::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:89:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Singapore Airlines KrisFlyer",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 25: Singapore Airlines KrisFlyer -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:4d2f21dcd86dcc1a1e517536",
+      "source_node_id": "singapore airlines krisflyer::pps",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:90:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Singapore Airlines KrisFlyer",
+          "source_tier": "PPS",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 25: Singapore Airlines KrisFlyer -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:b6d4868b94e5879047b9fc58",
+      "source_node_id": "singapore airlines krisflyer::pps solitaire",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:90:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Singapore Airlines KrisFlyer",
+          "source_tier": "PPS Solitaire",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 25: Singapore Airlines KrisFlyer -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:fd88a59a644600f9e2978c55",
+      "source_node_id": "singapore airlines krisflyer::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:88:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Singapore Airlines KrisFlyer",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 25: Singapore Airlines KrisFlyer -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:eadd977d75dd89b7a5ae7968",
+      "source_node_id": "thai airways royal orchid plus::gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:93:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Thai Airways Royal Orchid Plus",
+          "source_tier": "Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 26: Thai Airways Royal Orchid Plus -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:634c313e1fd744f9c2747c6b",
+      "source_node_id": "thai airways royal orchid plus::platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:94:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Thai Airways Royal Orchid Plus",
+          "source_tier": "Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 26: Thai Airways Royal Orchid Plus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:35fcc28fd315866686f53747",
+      "source_node_id": "thai airways royal orchid plus::silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:92:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Thai Airways Royal Orchid Plus",
+          "source_tier": "Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 26: Thai Airways Royal Orchid Plus -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:96c6a72c46fc3f86cfc609c6",
+      "source_node_id": "turkish airlines miles smiles::classic plus",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:96:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Turkish Airlines Miles&Smiles",
+          "source_tier": "Classic Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 27: Turkish Airlines Miles&Smiles -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:1dc4e97135e339700393a558",
+      "source_node_id": "turkish airlines miles smiles::elite",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:97:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Turkish Airlines Miles&Smiles",
+          "source_tier": "Elite",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 27: Turkish Airlines Miles&Smiles -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:5c96c2da6e9382608cd505db",
+      "source_node_id": "turkish airlines miles smiles::elite plus",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:98:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "Turkish Airlines Miles&Smiles",
+          "source_tier": "Elite Plus",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 27: Turkish Airlines Miles&Smiles -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:593032e429c655b7be8c1c41",
+      "source_node_id": "united airlines mileageplus::global services",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "United Airlines MileagePlus",
+          "source_tier": "Global Services",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 28: United Airlines MileagePlus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:40e12d0db5103d05ecc33c96",
+      "source_node_id": "united airlines mileageplus::premier 1k",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:1",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "United Airlines MileagePlus",
+          "source_tier": "Premier 1K",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 28: United Airlines MileagePlus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:5aedda0cc1d723ebde84dff8",
+      "source_node_id": "united airlines mileageplus::premier gold",
+      "target_node_id": "flying blue::gold",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:101:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "United Airlines MileagePlus",
+          "source_tier": "Premier Gold",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue GOLD",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 28: United Airlines MileagePlus -> Flying Blue GOLD"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    },
+    {
+      "id": "edge:a073bb352292e9191d04308c",
+      "source_node_id": "united airlines mileageplus::premier platinum",
+      "target_node_id": "flying blue::platinum",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:2",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "United Airlines MileagePlus",
+          "source_tier": "Premier Platinum",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue PLATINUM",
+          "source_category": "AIRLINE",
+          "availability": "CONDITIONAL",
+          "conditions": "Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered. Applicants may select Gold or Platinum match during the application process.",
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 28: United Airlines MileagePlus -> Flying Blue PLATINUM"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": true,
+      "conflict": false
+    },
+    {
+      "id": "edge:963cad5ee8d21cec7c179147",
+      "source_node_id": "united airlines mileageplus::premier silver",
+      "target_node_id": "flying blue::silver",
+      "certainties": [
+        "EXACT"
+      ],
+      "claims": [
+        {
+          "id": "28b27d20-5e49-4403-99ad-28b69a14ef6f:100:0",
+          "watch_id": "619e8988-4bc1-450b-af47-0956c5d53882",
+          "host": "flyingblue.statusmatch.com",
+          "event_id": "839fa8c4-ffe5-4a04-8051-e9ad90dc7675",
+          "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+          "source_program": "United Airlines MileagePlus",
+          "source_tier": "Premier Silver",
+          "target_program": "Flying Blue",
+          "target_tier": "Flying Blue SILVER",
+          "source_category": "AIRLINE",
+          "availability": "AVAILABLE",
+          "conditions": null,
+          "evidence": [
+            {
+              "document_version_id": "6658e5fd-995a-48bb-a242-3af675878fe8",
+              "source_url": "https://flyingblue.statusmatch.com/faq",
+              "locator": "FAQ mapping table 10, row 28: United Airlines MileagePlus -> Flying Blue SILVER"
+            }
+          ],
+          "conflict": false,
+          "conflict_note": null
+        }
+      ],
+      "conditional": false,
+      "conflict": false
+    }
+  ],
+  "rules": [],
+  "expected_claim_ids": [
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:0:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:100:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:101:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:102:2",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:10:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:10:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:12:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:13:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:14:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:16:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:17:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:18:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:1:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:20:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:21:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:22:2",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:24:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:25:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:26:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:26:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:28:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:29:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:2:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:2:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:30:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:32:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:33:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:34:2",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:36:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:37:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:38:2",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:40:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:41:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:42:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:44:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:45:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:46:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:48:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:49:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:4:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:50:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:52:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:53:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:54:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:54:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:56:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:57:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:58:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:5:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:60:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:61:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:62:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:64:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:65:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:66:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:66:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:68:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:69:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:6:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:70:2",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:72:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:72:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:73:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:74:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:74:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:76:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:77:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:78:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:80:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:81:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:82:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:84:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:85:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:86:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:88:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:89:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:8:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:8:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:90:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:90:1",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:92:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:93:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:94:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:96:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:97:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:98:0",
+    "28b27d20-5e49-4403-99ad-28b69a14ef6f:9:0"
+  ],
+  "unavailable_mapping_count": 26,
+  "alias_ambiguities": []
+}

@@ -1,0 +1,163 @@
+{
+  "main_database": {
+    "revision": "clean_0003",
+    "schema_unchanged": true,
+    "row_counts_unchanged": true,
+    "nonempty_tables": {
+      "alembic_version": 1,
+      "sources": 2
+    },
+    "schema_sha256_normalized": "f3bc9f52603ba17f40ef70ab764341d925dc55034ed26d06cde661243da334be"
+  },
+  "workflow": {
+    "fact_current_pointer_valid": true,
+    "brief_current_pointer_valid": true,
+    "brief_status": "DRAFT",
+    "fact_has_conflicts": false,
+    "mapping_count": 104,
+    "route_count": 4,
+    "runs": [
+      {
+        "stage": "STATUSMATCH_PROJECT_EXTRACTION",
+        "status": "SUCCEEDED",
+        "error": null
+      },
+      {
+        "stage": "BRIEF_GENERATION",
+        "status": "SUCCEEDED",
+        "error": null
+      }
+    ],
+    "composed_brief_read_succeeded": true
+  },
+  "brief_examples": {
+    "ANA": [
+      {
+        "source_tiers": [
+          "Bronze"
+        ],
+        "target_tier": "Flying Blue SILVER",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Platinum"
+        ],
+        "target_tier": "Flying Blue GOLD",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Diamond",
+          "Super Flyers"
+        ],
+        "target_tier": "Flying Blue PLATINUM",
+        "availability": "CONDITIONAL"
+      },
+      {
+        "source_tiers": [],
+        "target_tier": "Flying Blue ULTIMATE",
+        "availability": "UNAVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Elite 25K",
+          "Elite 35K"
+        ],
+        "target_tier": "Flying Blue SILVER",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Elite 50K"
+        ],
+        "target_tier": "Flying Blue GOLD",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Elite 75K",
+          "Super Elite 100K"
+        ],
+        "target_tier": "Flying Blue PLATINUM",
+        "availability": "CONDITIONAL"
+      },
+      {
+        "source_tiers": [],
+        "target_tier": "Flying Blue ULTIMATE",
+        "availability": "UNAVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Gold"
+        ],
+        "target_tier": "Flying Blue SILVER",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Diamond"
+        ],
+        "target_tier": "Flying Blue GOLD",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Diamond Plus",
+          "Platinum"
+        ],
+        "target_tier": "Flying Blue PLATINUM",
+        "availability": "CONDITIONAL"
+      },
+      {
+        "source_tiers": [],
+        "target_tier": "Flying Blue ULTIMATE",
+        "availability": "UNAVAILABLE"
+      }
+    ],
+    "British Airways": [
+      {
+        "source_tiers": [
+          "Bronze"
+        ],
+        "target_tier": "Flying Blue SILVER",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Silver"
+        ],
+        "target_tier": "Flying Blue GOLD",
+        "availability": "AVAILABLE"
+      },
+      {
+        "source_tiers": [
+          "Gold",
+          "Gold Guest List",
+          "Premier"
+        ],
+        "target_tier": "Flying Blue PLATINUM",
+        "availability": "CONDITIONAL"
+      },
+      {
+        "source_tiers": [],
+        "target_tier": "Flying Blue ULTIMATE",
+        "availability": "UNAVAILABLE"
+      }
+    ]
+  },
+  "source_exclusion_excerpt": "ries [see full region availability](../terms) \n\n^ Platinum status match is not available for Argentina, Brazil, Chila, Hong Kong, Taiwan or China residents. Gold is the highest tier that may be offered.\n\n.",
+  "content_issues": [
+    {
+      "type": "BRIEF_FACT_MISMATCH",
+      "brief_text": "申请费用因地区及等级不同，范围从EUR 89（希腊/Silver）到USD 399（阿根廷等/Platinum）。",
+      "fact": "Argentina, Chile: Platinum UNAVAILABLE; amount and currency null",
+      "location": "brief.content.key_points[1]"
+    },
+    {
+      "type": "MIXED_CURRENCY_RANGE",
+      "fact_text": "因地区及等级不同，申请费从EUR 89到USD 399不等。",
+      "note": "EUR and USD are different units; retain separate currency prices instead of presenting one comparable numeric range."
+    }
+  ]
+}

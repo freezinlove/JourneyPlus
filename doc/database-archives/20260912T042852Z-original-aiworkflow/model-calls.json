@@ -1,0 +1,58 @@
+[
+  {
+    "number": 1,
+    "output_model": "StatusMatchProjectExtraction",
+    "status": "SUCCEEDED",
+    "elapsed_seconds": 47.09,
+    "metrics": {
+      "schema_bytes": 5894,
+      "system_prompt_bytes": 3112,
+      "user_prompt_bytes": 23824,
+      "usage": {
+        "prompt_tokens": 9014,
+        "completion_tokens": 4402,
+        "total_tokens": 13416
+      },
+      "io_timeouts_seconds": {
+        "connect": 180,
+        "read": 180,
+        "write": 180,
+        "pool": 180
+      },
+      "io_timeout_seconds": 180,
+      "enable_thinking": null,
+      "provider_request_ms": 47078,
+      "response_model": "deepseek-v4-flash",
+      "reasoning_tokens": 3282,
+      "cached_tokens": 0
+    }
+  },
+  {
+    "number": 2,
+    "output_model": "Brief",
+    "status": "SUCCEEDED",
+    "elapsed_seconds": 12.78,
+    "metrics": {
+      "schema_bytes": 1471,
+      "system_prompt_bytes": 2026,
+      "user_prompt_bytes": 71673,
+      "usage": {
+        "prompt_tokens": 23147,
+        "completion_tokens": 1225,
+        "total_tokens": 24372
+      },
+      "io_timeouts_seconds": {
+        "connect": 180,
+        "read": 180,
+        "write": 180,
+        "pool": 180
+      },
+      "io_timeout_seconds": 180,
+      "enable_thinking": null,
+      "provider_request_ms": 12782,
+      "response_model": "deepseek-v4-flash",
+      "reasoning_tokens": 519,
+      "cached_tokens": 0
+    }
+  }
+]

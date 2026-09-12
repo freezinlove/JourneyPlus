@@ -1,0 +1,13 @@
+{
+  "processing": {
+    "selected": 0,
+    "attempted": 0,
+    "succeeded": 0,
+    "failed": 0,
+    "skipped": 0,
+    "model_calls": 0,
+    "projects": [],
+    "errors": []
+  },
+  "additional_model_calls": 0
+}

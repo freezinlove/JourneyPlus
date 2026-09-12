@@ -1,0 +1,78 @@
+{
+  "mappings": 104,
+  "programs": 26,
+  "prices": [
+    {
+      "scope": "Greece",
+      "region": "Greece",
+      "prices": [
+        {
+          "tier": "Silver",
+          "amount": "89",
+          "currency": "EUR",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Gold",
+          "amount": "199",
+          "currency": "EUR",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Platinum",
+          "amount": "349",
+          "currency": "EUR",
+          "availability": "AVAILABLE"
+        }
+      ]
+    },
+    {
+      "scope": "Argentina, Chile, Colombia, Costa Rica, Ecuador, Paraguay, Peru, Uruguay",
+      "region": "Argentina, Chile, Colombia, Costa Rica, Ecuador, Paraguay, Peru, Uruguay",
+      "prices": [
+        {
+          "tier": "Silver",
+          "amount": "99",
+          "currency": "USD",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Gold",
+          "amount": "299",
+          "currency": "USD",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Platinum",
+          "amount": "399",
+          "currency": "USD",
+          "availability": "AVAILABLE"
+        }
+      ]
+    },
+    {
+      "scope": "Brazil",
+      "region": "Brazil",
+      "prices": [
+        {
+          "tier": "Silver",
+          "amount": "99",
+          "currency": "USD",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Gold",
+          "amount": "299",
+          "currency": "USD",
+          "availability": "AVAILABLE"
+        },
+        {
+          "tier": "Platinum",
+          "amount": null,
+          "currency": null,
+          "availability": "UNAVAILABLE"
+        }
+      ]
+    }
+  ]
+}

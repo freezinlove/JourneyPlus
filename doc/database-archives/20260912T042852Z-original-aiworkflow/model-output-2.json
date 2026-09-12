@@ -1,0 +1,99 @@
+{
+  "schema_version": "1",
+  "fact_set_id": "28b27d20-5e49-4403-99ad-28b69a14ef6f",
+  "title": "Flying Blue 会籍匹配：用他航精英会籍申请Silver/Gold/Platinum，获批后12个月有效",
+  "title_fact_keys": [
+    "what_happened",
+    "target_status",
+    "status_validity"
+  ],
+  "summary": "指定国家/地区居民持有合格航司精英会籍并支付申请费（EUR 89–USD 399），获批后可获12个月Flying Blue Silver、Gold或Platinum会籍。顶级会籍申请人可在Gold和Platinum间选择。",
+  "summary_fact_keys": [
+    "what_happened",
+    "eligibility",
+    "region",
+    "cost",
+    "target_status",
+    "status_validity"
+  ],
+  "key_points": [
+    {
+      "text": "适用地区：希腊、阿根廷、巴西、智利、哥伦比亚、哥斯达黎加、厄瓜多尔、巴拉圭、秘鲁、乌拉圭等指定国家居民。",
+      "fact_keys": [
+        "region"
+      ]
+    },
+    {
+      "text": "申请费用因地区及等级不同，范围从EUR 89（希腊/Silver）到USD 399（阿根廷等/Platinum）。",
+      "fact_keys": [
+        "cost",
+        "application_routes"
+      ]
+    },
+    {
+      "text": "会籍对应关系示例：ANA Mileage Club Bronze → Flying Blue SILVER；同样，British Airways Silver → Flying Blue GOLD。",
+      "fact_keys": [
+        "status_mappings"
+      ]
+    },
+    {
+      "text": "批准后会籍有效期为12个月，到期后需按Flying Blue正常规则重新达标。",
+      "fact_keys": [
+        "status_validity",
+        "caveats"
+      ]
+    },
+    {
+      "text": "部分国家（阿根廷、巴西、智利、香港、台湾、中国大陆）无法申请Platinum，顶级会籍申请人可降级选择Gold。",
+      "fact_keys": [
+        "caveats",
+        "region"
+      ]
+    },
+    {
+      "text": "申请入口：https://flyingblue.statusmatch.com/",
+      "fact_keys": [
+        "action_link"
+      ]
+    }
+  ],
+  "caveats": [
+    {
+      "text": "每人仅限一次Status Match。",
+      "fact_keys": [
+        "caveats"
+      ]
+    },
+    {
+      "text": "匹配到期后需按Flying Blue正常规则重新达标。",
+      "fact_keys": [
+        "caveats"
+      ]
+    },
+    {
+      "text": "Platinum会籍在阿根廷、巴西、智利、香港、台湾、中国大陆不可用。",
+      "fact_keys": [
+        "caveats",
+        "region"
+      ]
+    },
+    {
+      "text": "顶级会籍申请人可选择Gold或Platinum。",
+      "fact_keys": [
+        "caveats",
+        "target_status"
+      ]
+    },
+    {
+      "text": "申请费可能变更，活动可能随时结束。",
+      "fact_keys": [
+        "caveats"
+      ]
+    }
+  ],
+  "source_links": [
+    "https://flyingblue.statusmatch.com/",
+    "https://flyingblue.statusmatch.com/faq",
+    "https://flyingblue.statusmatch.com/terms"
+  ]
+}
