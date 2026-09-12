@@ -84,14 +84,28 @@ class ProductBriefService:
         events = self._session.scalars(
             select(StatusEvent).where(
                 StatusEvent.current_fact_set_id.is_not(None),
-                StatusEvent.current_brief_id.is_not(None),
                 StatusEvent.archived_at.is_(None),
             )
         )
         for event in events:
             fact_record = self._session.get(FactSetRecord, event.current_fact_set_id)
-            brief_record = self._session.get(BriefRecord, event.current_brief_id)
-            if fact_record is None or brief_record is None:
+            if fact_record is None or fact_record.event_id != event.id:
+                continue
+            brief_record = (
+                self._session.get(BriefRecord, event.current_brief_id)
+                if event.current_brief_id is not None
+                else None
+            )
+            # Facts can advance before their brief is ready. Match the detail
+            # reader: honor a matching pointer, otherwise select this version only.
+            if brief_record is None or brief_record.fact_set_id != fact_record.id:
+                brief_record = self._session.scalar(
+                    select(BriefRecord)
+                    .where(BriefRecord.fact_set_id == fact_record.id)
+                    .order_by(BriefRecord.version.desc())
+                    .limit(1)
+                )
+            if brief_record is None:
                 continue
             facts = FactSet.model_validate(
                 with_legacy_opportunity_kind(
