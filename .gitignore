@@ -13,3 +13,6 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+
+# Local Agent audit output (requests, conversations, metrics).
+/.local/agent-audits/

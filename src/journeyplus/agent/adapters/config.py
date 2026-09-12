@@ -16,6 +16,7 @@ class AgentConfig:
     network_enabled: bool = False
     input_token_soft: int = 45000
     input_token_limit: int = 60000
+    explicit_cache: bool = False
 
     def __post_init__(self):
         if self.context_window <= 2048:
@@ -37,4 +38,5 @@ class AgentConfig:
                    thinking=os.getenv('JOURNEYPLUS_AGENT_THINKING', 'false').lower() == 'true',
                    network_enabled=os.getenv('JOURNEYPLUS_AGENT_NETWORK_ENABLED', 'false').lower() == 'true',
                    input_token_soft=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_SOFT','45000')),
-                   input_token_limit=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_LIMIT','60000')))
+                   input_token_limit=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_LIMIT','60000')),
+                   explicit_cache=os.getenv('JOURNEYPLUS_AGENT_EXPLICIT_CACHE','false').lower() == 'true')

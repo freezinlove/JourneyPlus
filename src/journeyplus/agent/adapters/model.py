@@ -129,6 +129,26 @@ def wire_result(value):
             (key == 'cache' and item == {'hit': False, 'observed_at': None})}
 
 
+def cache_messages(messages):
+    """Opt-in ephemeral prefix caching; preserve roles, text and call identities.
+
+    Keep content blocks stable as the conversation grows, including when a
+    previous endpoint loses its marker. The first system message protects the
+    instruction prefix; the last nonempty message includes the current history.
+    Supported by the configured provider, not a local response cache.
+    """
+    result = [{**m, 'content': [{'type': 'text', 'text': m['content']}]
+               if isinstance(m.get('content'), str) and m['content'] else m.get('content')}
+              for m in messages]
+    text_indices = [i for i, m in enumerate(result) if isinstance(m['content'], list) and m['content']]
+    if text_indices:
+        first_system = next((i for i in text_indices if result[i]['role'] == 'system'), text_indices[0])
+        for i in {first_system, text_indices[-1]}:
+            result[i]['content'] = [{**block} for block in result[i]['content']]
+            result[i]['content'][-1]['cache_control'] = {'type': 'ephemeral'}
+    return result
+
+
 class AgentModel:
     def __init__(self, config, client=None):
         self.config = config
@@ -141,7 +161,7 @@ class AgentModel:
     @property
     def configuration_id(self):
         import hashlib
-        value=['portable-native-names-schema-v7-visible-receipts',self.config.model,self.config.base_url,self.protocol,self.config.temperature,self.config.thinking,self.config.context_window]
+        value=['portable-native-names-schema-v8-explicit-cache',self.config.model,self.config.base_url,self.protocol,self.config.temperature,self.config.thinking,self.config.context_window,self.config.explicit_cache]
         return hashlib.sha256(json.dumps(value).encode()).hexdigest()
 
     def estimate_input(self,messages,definitions,*,tools_allowed=True):
@@ -150,7 +170,8 @@ class AgentModel:
         schema=[{'type':'function','function':{'name':names.get(d.name,d.name),'description':d.description,'parameters':inline_schema(d.input_schema)}} for d in definitions] if tools_allowed else []
         if self.protocol=='json':
             return estimate({'messages':[m.model_dump(mode='json') for m in messages],'tools':schema,'output_schema':inline_schema(JsonActions.model_json_schema())})+256
-        return estimate({'messages':wire_messages(messages,names),'tools':schema})+128
+        wire = wire_messages(messages,names)
+        return estimate({'messages':cache_messages(wire) if self.config.explicit_cache else wire,'tools':schema})+128
 
     def estimate_final_input(self,messages,definitions):
         return self.estimate_input(messages,definitions,tools_allowed=False)
@@ -236,6 +257,8 @@ class AgentModel:
                 payload.update(response_format={'type': 'json_object'}, messages=[{'role': 'system', 'content': instructions}, *history])
                 if not limits.get('tools_allowed', True):
                     payload['messages'][0]['content'] += ' Resources exhausted: provide final message without calls.'
+                if self.config.explicit_cache:
+                    payload['messages'] = cache_messages(payload['messages'])
                 response = await self.client.post('chat/completions', json=payload, timeout=limits.get('timeout', 45))
                 response.raise_for_status()
                 body = response.json()
@@ -262,6 +285,8 @@ class AgentModel:
                 yield ModelEvent(type='turn_end', finish_reason='tool_calls' if action.calls else 'stop' if action.finished else 'error')
                 return
             payload.update(messages=wire_messages(messages,names), stream=True, stream_options={'include_usage': True})
+            if self.config.explicit_cache:
+                payload['messages'] = cache_messages(payload['messages'])
             if schema:
                 payload.update(tools=schema, tool_choice='auto' if limits.get('tools_allowed', True) else 'none')
             elif not limits.get('tools_allowed',True):
@@ -331,9 +356,10 @@ class AgentModel:
             raise
         finally:
             self.metrics.append({'protocol': self.protocol, 'model': self.config.model, 'thinking': self.config.thinking,
+                                 'explicit_cache':self.config.explicit_cache,
                                  'wire_decodings':wire_decodings,
                                  'elapsed_ms': round((monotonic()-started)*1000), 'usage': usage, 'protocol_error': protocol_error,'first_text_ms':first_text_ms,
                                  'http_status':http_status,'provider_code':provider_code,'finish_reason':finish_reason,
                                  'input_bytes':len(json.dumps({k:v for k,v in payload.items() if k in {'messages','tools'}},ensure_ascii=False,separators=(',',':')).encode()),
                                  'schema_bytes':len(json.dumps(schema,ensure_ascii=False,separators=(',',':')).encode()),
-                                 'tool_result_bytes':sum(len(m.get('content','').encode()) for m in payload.get('messages',[]) if m.get('role')=='tool')})
+                                 'tool_result_bytes':sum(len((m['content'] if isinstance(m.get('content'),str) else json.dumps(m.get('content'),ensure_ascii=False,separators=(',',':'))).encode()) for m in payload.get('messages',[]) if m.get('role')=='tool')})
