@@ -44,7 +44,8 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     identities=IdentityService(getattr(knowledge_port,"catalog",None))
     user_data=getattr(knowledge_port,"user_data",UserData)(factory)
     queries=RouteQueries(knowledge_port,user_data,identities)
-    memory=UserMemory(factory,identities,knowledge_port)
+    memory_type=getattr(knowledge_port,'memory_type',UserMemory)
+    memory=memory_type(factory,identities,knowledge_port)
     services={'workspace_read':workspace_service.read,'workspace_note':workspace_service.note,'display':display.present,'knowledge':knowledge_port,'user_data':user_data,'route_queries':queries,'identities':identities,'user_memory':memory,
               'waiting':WaitingService(factory,memory,queries),'research':PublicResearch(network_enabled,search_backend=search)}
     handlers={'catalog.lookup':knowledge.catalog,'activity.read':knowledge.activity,'routes.evaluate':routes.evaluate,

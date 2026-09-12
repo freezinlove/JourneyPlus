@@ -1,0 +1,83 @@
+{
+  "sequence": 2,
+  "messages": [
+    {
+      "id": "d024e806-6e82-479f-a5cb-86c3f48bf3e5",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Call echo with value probe-ok, then answer with the returned value.",
+          "call_id": null,
+          "name": null,
+          "arguments": null,
+          "result": null,
+          "ref": null
+        }
+      ],
+      "created_at": "2026-09-12T06:39:28.897920Z",
+      "metadata": {}
+    },
+    {
+      "id": "c19fbc83-ccc2-4738-8887-ae769b358652",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_call",
+          "text": null,
+          "call_id": "echo-1",
+          "name": "echo",
+          "arguments": {
+            "value": "probe-ok"
+          },
+          "result": null,
+          "ref": null
+        }
+      ],
+      "created_at": "2026-09-12T06:39:36.552232Z",
+      "metadata": {}
+    },
+    {
+      "id": "6b19b710-490c-4fa6-a6af-0e89a8932ee2",
+      "role": "tool",
+      "content": [
+        {
+          "type": "tool_result",
+          "text": null,
+          "call_id": "echo-1",
+          "name": null,
+          "arguments": null,
+          "result": {
+            "value": "probe-ok"
+          },
+          "ref": null
+        }
+      ],
+      "created_at": "2026-09-12T06:39:36.552285Z",
+      "metadata": {}
+    }
+  ],
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Return the input value unchanged.",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "limits": {
+    "max_output": 256,
+    "tools_allowed": false
+  },
+  "protocol": "native"
+}

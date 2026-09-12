@@ -93,6 +93,9 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
     def create(request:CreateRequest):
         if request.import_workspace_id:
             return store.import_workspace(str(request.import_workspace_id))
+        storage=lifecycle.refresh_storage()
+        if storage['status']!='AVAILABLE':
+            raise StoreError(storage['code'],503)
         return store.create()
 
     @router.get('/v3/agent/workspaces/{workspace_id}')
@@ -101,6 +104,7 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
 
     @router.post('/v3/agent/workspaces/{workspace_id}/runs',status_code=202)
     async def start(workspace_id:UUID,request:RunRequest):
+        await blocking_call(lifecycle.refresh_storage)
         if lifecycle.status != 'READY':
             raise HTTPException(503, {'code': 'AGENT_' + lifecycle.status})
         result=await blocking_call(store.start,str(workspace_id),**request.model_dump())
@@ -155,9 +159,10 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
         def home_page():return (static/'knowledge.html').read_text()
     @router.get('/v3/agent/status')
     def availability():
+        storage=lifecycle.refresh_storage()
         knowledge=runtime.services['knowledge'].availability()
         return {'status': lifecycle.status, 'error_type': lifecycle.error,
-                'knowledge':knowledge,'ready_for_route_queries':lifecycle.status=='READY' and knowledge['status']=='AVAILABLE'}
+                'knowledge':knowledge,'storage':storage,'ready_for_route_queries':lifecycle.status=='READY' and knowledge['status']=='AVAILABLE'}
 
     app.include_router(router)
     return app

@@ -18,6 +18,21 @@ class AgentLifecycle:
         self.status = 'DISABLED' if getattr(runtime.ports.model, 'disabled', False) else (
             'INITIALIZING' if initialize_model else 'READY')
         self.error = None
+        self.model_ready = not initialize_model
+        self.storage = None
+
+    def refresh_storage(self):
+        self.storage = self.store.storage_status()
+        if getattr(self.runtime.ports.model, 'disabled', False):
+            self.status = 'DISABLED'
+            self.error = None
+        elif self.storage['status'] != 'AVAILABLE':
+            self.status = 'UNAVAILABLE'
+            self.error = self.storage['code']
+        elif self.model_ready:
+            self.status = 'READY'
+            self.error = None
+        return self.storage
 
     def dispatch(self, run_id):
         if self.status != 'READY':
@@ -28,6 +43,8 @@ class AgentLifecycle:
     async def initialize(self):
         model = self.runtime.ports.model
         try:
+            if (await blocking_call(self.refresh_storage))['status'] != 'AVAILABLE':
+                return
             if self.initialize_model:
                 await model.initialize()
             config = getattr(model, 'config', None)
@@ -37,6 +54,7 @@ class AgentLifecycle:
                     'soft': {'input_tokens': config.input_token_soft},
                     'hard': {'input_tokens': config.input_token_limit},
                 }
+            self.model_ready = True
             self.status = 'READY'
         except asyncio.CancelledError:
             raise
@@ -51,6 +69,7 @@ class AgentLifecycle:
     async def recover(self):
         while True:
             try:
+                await blocking_call(self.refresh_storage)
                 if self.status == 'READY':
                     for identity in await blocking_call(self.store.pending_run_ids):
                         self.dispatch(identity)
@@ -70,7 +89,7 @@ class AgentLifecycle:
         while True:
             try:
                 callback = self.runtime.services.get('maintenance')
-                if callback:
+                if callback and (await blocking_call(self.store.storage_status))['status'] == 'AVAILABLE':
                     await blocking_call(callback)
             except Exception as error:
                 logging.getLogger(__name__).warning('Agent maintenance failed: %s', type(error).__name__)

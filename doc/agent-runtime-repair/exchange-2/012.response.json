@@ -1,0 +1,1 @@
+[{"type": "text_delta", "message_id": "c3681f6c-191b-4d4c-b18a-3296acfd66a2", "text": "{\"status\": \"complete\", \"parts\": [\"临时等待任务已创建并列出核对，随后已取消，不会继续等待。没有保存会籍。\"], \"deliveries\": [{\"kind\": \"operation\", \"call_id\": \"create-test-wait\"}, {\"kind\": \"operation\", \"call_id\": \"cancel-test-wait\"}], \"remaining\": []}"}, {"type": "turn_end", "finish_reason": "stop"}]

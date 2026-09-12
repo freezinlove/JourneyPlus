@@ -101,7 +101,7 @@ class WaitingService:
         try:
             from journeyplus.agent.adapters.transactions import transaction
             with transaction(self.factory) as s:
-                s.info['user_business_journal']=True
+                s.info['user_business_journal']=getattr(self.memory,'business_journal',True)
                 if s.bind.dialect.name=='postgresql':s.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
                 authorization=self.memory.authorize(s,ctx,args.authorization)
                 key=ctx.workspace_id+':'+args.authorization.message_refs[-1]+':'+args.operation_key
@@ -164,7 +164,7 @@ class WaitingService:
             readiness=evaluation['readiness']
             from journeyplus.agent.adapters.transactions import transaction
             with transaction(self.factory) as session:
-                session.info['user_business_journal']=True
+                session.info['user_business_journal']=getattr(self.memory,'business_journal',True)
                 if session.bind.dialect.name=='postgresql':session.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
                 current=session.get(AgentWaitGoal,identity,with_for_update=True)
                 if current is None or current.revision!=revision or current.status!='ACTIVE':
@@ -179,7 +179,7 @@ class WaitingService:
         signature=digest(matches)
         from journeyplus.agent.adapters.transactions import transaction
         with transaction(self.factory) as session:
-            session.info['user_business_journal']=True
+            session.info['user_business_journal']=getattr(self.memory,'business_journal',True)
             if session.bind.dialect.name=='postgresql':session.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
             row=session.get(AgentWaitGoal,identity,with_for_update=True)
             if row is None or row.revision!=revision or row.status!='ACTIVE':

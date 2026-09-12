@@ -57,5 +57,9 @@ def test_configuration_failure_is_local_and_creation_is_deferred(session_factory
     assert made == []
     with TestClient(app) as client:
         assert client.get('/holdings').status_code == 200
+        import time
+        for _ in range(100):
+            if made: break
+            time.sleep(.01)
         assert made == [True]
         assert client.get('/v3/agent/status').json()['status'] == 'UNAVAILABLE'

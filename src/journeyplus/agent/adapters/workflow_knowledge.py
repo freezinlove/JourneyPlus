@@ -57,14 +57,15 @@ class WorkflowUserData:
             return []
         with self.factory() as session:
             statement = select(StatusHolding.id, StatusHolding.program_key, StatusHolding.tier_key,
-                StatusHolding.program_display_name, StatusHolding.tier_display_name, StatusHolding.valid_until)
+                StatusHolding.program_display_name, StatusHolding.tier_display_name, StatusHolding.valid_until, StatusHolding.updated_at)
             if mode == 'saved':
                 statement = statement.where((StatusHolding.valid_until.is_(None)) |
                     (StatusHolding.valid_until>=datetime.now(UTC).date()))
             if refs:
                 statement = statement.where(StatusHolding.id.in_([UUID(r.removeprefix('holding:')) for r in refs]))
             rows = session.execute(statement.order_by(StatusHolding.id)).mappings().all()
-            result = [{'holding_ref':'holding:'+str(r['id']), 'revision':0,
+            from .workflow_holdings import holding_revision
+            result = [{'holding_ref':'holding:'+str(r['id']), 'revision':holding_revision(SimpleNamespace(**r)),
                 'tier_ref':'tier:'+str(identity_id('tier',r['program_key']+'::'+r['tier_key'])),
                 'program_name':r['program_display_name'], 'tier_name':r['tier_display_name'],
                 'valid_until':r['valid_until'].isoformat() if r['valid_until'] else None} for r in rows]
@@ -77,6 +78,11 @@ class WorkflowUserData:
 class WorkflowKnowledgePort(KnowledgePort):
     catalog = staticmethod(catalog)
     user_data = WorkflowUserData
+
+    @property
+    def memory_type(self):
+        from journeyplus.agent.services.workflow_memory import WorkflowUserMemory
+        return WorkflowUserMemory
 
     @staticmethod
     def activity_reader(session):
@@ -233,7 +239,7 @@ class WorkflowActivityReader:
         sources = [dict(document_version_ref=str(d.id),url=d.canonical_url,fetched_at=d.fetched_at.isoformat())
             for d in self.session.scalars(select(DocumentVersion).options(load_only(DocumentVersion.id,
                 DocumentVersion.canonical_url,DocumentVersion.fetched_at)).where(DocumentVersion.id.in_(source_ids)))]
-        return {'ref':str(identity),'version_ref':str(selected),'current_version_ref':current,
+        return {'data_model':'aiworkflow','ref':str(identity),'version_ref':str(selected),'current_version_ref':current,
             'is_current':str(selected)==current,'name':brief_content.get('title',detail.program) if brief_content else detail.program,
             'kind':str(detail.opportunity_kind),'facts':facts,'options':options,'sources':sources,
             'briefs':[{'content':brief_content}] if brief_content else [],
@@ -241,15 +247,16 @@ class WorkflowActivityReader:
                     'lifecycle_status':detail.lifecycle_status,'source_links':detail.source_links},
             'brief_url':f'/opportunities/{record.id}'}
 
-    def history(self, identity):
+    def history(self, identity, *, before_version=None, limit=10):
         event = self.session.get(StatusEvent,identity)
         if not event:
             return {'activity_ref':str(identity),'versions':[],'has_more':False}
-        rows = list(self.session.scalars(select(FactSetRecord).where(FactSetRecord.event_id==identity)
-            .order_by(FactSetRecord.version.desc()).limit(11)))
+        statement=select(FactSetRecord).where(FactSetRecord.event_id==identity)
+        if before_version is not None:statement=statement.where(FactSetRecord.version<before_version)
+        rows=list(self.session.scalars(statement.order_by(FactSetRecord.version.desc()).limit(limit+1)))
         return {'activity_ref':str(identity),'versions':[{'version_ref':str(r.id),'version_no':r.version,
-            'is_current':r.id==event.current_fact_set_id,'created_at':r.created_at.isoformat()} for r in rows[:10]],
-            'has_more':len(rows)>10}
+            'is_current':r.id==event.current_fact_set_id,'created_at':r.created_at.isoformat()} for r in rows[:limit]],
+            'has_more':len(rows)>limit}
 
     def materials(self, *, selector, version_ref, section_refs=(), aspects=(), **unused):
         detail = self.detail(UUID(selector['ref']),UUID(version_ref))

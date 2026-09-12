@@ -17,7 +17,33 @@ function showDetail(dialog){
   history.pushState({...history.state,journeyplusDetail:state.token},'');dialog.showModal();
 }
 function fact(parent,name,value){const dl=el('dl',undefined,'fact');dl.append(el('dt',name),el('dd',readable(value)));parent.append(dl);}
-function activityDetail(a,parent,observations=[],includeHistory=true,checks=[]){parent.append(el('h3',a.name||'活动资料'));const priceGaps=(a.validation_notes||[]).filter(n=>n.code==='PRICE_EVIDENCE_WITHHELD').length;const mappingGaps=(a.validation_notes||[]).filter(n=>n.code==='MAPPING_TABLE_INCOMPLETE').reduce((sum,n)=>sum+n.mapping_count,0);if(priceGaps)parent.append(el('p',`有 ${priceGaps} 项收费尚未通过来源或适用关系核对，已标记未知，不计入确定总价。可在费用依据中查看原文。`,'caveat'));if(mappingGaps)parent.append(el('p',`来源表中还有 ${mappingGaps} 项会籍映射未完成逐项验证，当前路径不代表完整覆盖。`,'caveat'));if(a.is_current===false)parent.append(el('p','这是回答当时的历史版本，当前资料已有更新。','caveat'));fact(parent,'资料状态',a.freshness||a.status);if(a.published_at)fact(parent,'发布时间',new Date(a.published_at).toLocaleString('zh-CN'));if(a.facts?.summary)fact(parent,'概述',a.facts.summary);for(const check of checks)fact(parent,check.result==='PASS'?'已核对条件':'待核对条件',check.reason);if(a.detail_scope!=='SELECTED_ROUTE_STEP'&&a.facts?.conditions?.items?.length)fact(parent,'活动资格条件',a.facts.conditions);for(const o of a.options||[]){const box=el('section',undefined,'detail-option');box.append(el('h4',o.label));fact(box,'申请状态',o.availability);if(a.detail_scope!=='SELECTED_ROUTE_STEP')fact(box,'资格条件',o.conditions);fact(box,'挑战要求',o.challenge);fact(box,'申请日期',o.application_window);fact(box,'有效期',o.status_validity);if(a.detail_scope!=='SELECTED_ROUTE_STEP')mappingDetails(o,box);if(!o.prices?.length)fact(box,'申请费用','尚未明确');for(const p of o.prices||[]){const target=o.mappings.find(m=>m.target_tier_id===p.target_tier_id);fact(box,target?`${target.to_tier} 费用`:'适用范围内费用',p.known_state==='KNOWN'?(Number(p.amount)===0?'免费':`${p.currency} ${Number(p.amount).toLocaleString('zh-CN')}`):(p.known_state==='CONFLICT'?'费用来源存在冲突':'费用未知'));if(p.raw_text){const evidence=el('details');evidence.append(el('summary','费用依据'),el('p',p.raw_text));box.append(evidence);}if(p.availability!=='AVAILABLE')fact(box,'费用适用性','尚未核实，不能作为确定总价');if(p.combination==='CONDITIONAL'||p.combination==='ALTERNATIVE')fact(box,'收费方式',p.combination==='CONDITIONAL'?'有条件费用':'互斥费用，需确认适用项');if(p.conditions?.items?.length)fact(box,'费用条件',p.conditions);}parent.append(box);}researchDetail(observations,parent);activitySources(a,parent,includeHistory);}
+function activityDetail(a,parent,observations=[],includeHistory=true,checks=[]){if(a.data_model==='aiworkflow')return workflowActivityDetail(a,parent,includeHistory,checks);parent.append(el('h3',a.name||'活动资料'));const priceGaps=(a.validation_notes||[]).filter(n=>n.code==='PRICE_EVIDENCE_WITHHELD').length;const mappingGaps=(a.validation_notes||[]).filter(n=>n.code==='MAPPING_TABLE_INCOMPLETE').reduce((sum,n)=>sum+n.mapping_count,0);if(priceGaps)parent.append(el('p',`有 ${priceGaps} 项收费尚未通过来源或适用关系核对，已标记未知，不计入确定总价。可在费用依据中查看原文。`,'caveat'));if(mappingGaps)parent.append(el('p',`来源表中还有 ${mappingGaps} 项会籍映射未完成逐项验证，当前路径不代表完整覆盖。`,'caveat'));if(a.is_current===false)parent.append(el('p','这是回答当时的历史版本，当前资料已有更新。','caveat'));fact(parent,'资料状态',a.freshness||a.status);if(a.published_at)fact(parent,'发布时间',new Date(a.published_at).toLocaleString('zh-CN'));if(a.facts?.summary)fact(parent,'概述',a.facts.summary);for(const check of checks)fact(parent,check.result==='PASS'?'已核对条件':'待核对条件',check.reason);if(a.detail_scope!=='SELECTED_ROUTE_STEP'&&a.facts?.conditions?.items?.length)fact(parent,'活动资格条件',a.facts.conditions);for(const o of a.options||[]){const box=el('section',undefined,'detail-option');box.append(el('h4',o.label));fact(box,'申请状态',o.availability);if(a.detail_scope!=='SELECTED_ROUTE_STEP')fact(box,'资格条件',o.conditions);fact(box,'挑战要求',o.challenge);fact(box,'申请日期',o.application_window);fact(box,'有效期',o.status_validity);if(a.detail_scope!=='SELECTED_ROUTE_STEP')mappingDetails(o,box);if(!o.prices?.length)fact(box,'申请费用','尚未明确');for(const p of o.prices||[]){const target=o.mappings.find(m=>m.target_tier_id===p.target_tier_id);fact(box,target?`${target.to_tier} 费用`:'适用范围内费用',p.known_state==='KNOWN'?(Number(p.amount)===0?'免费':`${p.currency} ${Number(p.amount).toLocaleString('zh-CN')}`):(p.known_state==='CONFLICT'?'费用来源存在冲突':'费用未知'));if(p.raw_text){const evidence=el('details');evidence.append(el('summary','费用依据'),el('p',p.raw_text));box.append(evidence);}if(p.availability!=='AVAILABLE')fact(box,'费用适用性','尚未核实，不能作为确定总价');if(p.combination==='CONDITIONAL'||p.combination==='ALTERNATIVE')fact(box,'收费方式',p.combination==='CONDITIONAL'?'有条件费用':'互斥费用，需确认适用项');if(p.conditions?.items?.length)fact(box,'费用条件',p.conditions);}parent.append(box);}researchDetail(observations,parent);activitySources(a,parent,includeHistory);}
+
+function workflowActivityDetail(a,parent,includeHistory,checks){
+  const value=v=>v&&typeof v==='object'&&!Array.isArray(v)&&'value' in v?v.value:v;
+  parent.append(el('h3',a.name||'活动资料'));
+  if(a.is_current===false)parent.append(el('p','这是回答当时的历史版本，当前资料已有更新。','caveat'));
+  fact(parent,'资料状态',a.card?.lifecycle_status);
+  for(const check of checks)fact(parent,check.result==='PASS'?'已核对条件':'待核对条件',check.reason);
+  for(const [key,label] of [['eligibility','申请资格'],['challenge_requirements','挑战要求'],['application_start','申请开始'],['deadline','申请截止'],['status_validity','会籍有效期'],['caveats','注意事项']]){
+    if(a.facts?.[key])fact(parent,label,value(a.facts[key]));
+  }
+  for(const option of a.options||[]){
+    const section=el('section',undefined,'detail-option');section.append(el('h4',option.label));
+    if(option.region)fact(section,'适用地区',option.region);
+    if(option.eligibility)fact(section,'申请条件',option.eligibility);
+    if(option.mappings?.length)mappingDetails(option,section);
+    for(const price of option.prices||[]){
+      fact(section,`${price.target_tier||''}申请费用`,price.availability==='UNAVAILABLE'?'此等级不可申请':price.conflict?'费用存在冲突':price.amount!=null?`${price.currency||''} ${price.amount}`:'费用未知');
+    }
+    const url=option.action_link||value(a.facts?.action_link);
+    if(typeof url==='string'&&/^https?:\/\//.test(url)){const link=el('a','官方申请入口 ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';section.append(link);}
+    parent.append(section);
+  }
+  for(const brief of a.briefs||[]){const box=el('details');box.append(el('summary','活动简报'));briefContent(brief,box);parent.append(box);}
+  activitySources({...a,briefs:[],options:[]},parent,includeHistory);
+}
+
 function mappingDetails(option,parent){
   const mappings=option.mappings||[];
   if(!mappings.length)return;

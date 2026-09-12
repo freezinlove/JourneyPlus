@@ -6,7 +6,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from journeyplus.config import Settings
-from journeyplus.models import Base
+from journeyplus.agent.adapters.schema import production_metadata
 
 config = context.config
 if config.config_file_name is not None:
@@ -14,7 +14,7 @@ if config.config_file_name is not None:
 
 settings = Settings.from_env()
 config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
-target_metadata = Base.metadata
+target_metadata = production_metadata()
 
 
 def run_migrations_offline() -> None:

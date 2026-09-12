@@ -29,6 +29,10 @@ class SessionStore(WorkspaceWrites):
         self.model_name = model_name
         self.instruction_hash = instruction_hash
 
+    def storage_status(self):
+        from .storage_readiness import storage_status
+        return storage_status(self.factory)
+
     def validate_reference(self,workspace_id,ref):
         if ref.startswith('artifact:'):return self.artifacts.read(workspace_id,ref)
         if self.published_refs:return self.published_refs.read_reference(ref)

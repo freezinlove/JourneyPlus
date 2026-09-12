@@ -1,0 +1,1 @@
+[{"type": "tool_call_ready", "message_id": "8fcc667a-407d-4bbd-a122-2d8261236dd0", "call_id": "catalog-before-cancel", "name": "catalog.lookup", "arguments": {"query": "Air Canada Aeroplan", "kind": "tier", "limit": 10}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

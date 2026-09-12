@@ -1,14 +1,14 @@
-import {activityForStep} from './route_step.js';
+import {activityForStep} from './route_step.js?v=20260912-workflow';
 import {renderText} from './agent_text.js';
-import {activityDetail,readable} from './knowledge_ui.js?v=20260909-contract';
+import {activityDetail,readable} from './knowledge_ui.js?v=20260912-workflow';
 import {routeGraph,disposeGraphs} from './route_graph.js?v=20260908-review';
 const $=s=>document.querySelector(s);
 const el=(tag,text,cls)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;};
 let workspace=null,run=null,source=null,seq=0,busy=false,resourceFailure=null;
 const messages=new Map(),presentations=new Set();
-async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.code||data.detail||'请求失败'),{status:response.status});return data;}
+async function api(path,body){const response=await fetch(path,body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Object.assign(new Error(({AGENT_STORAGE_SCHEMA_MISMATCH:'会话存储尚未就绪，请完成 Agent 数据库升级后点击“新对话”重试。',DATABASE_UNAVAILABLE:'数据库暂不可用，请恢复服务后点击“新对话”重试。'})[data.code]||data.code||data.detail||'请求失败'),{status:response.status});return data;}
 const base=()=>`/v3/agent/workspaces/${workspace.id}`;
-function lock(value){busy=value;$('#send').disabled=value;$('#new').disabled=value;$('#import').disabled=value;$('#cancel').hidden=!value;}
+function lock(value){busy=value;$('#send').disabled=value||!workspace;$('#new').disabled=value;$('#import').disabled=value;$('#cancel').hidden=!value;}
 const textWithLinks=renderText;
 function message(id,role='assistant',text=''){if(messages.has(id))return messages.get(id);const article=el('article',undefined,`message ${role}`);article.dataset.messageId=id;article.append(el('span',role==='user'?'你':'JOURNEYPLUS','speaker'));const body=el('div',undefined,'body');textWithLinks(body,text);article.append(body);$('#messages').append(article);const item={article,body,text};messages.set(id,item);$('#intro').hidden=true;return item;}
 async function artifact(ref){return api(`${base()}/artifacts/${ref.split('#')[0].replace('artifact:','')}`);}
@@ -115,6 +115,7 @@ async function handle(event){seq=event.seq;sessionStorage.setItem('journeyplus-v
 function subscribe(){let queue=Promise.resolve();source=new EventSource(`${base()}/runs/${run}/events?after=${seq}`);source.onmessage=e=>{const data=JSON.parse(e.data);if(data.seq<=seq)return;queue=queue.then(()=>data.seq>seq?handle(data):undefined).catch(error=>{$('#notice').textContent=error.message;});};source.onerror=()=>{$('#progress').textContent='连接恢复中…';};}
 async function submit(text,subject_refs=[]){
   if(busy)return;
+  if(!workspace){$('#notice').textContent='会话尚未创建，请点击“新对话”重试。';return;}
   resourceFailure=null;
   $('#notice').textContent='';
   const saved=JSON.parse(sessionStorage.getItem('journeyplus-v3-request')||'null');
@@ -142,7 +143,7 @@ $('#composer').onsubmit=e=>{e.preventDefault();const text=$('#input').value.trim
     await hydrate();
   }else if(busy)$('#progress').textContent='正在停止…';
 }catch(error){$('#notice').textContent=error.message;}};$('#close').onclick=()=>$('#detail').close();$('#new').onclick=()=>start(true);
-async function start(fresh=false){lock(true);if(fresh){resourceFailure=null;$('#notice').textContent='';}try{const saved=fresh?null:sessionStorage.getItem('journeyplus-v3-workspace');workspace=saved?{id:saved}:await api('/v3/agent/workspaces',{});sessionStorage.setItem('journeyplus-v3-workspace',workspace.id);await hydrate();const pending=fresh?null:JSON.parse(sessionStorage.getItem('journeyplus-v3-run')||'null');const active=workspace.runs.find(r=>!['COMPLETED','PARTIAL','CANCELED','FAILED'].includes(r.status));if(active){run=active.run_id;seq=active.last_seq;subscribe();}else{sessionStorage.removeItem('journeyplus-v3-run');lock(false);}}catch(error){$('#notice').textContent=error.message;lock(false);}}
+async function start(fresh=false){lock(true);if(fresh){workspace=null;resourceFailure=null;$('#notice').textContent='';}try{const saved=fresh?null:sessionStorage.getItem('journeyplus-v3-workspace');workspace=saved?{id:saved}:await api('/v3/agent/workspaces',{});sessionStorage.setItem('journeyplus-v3-workspace',workspace.id);await hydrate();const pending=fresh?null:JSON.parse(sessionStorage.getItem('journeyplus-v3-run')||'null');const active=workspace.runs.find(r=>!['COMPLETED','PARTIAL','CANCELED','FAILED'].includes(r.status));if(active){run=active.run_id;seq=active.last_seq;subscribe();}else{sessionStorage.removeItem('journeyplus-v3-run');lock(false);}}catch(error){workspace=null;$('#notice').textContent=error.message;lock(false);}}
 const legacyWorkspace=sessionStorage.getItem('journeyplus-workspace-v2');
 $('#import').hidden=!legacyWorkspace;
 $('#import').onclick=async()=>{if(busy)return;lock(true);try{workspace=await api('/v3/agent/workspaces',{import_workspace_id:legacyWorkspace});sessionStorage.setItem('journeyplus-v3-workspace',workspace.id);sessionStorage.removeItem('journeyplus-v3-run');await hydrate();$('#notice').textContent='旧对话已导入，历史待确认操作不会自动执行。';}catch(error){$('#notice').textContent=error.message;}finally{lock(false);}};

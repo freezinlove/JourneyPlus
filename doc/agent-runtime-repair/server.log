@@ -1,0 +1,27 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO:     Started server process [55250]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8013 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55766 - "GET /workspace HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55766 - "GET /assets/workspace_v3.js?v=20260912-storage HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55766 - "POST /v3/agent/workspaces HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55766 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55766 - "GET /v3/agent/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55767 - "POST /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/runs HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55767 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/runs/d99d2f75-a4ad-4e6e-94c2-59d863094057/events?after=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55767 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55790 - "POST /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/runs HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:55790 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/runs/9fb1cac7-92fb-4fe1-b40b-abbdc57759cf/events?after=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55811 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/artifacts/d8c19091-53ae-4de9-a00c-ea8e41685616 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55811 - "POST /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/presentations/d8c19091-53ae-4de9-a00c-ea8e41685616/feedback HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55790 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55790 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/artifacts/d8c19091-53ae-4de9-a00c-ea8e41685616 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55790 - "POST /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/presentations/d8c19091-53ae-4de9-a00c-ea8e41685616/feedback HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55822 - "GET /v3/agent/workspaces/7c581c34-c3dc-4e59-bf69-1d6e15761b43/artifacts/15cc6023-6c83-4d3a-9289-5f1f3191c881 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55822 - "GET /v2/activities/839fa8c4-ffe5-4a04-8051-e9ad90dc7675?version_ref=28b27d20-5e49-4403-99ad-28b69a14ef6f HTTP/1.1" 503 Service Unavailable
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [55250]
