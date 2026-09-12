@@ -11,7 +11,7 @@ class IdentityRef(DTO):
 class IdentityName(DTO):
     program_name: str = Field(min_length=1, max_length=300)
     tier_name: str | None = Field(default=None, min_length=1, max_length=300,
-        description='Requested tier only. A tier seen in previous results is not a user constraint; omit for a program-only destination.')
+        description='User-requested tier; omit for a program-only destination.')
     alternatives: list[str] = Field(default_factory=list, max_length=3)
 
 
@@ -61,7 +61,7 @@ class Constraints(DTO):
     currency: str | None = Field(default=None, pattern=r'^[A-Z]{3}$')
     allow_challenge: bool | None = None
     source_acquisition: Literal['EARNED', 'MATCHED', 'UNKNOWN'] = Field(default='UNKNOWN',
-        description='How the user ALREADY OBTAINED the starting/held status. MATCHED means that existing card was obtained by a prior match, not that the user wants a status match now. Keep UNKNOWN unless the user states its origin. This does not filter the method of target activities.')
+        description='Origin of the ALREADY HELD status, not the desired activity method. UNKNOWN unless stated by the user.')
     residency: str | None = None
     prior_participation: str | None = None
     require_proven_eligibility: bool = False

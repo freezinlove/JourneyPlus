@@ -218,7 +218,7 @@ def test_wire_result_omits_only_transport_bookkeeping_and_preserves_unknowns():
     assert compact['data']==original['data']
     assert compact['coverage']==original['coverage']
     assert compact['artifact_refs']==['artifact:full']
-    assert compact['call_id']==original['call_id']  # Completion receipts need the actual transport ID in model-visible content.
+    assert 'call_id' not in compact  # The enclosing tool message already carries tool_call_id.
     assert 'metrics' not in compact and 'cache' not in compact
 
 

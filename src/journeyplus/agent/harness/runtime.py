@@ -138,7 +138,9 @@ class Runtime:
             if workspace_state.get('note_ref'):
                 note = (await blocking_call(self.ports.artifacts.read, context.workspace_id, workspace_state['note_ref']))['payload']
             projected = await blocking_call(project, messages, definitions, capabilities, note=note, focus=workspace_state.get('focus'),
-                                reserved_output=budget.limits(capabilities)['max_output'])
+                                reserved_output=budget.limits(capabilities)['max_output'],
+                                context_token_budget=self.budget_limits.get('context_tokens',100000),
+                                input_estimator=getattr(self.ports.model,'estimate_input',None))
             estimator=getattr(self.ports.model,'estimate_input',None)
             projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
             final_estimator=getattr(self.ports.model,'estimate_final_input',None)
@@ -274,7 +276,9 @@ class Runtime:
             workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
             note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
             projected=await blocking_call(project,messages,definitions,self.ports.model.capabilities(),note=note,focus=workspace_state.get('focus'),
-                              reserved_output=budget.limits(self.ports.model.capabilities())['max_output'])
+                              reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
+                              context_token_budget=self.budget_limits.get('context_tokens',100000),
+                              input_estimator=getattr(self.ports.model,'estimate_input',None))
             future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*sum(capacities))])]
             estimator=getattr(self.ports.model,'estimate_final_input',None)
             final_size=estimator(future,definitions) if estimator else estimate([m.model_dump(mode='json') for m in future])
@@ -317,6 +321,8 @@ class Runtime:
             if validated:
                 definition,arguments,_=validated
                 capacity=definition.operation_result_max_bytes.get(getattr(arguments,definition.result_budget_field,None),definition.result_max_bytes)
+                if definition.model_projection:
+                    result=definition.model_projection(result)
             result = bounded_result(result, full_ref, max_bytes=min(capacity, 32000//max(1,len(calls))),
                                     trim=validated[0].trim_projection if validated else None)
             await self._publish(run_id, owner, 'tool.completed', {'call_id': call['call_id'], 'status': result.status,

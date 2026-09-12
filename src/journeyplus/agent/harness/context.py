@@ -3,15 +3,19 @@ import json
 from .budget import estimate
 from .contracts import ModelMessage, Part
 
-CONTEXT_POLICY_VERSION = 'pressure-only-views-v5-explicit-result-root'
+CONTEXT_POLICY_VERSION = 'budgeted-history-v6-operation-views'
 
 
 class ContextCapacityError(ValueError):
     """Evidence cannot safely fit; retain it and stop without a lossy rewrite."""
 
 
-def project(messages, definitions, capabilities, *, note=None, focus=None, reserved_output=2048):
-    limit = min(32000, capabilities.context_window-reserved_output-1024)
+def project(messages, definitions, capabilities, *, note=None, focus=None, reserved_output=2048,
+            context_token_budget=100000, input_estimator=None):
+    if context_token_budget <= 0:
+        raise ValueError('Context token budget must be positive')
+    limit = capabilities.context_window-reserved_output-1024
+    target = min(context_token_budget, limit)
     schema_tokens = estimate([{'name': d.name, 'description': d.description, 'parameters': d.input_schema} for d in definitions])
     if schema_tokens >= min(8000, limit):
         raise ContextCapacityError('Tool definitions exceed context budget')
@@ -33,15 +37,31 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
             groups.append([])
         groups[-1].append(message)
     definitions_by_name={definition.name:definition for definition in definitions}
+    def cost(items):
+        extra=[ModelMessage(role='system',content=[Part(type='text',text=json.dumps(additions,ensure_ascii=False))])] if additions else []
+        visible=system+items+extra
+        return (input_estimator(visible,definitions) if input_estimator else
+                schema_tokens+estimate([m.model_dump(mode='json') for m in visible]))
+    for group in groups:
+        names={p.call_id:p.name for m in group for p in m.content if p.type=='tool_call'}
+        for message in group:
+            for part in message.content:
+                definition=definitions_by_name.get(names.get(part.call_id))
+                if part.type=='tool_result' and part.result and definition and definition.model_projection:
+                    from .contracts import ToolResult
+                    part.result=definition.model_projection(ToolResult.model_validate(part.result)).model_dump(mode='json')
     seen={}
     for group in reversed(groups):
         names={p.call_id:p.name for m in group for p in m.content if p.type=='tool_call'}
+        arguments={p.call_id:p.arguments for m in group for p in m.content if p.type=='tool_call'}
         for message in reversed(group):
             for part in message.content:
                 if part.type!='tool_result' or not part.result:continue
                 definition=definitions_by_name.get(names.get(part.call_id))
                 raw=part.result
-                if not definition or definition.effect!='READ' or definition.operation_effects or raw.get('error'):continue
+                effect=(definition.operation_effects.get(arguments.get(part.call_id,{}).get('operation'),definition.effect)
+                        if definition else None)
+                if effect!='READ' or raw.get('error'):continue
                 # Same data, effective parameters, coverage and source versions
                 # only. Different snapshots or mutations are never deduplicated.
                 stable={k:v for k,v in raw.items() if k not in {'call_id','metrics','cache','artifact_refs'}}
@@ -53,8 +73,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
                                              'full_result_ref':full_ref},
                         'coverage':{**raw.get('coverage',{}),'complete':False,'omissions':['duplicate_body_available_by_reference']}}
                 else:seen[signature]=message.id
-    current_pressure=(schema_tokens+estimate([m.model_dump(mode='json') for m in system+conversation])+estimate(additions)
-                      >min(24000,limit))
+    current_pressure=cost(conversation)>target
     for index,group in enumerate(groups):
         call_names={part.call_id:part.name for message in group for part in message.content if part.type=='tool_call'}
         latest_calls=next(({p.call_id for p in m.content if p.type=='tool_call'} for m in reversed(group)
@@ -68,7 +87,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
                 # Latest observation stays fully available. Earlier observations
                 # in this turn can use the tool's atomic expandable projection.
                 current=index==len(groups)-1
-                if current and (not current_pressure or part.call_id in latest_calls):continue
+                if not current_pressure or current and part.call_id in latest_calls:continue
                 capacity=6000 if current else 3000
                 if full_ref and not raw.get('error') and len(json.dumps(raw,ensure_ascii=False).encode())>capacity:
                     from .contracts import ToolResult
@@ -77,26 +96,23 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
                                         trim=definition.trim_projection if definition else None)
                     view.data['context_projection']='expand full_result_ref before relying on omitted facts; persisted original is unchanged'
                     part.result=view.model_dump(mode='json')
+                    current_pressure=cost(conversation)>target
     selected = []
-    def visible_count(items):
-        return sum(message.role == 'user' or
-                   message.role == 'assistant' and
-                   not message.metadata.get('context_projection') and
-                   not any(part.type == 'tool_call' for part in message.content) and
-                   any(part.type == 'text' and part.text for part in message.content)
-                   for message in items)
-    used = schema_tokens + estimate([m.model_dump(mode='json') for m in system]) + estimate(additions)
     omitted = False
     for group in reversed(groups):
-        size = estimate([m.model_dump(mode='json') for m in group])
-        if selected and (used + size > min(24000, limit) or visible_count(selected)+visible_count(group)>12):
+        if selected and cost(group+selected)>target:
             omitted = True
             break
         selected[0:0] = group
-        used += size
     if omitted:
         additions['history_available_before'] = selected[0].id
         additions['history_access'] = 'Earlier messages remain retrievable through the registered history capability.'
+        # The retrieval notice also consumes budget. Drop whole old groups only.
+        while cost(selected)>target and selected[0].id!=groups[-1][0].id:
+            start=next(i for i,m in enumerate(selected[1:],1) if m.role=='user')
+            selected=selected[start:]
+            additions['history_available_before']=selected[0].id
+    used=cost(selected)
     if additions:
         system.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(additions, ensure_ascii=False))]))
     if used > limit:

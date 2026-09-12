@@ -122,7 +122,7 @@ def test_authorized_write_and_delete_keep_real_receipts_without_final_envelope(m
             elif len(self.inputs) == 2:
                 saved = last_result(messages)
                 assert saved['data']['outcome'] == 'APPLIED'
-                row = saved['data']['after']
+                row = saved['data']['entity']
                 yield tool('holdings.write', {'operation': 'delete', 'holding_ref': row['ref'],
                     'expected_revision': row['revision'], }, 'delete')
             else:

@@ -243,7 +243,7 @@ def test_large_prior_result_uses_explicit_index_without_mutating_current_or_hist
               ModelMessage(role='assistant',content=[Part(type='tool_call',call_id='two',name='read',arguments={})]),
               ModelMessage(role='tool',content=[Part(type='tool_result',call_id='two',result=raw)])]
     original=[message.model_dump() for message in messages]
-    selected=project(messages,[],Capabilities(native_tools=True,streaming=True,context_window=32768,max_output=4096))
+    selected=project(messages,[],Capabilities(native_tools=True,streaming=True,context_window=32768,max_output=4096),context_token_budget=9000)
     results=[part.result for message in selected for part in message.content if part.type=='tool_result']
     assert results[0]['coverage']['complete'] is False and results[0]['data']['full_result_ref']=='artifact:full'
     assert results[0]['data']['records'][0]=={'ref':'artifact:object','projection':'index_only'}

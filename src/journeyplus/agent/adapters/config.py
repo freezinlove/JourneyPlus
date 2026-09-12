@@ -17,6 +17,7 @@ class AgentConfig:
     input_token_soft: int = 45000
     input_token_limit: int = 60000
     explicit_cache: bool = False
+    context_token_budget: int = 100000
 
     def __post_init__(self):
         if self.context_window <= 2048:
@@ -25,6 +26,8 @@ class AgentConfig:
             raise ValueError('Invalid Agent protocol')
         if not 0<self.input_token_soft<self.input_token_limit:
             raise ValueError('Agent input budget requires 0 < soft < hard')
+        if self.context_token_budget <= 0:
+            raise ValueError('Agent context token budget must be positive')
 
     @classmethod
     def from_env(cls):
@@ -39,4 +42,5 @@ class AgentConfig:
                    network_enabled=os.getenv('JOURNEYPLUS_AGENT_NETWORK_ENABLED', 'false').lower() == 'true',
                    input_token_soft=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_SOFT','45000')),
                    input_token_limit=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_LIMIT','60000')),
-                   explicit_cache=os.getenv('JOURNEYPLUS_AGENT_EXPLICIT_CACHE','false').lower() == 'true')
+                   explicit_cache=os.getenv('JOURNEYPLUS_AGENT_EXPLICIT_CACHE','false').lower() == 'true',
+                   context_token_budget=int(os.getenv('JOURNEYPLUS_AGENT_CONTEXT_TOKEN_BUDGET','100000')))

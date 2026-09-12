@@ -142,6 +142,7 @@ class ToolDefinition:
     operation_result_max_bytes: dict[str, int] = field(default_factory=dict)
     result_budget_field: str = 'operation'
     trim_projection: Callable[[ToolResult], int | None] | None = None
+    model_projection: Callable[[ToolResult], ToolResult] | None = None
     availability: Callable[[], dict] | None = None
 
     @property
