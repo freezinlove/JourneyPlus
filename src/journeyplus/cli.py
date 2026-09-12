@@ -95,15 +95,7 @@ def _iso_datetime(value: str) -> datetime:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="journeyplus")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    knowledge = subparsers.add_parser("knowledge-refresh", help="Publish unified knowledge from collected source versions")
-    knowledge.add_argument("--host")
-    knowledge.add_argument("--article-id", type=UUID)
-    knowledge.add_argument("--limit", type=int, default=10)
-    knowledge.add_argument("--force", action="store_true")
-    subparsers.add_parser("knowledge-audit", help="Inspect legacy knowledge counts and association gaps without changing data")
-    subparsers.add_parser("knowledge-backfill", help="Add knowledge identities and source sections; retain unresolved associations")
-    edition=subparsers.add_parser('knowledge-review-edition',help='Apply an explicit, source-scoped edition review from a JSON file')
-    edition.add_argument('--input-file',required=True)
+    subparsers.add_parser("knowledge-audit", help="Inspect current AIWorkflow data counts and versions without changing data")
     subparsers.add_parser("seed-sources", help="Import or refresh configured sources")
     subparsers.add_parser(
         "gmail-authorize",
@@ -308,29 +300,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             port=args.port,
         )
         return 0
-    if args.command == "knowledge-refresh":
-        from journeyplus.knowledge.refresh import KnowledgeRefreshService
-        service = KnowledgeRefreshService(factory, OpenAICompatibleProvider(settings))
-        if args.host and args.article_id:
-            parser.error("choose --host or --article-id")
-        result = service.official(args.host, force=args.force) if args.host else service.article(args.article_id, force=args.force) if args.article_id else service.pending(limit=args.limit)
-        print(json.dumps(result, ensure_ascii=False))
-        return 0
-    if args.command in {"knowledge-audit", "knowledge-backfill"}:
-        from journeyplus.knowledge.migration import migration_audit, backfill_identity_and_sources
-        with session_scope(factory) as session:
-            result = migration_audit(session) if args.command == "knowledge-audit" else backfill_identity_and_sources(session)
+    if args.command == "knowledge-audit":
+        from journeyplus.knowledge.audit import workflow_audit
+        from journeyplus.knowledge.workflow_knowledge import WorkflowKnowledgePort
+        with WorkflowKnowledgePort(factory).read() as session:
+            result = workflow_audit(session)
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0
-
-    if args.command=='knowledge-review-edition':
-        from pathlib import Path
-        from journeyplus.knowledge.identity import ActivityIdentityService,EditionReviewRequest
-        review=EditionReviewRequest.model_validate_json(Path(args.input_file).read_text())
-        with session_scope(factory) as session:
-            activity=ActivityIdentityService(session).review_edition(**review.model_dump())
-            result={'decision':review.decision,'activity_id':str(activity.id) if activity else None,'review_id':str(review.review_id)}
-        print(json.dumps(result,ensure_ascii=False))
         return 0
 
     if args.command == "seed-sources":
@@ -535,7 +510,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             ),
             generic_pipeline_mode=settings.generic_article_pipeline,
             generic_title_drop_enabled=settings.generic_title_drop_enabled,
-            knowledge_publish_enabled=settings.knowledge_publish_enabled,
         )
         print(json.dumps(asdict(summary), ensure_ascii=False))
         return 0

@@ -1,5 +1,17 @@
 # 个性化会籍匹配产品运维说明
 
+## 当前数据模型与维护入口（2026-09-12）
+
+正式业务模型采用 AIWorkflow 的 `status_events` / `fact_sets` / `briefs` 和文章分析、机会、简报表；来源快照继续留档。Agent、活动页面和独立知识服务共享当前只读适配。
+
+- `journeyplus knowledge-audit`：只读统计当前业务表数量、活动事实版本、对应简报和映射／价格数量，不执行迁移或发布。
+- `python -m journeyplus.agent.server --maintenance`：按正常 Agent 的装配执行一次过期运行记录清理和等待任务检查，不创建第三方模型客户端。
+- 已移除 `knowledge-refresh`、`knowledge-backfill`、`knowledge-review-edition`，以及 `JOURNEYPLUS_KNOWLEDGE_PUBLISH_ENABLED` 对应的额外发布分支。原有采集、提取、活动入库和简报生产不变。
+- 弃用知识模型的推广、影子对照、快照导出、模型格式评估和用户日志重放脚本已退役。历史 SQL 迁移、数据库备份、冻结测试资料仍保留；约束归档验证脚本只用于恢复历史临时库。
+
+下文及引用的 2026-09-06 统一知识模型方案属于历史说明，不能作为当前数据库切换或恢复操作步骤。
+
+
 > 2026-09-06 修订：新的产品与技术约束以[统一活动知识与 Agent 基线](./unified-knowledge-agent-baseline.md)及其 OpenSpec 为准。本文以下保留旧版／legacy 实现的范围与历史说明；涉及固定流水线、最短路径单一展示、仅完整候选后调查等冲突规定已被新基线替代，不能据此限制本次实现。正式切换尚未完成。
 
 > 本文只描述当前可运行产品。当前产品总边界见 [个性化会籍匹配产品总方针](./personalized-status-match-product-direction.md)，单 Agent 的行为边界见 [会籍策略 Agent 产品方针](./personalized-status-match-agent-direction.md)，实现约束见 [技术基线](./personalized-status-match-agent-technical-baseline.md)。早期文档中关于“无个性化页面”“Agent 尚未实现”“买分参与默认自动调度”或继续扩展多 Agent 的表述已经过期；历史验收数据仍保留参考价值。

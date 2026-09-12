@@ -39,14 +39,13 @@ async def search(args,ctx):
 @blocking_tool
 def parse(args,ctx):
     from journeyplus.agent.report_pages import parse_report_detail,report_body_complete
-    from journeyplus.knowledge.models import MembershipProgram,MembershipTier
     from journeyplus.knowledge.publication import canonical_key
-    from sqlalchemy import select
     identities={}
     subjects={}
     with ctx.services['knowledge'].read() as s:
-        programs={p.id:p for p in s.scalars(select(MembershipProgram))}
-        for tier in s.scalars(select(MembershipTier)):
+        program_rows, tiers, _ = ctx.services['identities'].catalog(s)
+        programs={p.id:p for p in program_rows}
+        for tier in tiers:
             program=programs[tier.program_id]
             identities[canonical_key(program.display_name+' '+tier.display_name)]={'program_ref':str(program.id),'tier_ref':str(tier.id)}
         if args.subject:

@@ -1,13 +1,9 @@
 """Deterministic name-to-record binding; ambiguity is data, never a question."""
-import unicodedata
 import re
 from uuid import UUID
 from sqlalchemy import select
 from journeyplus.knowledge.models import MembershipProgram, MembershipTier, MembershipAlias
-
-
-def canonical(value):
-    return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+from journeyplus.knowledge.text import canonical
 
 
 class IdentityService:

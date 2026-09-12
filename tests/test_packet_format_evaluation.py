@@ -1,5 +1,5 @@
 from decimal import Decimal
-from scripts.evaluate_packet_formats import markdown,expected,canonical
+from tests.packet_format_helpers import markdown,expected,canonical
 
 
 def test_formats_preserve_decimal_currency_role_and_quoted_source_text():

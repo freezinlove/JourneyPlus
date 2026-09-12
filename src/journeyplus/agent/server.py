@@ -8,6 +8,18 @@ from .composition import compose_business
 from journeyplus.config import Settings
 
 
+def run_maintenance(factory):
+    """Use the same business adapters as the server, without a model client."""
+    from .adapters.unconfigured import UnconfiguredModel
+    runtime, _ = compose_business(factory, UnconfiguredModel(), network_enabled=False)
+    try:
+        return runtime.services['maintenance']()
+    finally:
+        close = runtime.services.get('close_read_connection')
+        if close:
+            close()
+
+
 def main():
     parser=ArgumentParser()
     parser.add_argument('--port',type=int,default=8013)
@@ -17,11 +29,10 @@ def main():
     settings=Settings.from_env()
     factory=sessionmaker(create_engine(settings.database_url),expire_on_commit=False)
     if args.maintenance:
-        from .services.identities import IdentityService
-        from .services.user_memory import UserMemory
-        from .services.waiting import WaitingService
-        from .adapters.persistence import SessionStore
-        print({'cleanup':SessionStore(factory).cleanup(),'waiting':WaitingService(factory,UserMemory(factory,IdentityService())).check()})
+        try:
+            print(run_maintenance(factory))
+        finally:
+            factory.kw['bind'].dispose()
         return
     if args.no_model:
         from .adapters.unconfigured import UnconfiguredModel

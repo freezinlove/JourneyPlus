@@ -10,4 +10,4 @@
 - Enrich 费用适用性待核实、Flying Blue 区域与币种分开。
 - 自由输入／经验许可的复现与重放关联见快照 defects 及工作区开发评测集。
 
-`tests/test_public_validation_snapshot.py` 验证事实范围和局部引用完整性。需要换基线时先审核事实与脱敏，再使用 `scripts/export_validation_snapshot.py`，同步审阅本摘要与哈希。冻结会话保留集独立管理，不因刷新此快照而变化。
+`tests/test_public_validation_snapshot.py` 验证事实范围和局部引用完整性。此快照属于弃用统一知识模型的冻结测试资料；对应导出脚本已退役，不从当前正式库刷新。冻结会话保留集独立管理，不因刷新此快照而变化。

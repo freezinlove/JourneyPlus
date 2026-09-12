@@ -2,7 +2,7 @@ import {activityForStep} from './route_step.js';
 import {$,el,api,activityDetail,showDetail} from './knowledge_ui.js';
 import {routeGraph,disposeGraphs} from './route_graph.js';
 let snapshot=null,offset=0,page=null,busy=false,filters={alliances:[]};
-const categoryLabels={AIRLINE:'航司',HOTEL:'酒店',CRUISE:'邮轮',OTHER:'其他项目',UNKNOWN:'未分类项目'};
+const categoryLabels={AIRLINE:'航司',HOTEL:'酒店',CRUISE:'邮轮',OTHER:'其他或未分类项目',UNKNOWN:'未分类项目'};
 function lock(value){busy=value;$('#query').disabled=value;$('#more').disabled=value;$('#search').disabled=value;document.querySelectorAll('.node-button').forEach(button=>button.disabled=value);}
 async function open(ref,presentation){
   if(busy)return;showDetail($('#detail'));const pane=$('#detail-content');pane.replaceChildren(el('p','正在读取申请条件…'));
@@ -39,7 +39,9 @@ function render(p,append=false){
   const coverage=p.basis?.find(b=>b.tool==='query_membership_routes')?.coverage;
   $('#results').append(el('p',`本页 ${coverage?.returned_count||0} 条，已找到 ${coverage?.observed_count||0} 条。${coverage?.search_complete===false?'资料或搜索覆盖不完整，不能据此认定没有其他路径。':''}`,'page-note'));
   if(coverage?.unresolved_holding_count)$('#results').append(el('p',`有 ${coverage.unresolved_holding_count} 项已保存会籍尚未关联规范等级，未参与计算；可以明确选择本次起点继续探索。`,'caveat'));
-  if(coverage?.unresolved_alliance_program_count)$('#results').append(el('p','部分目标项目尚未核实联盟身份，本次联盟筛选覆盖不完整。','caveat'));
+  if(coverage?.unresolved_alliance_program_count)$('#results').append(el('p','部分目标项目的类型或联盟资料缺失，本次筛选覆盖不完整。','caveat'));
+  if(coverage?.knowledge_complete===false)$('#results').append(el('p','仅涵盖当前已记录的匹配关系；未记录或仅以文字说明的机会不一定能在图中找到。','caveat'));
+  if(coverage?.filtered_route_count)$('#results').append(el('p',`已排除 ${coverage.filtered_route_count} 条不符合本次条件的方案。`,'page-note'));
   $('#more').hidden=offset>=snapshot.routes.length;
 }
 $('#search').onclick=async()=>{
@@ -62,7 +64,7 @@ $('#explore-form').onsubmit=async event=>{
 };
 function nextPage(append=true){
   const selected=snapshot.routes.slice(offset,offset+12).map((route,index)=>({...route,presentation_index:offset+index+1}));offset+=selected.length;
-  render({id:'knowledge-explore',text:'当前资料范围内没有找到路径。',blocks:[{type:'route_graph',graph_mode:'EXPLORE',payload:{routes:selected,steps:snapshot.steps}}],basis:[{tool:'query_membership_routes',coverage:{...snapshot.coverage,returned_count:selected.length,observed_count:snapshot.routes.length}}]},append);
+  render({id:'knowledge-explore',text:snapshot.coverage.message||'当前资料范围内没有找到符合本次条件的路径。',blocks:[{type:'route_graph',graph_mode:'EXPLORE',payload:{routes:selected,steps:snapshot.steps}}],basis:[{tool:'query_membership_routes',coverage:{...snapshot.coverage,returned_count:selected.length,observed_count:snapshot.routes.length}}]},append);
 }
 $('#more').onclick=()=>{if(!busy&&snapshot)nextPage();};
 $('#close').onclick=()=>$('#detail').close();
@@ -70,7 +72,7 @@ async function start(){
   lock(true);
   try{
     filters=await api('/v2/membership/filters');for(const name of filters.alliances)$('#alliance').append(new Option(name,name));$('#alliance-notice').textContent=filters.alliances.length?'选择航司后可按已核实联盟筛选。':'当前目录尚无已核实联盟信息，暂不据此筛选。';
-    const saved=sessionStorage.getItem('journeyplus-knowledge-explore');if(saved){snapshot=JSON.parse(saved);offset=0;nextPage(false);$('#notice').textContent='已恢复上次浏览快照；上方条件用于新查询。';}
+    const saved=sessionStorage.getItem('journeyplus-knowledge-explore');if(saved){const restored=JSON.parse(saved);if(restored.data_model==='aiworkflow'){snapshot=restored;offset=0;nextPage(false);$('#notice').textContent='已恢复上次浏览快照；上方条件用于新查询。';}else{sessionStorage.removeItem('journeyplus-knowledge-explore');$('#notice').textContent='上次快照使用旧目录，请重新查询。';}}
   }catch(error){$('#notice').textContent=error.message;}finally{lock(false);}
 }
 start();

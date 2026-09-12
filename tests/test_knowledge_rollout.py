@@ -24,7 +24,7 @@ def test_rollback_keeps_read_only_facts_and_fences_natural_confirmation(factory)
     for path in ['/v2/agent/workspaces/unknown/messages','/v2/agent/workspaces/unknown/confirm','/v2/wait-goal/unknown/seen']:
         response=client.post(path,json={})
         assert response.status_code==410 and response.json()['code']=='AGENT_RUNTIME_RETIRED'
-    assert client.post('/v2/routes/query',json={}).json()['code']=='RECOMMENDATIONS_PAUSED'
+    assert client.post('/v2/explore/query',json={}).json()['code']=='RECOMMENDATIONS_PAUSED'
     assert client.get('/v2/rollout').json()['user_writes_paused'] is True
     assert client.get('/agent',follow_redirects=False).headers['location']=='/knowledge'
 

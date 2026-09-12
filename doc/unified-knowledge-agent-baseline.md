@@ -1,5 +1,8 @@
 # 统一活动知识与会籍 Agent 基线
 
+> 历史方案记录：2026-09-12 已选定 AIWorkflow 原模型。本文中的新知识表、发布开关和迁移／重放命令不再适用于正式库；当前入口见[产品运维说明](./personalized-status-match-product-operations.md)。
+
+
 2026-09-06 修订。本文承接已确认的整体重构设计，优先于旧版“在匹配树上增加 Agent”的实现描述。产品范围仍是会籍匹配，采用单 Agent，不扩展为通用旅行规划或多 Agent 系统。
 
 这是已实现功能、隔离验证与发布状态的基线，**不表示正式切换完成**。实施状态以 [OpenSpec 任务](../openspec/changes/rebuild-membership-knowledge-and-agent/tasks.md)及[验证记录](../openspec/changes/rebuild-membership-knowledge-and-agent/implementation-progress.md)为准。

@@ -21,7 +21,7 @@ def install_rollout(app,mode='legacy',user_writes_paused=False):
             return JSONResponse({'detail':'系统维护中，暂不接受会籍或等待任务变更；已有记录保留。','code':'USER_WRITES_PAUSED'},status_code=503)
         if mode!='legacy' and path.startswith(legacy_business):
             return JSONResponse({'detail':'此旧版读取入口已停止使用，请从当前页面重新进入。','code':'LEGACY_CONSUMER_DISABLED'},status_code=409)
-        if mode=='rollback' and (path=='/v2/routes/query' or path.endswith(('/routes/explore','/routes/browse','/messages'))):
+        if mode=='rollback' and (path=='/v2/explore/query' or path.endswith(('/routes/explore','/routes/browse','/messages'))):
             return JSONResponse({'detail':'路径推荐暂时停用，已发布活动资料仍可浏览。','code':'RECOMMENDATIONS_PAUSED'},status_code=503)
         if request.method in {'GET','HEAD'} and mode!='legacy' and path in entries:
             target='/knowledge' if mode=='rollback' else entries[path]

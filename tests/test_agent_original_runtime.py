@@ -146,3 +146,48 @@ def test_production_autogenerate_cannot_restore_retired_catalog(migrated):
     assert len(metadata.sorted_tables)==38
     assert 'program_id' not in metadata.tables['status_holdings'].c
     assert metadata.tables['source_items'].c.document_role.nullable
+
+
+def test_report_parse_uses_original_catalog_and_preserves_unknowns(migrated):
+    seed(migrated)
+    runtime, store, ctx, _ = setup(migrated)
+    def report(source):
+        return store.artifacts.put(ctx.workspace_id, 'PAGE', {
+            'raw_html': f'<article><h1>From {source} to Example Rewards Gold</h1><div class="instructions">My status was matched.</div></article>',
+            'final_url': 'https://statusmatcher.com/report/original-schema', 'raw_truncated': False,
+        }, call_id=ctx.call_id, turn_id=ctx.turn_id)
+    known = report('Marriott Bonvoy Platinum')
+    unknown = report('Unlisted Club Silver')
+    migrated.statements.clear()
+    result = call(runtime, ctx, 'research.parse', {'page_refs': [known], 'subject': {
+        'source': {'program_name': 'Marriott Bonvoy', 'tier_name': 'Platinum'},
+        'target': {'program_name': 'Example Rewards', 'tier_name': 'Gold'}}})
+    parsed = result.data['reports'][0]
+    assert parsed['normalized_outcome'] == 'DIRECT_MATCH'
+    assert parsed['from_tier_ref'] and parsed['to_tier_ref']
+    assert parsed['identity_matches']['mismatches'] == []
+    assert result.data['comparisons'][0]['level'] == 'EXACT'
+    assert store.artifacts.read(ctx.workspace_id, result.artifact_refs[0])['kind'] == 'REPORT'
+    result = call(runtime, ctx, 'research.parse', {'page_refs': [unknown]})
+    assert result.data['reports'][0]['from_tier_ref'] is None
+    assert result.data['reports'][0]['original_from'] == 'Unlisted Club Silver'
+    assert 'membership_programs' not in '\n'.join(migrated.statements)
+    assert 'membership_tiers' not in '\n'.join(migrated.statements)
+
+
+def test_independent_maintenance_uses_current_waiting_with_no_model(migrated, monkeypatch):
+    from journeyplus.agent import server
+    seed(migrated)
+    runtime, store, ctx, _ = setup(migrated)
+    call(runtime, ctx, 'holdings.write', {'operation': 'create',
+        'identity': {'program_name': 'Marriott Bonvoy', 'tier_name': 'Platinum'}})
+    call(runtime, ctx, 'waiting.manage', {'operation': 'create', 'query': {'sources': {'mode': 'saved'}}})
+    def forbidden(*args, **kwargs):
+        raise AssertionError('maintenance must not create a third-party model')
+    monkeypatch.setattr(server, 'AgentModel', forbidden)
+    migrated.statements.clear()
+    result = server.run_maintenance(migrated)
+    assert result['waiting']['status'] in {'NO_HIT', 'RESULT_PENDING'}
+    assert result['waiting']['model_calls'] == 0
+    assert 'membership_programs' not in '\n'.join(migrated.statements)
+    assert 'status_holdings.tier_id' not in '\n'.join(migrated.statements)

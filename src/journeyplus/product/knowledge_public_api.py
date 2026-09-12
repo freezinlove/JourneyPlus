@@ -1,30 +1,24 @@
-"""Published activities, briefs and complete graph: no Agent or model lifecycle."""
+"""AIWorkflow activities, briefs and graph: no Agent or model lifecycle."""
 from uuid import UUID
 from fastapi import APIRouter,HTTPException,Query
-from sqlalchemy import select
-from journeyplus.knowledge.access import KnowledgePort
-from journeyplus.knowledge.models import Activity,MembershipProgram
-from journeyplus.knowledge.publication import CatalogService
-from journeyplus.knowledge.reads import ActivityReadService
-from journeyplus.knowledge.routes import RouteService,RouteQuery
+from journeyplus.knowledge.workflow_knowledge import WorkflowKnowledgePort
+from journeyplus.knowledge.workflow_explore import search_catalog, explore as explore_query, opportunity_reference
+from journeyplus.knowledge.routes import RouteQuery
 
 
 def public_knowledge_router(factory=None,*,knowledge=None):
-    router=APIRouter(prefix='/v2');port=knowledge or KnowledgePort(factory)
+    router=APIRouter(prefix='/v2');port=knowledge or WorkflowKnowledgePort(factory)
 
     @router.get('/membership/filters')
     def filters():
         with port.read() as s:
-            values=list(s.scalars(select(MembershipProgram.alliance).where(MembershipProgram.alliance.is_not(None)).distinct().order_by(MembershipProgram.alliance)))
+            programs, _, _ = port.catalog(s)
+            values=sorted({p.alliance for p in programs if p.alliance})
             return {'alliances':values,'alliance_metadata_available':bool(values)}
 
     @router.get('/membership/catalog')
     def catalog(text:str=Query(min_length=2,max_length=100)):
-        with port.read() as s:return CatalogService(s).search(text,limit=20)
-
-    @router.get('/catalog')
-    def catalogue(q:str=Query(min_length=1,max_length=300)):
-        with port.read() as s:return CatalogService(s).search(q)
+        with port.read() as s:return search_catalog(s,text,limit=20)
 
     @router.get('/activities')
     def activities(limit:int=Query(20,ge=1,le=50),offset:int=Query(0,ge=0),view:str='detail'):
@@ -48,22 +42,13 @@ def public_knowledge_router(factory=None,*,knowledge=None):
 
     @router.post('/explore/query')
     def explore(query:RouteQuery):
-        with port.read() as s:result=RouteService(s).query(query)
-        # Transfer the bounded computed snapshot once. Browser pagination is local
-        # and cannot silently recompute against a newer publication or call Agent.
-        routes=[{k:v for k,v in route.items() if k not in {'fact_refs','selection_reasons'}} for route in result['server_routes'].values()]
-        return {'routes':routes,'steps':result['server_steps'],'snapshot':result['snapshot'],'coverage':result['coverage']}
+        try:
+            # Return one computed snapshot; subsequent browser pagination is local.
+            with port.read() as s:return explore_query(s,query)
+        except (LookupError,ValueError) as error:raise HTTPException(409,str(error)) from error
 
     @router.get('/legacy/opportunities/{identity}')
     def legacy(identity:UUID):
-        from journeyplus.knowledge.compatibility import legacy_opportunity
-        with port.read() as s:return legacy_opportunity(s,identity)
-
-    @router.post('/routes/query')
-    def query_routes(query:RouteQuery):
-        try:
-            with port.read() as s:result=RouteService(s).query(query)
-            return {key:value for key,value in result.items() if not key.startswith('server_')}
-        except (LookupError,ValueError) as error:raise HTTPException(409,str(error)) from error
+        with port.read() as s:return opportunity_reference(s,identity)
 
     return router
