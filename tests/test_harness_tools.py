@@ -344,18 +344,17 @@ def test_source_search_matches_price_content_not_uuid_substrings():
     assert 'unless otherwise stated' in str(result['sections'])
 
 
-def test_search_subtotal_and_path_are_citable_at_returned_member_reference(session_factory):
+def test_search_subtotal_and_path_expand_at_returned_member_reference(session_factory):
     with session_factory.begin() as session:
         source,_=edge(session,unknown_price=True)
     runtime,store,workspace,ctx=context(session_factory)
     result=asyncio.run(evaluate(RoutesInput(operation='search',query={
         'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}}),ctx))
-    from journeyplus.agent.services.completion import pointer
     for candidate in result.data['candidates']:
         snapshot=store.artifacts.read(workspace['id'],candidate['ref'])['payload']
-        assert pointer(snapshot,'/path')==candidate['path']
-        assert pointer(snapshot,'/cost/known_subtotal')==candidate['cost']['known_subtotal']
-        assert pointer(snapshot,'/cost/total')=='UNKNOWN'
+        assert snapshot['path']==candidate['path']
+        assert snapshot['cost']['known_subtotal']==candidate['cost']['known_subtotal']
+        assert snapshot['cost']['total']=='UNKNOWN'
         assert candidate['cost']['details_omitted']
         assert snapshot['cost']['conditional_items']  # Expansion retains all fee evidence.
 

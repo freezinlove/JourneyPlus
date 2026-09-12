@@ -1,0 +1,1 @@
+[{"type": "text_delta", "text": "我先查看这项活动的摘要。"}, {"type": "tool_call_ready", "call_id": "overview", "name": "activity.read", "arguments": {"selector": {"query": "Flying Blue"}, "view": "overview"}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

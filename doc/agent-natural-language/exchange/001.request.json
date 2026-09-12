@@ -1,0 +1,44 @@
+{
+  "sequence": 1,
+  "messages": [
+    {
+      "id": "dca73116-1a5c-49fd-a7e5-c8a34ca8c428",
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Call echo with value probe-ok, then answer with the returned value.",
+          "call_id": null,
+          "name": null,
+          "arguments": null,
+          "result": null,
+          "ref": null
+        }
+      ],
+      "created_at": "2026-09-12T07:35:03.944512Z",
+      "metadata": {}
+    }
+  ],
+  "tools": [
+    {
+      "name": "echo",
+      "description": "Return the input value unchanged.",
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "type": "object"
+      }
+    }
+  ],
+  "limits": {
+    "max_output": 256
+  },
+  "protocol": "native"
+}

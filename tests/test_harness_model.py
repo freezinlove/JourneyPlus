@@ -80,10 +80,10 @@ def test_native_final_request_omits_definitions_but_keeps_call_result_evidence()
         client=httpx.AsyncClient(base_url='https://test/',transport=httpx.MockTransport(respond))
         model=AgentModel(AgentConfig('test','https://test/','',32768),client);model.protocol='native'
         assert model.estimate_final_input(history,[definition])<model.estimate_input(history,[definition])
-        _=[event async for event in model.stream(history,[definition],{'tools_allowed':False,'response_format':'json_object'},asyncio.Event())]
+        _=[event async for event in model.stream(history,[definition],{'tools_allowed':False},asyncio.Event())]
         assert 'tools' not in payloads[0]
         assert payloads[0]['tool_choice']=='none'
-        assert payloads[0]['response_format']=={'type':'json_object'}
+        assert 'response_format' not in payloads[0]
         assert payloads[0]['messages'][0]['tool_calls'][0]['function']['name']=='evidence_read'
         assert json.loads(payloads[0]['messages'][1]['content'])['data']=={'qualification':'UNKNOWN','version':'v1'}
         await model.close()

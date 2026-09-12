@@ -262,8 +262,6 @@ class AgentModel:
                 yield ModelEvent(type='turn_end', finish_reason='tool_calls' if action.calls else 'stop' if action.finished else 'error')
                 return
             payload.update(messages=wire_messages(messages,names), stream=True, stream_options={'include_usage': True})
-            if limits.get('response_format'):
-                payload['response_format'] = {'type': limits['response_format']}
             if schema:
                 payload.update(tools=schema, tool_choice='auto' if limits.get('tools_allowed', True) else 'none')
             elif not limits.get('tools_allowed',True):

@@ -207,19 +207,6 @@ class EventSink(Protocol):
     def append_and_publish(self, run_id: str, kind: str, payload: dict, *, owner: str | None = None) -> None: ...
 
 
-class CompletionCheck(DTO):
-    """Application verdict, without teaching the loop application semantics."""
-    accepted: bool
-    feedback: list[str] = Field(default_factory=list, max_length=20)
-    text: str | None = None
-    partial: bool = False
-    artifact_refs: list[str] = Field(default_factory=list)
-
-
-class CompletionPort(Protocol):
-    def check(self, text: str, messages: list[ModelMessage], context: ExecutionContext) -> CompletionCheck: ...
-
-
 @dataclass
 class RuntimePorts:
     model: AgentModelPort
@@ -229,4 +216,3 @@ class RuntimePorts:
     events: EventSink
     clock: Callable[[], float]
     workspace: WorkspacePort | None = None
-    completion: CompletionPort | None = None

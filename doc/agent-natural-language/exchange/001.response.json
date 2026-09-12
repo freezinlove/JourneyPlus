@@ -1,0 +1,1 @@
+[{"type": "tool_call_ready", "call_id": "probe-echo", "name": "echo", "arguments": {"value": "probe-ok"}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

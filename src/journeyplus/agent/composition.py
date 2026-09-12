@@ -64,8 +64,6 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
         elif definition.name=='web.read':
             definition.availability=lambda:{'status':'AVAILABLE' if network_enabled else 'DISABLED'}
     runtime,store=compose(factory,model,registered,services)
-    from .services.completion import BusinessCompletion
-    runtime.ports.completion=BusinessCompletion()
     store.published_refs=services['knowledge']
     services['close_read_connection']=close_read_connection
     services['maintenance']=lambda:{'cleanup':store.cleanup(),'waiting':services['waiting'].check()}

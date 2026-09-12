@@ -60,12 +60,11 @@ class Runtime:
         budget.soft.update(self.budget_limits.get('soft',{}))
         budget.hard.update(self.budget_limits.get('hard',{}))
         saved = state.get('budget') or {}
-        for key in ('requests', 'tools', 'input_tokens', 'output_tokens', 'estimated', 'notified', 'finalizing', 'repeat_state', 'completion_failures'):
+        for key in ('requests', 'tools', 'input_tokens', 'output_tokens', 'estimated', 'notified', 'finalizing', 'repeat_state'):
             if key in saved:
                 setattr(budget, key, saved[key])
         budget.started -= saved.get('seconds', 0)
         configuration=[getattr(self.ports.model,'configuration_id',None),self.instructions,self.budget_limits,CONTEXT_POLICY_VERSION,
-                       getattr(self.ports.completion,'version',None),
                        [(item.name,item.version,item.description,item.input_schema,item.output_schema,item.effect,item.operation_effects,
                          item.result_max_bytes,item.operation_result_max_bytes,item.result_budget_field)
                         for item in self.ports.registry.definitions()]]
@@ -117,11 +116,7 @@ class Runtime:
         messages = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id))['messages']
         messages = [m for m in messages if m.metadata.get('turn_id') == context.turn_id
                     or not (m.metadata.get('completion_rejected') or m.metadata.get('completion_feedback'))]
-        output_schema = getattr(self.ports.completion, 'output_schema', None)
-        instructions = self.instructions
-        if output_schema:
-            instructions += '\nFinal response JSON schema (native tool calls remain unchanged): ' + json.dumps(output_schema,ensure_ascii=False,separators=(',',':'))
-        messages = [ModelMessage(role='system', content=[Part(type='text', text=instructions)])] + messages
+        messages = [ModelMessage(role='system', content=[Part(type='text', text=self.instructions)])] + messages
         if state.get('interrupted'):
             notice = ModelMessage(role='system', content=[Part(type='text', text='runtime_interruption: Previous execution was interrupted. Reuse completed receipts. Incomplete text is marked interrupted.')])
             messages.append(notice)
@@ -178,17 +173,12 @@ class Runtime:
             try:
                 async with asyncio.timeout(budget.limits(capabilities)['timeout']):
                     limits = budget.limits(capabilities)
-                    if budget.tools and self.ports.completion is not None:
-                        response_format = getattr(self.ports.completion, 'response_format', None)
-                        if response_format:
-                            limits['response_format'] = response_format
                     async for event in self.ports.model.stream(projected, definitions, limits, context.cancel_token):
                         if context.cancel_token.is_set():
                             break
                         if event.type == 'text_delta':
                             text += event.text or ''
-                            if self.ports.completion is None:
-                                await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
+                            await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
                         elif event.type == 'tool_call_ready':
                             calls.append({'call_id': event.call_id, 'name': event.name, 'arguments': event.arguments})
                         elif event.type == 'usage':
@@ -213,7 +203,7 @@ class Runtime:
             if finish not in {'stop', 'tool_calls'} or context.cancel_token.is_set():
                 if parts:
                     interrupted = ModelMessage(id=message_id, role='assistant', content=parts,
-                        metadata={'interrupted': True, 'completion_rejected':self.ports.completion is not None})
+                        metadata={'interrupted': True})
                     (await blocking_call(self.ports.sessions.append_message, run_id, owner, interrupted))
                     messages.append(interrupted)
                     await self._publish(run_id, owner, 'assistant.interrupted', {'message_id': message_id})
@@ -221,7 +211,7 @@ class Runtime:
                     return 'CANCELED'
                 if model_failure:
                     await self._publish(run_id,owner,'resource.notice',{'code':'MODEL_UNAVAILABLE','http_status':model_failure.status,
-                        'provider_code':model_failure.code,'message':'模型服务暂不可用'+('（'+model_failure.code+'）' if model_failure.code else '')+'，已保留本轮取得的结果。'})
+                        'provider_code':model_failure.code,'message':'模型服务暂不可用，已保留本轮取得的结果。'})
                     return 'PARTIAL'
                 format_failures += 1
                 if format_failures > 1:
@@ -229,46 +219,9 @@ class Runtime:
                 messages.append(ModelMessage(role='system', content=[Part(type='text', text='INVALID_MODEL_OUTPUT: Complete valid tool parameters or provide an answer. No incomplete calls were executed. '+protocol_feedback)]))
                 continue
             format_failures = 0
-            completion_refs = []
-            if not calls and text and self.ports.completion is not None:
-                verdict = await blocking_call(self.ports.completion.check, text, messages, context)
-                if not verdict.accepted:
-                    budget.completion_failures += 1
-                    rejected = ModelMessage(id=message_id, role='assistant', content=parts,
-                        metadata={'completion_rejected': True})
-                    await blocking_call(self.ports.sessions.append_message, run_id, owner, rejected)
-                    messages.append(rejected)
-                    feedback = ModelMessage(role='system', metadata={'completion_feedback':True},
-                        content=[Part(type='text', text='COMPLETION_REJECTED: '+json.dumps(verdict.feedback, ensure_ascii=False))])
-                    await blocking_call(self.ports.sessions.append_message, run_id, owner, feedback)
-                    messages.append(feedback)
-                    await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner,
-                                        remaining_budget=budget.snapshot())
-                    await self._publish(run_id, owner, 'resource.notice', {
-                        'code':'COMPLETION_REJECTED','message':'交付检查未通过，正在补齐缺项。',
-                        'findings':verdict.feedback})
-                    if budget.completion_failures >= 2:
-                        await self._publish(run_id, owner, 'resource.notice', {
-                            'code':'COMPLETION_FAILED',
-                            'message':'回答未通过交付检查，本轮未完成。已完成的操作和资料仍保留。'})
-                        return 'PARTIAL'
-                    continue
-                text = verdict.text if verdict.text is not None else text
-                completion_refs = verdict.artifact_refs
-                parts = [Part(type='text', text=text)]
-                await self._publish(run_id, owner, 'text_delta', {'message_id':message_id,'text':text})
-                if verdict.partial:
-                    message = ModelMessage(id=message_id, role='assistant', content=parts,
-                                           metadata={'partial':True,'completion_refs':completion_refs})
-                    await blocking_call(self.ports.sessions.append_message, run_id, owner, message)
-                    return 'PARTIAL'
             if calls:
                 parts.extend(Part(type='tool_call', **{key:call[key] for key in ('call_id','name','arguments')}) for call in calls)
-                if self.ports.completion is not None:
-                    # Tool-associated prose is a private draft, not a verified answer.
-                    parts = [part for part in parts if part.type != 'text']
-            message = ModelMessage(id=message_id, role='assistant', content=parts,
-                                   metadata={'completion_refs':completion_refs} if completion_refs else {})
+            message = ModelMessage(id=message_id, role='assistant', content=parts)
             (await blocking_call(self.ports.sessions.append_message, run_id, owner, message))
             messages.append(message)
             if not calls:

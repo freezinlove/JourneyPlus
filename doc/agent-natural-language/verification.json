@@ -1,0 +1,221 @@
+{
+  "workspace_id": "72ae903d-59fb-4df6-a1a7-aff5b1c52afe",
+  "business_tables_unchanged": [
+    "analysis_runs",
+    "article_analyses",
+    "article_briefs",
+    "article_opportunities",
+    "automation_leases",
+    "automation_runs",
+    "briefs",
+    "buy_points_offers",
+    "buy_points_snapshots",
+    "collection_runs",
+    "document_versions",
+    "event_evidence",
+    "event_revisions",
+    "fact_sets",
+    "gold_cases",
+    "initialization_runs",
+    "job_runs",
+    "review_decisions",
+    "source_automation_states",
+    "source_items",
+    "sources",
+    "status_events",
+    "status_holdings",
+    "statusmatch_article_routes",
+    "statusmatch_article_supplements",
+    "statusmatch_change_sets",
+    "statusmatch_watch_pages",
+    "statusmatch_watches"
+  ],
+  "runs": [
+    {
+      "run_id": "db03fd10-58f5-4e5e-9bfe-c225531476b0",
+      "status": "PARTIAL",
+      "prompt": "帮我简要介绍数据库里的 Flying Blue 会籍匹配活动，先用文字说明就好，不保存会籍。",
+      "budget": {
+        "hard": {
+          "tools": 28,
+          "seconds": 180,
+          "requests": 14,
+          "input_tokens": 120000,
+          "output_tokens": 12000
+        },
+        "soft": {
+          "tools": 20,
+          "seconds": 120,
+          "requests": 10,
+          "input_tokens": 90000,
+          "output_tokens": 8000
+        },
+        "tools": 1,
+        "seconds": 129.11516124300033,
+        "notified": false,
+        "requests": 3,
+        "estimated": true,
+        "finalizing": false,
+        "input_tokens": 32969,
+        "repeat_state": {
+          "count": 1,
+          "fingerprint": "[\"activity.read\", {\"aspects\": [], \"cursor\": null, \"limit\": 5, \"section_refs\": [], \"selector\": {\"query\": \"Flying Blue\"}, \"version_ref\": null, \"view\": \"overview\"}, \"3d8aae9680af373c3121281e4581d3322f55cbf83d227923f5a8c8fd456a28df\"]",
+          "result_refs": [
+            "artifact:48468b04-b179-49d7-9d8f-73bde75b6f30"
+          ]
+        },
+        "output_tokens": 79,
+        "model_configuration_id": "0bb5a281a7c7675922245227ae549dec9298b8e7f61580eac82533a9a73a8923"
+      },
+      "tools": [
+        {
+          "name": "activity.read",
+          "status": "SUCCEEDED",
+          "error": null
+        }
+      ]
+    },
+    {
+      "run_id": "9c2a5035-05a0-4208-a71b-b2b1e5d1c418",
+      "status": "PARTIAL",
+      "prompt": "继续用刚才查到的摘要介绍一下。",
+      "budget": {
+        "hard": {
+          "tools": 28,
+          "seconds": 180,
+          "requests": 14,
+          "input_tokens": 120000,
+          "output_tokens": 12000
+        },
+        "soft": {
+          "tools": 20,
+          "seconds": 120,
+          "requests": 10,
+          "input_tokens": 90000,
+          "output_tokens": 8000
+        },
+        "tools": 0,
+        "seconds": 90.48182520900082,
+        "notified": false,
+        "requests": 2,
+        "estimated": true,
+        "finalizing": false,
+        "input_tokens": 22594,
+        "repeat_state": {},
+        "output_tokens": 18,
+        "model_configuration_id": "0bb5a281a7c7675922245227ae549dec9298b8e7f61580eac82533a9a73a8923"
+      },
+      "tools": []
+    },
+    {
+      "run_id": "46a45c7a-fa79-4098-9da7-8c03f97b60cb",
+      "status": "COMPLETED",
+      "prompt": "假设我有 Air Canada Aeroplan Elite 50K，住在希腊，预算 250 欧元，看看能匹配到 Flying Blue 什么等级，并展示路线图。不保存会籍。",
+      "budget": {
+        "hard": {
+          "tools": 28,
+          "seconds": 180,
+          "requests": 14,
+          "input_tokens": 120000,
+          "output_tokens": 12000
+        },
+        "soft": {
+          "tools": 20,
+          "seconds": 120,
+          "requests": 10,
+          "input_tokens": 90000,
+          "output_tokens": 8000
+        },
+        "tools": 3,
+        "seconds": 94.91479033600262,
+        "notified": false,
+        "requests": 4,
+        "estimated": true,
+        "finalizing": false,
+        "input_tokens": 57767,
+        "repeat_state": {
+          "count": 1,
+          "fingerprint": "[\"display.present\", {\"blocks\": [{\"columns\": [], \"object_refs\": [\"artifact:0194892f-5e8b-49d2-9f42-69f0d783f0b1#route:bee7f2f78c670051\"], \"reason\": \"费用在预算内，个人资格仍需核实。\", \"research_refs\": [], \"roles\": [], \"title\": \"按你的假设条件找到的匹配路线\", \"type\": \"route_graph\"}], \"next_steps\": [], \"replace_presentation_ref\": null}, null]",
+          "result_refs": [
+            "artifact:f4f38973-6267-4a42-b52b-6463fb092f17"
+          ]
+        },
+        "output_tokens": 469,
+        "model_configuration_id": "0bb5a281a7c7675922245227ae549dec9298b8e7f61580eac82533a9a73a8923"
+      },
+      "tools": [
+        {
+          "name": "routes.evaluate",
+          "status": "SUCCEEDED",
+          "error": null
+        },
+        {
+          "name": "routes.evaluate",
+          "status": "SUCCEEDED",
+          "error": null
+        },
+        {
+          "name": "display.present",
+          "status": "SUCCEEDED",
+          "error": null
+        }
+      ]
+    },
+    {
+      "run_id": "7736be3f-3e06-4748-8817-418202d1f9a5",
+      "status": "COMPLETED",
+      "prompt": "刚才查到的申请费是多少？一句话告诉我就行，不要再画图。",
+      "budget": {
+        "hard": {
+          "tools": 28,
+          "seconds": 180,
+          "requests": 14,
+          "input_tokens": 120000,
+          "output_tokens": 12000
+        },
+        "soft": {
+          "tools": 20,
+          "seconds": 120,
+          "requests": 10,
+          "input_tokens": 90000,
+          "output_tokens": 8000
+        },
+        "tools": 1,
+        "seconds": 55.06777651700031,
+        "notified": false,
+        "requests": 2,
+        "estimated": true,
+        "finalizing": false,
+        "input_tokens": 29712,
+        "repeat_state": {
+          "count": 1,
+          "fingerprint": "[\"workspace.read\", {\"cursor\": null, \"kind\": \"artifact\", \"limit\": 10, \"query\": \"199\", \"refs\": [\"artifact:23bd897b-154a-43d8-be6e-d480347544f7\"]}, null]",
+          "result_refs": [
+            "artifact:72385b89-6f87-4706-914c-2f9d672d0151"
+          ]
+        },
+        "output_tokens": 96,
+        "model_configuration_id": "0bb5a281a7c7675922245227ae549dec9298b8e7f61580eac82533a9a73a8923"
+      },
+      "tools": [
+        {
+          "name": "workspace.read",
+          "status": "SUCCEEDED",
+          "error": null
+        }
+      ]
+    }
+  ],
+  "presentation_count": 1,
+  "response_envelope_count": 0,
+  "third_party_model_calls": 0,
+  "browser_checks": [
+    "progress prose before final answer",
+    "plain final answer after actual tools",
+    "model-selected route graph",
+    "reload preserves prose and graph",
+    "Gold details EUR 199 and official link",
+    "follow-up expanded saved result and replied without another graph"
+  ],
+  "manual_bridge_limitations": "First two runs PARTIAL because manually supplied responses exceeded unchanged 45-second model deadline; late response files were not consumed. The route and follow-up runs completed."
+}

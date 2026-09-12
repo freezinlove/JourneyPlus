@@ -18,7 +18,6 @@ class Budget:
     finalizing: bool = False
     model_configuration_id: str | None = None
     repeat_state: dict = field(default_factory=dict)
-    completion_failures: int = 0
 
     def values(self):
         return dict(seconds=monotonic()-self.started, requests=self.requests, tools=self.tools,
@@ -44,7 +43,7 @@ class Budget:
     def snapshot(self):
         return {**self.values(), 'estimated': self.estimated, 'soft': self.soft, 'hard': self.hard,
                 'notified': self.notified,'finalizing':self.finalizing,'model_configuration_id':self.model_configuration_id,
-                'repeat_state':dict(self.repeat_state), 'completion_failures':self.completion_failures}
+                'repeat_state':dict(self.repeat_state)}
 
 
 def estimate(value):
