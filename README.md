@@ -1,6 +1,6 @@
 # JourneyPlus
 
-> **当前重建目标**：[新 OpenSpec change](openspec/changes/rebuild-clean-workflow-agent-system/README.md) · [目标架构与模块职责](openspec/changes/rebuild-clean-workflow-agent-system/target-architecture.md)。两个板块：AIWorkflow 生产并存储正式知识，提供简报和完整匹配图；Agent 消费同一数据库中的知识并引用简报。本分支已完成目标定义与[首轮仓库审计](openspec/changes/rebuild-clean-workflow-agent-system/audit/report.md)，尚未重建或完成系统验收。
+> **当前重建目标**：[目标架构与模块职责](doc/target-system-architecture.md)。两个板块：AIWorkflow 生产并存储正式知识，提供简报和完整匹配图；Agent 消费同一数据库中的知识并引用简报。当前保留目标架构文档作为新路线起点，具体设计与实施任务待重新制定，尚未重建或完成系统验收。
 
 ## 历史实现与运行记录（待按目标架构审计）
 
