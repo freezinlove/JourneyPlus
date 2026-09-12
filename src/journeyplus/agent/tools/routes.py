@@ -176,7 +176,7 @@ def evaluate(args, ctx):
             refs=result.get('route_order',sorted(result['routes']))
             if int(offset)>len(refs):raise ValueError('Invalid route cursor offset')
             selected,next_cursor=result_page(result,result_ref,int(offset),args.limit)
-            return ToolResult(status='PARTIAL' if result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('searched_published_graph_complete',result['coverage'].get('search_complete')) else 'OK',
+            return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in selected) or result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('searched_published_graph_complete',result['coverage'].get('search_complete')) else 'OK',
                 data={'query_ref':args.query_ref,'search_metrics':result.get('search_metrics'),
                 'route_refs':[r['ref'] for r in selected], 'candidates':selected,**result.get('resolution',{})},
                 coverage=scope_coverage(result,len(refs),len(selected),int(offset)),
@@ -198,17 +198,17 @@ def evaluate(args, ctx):
         return error
     result,actual=evaluation['result'],evaluation['actual']
     sources,target,unresolved=evaluation['sources'],evaluation['target'],evaluation['unresolved']
-    # The graph engine also retains nearby/unknown alternatives for inspection.
-    # They are not matches to the caller's explicit filters (for example, paid
-    # alternatives to free_only). Keep them retrievable without paging them as
-    # if they fulfilled the query.
+    # Preserve the reader's disclosure policy. Workflow UNKNOWN candidates
+    # remain visible and explicitly uncertain; proven conflicts are not paged.
     from collections import Counter
     classifications=Counter(r['classification'] for r in result['server_routes'].values())
-    matching=[key for key,r in result['server_routes'].items() if r['classification']=='MATCH']
+    presentation_classes=result.get('presentation_classes',['MATCH'])
+    matching=[key for key,r in result['server_routes'].items() if r['classification'] in presentation_classes]
     payload={'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
              'route_order':matching,'coverage':result['coverage'],
-             'search_metrics':{'matching_count':len(matching),'candidate_counts':dict(classifications),
-                               'scope':'Only candidates satisfying explicit query filters are paged. All assessed alternatives remain in this result artifact; UNKNOWN is not a proven match.'},
+             'search_metrics':{'matching_count':classifications.get('MATCH',0),'presented_count':len(matching),'candidate_counts':dict(classifications),
+                               'scope':('MATCH and UNKNOWN candidates are paged separately by their constraint_match label; UNKNOWN requires inspection and is not a proven match.' if 'UNKNOWN' in presentation_classes else
+                                        'Only candidates satisfying explicit query filters are paged. All assessed alternatives remain in this result artifact; UNKNOWN is not a proven match.')},
              'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
              'effective_input':actual.model_dump(mode='json')}
     # The fields exposed by search must exist at the returned immutable member
@@ -224,7 +224,7 @@ def evaluate(args, ctx):
     ref=ctx.artifact_port.put(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id,turn_id=ctx.turn_id)
     ids=payload['route_order']
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
-    return ToolResult(status='PARTIAL' if unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',
+    return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in candidates) or unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',
         data={'query_ref':query_ref,'query_context':lineage,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
               'search_metrics':payload['search_metrics'],
               'unresolved_sources':unresolved,'route_refs':[r['ref'] for r in candidates],'candidates':candidates,

@@ -350,6 +350,10 @@ class PersonalizedMatchService:
             if event.current_brief_id is not None
             else None
         )
+        if brief_record is None or brief_record.fact_set_id != record.id:
+            brief_record = self._session.scalar(select(BriefRecord)
+                .where(BriefRecord.fact_set_id==record.id)
+                .order_by(BriefRecord.version.desc()).limit(1))
         brief = (
             Brief.model_validate(brief_record.content)
             if brief_record is not None

@@ -17,12 +17,11 @@ def present(args,ctx):
             objects=[]
             for ref in selection.object_refs:
                 if ref.startswith('activity:'):
-                    from journeyplus.knowledge.reads import ActivityReadService
                     identity, separator, version=ref.removeprefix('activity:').partition('@')
                     if not separator:raise ValueError('Published display reference requires a version')
                     with ctx.services['knowledge'].read() as read_session:
-                        data=ActivityReadService(read_session).detail(UUID(identity),UUID(version))
-                    data['brief_url']=f'/knowledge?activity_id={identity}&version_ref={version}&section=brief'
+                        data=ctx.services['knowledge'].activity_reader(read_session).detail(UUID(identity),UUID(version))
+                    data.setdefault('brief_url',f'/knowledge?activity_id={identity}&version_ref={version}&section=brief')
                 else:
                     obj=ctx.artifact_port.read(ctx.workspace_id,ref)
                     data=obj['payload']

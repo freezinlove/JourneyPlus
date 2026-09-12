@@ -1,10 +1,6 @@
 """Independent catalogue and version-bound activity reading."""
 from journeyplus.agent.harness.execution import blocking_tool
 from uuid import UUID
-from sqlalchemy import select
-from sqlalchemy.orm import load_only
-from journeyplus.knowledge.models import MembershipProgram, MembershipTier, MembershipAlias
-from journeyplus.knowledge.reads import ActivityReadService
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.agent.services.identities import canonical
 from journeyplus.agent.services.materials import sectioned, summary
@@ -26,9 +22,7 @@ def catalog(args, ctx):
         if data.get('catalog_query_hash')!=query_hash or not offset.isdigit():raise ValueError('STALE_REFERENCE: catalog cursor does not match the query')
         return catalog_page(data['candidates'],ref,int(offset),args.limit)
     with ctx.services['knowledge'].read() as s:
-        programs = list(s.scalars(select(MembershipProgram).options(load_only(MembershipProgram.id,MembershipProgram.display_name,MembershipProgram.canonical_key,MembershipProgram.category)).order_by(MembershipProgram.display_name)))
-        tiers = list(s.scalars(select(MembershipTier).options(load_only(MembershipTier.id,MembershipTier.program_id,MembershipTier.display_name,MembershipTier.canonical_key)).order_by(MembershipTier.display_name)))
-        aliases = list(s.scalars(select(MembershipAlias)))
+        programs, tiers, aliases = ctx.services['identities'].catalog(s)
         if not programs:
             return ToolResult.failure('KNOWLEDGE_NOT_READY',
                 'The configured knowledge catalogue is empty. This is a deployment/data readiness issue, not absence of the requested membership. Rephrasing names cannot repair it.',status='UNAVAILABLE')
@@ -69,8 +63,16 @@ def catalog_page(results,ref,offset,limit):
         coverage={'complete':len(results)<=offset+limit,'returned':len(selected),'total':len(results),'omissions':[]})
 
 
+def bound_version(*versions):
+    values={value for value in versions if value}
+    if len(values)>1:
+        raise ValueError('STALE_REFERENCE: conflicting activity versions')
+    return next(iter(values),None)
+
+
 @blocking_tool
 def activity(args, ctx):
+    explicit_version=bound_version(args.version_ref, args.selector.ref.partition('@')[2] if hasattr(args.selector,'ref') else None)
     query_hash=digest(args.model_dump(mode='json',exclude={'cursor','limit'}))
     if args.cursor:
         ref,_,offset=args.cursor.rpartition('|')
@@ -80,9 +82,10 @@ def activity(args, ctx):
             return material_page(data['activity_selectors'],ref,int(offset),args,ctx)
         return activity_page(data['activities'],ref,int(offset),args.limit)
     if args.section_refs and all(ref.startswith('artifact:') for ref in args.section_refs):
+        section_version=explicit_version
         sections=[ctx.artifact_port.read(ctx.workspace_id,ref) for ref in args.section_refs]
         with ctx.services['knowledge'].read() as session:
-            reader=ActivityReadService(session)
+            reader=ctx.services['knowledge'].activity_reader(session)
             if hasattr(args.selector,'query'):
                 allowed={str(row.id) for row in locate_all(reader,text=args.selector.query)}
             else:
@@ -90,8 +93,11 @@ def activity(args, ctx):
                 if raw.startswith('artifact:'):
                     material=ctx.artifact_port.read(ctx.workspace_id,raw)['payload']
                     allowed={material.get('activity_ref',material.get('ref'))}
+                    section_version=bound_version(section_version,material.get('version_ref'))
+                elif raw.startswith(('program:','tier:')):
+                    allowed={str(row.id) for row in locate_all(reader,ref=raw.partition(':')[2])}
                 else:allowed={raw.removeprefix('activity:').split('@')[0]}
-            version=args.version_ref or (args.selector.ref.partition('@')[2] if hasattr(args.selector,'ref') else None)
+            version=section_version
             for section in sections:
                 value=section['payload']
                 if value.get('activity_ref') not in allowed or version and value.get('version_ref')!=version:
@@ -99,8 +105,8 @@ def activity(args, ctx):
         return ToolResult(data={'sections':sections},artifact_refs=args.section_refs,
                           coverage={'complete':True,'returned':len(sections),'total':len(sections),'omissions':[]})
     with ctx.services['knowledge'].read() as s:
-        reader=ActivityReadService(s)
-        version=args.version_ref
+        reader=ctx.services['knowledge'].activity_reader(s)
+        version=explicit_version
         scoped_versions={}
         if hasattr(args.selector,'ref'):
             raw=args.selector.ref
@@ -116,7 +122,7 @@ def activity(args, ctx):
                     raw=None
                 else:
                     raw=obj.get('activity_ref',obj.get('ref',''))
-                    version=version or obj.get('version_ref')
+                    version=bound_version(version,obj.get('version_ref'))
             if raw is not None and raw.startswith(('program:', 'tier:')):
                 identities=[a.id for a in locate_all(reader,ref=raw.partition(':')[2])]
                 raw=None
@@ -124,15 +130,13 @@ def activity(args, ctx):
                 raw=raw.removeprefix('activity:')
             if raw is not None:
                 identity, _, embedded_version=raw.partition('@')
-                version=version or embedded_version or None
+                version=bound_version(version,embedded_version)
                 identities=[UUID(identity)]
         else:
             identities=[a.id for a in locate_all(reader,text=args.selector.query)]
-        from journeyplus.knowledge.models import Activity
         selectors=[]
         for identity in identities:
-            row=s.get(Activity,identity)
-            selected_version=scoped_versions.get(identity,version) or (str(row.current_version_id) if row and row.current_version_id else None)
+            selected_version=scoped_versions.get(identity,version) or ctx.services['knowledge'].current_version(s,identity)
             if selected_version:selectors.append({'activity_ref':str(identity),'version_ref':selected_version})
     collection=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'activity_query_hash':query_hash,'activity_selectors':selectors},call_id=ctx.call_id,turn_id=ctx.turn_id)
     return material_page(selectors,collection,0,args,ctx)
@@ -151,16 +155,16 @@ def material_page(selectors,collection,offset,args,ctx):
     if not 0<=offset<=len(selectors):raise ValueError('Invalid activity cursor offset')
     details=[]
     with ctx.services['knowledge'].read() as s:
-        reader=ActivityReadService(s)
+        reader=ctx.services['knowledge'].activity_reader(s)
         for selector in selectors[offset:offset+args.limit]:
             identity=UUID(selector['activity_ref']);selected_version=selector['version_ref']
             detail=reader.detail(identity,UUID(selected_version) if selected_version else None)
             if 'version_ref' not in detail:
                 continue
-            detail['brief_url']=f"/knowledge?activity_id={detail['ref']}&version_ref={detail['version_ref']}&section=brief"
+            detail.setdefault('brief_url',f"/knowledge?activity_id={detail['ref']}&version_ref={detail['version_ref']}&section=brief")
             if args.view=='changes':
                 detail['history']=reader.history(identity)
-            if args.view=='evidence' or args.aspects:
+            if args.view=='evidence' or args.aspects or args.section_refs:
                 detail['evidence']=reader.materials(selector={'ref':str(identity)},question='',view='EVIDENCE',aspects=[a.upper() for a in args.aspects],section_refs=args.section_refs,version_ref=detail['version_ref'])
             details.append(sectioned(detail))
     refs=[]
@@ -171,7 +175,7 @@ def material_page(selectors,collection,offset,args,ctx):
         summaries.append(summary(detail,ref,args.view))
     end=min(offset+args.limit,len(selectors))
     return ToolResult(status='OK' if selectors else 'EMPTY',data={'activities':summaries},artifact_refs=[collection,*refs],
-        provenance=[{'kind':'published','version_ref':item['version_ref']} for item in summaries],
+        provenance=[{'kind':'workflow','version_ref':item['version_ref']} for item in summaries],
         next_cursor=collection+'|'+str(end) if end<len(selectors) else None,
         coverage={'complete':end==len(selectors),'returned':len(summaries),'total':len(selectors),'offset':offset,'omissions':[]})
 
@@ -180,6 +184,6 @@ def activity_page(summaries,ref,offset,limit):
     selected=summaries[offset:offset+limit]
     return ToolResult(status='OK' if summaries else 'EMPTY',data={'activities':selected},
         artifact_refs=[*[item['material_ref'] for item in selected],ref],
-        provenance=[{'kind':'published','version_ref':item['version_ref']} for item in selected],
+        provenance=[{'kind':'workflow','version_ref':item['version_ref']} for item in selected],
         next_cursor=ref+'|'+str(offset+limit) if len(summaries)>offset+limit else None,
         coverage={'complete':len(summaries)<=offset+limit,'returned':len(selected),'total':len(summaries),'omissions':[]})

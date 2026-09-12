@@ -50,11 +50,9 @@ class RouteQueries:
             return self._evaluate(query,context=context,limit=limit,session=session)
 
     def _evaluate(self,query,*,context,limit,session):
-        from sqlalchemy import select
-        from journeyplus.knowledge.models import MembershipProgram
-        if session.scalar(select(MembershipProgram.id).limit(1)) is None:
+        if not self.identities.catalog(session)[0]:
             return {'error':ToolResult.failure('KNOWLEDGE_NOT_READY',
-                'The configured catalogue is empty: published knowledge has not been connected. No route search was performed. Do not infer that this membership or matching routes do not exist.',status='UNAVAILABLE')}
+                'The configured catalogue has no indexed matching identities. No route search was performed. Do not infer that this membership or matching routes do not exist.',status='UNAVAILABLE')}
         prepared=self.prepare(query,context=context,_session=session)
         sources,target,unresolved,holdings=(prepared[k] for k in ('sources','target','unresolved','holding_snapshot'))
         count=len({item['holding_ref'] for item in unresolved if item.get('holding_ref')})
@@ -77,7 +75,8 @@ class RouteQueries:
             alliance=query.alliance,category=query.category,preferences=query.preferences,**query.constraints.model_dump())
         snapshot=[HoldingSnapshot(UUID(h['holding_ref'][8:]),UUID(h['tier_ref'][5:]) if h['tier_ref'] else None,
                      h['revision'],date.fromisoformat(h['valid_until']) if h['valid_until'] else None) for h in holdings]
-        result=RouteService(session,holding_snapshot=snapshot).query(actual,shortlist=limit)
+        service=getattr(self.knowledge,'route_service',RouteService)
+        result=service(session,holding_snapshot=snapshot).query(actual,shortlist=limit)
         result['coverage'].update(unresolved_holding_count=count,search_performed=True)
         if count:
             result['coverage'].setdefault('searched_published_graph_complete',result['coverage']['search_complete'])

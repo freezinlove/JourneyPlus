@@ -55,7 +55,8 @@ def test_presentation_receipt_stays_attached_to_its_original_message(session_fac
     call=ModelEvent(type='tool_call_ready',call_id='selected-card',name='display.present',arguments={
         'blocks':[{'type':'activity_card','object_refs':[ref]}]})
     model=FakeModel([[call.model_dump(),{'type':'turn_end','finish_reason':'tool_calls'}],answer('Here is the card.'),answer('A later answer.')])
-    runtime,store=compose_business(session_factory,model);w=store.create()
+    from journeyplus.knowledge.access import KnowledgePort
+    runtime,store=compose_business(session_factory,model,knowledge_port=KnowledgePort(session_factory));w=store.create()
     first=store.start(w['id'],'show card','one',0);asyncio.run(runtime.run(first['run_id']))
     second=store.start(w['id'],'follow up','two',store.read(w['id'])['revision']);asyncio.run(runtime.run(second['run_id']))
     view=store.read(w['id']);messages=view['messages']

@@ -14,7 +14,8 @@ from sqlalchemy import select
 
 
 def context(factory):
-    runtime,store=compose_business(factory,FakeModel([]));w=store.create()
+    from journeyplus.knowledge.access import KnowledgePort
+    runtime,store=compose_business(factory,FakeModel([]),knowledge_port=KnowledgePort(factory));w=store.create()
     return runtime,store,w,ExecutionContext(w['id'],str(uuid4()),'call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
 
 

@@ -6,6 +6,17 @@ from sqlalchemy import text
 class KnowledgePort:
     def __init__(self,factory):self._factory=factory
 
+    @staticmethod
+    def activity_reader(session):
+        from .reads import ActivityReadService
+        return ActivityReadService(session)
+
+    @staticmethod
+    def current_version(session, identity):
+        from .models import Activity
+        row=session.get(Activity,identity)
+        return str(row.current_version_id) if row and row.current_version_id else None
+
     def availability(self):
         from sqlalchemy import select, func
         from .models import MembershipProgram, MembershipTier, ActivityKnowledgeVersion

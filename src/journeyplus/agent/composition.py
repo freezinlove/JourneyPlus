@@ -22,8 +22,7 @@ def compose(factory, model, definitions=(), services=None):
     return Runtime(ports, instructions, services,budget_limits), store
 
 
-def compose_business(factory, model, *, network_enabled=False, read_factory=None):
-    from journeyplus.knowledge.access import KnowledgePort
+def compose_business(factory, model, *, network_enabled=False, read_factory=None, knowledge_port=None):
     from .services.identities import IdentityService
     from .services.user_memory import UserMemory
     from .services.waiting import WaitingService
@@ -34,14 +33,16 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     from .services.search import HttpJsonSearch
     search=HttpJsonSearch(json.loads(os.environ['JOURNEYPLUS_AGENT_SEARCH_CONFIG']) if os.environ.get('JOURNEYPLUS_AGENT_SEARCH_CONFIG') else None)
     from .services import workspace as workspace_service, display
-    identities=IdentityService()
     from .adapters.user_data import UserData
     from .services.route_query import RouteQueries
     from .adapters.connections import knowledge_factory
     if read_factory is None:read_factory,close_read_connection=knowledge_factory(factory)
     else:close_read_connection=None
-    knowledge_port=KnowledgePort(read_factory)
-    user_data=UserData(factory)
+    if knowledge_port is None:
+        from .adapters.workflow_knowledge import WorkflowKnowledgePort
+        knowledge_port=WorkflowKnowledgePort(read_factory)
+    identities=IdentityService(getattr(knowledge_port,"catalog",None))
+    user_data=getattr(knowledge_port,"user_data",UserData)(factory)
     queries=RouteQueries(knowledge_port,user_data,identities)
     memory=UserMemory(factory,identities,knowledge_port)
     services={'workspace_read':workspace_service.read,'workspace_note':workspace_service.note,'display':display.present,'knowledge':knowledge_port,'user_data':user_data,'route_queries':queries,'identities':identities,'user_memory':memory,

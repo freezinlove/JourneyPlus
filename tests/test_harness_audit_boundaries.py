@@ -21,7 +21,8 @@ def test_catalog_and_membership_string_queries_pass_runtime_snapshot(session_fac
                      {'type':'tool_call_ready','call_id':'holdings','name':'holdings.read',
                       'arguments':{'query':'Example'}},
                      {'type':'turn_end','finish_reason':'tool_calls'}],answer('{"status":"complete","parts":["没有找到对应条目"],"deliveries":[]}')])
-    runtime,store=compose_business(session_factory,model)
+    from journeyplus.knowledge.access import KnowledgePort
+    runtime,store=compose_business(session_factory,model,knowledge_port=KnowledgePort(session_factory))
     workspace=store.create();run=store.start(workspace['id'],'Find Example','snapshot-strings',0)
     asyncio.run(runtime.run(run['run_id']))
     assert store.events(workspace['id'],run['run_id'])[1]=='COMPLETED'
@@ -95,7 +96,8 @@ def test_formal_connection_never_reads_user_tables(session_factory):
     def capture(connection,cursor,statement,parameters,ctx,many):
         statements.append(statement)
         assert 'status_holdings' not in statement and 'agent_wait_goals' not in statement
-    runtime,store=compose_business(session_factory,FakeModel([]),read_factory=sessionmaker(knowledge_engine))
+    from journeyplus.knowledge.access import KnowledgePort
+    runtime,store=compose_business(session_factory,FakeModel([]),read_factory=sessionmaker(knowledge_engine),knowledge_port=KnowledgePort(sessionmaker(knowledge_engine)))
     _,_,_,ctx=context(session_factory)
     w=store.create();ctx=replace(ctx,workspace_id=w['id'],services=runtime.services,artifact_port=store.artifacts)
     result=asyncio.run(evaluate(RoutesInput(operation='search',query={'sources':{'mode':'saved'}}),ctx))

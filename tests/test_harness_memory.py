@@ -7,13 +7,14 @@ from sqlalchemy import select
 from journeyplus.models import AgentInteraction,StatusHolding,UserBusinessOperation,now_utc
 from journeyplus.agent.adapters.models import OperationReceipt
 from journeyplus.agent.composition import compose_business
+from journeyplus.knowledge.access import KnowledgePort
 from journeyplus.agent.harness.contracts import ExecutionContext
 from journeyplus.agent.tools.contracts import HoldingsWriteInput
 from tests.test_harness_runtime import FakeModel
 
 
 def setup(factory):
-    runtime,store=compose_business(factory,FakeModel([]))
+    runtime,store=compose_business(factory,FakeModel([]),knowledge_port=KnowledgePort(factory))
     w=store.create();r=store.start(w['id'],'请保存我的测试俱乐部金卡。','save',0)
     message=store.load_context_index(w['id'])['messages'][0]
     context=ExecutionContext(w['id'],message.metadata['turn_id'],'call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
@@ -66,7 +67,7 @@ def test_workspace_expiry_preserves_operation_receipt(session_factory):
 def test_import_preserves_history_but_never_imports_execution_flags(session_factory):
     from uuid import uuid4
     from journeyplus.workspace_models import WorkspaceMessage
-    runtime,store=compose_business(session_factory,FakeModel([]))
+    runtime,store=compose_business(session_factory,FakeModel([]),knowledge_port=KnowledgePort(session_factory))
     original_text='请保存我的旧俱乐部金卡'
     with session_factory.begin() as s:
         legacy=AgentInteraction(status='ACTIVE',provider='old',model='old',prompt_version='old',schema_version='workspace-1',expires_at=now_utc()+timedelta(hours=1),state={'last_query':{'target':'locked'},'task_context':{'intent':'SAVE'},'references':{'K1':'old-route'},'pending_action':{'kind':'HOLDING_SAVE','program_name':'旧俱乐部'}})
@@ -86,7 +87,7 @@ def test_import_preserves_history_but_never_imports_execution_flags(session_fact
 
 def test_history_and_artifact_cursors_bind_query_workspace_and_snapshot(session_factory):
     from journeyplus.agent.harness.contracts import ModelMessage,Part
-    runtime,store=compose_business(session_factory,FakeModel([]))
+    runtime,store=compose_business(session_factory,FakeModel([]),knowledge_port=KnowledgePort(session_factory))
     w=store.create();r=store.start(w['id'],'needle start','one',0)
     owner=str(__import__('uuid').uuid4());store.claim_run(r['run_id'],owner)
     for number in range(3):

@@ -3,7 +3,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from journeyplus.membership.contracts import UnifiedMembershipNode
 from journeyplus.membership.unified import UnifiedMembershipTreeService
@@ -17,7 +17,9 @@ class StatusHoldingService:
 
     def list(self) -> list[StatusHoldingView]:
         rows = self._session.scalars(
-            select(StatusHolding).order_by(
+            select(StatusHolding).options(load_only(StatusHolding.id,StatusHolding.program_key,
+                StatusHolding.tier_key,StatusHolding.program_display_name,StatusHolding.tier_display_name,
+                StatusHolding.valid_until,StatusHolding.created_at,StatusHolding.updated_at)).order_by(
                 StatusHolding.program_display_name,
                 StatusHolding.tier_display_name,
             )

@@ -3,7 +3,6 @@ import unicodedata
 import re
 from uuid import UUID
 from sqlalchemy import select
-from sqlalchemy.orm import load_only
 from journeyplus.knowledge.models import MembershipProgram, MembershipTier, MembershipAlias
 
 
@@ -12,6 +11,16 @@ def canonical(value):
 
 
 class IdentityService:
+    def __init__(self, catalog_reader=None):
+        self.catalog_reader = catalog_reader
+
+    def catalog(self, session):
+        if self.catalog_reader is not None:
+            return self.catalog_reader(session)
+        return (list(session.scalars(select(MembershipProgram))),
+                list(session.scalars(select(MembershipTier))),
+                list(session.scalars(select(MembershipAlias))))
+
     def resolve(self, session, identity, *, require_tier=False, context=None):
         value = identity.model_dump(exclude_none=True) if hasattr(identity, 'model_dump') else dict(identity)
         reference=value.get('ref','')
@@ -32,8 +41,9 @@ class IdentityService:
                     expanded.append(candidate);continue
                 pref=candidate.get('program_ref','')
                 if not pref.startswith('program:'):continue
-                program=session.get(MembershipProgram,UUID(pref[8:]))
-                items=list(session.scalars(select(MembershipTier).where(MembershipTier.program_id==program.id)))
+                programs, tiers, _ = self.catalog(session)
+                program=next(p for p in programs if p.id==UUID(pref[8:]))
+                items=[t for t in tiers if t.program_id==program.id]
                 exact=[item for item in items if canonical(value['tier_name']) in {canonical(item.display_name),canonical(item.canonical_key)}]
                 expanded.extend({**self.view(program,item),'match_basis':'candidate_program; tier_exact' if exact else 'candidate_program; tier_choice'} for item in (exact or items)[:10])
             if expanded:candidates=expanded[:10]
@@ -61,35 +71,22 @@ class IdentityService:
             if len(values)!=1:
                 return {'status':'AMBIGUOUS' if values else 'NOT_FOUND','code':'IDENTITY_AMBIGUOUS' if values else 'STALE_REFERENCE','candidates':values[:10]}
             value=values[0]
-        # A typed reference needs two indexed reads, not three directory scans.
+        programs_list, tiers_list, aliases = self.catalog(session)
+        programs={p.id:p for p in programs_list};tiers={t.id:t for t in tiers_list}
+        # References bind within the same catalogue as name resolution.
         reference=value.get('ref','')
         kind,separator,raw=reference.partition(':')
         if reference and kind in {'tier','program'}:
             try:identity_id=UUID(raw)
             except ValueError:return {'status':'NOT_FOUND','code':'STALE_REFERENCE','candidates':[]}
-            tier=session.get(MembershipTier,identity_id) if kind=='tier' else None
-            program=session.get(MembershipProgram,tier.program_id if tier else identity_id) if kind=='program' or tier else None
+            tier=tiers.get(identity_id) if kind=='tier' else None
+            program=programs.get(tier.program_id if tier else identity_id) if kind=='program' or tier else None
             if program is None:return {'status':'NOT_FOUND','code':'STALE_REFERENCE','candidates':[]}
             if require_tier and tier is None:
-                tiers=session.scalars(select(MembershipTier).where(MembershipTier.program_id==program.id).order_by(MembershipTier.id).limit(10))
+                choices=sorted((t for t in tiers.values() if t.program_id==program.id),key=lambda t:str(t.id))[:10]
                 return {'status':'AMBIGUOUS','code':'IDENTITY_AMBIGUOUS','program':self.view(program),
-                        'candidates':[self.view(program,item) for item in tiers]}
+                        'candidates':[self.view(program,item) for item in choices]}
             return {'status':'OK',**self.view(program,tier)}
-        # The remaining Unicode/alias matching shares one narrow catalogue within
-        # this read transaction. No global cache can hide later catalogue edits.
-        cached=session.info.get('agent_identity_catalog')
-        catalog=cached[1] if cached and cached[0] is session.get_transaction() and not (session.new or session.dirty or session.deleted) else None
-        if catalog is None:
-            catalog=(
-                {p.id:p for p in session.scalars(select(MembershipProgram).options(load_only(
-                    MembershipProgram.id,MembershipProgram.display_name,MembershipProgram.canonical_key,
-                    MembershipProgram.category,MembershipProgram.alliance)))},
-                {t.id:t for t in session.scalars(select(MembershipTier).options(load_only(
-                    MembershipTier.id,MembershipTier.program_id,MembershipTier.display_name,MembershipTier.canonical_key)))},
-                list(session.scalars(select(MembershipAlias).options(load_only(
-                    MembershipAlias.program_id,MembershipAlias.tier_id,MembershipAlias.normalized_alias)))))
-            session.info['agent_identity_catalog']=(session.get_transaction(),catalog)
-        programs,tiers,aliases=catalog
         selected = []
         tier = None
         if value.get('ref'):

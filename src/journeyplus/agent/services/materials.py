@@ -7,7 +7,7 @@ def compact(value):
     if not isinstance(value,dict):return value
     # Evidence remains in the immutable section; do not duplicate identifiers in
     # every value. Unknown states and the source's actual conditions are retained.
-    return {key:compact(item) for key,item in value.items() if key not in {'schema_version','evidence_ids','logical_ref'} and not (key=='raw_text' and not item)}
+    return {key:compact(item) for key,item in value.items() if key not in {'schema_version','evidence_ids','evidence','logical_ref'} and not (key=='raw_text' and not item)}
 
 
 def sectioned(detail):
@@ -15,6 +15,9 @@ def sectioned(detail):
     sections={'facts':{'activity_ref':value['ref'],'version_ref':value['version_ref'],'facts':value['facts']}}
     searchable=[]
     scope={'activity_ref':value['ref'],'version_ref':value['version_ref']}
+    if value.get('briefs'):
+        sections['brief']={**scope,'briefs':value['briefs']}
+        searchable.append('brief')
     for field,item in value['facts'].items():
         key='fact-'+field
         sections[key]={**scope,field:item};searchable.append(key)
@@ -44,7 +47,10 @@ def sectioned(detail):
 
 def summary(detail,ref,view):
     value={'ref':f"activity:{detail['ref']}@{detail['version_ref']}",'material_ref':ref,'title':detail['name'],
-           'version_ref':detail['version_ref'],'brief_url':detail['brief_url'],'summary':detail.get('card')}
+           'version_ref':detail['version_ref'],'brief_url':detail['brief_url'],'summary':detail.get('card'),
+           'is_current':detail.get('is_current'),'current_version_ref':detail.get('current_version_ref')}
+    if detail.get('briefs'):
+        value['brief_section_ref']=ref+'#section:brief'
     if view=='detail':
         value['facts']=compact(detail['facts'])
         value['options']=[]

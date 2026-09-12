@@ -1,0 +1,79 @@
+{
+  "database": "journeyplus",
+  "formal_transactions_read_only": true,
+  "model_calls": 0,
+  "content_comparison": {
+    "fact_fields_including_metadata": 14,
+    "mappings": 104,
+    "application_routes": 4,
+    "price_records": 12,
+    "brief_exact_match": true,
+    "source_documents": 3,
+    "graph_claims": 97,
+    "route_region_variants": 302,
+    "missing_variants": 0,
+    "invented_variants": 0,
+    "price_reference_checks": 302
+  },
+  "known_incoming_content_issue": {
+    "scope": "Existing stored brief; unchanged by this audit",
+    "details": "Stored brief mentions USD399 for Argentina/Platinum; structured Argentina/Chile and Brazil Platinum quotes are UNAVAILABLE. Read fidelity does not validate generated prose.",
+    "stored_excerpt": "申请费用因地区及等级不同，范围从EUR 89（希腊/Silver）到USD 399（阿根廷等/Platinum）。"
+  },
+  "progressive_read": {
+    "overview_bytes": 1553,
+    "brief_section_exact": true,
+    "document_chunks": 4,
+    "all_normalized_documents_reassembled_exactly": true
+  },
+  "tool_scenarios": [
+    {
+      "program": "Air Canada Aeroplan",
+      "tier": "Elite 50K",
+      "residency": null,
+      "budget_eur": null,
+      "candidates": 4,
+      "constraint_match": [
+        "SATISFIES",
+        "SATISFIES",
+        "SATISFIES",
+        "SATISFIES"
+      ],
+      "pagination_no_missing_or_duplicate": true,
+      "inspect_to_mapping_section": true
+    },
+    {
+      "program": "Air Canada Aeroplan",
+      "tier": "Elite 50K",
+      "residency": "希腊",
+      "budget_eur": "250",
+      "candidates": 1,
+      "constraint_match": [
+        "SATISFIES"
+      ],
+      "pagination_no_missing_or_duplicate": true,
+      "inspect_to_mapping_section": true
+    },
+    {
+      "program": "United Airlines MileagePlus",
+      "tier": "Premier 1K",
+      "residency": null,
+      "budget_eur": null,
+      "candidates": 2,
+      "constraint_match": [
+        "UNKNOWN",
+        "UNKNOWN"
+      ],
+      "pagination_no_missing_or_duplicate": true,
+      "inspect_to_mapping_section": true
+    }
+  ],
+  "opportunity_http": {
+    "page": 200,
+    "data": 200,
+    "brief_exact_match": true
+  },
+  "formal_data_unchanged": true,
+  "formal_data_matches_cutover_archive": true,
+  "production_mutation_statements": []
+}
