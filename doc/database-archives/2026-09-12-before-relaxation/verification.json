@@ -1,0 +1,11 @@
+{
+  "applied_at_utc": "2026-09-12T02:07:32.531124+00:00",
+  "revision": "clean_0003",
+  "manual_patch": "migrations/manual/relax_workflow_constraints.sql",
+  "tables_verified": 44,
+  "tables_columns_primary_foreign_keys": "unchanged",
+  "all_table_row_counts_and_content_fingerprints": "unchanged",
+  "schema_archive_sha256_verified": true,
+  "temporary_database_behavior_verification": "passed; temporary database removed",
+  "git_commit_created": false
+}

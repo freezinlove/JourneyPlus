@@ -1,0 +1,8 @@
+{
+  "captured_at_utc": "2026-09-12T02:05:41.623558+00:00",
+  "database": "journeyplus",
+  "migration_revision": "clean_0003",
+  "scope": "schema-only; no business rows or alembic_version row",
+  "sha256": "ad06bf9934eca04af5f46048acfe6cd450a795c001fd36a621c26088e0cb64f6",
+  "bytes": 90584
+}
