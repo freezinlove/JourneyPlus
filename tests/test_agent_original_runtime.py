@@ -1,5 +1,6 @@
 """Exercise the production assembly on original business tables plus runtime migration."""
 import asyncio
+from dataclasses import replace
 import importlib.util
 from pathlib import Path
 from time import monotonic
@@ -69,7 +70,7 @@ def test_missing_runtime_returns_specific_failure_before_model(original_factory)
 def test_original_memory_authorization_idempotency_update_delete(migrated):
     runtime,store,ctx,auth=setup(migrated)
     memory=runtime.services['user_memory']
-    args=HoldingsWriteInput(operation='create',identity={'program_name':'测试俱乐部','tier_name':'金卡'},authorization=auth,operation_key='save')
+    args=HoldingsWriteInput(operation='create',identity={'program_name':'测试俱乐部','tier_name':'金卡'})
     first=memory.write(args,ctx)
     assert not first.error,first
     assert first.data==memory.write(args,ctx).data
@@ -79,39 +80,38 @@ def test_original_memory_authorization_idempotency_update_delete(migrated):
     assert read['source_record']['original_statements'][0]['text']==auth['quotes'][0]
     with migrated.begin() as s:
         row=s.get(WorkflowHolding,UUID(holding['ref'][8:]));row.valid_until=__import__('datetime').date(2028,1,1)
-    stale=HoldingsWriteInput(operation='delete',holding_ref=holding['ref'],expected_revision=holding['revision'],authorization=auth,operation_key='delete-stale')
-    assert memory.write(stale,ctx).error.code=='CONFLICT'
+    stale=HoldingsWriteInput(operation='delete',holding_ref=holding['ref'],expected_revision=holding['revision'])
+    assert memory.write(stale,replace(ctx,call_id="stale")).error.code=='CONFLICT'
     current=memory.read(HoldingsReadInput())[0]
     assert current['source_record']=={}  # an external edit cannot inherit an old verified receipt
-    update=HoldingsWriteInput(operation='update',holding_ref=current['ref'],expected_revision=current['revision'],valid_until=None,authorization=auth,operation_key='update')
-    result=memory.write(update,ctx);assert not result.error,result
-    delete=stale.model_copy(update={'expected_revision':result.data['after']['revision'],'operation_key':'delete'})
-    assert not memory.write(delete,ctx).error
+    update=HoldingsWriteInput(operation='update',holding_ref=current['ref'],expected_revision=current['revision'],valid_until=None)
+    result=memory.write(update,replace(ctx,call_id="update"));assert not result.error,result
+    delete=stale.model_copy(update={'expected_revision':result.data['after']['revision']})
+    assert not memory.write(delete,replace(ctx,call_id="delete")).error
     assert memory.read(HoldingsReadInput())==[]
-    bad=args.model_copy(update={'operation_key':'bad','authorization':args.authorization.model_copy(update={'quotes':['invented']})})
-    assert memory.write(bad,ctx).error.code=='NOT_AUTHORIZED'
+    assert memory.write(args,replace(ctx,turn_id=str(uuid4()),call_id='missing-turn')).error.code=='NOT_AUTHORIZED'
 
 
 def test_known_holding_saved_routes_waiting_and_lifecycle(migrated):
     seed(migrated)
     runtime,store,ctx,auth=setup(migrated)
     result=runtime.services['user_memory'].write(HoldingsWriteInput(operation='create',
-        identity={'program_name':'Marriott Bonvoy','tier_name':'Platinum'},authorization=auth,operation_key='known'),ctx)
+        identity={'program_name':'Marriott Bonvoy','tier_name':'Platinum'}),ctx)
     assert not result.error,result
     assert result.data['after']['tier_ref']
     routes=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{'sources':{'mode':'saved'}}})
     assert routes.data['candidates']
     waiting=runtime.services['waiting']
-    args=WaitingInput(operation='create',query={'sources':{'mode':'saved'}},authorization=auth,operation_key='wait')
-    created=waiting.manage(args,ctx);assert not created.error,created
+    args=WaitingInput(operation='create',query={'sources':{'mode':'saved'}})
+    created=waiting.manage(args,replace(ctx,call_id="wait-create"));assert not created.error,created
     goal=created.data['after']
     assert waiting.check()['status'] in {'NO_HIT','RESULT_PENDING'}
     listed=waiting.manage(WaitingInput(operation='list'),ctx)
     current=listed.data['goals'][0]
     update=WaitingInput(operation='update',goal_ref=current['ref'],expected_revision=current['revision'],
-        query={'sources':{'mode':'saved'},'constraints':{'free_only':True}},authorization=auth,operation_key='update-wait')
-    updated=waiting.manage(update,ctx);assert not updated.error,updated
-    canceled=waiting.manage(WaitingInput(operation='cancel',goal_ref=goal['ref'],expected_revision=updated.data['after']['revision'],authorization=auth,operation_key='cancel'),ctx)
+        query={'sources':{'mode':'saved'},'constraints':{'free_only':True}})
+    updated=waiting.manage(update,replace(ctx,call_id="wait-update"));assert not updated.error,updated
+    canceled=waiting.manage(WaitingInput(operation='cancel',goal_ref=goal['ref'],expected_revision=updated.data['after']['revision']),replace(ctx,call_id='wait-cancel'))
     assert not canceled.error,canceled
     assert waiting.check()['status']=='NO_ACTIVE_GOAL'
 

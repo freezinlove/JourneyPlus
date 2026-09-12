@@ -5,9 +5,7 @@ from uuid import UUID
 from sqlalchemy import select, text
 from journeyplus.models import StatusHolding, now_utc
 from journeyplus.knowledge import user_journal as _journal  # registers transaction listeners
-from journeyplus.workspace_models import WorkspaceMessage
 from journeyplus.agent.adapters.models import OperationReceipt
-from journeyplus.agent.adapters.artifacts import digest
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.membership.normalization import normalize_key, normalize_tier
 from .identities import canonical
@@ -25,9 +23,7 @@ def holding_view(row):
                 if not row.program_id else None}
 
 
-def receipt_result(row):
-    return ToolResult(data={'operation_ref':'operation:'+str(row.id),'outcome':row.status,'before':row.before,
-                           'after':row.after,'revision':(row.after or row.before or {}).get('revision')})
+from .operation_context import prepare_operation, receipt_result
 
 
 class UserMemory:
@@ -50,28 +46,6 @@ class UserMemory:
                 ' '.join(item['text'] for item in (row.source_record or {}).get('original_statements',[])))]
             return [holding_view(r) for r in rows]
 
-    def authorize(self,s,ctx,authorization):
-        found=list(s.scalars(select(WorkspaceMessage).where(WorkspaceMessage.workspace_id==UUID(ctx.workspace_id),
-                   WorkspaceMessage.id.in_([UUID(ref) for ref in authorization.message_refs]),WorkspaceMessage.role=='USER')))
-        if len(found)!=len(set(authorization.message_refs)):
-            raise PermissionError('Authorization must reference user messages in this workspace')
-        sources = [{'id': str(row.id), 'legacy': bool(row.content.get('metadata', {}).get('legacy')),
-                    'text': '\n'.join(part.get('text') or '' for part in row.content.get('content', [])
-                                      if part.get('type') == 'text')} for row in found]
-        bindings = []
-        for quote in authorization.quotes:
-            matches = [source for source in sources if quote and quote in source['text']]
-            if not matches:
-                raise PermissionError('Authorization quotes must occur verbatim in user messages')
-            current = [source['id'] for source in matches if not source['legacy']]
-            if not current:
-                raise PermissionError('Imported quotations cannot authorize a new operation; quote the new user authorization')
-            bindings.append({'quote': quote, 'message_refs': current})
-        return {'workspace_id':ctx.workspace_id, 'turn_id':ctx.turn_id, 'call_id':ctx.call_id, 'messages':[{'id':str(row.id),'created_at':row.created_at.isoformat()} for row in found],
-                'quotes':authorization.quotes,'quote_bindings':bindings,
-                'original_statements':[{'message_ref':item['id'],'text':item['text']} for item in sources if not item['legacy']],
-                'requested_at':now_utc().isoformat()}
-
     def write(self,args,ctx):
         try:
             from journeyplus.agent.adapters.transactions import transaction
@@ -79,12 +53,11 @@ class UserMemory:
                 s.info['user_business_journal']=True
                 # Serialize only user-memory effects. No model/network work is held here.
                 if s.bind.dialect.name=='postgresql':s.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
-                authorization=self.authorize(s,ctx,args.authorization)
-                key=ctx.workspace_id+':'+args.authorization.message_refs[-1]+':'+args.operation_key
-                hashed=digest(args.model_dump(mode='json',exclude_unset=True))
-                existing=s.scalar(select(OperationReceipt).where(OperationReceipt.owner_key==ctx.server_owner,OperationReceipt.idempotency_key==key))
-                if existing:
-                    return receipt_result(existing) if existing.payload_hash==hashed else ToolResult.failure('CONFLICT','Operation key already used for different payload')
+                def current_state(identity):
+                    row=s.get(StatusHolding,identity,with_for_update=True)
+                    return {'ref':'holding:'+str(row.id),'revision':row.revision} if row else None
+                key,hashed,authorization,replay=prepare_operation(s,ctx,args,'holding.'+args.operation,current_state)
+                if replay is not None:return replay
                 row=s.get(StatusHolding,UUID(args.holding_ref.removeprefix('holding:')),with_for_update=True) if args.holding_ref else None
                 if args.operation!='create' and (row is None or row.revision!=args.expected_revision):
                     return ToolResult(status='ERROR',error={'code':'CONFLICT','message':'Holding missing or revision changed'},data={'current':holding_view(row)})

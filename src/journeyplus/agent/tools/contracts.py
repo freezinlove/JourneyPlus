@@ -92,22 +92,11 @@ class QueryPatch(DTO):
     preferences: list[Literal['FEWER_STEPS', 'LOWER_KNOWN_FEE', 'LESS_UNCERTAINTY']] | None = None
 
 
-class ConstraintChange(DTO):
-    field: str = Field(pattern=r'^/')
-    message_ref: str
-    quote: str = Field(min_length=1, max_length=1000)
-    reason: str = Field(min_length=1, max_length=500)
-
-
 class RoutesInput(DTO):
     operation: Literal['search', 'inspect', 'compare']
     query: RouteRequest | None = None
     query_ref: str | None = Field(default=None,description='QUERY ref: replay unchanged, use cursor for pages or patch for changes.')
     patch: QueryPatch | None = Field(default=None,description='RFC7396 RouteRequest patch with query_ref. sources/target replace whole objects. Null clears, omission inherits.')
-    constraint_changes: list[ConstraintChange] = Field(default_factory=list,max_length=12,
-        description='Explicit evidence for changing existing category, alliance or constraints; field is a JSON pointer. Quotes establish provenance, not semantic approval.')
-    source_message_refs: list[str] = Field(default_factory=list,max_length=5,
-        description='Optional user-message evidence for this interpretation; default is the current user turn. References establish provenance, not proof of semantic correctness.')
     route_refs: list[str] = Field(default_factory=list, max_length=12)
     cursor: str | None = Field(default=None,description='Continue returned next_cursor with operation="search" and the same query_ref; omit query and patch. There is no next_page operation.')
     limit: int = Field(default=8, ge=1, le=20)
@@ -120,7 +109,7 @@ class RoutesInput(DTO):
             paged = self.query is None and bool(self.query_ref) and self.patch is None and bool(self.cursor)
             if not (full or patched or paged) or self.route_refs:
                 raise ValueError('search requires query OR query_ref with optional patch OR query_ref+cursor')
-        elif not self.route_refs or self.source_message_refs or self.constraint_changes or any(x is not None for x in (self.query, self.query_ref, self.patch, self.cursor)):
+        elif not self.route_refs or any(x is not None for x in (self.query, self.query_ref, self.patch, self.cursor)):
             raise ValueError('inspect/compare require only route_refs')
         return self
 
@@ -131,19 +120,12 @@ class HoldingsReadInput(DTO):
     include_expired: bool = False
 
 
-class Authorization(DTO):
-    message_refs: list[str] = Field(min_length=1, max_length=5)
-    quotes: list[str] = Field(min_length=1, max_length=5)
-
-
 class HoldingsWriteInput(DTO):
     operation: Literal['create', 'update', 'delete']
     holding_ref: str | None = None
     expected_revision: int | None = Field(default=None, ge=0)
     identity: IdentityInput | None = None
     valid_until: str | None = Field(default=None, pattern=r'^\d{4}-\d{2}-\d{2}$')
-    authorization: Authorization
-    operation_key: str = Field(min_length=1, max_length=100)
 
     @model_validator(mode='after')
     def check_operation(self):
@@ -176,7 +158,6 @@ class WorkspaceReadInput(DTO):
 class NoteInput(DTO):
     expected_revision: int = Field(ge=0)
     content: str = Field(max_length=8000)
-    source_message_refs: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode='after')
     def check_note_budget(self):
@@ -217,7 +198,6 @@ class ResearchInput(DTO):
     page_refs: list[str] = Field(min_length=1, max_length=8)
     subject: ResearchSubject | None = None
     method: Literal['MATCH', 'CHALLENGE'] | None = None
-    context: dict = Field(default_factory=dict)
 
 
 class SelectionRole(DTO):
@@ -267,8 +247,6 @@ class WaitingInput(DTO):
     expected_revision: int | None = Field(default=None, ge=0)
     query_ref: str | None = None
     query: RouteRequest | None = None
-    authorization: Authorization | None = None
-    operation_key: str | None = Field(default=None, min_length=1, max_length=100)
     limit: int = Field(default=10,ge=1,le=20,description='Maximum waiting goals per list page.')
     cursor: str | None = Field(default=None,description='Continue list with its returned cursor.')
 
@@ -282,8 +260,6 @@ class WaitingInput(DTO):
             raise ValueError('create cannot include goal_ref or expected_revision')
         if self.operation == 'cancel' and {'query','query_ref'} & self.model_fields_set:
             raise ValueError('cancel cannot include a replacement query')
-        if self.operation != 'list' and (self.authorization is None or not self.operation_key):
-            raise ValueError('write operations require authorization and operation_key')
         if self.operation in {'update', 'cancel'} and (not self.goal_ref or self.expected_revision is None):
             raise ValueError('update/cancel require goal_ref and expected_revision')
         if self.operation in {'create', 'update'} and (bool(self.query) == bool(self.query_ref)):

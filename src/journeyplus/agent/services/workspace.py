@@ -28,4 +28,5 @@ def read(args,ctx):
 @blocking_tool
 def note(args,ctx):
     return ctx.authorization_port.save_note(ctx.workspace_id, ctx.turn_id, ctx.call_id,
-        args.expected_revision, args.content, args.source_message_refs)
+        args.expected_revision, args.content,
+        ctx.authorization_port.user_message_refs(ctx.workspace_id, ctx.turn_id))

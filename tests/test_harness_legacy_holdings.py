@@ -27,8 +27,7 @@ def test_legacy_edit_then_agent_update_preserves_one_membership(session_factory,
     message=store.load_context_index(w['id'])['messages'][0]
     ctx=replace(ctx,turn_id=message.metadata['turn_id'])
     args=HoldingsWriteInput(operation='update',holding_ref='holding:'+str(identity),expected_revision=2,
-        identity={'ref':'tier:'+str(silver)},operation_key='bridge',
-        authorization={'message_refs':[message.id],'quotes':['请把我的 Example-Air 改成 Silver']})
+        identity={'ref':'tier:'+str(silver)})
     result=runtime.services['user_memory'].write(args,ctx)
     assert result.data['outcome']=='APPLIED'
     with session_factory() as session:

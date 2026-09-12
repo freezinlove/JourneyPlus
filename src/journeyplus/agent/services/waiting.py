@@ -8,7 +8,7 @@ from journeyplus.agent.adapters.models import OperationReceipt
 from journeyplus.agent.adapters.artifacts import digest
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.agent.tools.contracts import RouteRequest
-from .user_memory import receipt_result
+from .operation_context import prepare_operation, receipt_result
 from copy import deepcopy
 
 ACTIVE={'ACTIVE','RESULT_PENDING','NEEDS_RECONFIRMATION'}
@@ -103,11 +103,11 @@ class WaitingService:
             with transaction(self.factory) as s:
                 s.info['user_business_journal']=getattr(self.memory,'business_journal',True)
                 if s.bind.dialect.name=='postgresql':s.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
-                authorization=self.memory.authorize(s,ctx,args.authorization)
-                key=ctx.workspace_id+':'+args.authorization.message_refs[-1]+':'+args.operation_key
-                hashed=digest(args.model_dump(mode='json',exclude_unset=True))
-                old=s.scalar(select(OperationReceipt).where(OperationReceipt.owner_key==ctx.server_owner,OperationReceipt.idempotency_key==key))
-                if old:return receipt_result(old) if old.payload_hash==hashed else ToolResult.failure('CONFLICT','Operation key payload changed')
+                def current_state(identity):
+                    row=s.get(AgentWaitGoal,identity,with_for_update=True)
+                    return {'ref':'goal:'+str(row.id),'revision':row.revision} if row else None
+                key,hashed,authorization,replay=prepare_operation(s,ctx,args,'waiting.'+args.operation,current_state)
+                if replay is not None:return replay
                 if prepared and self.queries.user_data.route_sources(query.sources.mode,query.sources.holding_refs)!=prepared['holding_snapshot']:
                     return ToolResult.failure('CONFLICT','Source memberships changed during query preparation; retry with current data')
                 if args.operation=='create':

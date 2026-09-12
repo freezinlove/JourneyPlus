@@ -115,18 +115,16 @@ def test_authorized_write_and_delete_keep_real_receipts_without_final_envelope(m
         async def stream(self, messages, definitions, limits, cancel_token):
             self.inputs.append(messages)
             user = next(m for m in messages if m.role == 'user')
-            auth = {'message_refs': [user.id], 'quotes': [prompt]}
             if len(self.inputs) == 1:
                 yield tool('holdings.write', {'operation': 'create', 'identity': {
                     'program_name': '测试俱乐部', 'tier_name': '金卡'},
-                    'authorization': auth, 'operation_key': 'create'}, 'create')
+                    }, 'create')
             elif len(self.inputs) == 2:
                 saved = last_result(messages)
                 assert saved['data']['outcome'] == 'APPLIED'
                 row = saved['data']['after']
                 yield tool('holdings.write', {'operation': 'delete', 'holding_ref': row['ref'],
-                    'expected_revision': row['revision'], 'authorization': auth,
-                    'operation_key': 'delete'}, 'delete')
+                    'expected_revision': row['revision'], }, 'delete')
             else:
                 assert last_result(messages)['data']['outcome'] == 'APPLIED'
                 yield ModelEvent(type='text_delta', text='测试记录已经保存并删除。')

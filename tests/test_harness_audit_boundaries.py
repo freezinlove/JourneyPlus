@@ -106,41 +106,44 @@ def test_formal_connection_never_reads_user_tables(session_factory):
     knowledge_engine.dispose()
 
 
-def test_new_authorization_can_reference_imported_context_but_quotes_bind_new_message(session_factory):
-    from tests.test_harness_memory import setup
+def test_execution_snapshot_uses_current_messages_without_quotations(session_factory):
     from journeyplus.workspace_models import WorkspaceMessage
     from journeyplus.agent.harness.contracts import ModelMessage,Part
-    from journeyplus.agent.tools.contracts import Authorization
+    from journeyplus.agent.adapters.models import OperationReceipt
+    from tests.test_harness_memory import setup
     runtime,store,w,run,ctx,args=setup(session_factory)
+    old=store.load_context_index(w['id'])['messages'][0]
     with session_factory.begin() as session:
-        row=session.get(WorkspaceMessage,UUID(args.authorization.message_refs[0]))
+        row=session.get(WorkspaceMessage,UUID(old.id))
         row.content={**row.content,'metadata':{**row.content['metadata'],'legacy':True}}
     owner=str(uuid4());store.claim_run(run['run_id'],owner)
-    fresh=ModelMessage(role='user',content=[Part(type='text',text='现在请保存旧消息里提到的那张金卡。')])
+    fresh=ModelMessage(role='user',content=[Part(type='text',text='现在请保存刚才讨论的金卡。')])
     store.append_message(run['run_id'],owner,fresh)
-    args.authorization=Authorization(message_refs=[*args.authorization.message_refs,fresh.id],quotes=['现在请保存旧消息里提到的那张金卡。'])
     result=runtime.services['user_memory'].write(args,ctx)
     assert result.data['outcome']=='APPLIED'
     with session_factory() as session:
-        row=session.scalar(select(OperationReceipt))
-        assert row.authorization_snapshot['quote_bindings']==[{'quote':args.authorization.quotes[0],'message_refs':[fresh.id]}]
+        snapshot=session.scalar(select(OperationReceipt)).authorization_snapshot
+        assert snapshot['original_statements']==[{'message_ref':fresh.id,'text':fresh.content[0].text}]
+        assert snapshot['semantic_authorization_verified'] is False
+        assert 'quotes' not in snapshot and 'quote_bindings' not in snapshot
 
 
 def test_waiting_projection_failure_keeps_commit_and_replay_repairs_view(session_factory,monkeypatch):
     from tests.test_knowledge_routes import edge
     _,store,w,ctx=context(session_factory)
     store.start(w['id'],'Create and update waiting','one',0)
-    auth={'message_refs':[store.load_context_index(w['id'])['messages'][0].id],'quotes':['Create and update waiting']}
+    ctx.turn_id=store.load_context_index(w['id'])['messages'][-1].metadata['turn_id']
     with session_factory.begin() as session:source,_=edge(session)
     query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}}
     waiting=ctx.services['waiting']
-    first=waiting.manage(WaitingInput(operation='create',query=query,authorization=auth,operation_key='create'),ctx)
+    first=waiting.manage(WaitingInput(operation='create',query=query),ctx)
     assert waiting.check()['status']=='RESULT_PENDING'
     current=waiting.manage(WaitingInput(operation='list'),ctx).data['goals'][0]
-    args=WaitingInput(operation='update',goal_ref=current['ref'],expected_revision=current['revision'],query=query,authorization=auth,operation_key='update')
+    args=WaitingInput(operation='update',goal_ref=current['ref'],expected_revision=current['revision'],query=query)
     original=store.artifacts.put_once
     def unavailable(*args,**kwargs):raise RuntimeError('temporary projection failure')
     monkeypatch.setattr(store.artifacts,'put_once',unavailable)
+    ctx=replace(ctx,call_id="update")
     result=waiting.manage(args,ctx)
     assert result.status=='PARTIAL' and result.error is None and result.data['outcome']=='APPLIED'
     assert result.data['before']['evidence_status']=='VIEW_UNAVAILABLE'

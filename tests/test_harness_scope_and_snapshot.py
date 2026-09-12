@@ -36,10 +36,10 @@ def test_same_call_id_across_turns_attaches_only_its_own_presentation(session_fa
 def test_waiting_durable_result_reprojects_after_workspace_expiry(session_factory):
     _,store,w,ctx=context(session_factory)
     store.start(w['id'],'Create waiting','one',0)
-    auth={'message_refs':[store.load_context_index(w['id'])['messages'][0].id],'quotes':['Create waiting']}
+    ctx.turn_id=store.load_context_index(w['id'])['messages'][-1].metadata['turn_id']
     with session_factory.begin() as session:source,_=edge(session)
     waiting=ctx.services['waiting']
-    args=WaitingInput(operation='create',query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}},authorization=auth,operation_key='create')
+    args=WaitingInput(operation='create',query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}})
     receipt=waiting.manage(args,ctx);assert waiting.check()['status']=='RESULT_PENDING'
     old=waiting.manage(WaitingInput(operation='list'),ctx).data['goals'][0]
     other=store.create();new_ctx=replace(ctx,workspace_id=other['id'],turn_id=str(uuid4()))

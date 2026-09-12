@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 from time import monotonic
 from uuid import UUID
@@ -18,7 +19,7 @@ def setup(factory):
     w=store.create();r=store.start(w['id'],'请保存我的测试俱乐部金卡。','save',0)
     message=store.load_context_index(w['id'])['messages'][0]
     context=ExecutionContext(w['id'],message.metadata['turn_id'],'call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
-    args=HoldingsWriteInput(operation='create',identity={'program_name':'测试俱乐部','tier_name':'金卡'},authorization={'message_refs':[message.id],'quotes':['请保存我的测试俱乐部金卡。']},operation_key='save-one')
+    args=HoldingsWriteInput(operation='create',identity={'program_name':'测试俱乐部','tier_name':'金卡'})
     return runtime,store,w,r,context,args
 
 
@@ -28,7 +29,7 @@ def test_authorized_unresolved_save_receipt_journal_and_replay(session_factory):
     first=memory.write(args,ctx);second=memory.write(args,ctx)
     assert first.data==second.data and first.data['outcome']=='APPLIED'
     assert first.data['after']['identity_status']=='NEEDS_CONFIRMATION'
-    third=memory.write(args.model_copy(update={'operation_key':'another'}),ctx)
+    third=memory.write(args,replace(ctx,call_id="duplicate"))
     assert third.data['outcome']=='NOOP'
     with session_factory() as s:
         assert len(list(s.scalars(select(StatusHolding))))==1
@@ -36,10 +37,9 @@ def test_authorized_unresolved_save_receipt_journal_and_replay(session_factory):
         assert len(list(s.scalars(select(OperationReceipt))))==2
 
 
-def test_invalid_authorization_zero_write(session_factory):
+def test_missing_current_turn_zero_write(session_factory):
     runtime,store,w,r,ctx,args=setup(session_factory)
-    args.authorization.quotes=['fabricated authorization']
-    result=runtime.services['user_memory'].write(args,ctx)
+    result=runtime.services['user_memory'].write(args,replace(ctx,turn_id=str(__import__('uuid').uuid4())))
     assert result.error.code=='NOT_AUTHORIZED'
     with session_factory() as s:assert not list(s.scalars(select(StatusHolding)))
 
@@ -49,9 +49,8 @@ def test_revision_conflict_and_changed_idempotency_payload(session_factory):
     memory=runtime.services['user_memory'];first=memory.write(args,ctx)
     conflicting=args.model_copy(update={'valid_until':'2027-01-01'})
     assert memory.write(conflicting,ctx).error.code=='CONFLICT'
-    update=HoldingsWriteInput(operation='delete',holding_ref=first.data['after']['ref'],expected_revision=999,
-        authorization=args.authorization,operation_key='delete')
-    assert memory.write(update,ctx).error.code=='CONFLICT'
+    update=HoldingsWriteInput(operation='delete',holding_ref=first.data['after']['ref'],expected_revision=999)
+    assert memory.write(update,replace(ctx,call_id="stale-delete")).error.code=='CONFLICT'
 
 
 def test_workspace_expiry_preserves_operation_receipt(session_factory):
@@ -79,8 +78,8 @@ def test_import_preserves_history_but_never_imports_execution_flags(session_fact
     imported=history['messages'];assert imported[0].content[0].text==original_text
     ref=imported[1].content[1].ref
     assert store.artifacts.read(w['id'],ref)['payload']['blocks'][0]['payload']['routes'][0]['ref']=='old-route'
-    ctx=ExecutionContext(w['id'],'new-turn','new-call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
-    args=HoldingsWriteInput(operation='create',identity={'program_name':'旧俱乐部','tier_name':'金卡'},authorization={'message_refs':[imported[0].id],'quotes':[original_text]},operation_key='must-not-execute')
+    ctx=ExecutionContext(w['id'],str(uuid4()),'new-call','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
+    args=HoldingsWriteInput(operation='create',identity={'program_name':'旧俱乐部','tier_name':'金卡'})
     assert runtime.services['user_memory'].write(args,ctx).error.code=='NOT_AUTHORIZED'
     with session_factory() as s:assert not list(s.scalars(select(StatusHolding)))
 

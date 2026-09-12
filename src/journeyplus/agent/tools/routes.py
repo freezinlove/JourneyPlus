@@ -184,10 +184,6 @@ def evaluate(args, ctx):
                 next_cursor=next_cursor)
         query=merge_query(previous['payload'],args.patch or {})
     lineage=build(ctx,args,query.model_dump(mode='json'),previous if not args.query else None)
-    from journeyplus.agent.services.query_lineage import validate_changes
-    conflict=validate_changes(ctx,args,lineage)
-    if conflict:
-        return conflict
     context_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY_CONTEXT',lineage,call_id=ctx.call_id,turn_id=ctx.turn_id)
     query_ref=ctx.artifact_port.put(ctx.workspace_id,'QUERY',query.model_dump(mode='json'),call_id=ctx.call_id,turn_id=ctx.turn_id,source_refs=[context_ref])
     evaluation=ctx.services['route_queries'].evaluate(query,context=ctx,limit=args.limit)

@@ -4,13 +4,13 @@ from uuid import UUID
 from sqlalchemy import select, text
 from journeyplus.agent.adapters.workflow_holdings import WorkflowHolding as Holding, holding_revision
 from journeyplus.agent.adapters.models import OperationReceipt
-from journeyplus.agent.adapters.artifacts import digest
 from journeyplus.agent.adapters.transactions import read_session, transaction
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.membership.normalization import normalize_key, normalize_tier
 from journeyplus.models import now_utc
 from .identities import canonical
-from .user_memory import UserMemory, receipt_result
+from .user_memory import UserMemory
+from .operation_context import prepare_operation, receipt_result
 
 
 class WorkflowUserMemory(UserMemory):
@@ -74,13 +74,11 @@ class WorkflowUserMemory(UserMemory):
                     return ToolResult.failure('USER_WRITES_PAUSED', 'User writes are paused')
                 if session.bind.dialect.name == 'postgresql':
                     session.execute(text('SELECT pg_advisory_xact_lock(748293001)'))
-                authorization = self.authorize(session, ctx, args.authorization)
-                key = ctx.workspace_id + ':' + args.authorization.message_refs[-1] + ':' + args.operation_key
-                hashed = digest(args.model_dump(mode='json', exclude_unset=True))
-                receipt = session.scalar(select(OperationReceipt).where(
-                    OperationReceipt.owner_key == ctx.server_owner, OperationReceipt.idempotency_key == key))
-                if receipt:
-                    return receipt_result(receipt) if receipt.payload_hash == hashed else ToolResult.failure('CONFLICT', 'Operation key payload changed')
+                def current_state(identity):
+                    row=session.get(Holding,identity,with_for_update=True)
+                    return {'ref':'holding:'+str(row.id),'revision':holding_revision(row)} if row else None
+                key,hashed,authorization,replay=prepare_operation(session,ctx,args,'holding.'+args.operation,current_state)
+                if replay is not None:return replay
                 row = session.get(Holding, UUID(args.holding_ref.removeprefix('holding:')), with_for_update=True) if args.holding_ref else None
                 if args.operation != 'create' and (row is None or holding_revision(row) != args.expected_revision):
                     return ToolResult.failure('CONFLICT', 'Holding changed or is missing; read it again')

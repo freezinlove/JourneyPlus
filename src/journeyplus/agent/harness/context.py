@@ -96,7 +96,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
         used += size
     if omitted:
         additions['history_available_before'] = selected[0].id
-        additions['history_access'] = 'Earlier messages and authorization quotes remain retrievable through the registered history capability.'
+        additions['history_access'] = 'Earlier messages remain retrievable through the registered history capability.'
     if additions:
         system.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(additions, ensure_ascii=False))]))
     if used > limit:

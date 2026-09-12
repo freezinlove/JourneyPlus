@@ -1,5 +1,6 @@
 """Behavioral regressions for provider-independent contracts and evidence retention."""
 import asyncio
+from dataclasses import replace
 from uuid import UUID
 from journeyplus.models import StatusHolding
 from journeyplus.knowledge.models import MembershipProgram, MembershipTier
@@ -48,15 +49,13 @@ def test_original_statement_survives_incorrect_extraction_and_workspace_expiry(s
 def test_unbound_wait_is_saved_but_not_executed_then_can_be_bound(session_factory):
     runtime,store,w,r,ctx,args=setup(session_factory)
     service=runtime.services['waiting']
-    original=service.manage(WaitingInput(operation='create',query={'sources':{'mode':'none'},'target':{'program_name':'Not Indexed'}},
-        authorization=args.authorization,operation_key='wait'),ctx)
+    original=service.manage(WaitingInput(operation='create',query={'sources':{'mode':'none'},'target':{'program_name':'Not Indexed'}}),ctx)
     assert original.data['after']['status']=='NEEDS_RECONFIRMATION'
     assert original.data['after']['readiness']['ready'] is False
     assert service.check()['coverage']['search_performed'] is False
     with session_factory.begin() as s:source,target=edge(s)
     updated=service.manage(WaitingInput(operation='update',goal_ref=original.data['after']['ref'],
-        expected_revision=original.data['revision'],query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]},'target':{'ref':'tier:'+str(target)}},
-        authorization=args.authorization,operation_key='resolve-wait'),ctx)
+        expected_revision=original.data['revision'],query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]},'target':{'ref':'tier:'+str(target)}}),replace(ctx,call_id='update-wait'))
     assert updated.data['after']['status']=='ACTIVE'
     assert service.check()['status']=='RESULT_PENDING'
     assert not runtime.ports.model.inputs
@@ -150,8 +149,7 @@ def test_deleted_explicit_holding_suspends_wait_instead_of_crashing(session_fact
         row=StatusHolding(program_key='known',tier_key='gold',program_display_name='Known',tier_display_name='Gold',tier_id=source)
         s.add(row);s.flush();hid=row.id
     service=runtime.services['waiting']
-    created=service.manage(WaitingInput(operation='create',query={'sources':{'mode':'explicit','holding_refs':['holding:'+str(hid)]}},
-        authorization=args.authorization,operation_key='watch-holding'),ctx)
+    created=service.manage(WaitingInput(operation='create',query={'sources':{'mode':'explicit','holding_refs':['holding:'+str(hid)]}}),ctx)
     assert created.data['after']['status']=='ACTIVE'
     with session_factory.begin() as s:s.delete(s.get(StatusHolding,hid))
     checked=service.check()

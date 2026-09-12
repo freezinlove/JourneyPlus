@@ -160,7 +160,7 @@ def test_wire_schema_can_express_authorized_date_clear():
     date=schema['properties']['valid_until']
     assert {'type':'null'} in date['anyOf']
     args={'operation':'update','holding_ref':'holding:example','expected_revision':1,
-          'valid_until':None,'authorization':{'message_refs':['message'],'quotes':['clear expiry']},'operation_key':'clear'}
+          'valid_until':None,}
     parsed=HoldingsWriteInput.model_validate(args)
     assert 'valid_until' in parsed.model_fields_set and parsed.valid_until is None
 
@@ -179,8 +179,7 @@ def test_wire_container_decoding_preserves_values_and_canonical_validation():
     with pytest.raises(ValueError):RoutesInput.model_validate(bad)
     malformed,_=decode_wire_containers({'operation':'search','query':'{broken'},RoutesInput.model_json_schema())
     with pytest.raises(ValueError):RoutesInput.model_validate(malformed)
-    update={'operation':'update','holding_ref':'holding:existing','expected_revision':1,'valid_until':None,
-            'authorization':json.dumps({'message_refs':['message:one'],'quotes':['clear expiry']}),'operation_key':'one'}
+    update={'operation':'update','holding_ref':'holding:existing','expected_revision':1,'valid_until':None,'identity':json.dumps({'program_name':'Example','tier_name':'Gold'})}
     decoded,_=decode_wire_containers(update,HoldingsWriteInput.model_json_schema())
     assert HoldingsWriteInput.model_validate(decoded).valid_until is None and 'valid_until' in decoded
     assert decode_wire_containers('{"literal":"text"}',{'anyOf':[{'type':'object'},{'type':'string'}]})==('{"literal":"text"}',[])

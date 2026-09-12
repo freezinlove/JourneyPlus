@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import replace
 from datetime import timedelta
 from uuid import UUID
 from sqlalchemy import select
@@ -13,15 +14,15 @@ def test_waiting_is_explicit_durable_and_checks_without_model(session_factory):
     runtime,store,w,ctx=context(session_factory)
     quote='请按本次起点创建等待任务'
     store.start(w['id'],quote,'create-wait',0)
+    ctx.turn_id=store.load_context_index(w['id'])['messages'][-1].metadata['turn_id']
     message=store.load_context_index(w['id'])['messages'][0]
-    authorization={'message_refs':[message.id],'quotes':[quote]}
     with session_factory.begin() as s:source,target=edge(s)
-    args=WaitingInput(operation='create',query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}},authorization=authorization,operation_key='waiting')
+    args=WaitingInput(operation='create',query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}})
     service=runtime.services['waiting'];created=service.manage(args,ctx)
     assert created.data['outcome']=='APPLIED'
     assert service.manage(args,ctx).data==created.data
-    conflict=service.manage(args.model_copy(update={'operation_key':'different'}),ctx)
-    assert conflict.error.code=='CONFLICT'
+    duplicate=service.manage(args,replace(ctx,call_id="duplicate"))
+    assert duplicate.data["outcome"]=="NOOP"
     checked=service.check();assert checked['status']=='RESULT_PENDING' and checked['model_calls']==0
     listed=service.manage(WaitingInput(operation='list'),ctx)
     assert listed.data['goals'][0]['route_refs']
@@ -31,7 +32,7 @@ def test_waiting_is_explicit_durable_and_checks_without_model(session_factory):
     store.cleanup()
     with session_factory() as s:
         assert len(list(s.scalars(select(AgentWaitGoal))))==1
-        assert len(list(s.scalars(select(OperationReceipt))))==1
+        assert len(list(s.scalars(select(OperationReceipt))))==2
     assert not runtime.ports.model.inputs
 
 
@@ -39,17 +40,16 @@ def test_reactivating_old_goal_cannot_create_two_active_goals(session_factory):
     runtime,store,w,ctx=context(session_factory)
     quote='创建等待，取消后创建新的，再修改旧等待'
     store.start(w['id'],quote,'wait-conflict',0)
+    ctx.turn_id=store.load_context_index(w['id'])['messages'][-1].metadata['turn_id']
     message=store.load_context_index(w['id'])['messages'][0]
-    auth={'message_refs':[message.id],'quotes':[quote]}
     query={'sources':{'mode':'none'}}
     service=runtime.services['waiting']
-    first=service.manage(WaitingInput(operation='create',query=query,authorization=auth,operation_key='first'),ctx)
+    first=service.manage(WaitingInput(operation='create',query=query),ctx)
     ref=first.data['after']['ref'];revision=first.data['revision']
-    canceled=service.manage(WaitingInput(operation='cancel',goal_ref=ref,expected_revision=revision,
-        authorization=auth,operation_key='cancel'),ctx)
-    second=service.manage(WaitingInput(operation='create',query=query,authorization=auth,operation_key='second'),ctx)
+    canceled=service.manage(WaitingInput(operation='cancel',goal_ref=ref,expected_revision=revision),replace(ctx,call_id='cancel'))
+    second=service.manage(WaitingInput(operation='create',query=query),replace(ctx,call_id='create-again'))
     result=service.manage(WaitingInput(operation='update',goal_ref=ref,expected_revision=canceled.data['revision'],
-        query=query,authorization=auth,operation_key='reactivate'),ctx)
+        query=query),replace(ctx,call_id='update'))
     assert result.error.code=='CONFLICT'
     assert result.data['existing']['ref']==second.data['after']['ref']
     with session_factory() as s:
@@ -62,11 +62,11 @@ def test_waiting_update_projects_old_evidence_and_clears_stale_state(session_fac
     runtime,store,w,ctx=context(session_factory)
     quote='创建等待，并允许修改及取消本测试等待'
     store.start(w['id'],quote,'wait-lifecycle',0)
-    auth={'message_refs':[store.load_context_index(w['id'])['messages'][0].id],'quotes':[quote]}
+    ctx.turn_id=store.load_context_index(w['id'])['messages'][-1].metadata['turn_id']
     with session_factory.begin() as s:source,target=edge(s)
     query={'sources':{'mode':'explicit','identities':[{'ref':'tier:'+str(source)}]}}
     service=runtime.services['waiting']
-    created=service.manage(WaitingInput(operation='create',query=query,authorization=auth,operation_key='new'),ctx)
+    created=service.manage(WaitingInput(operation='create',query=query),ctx)
     assert service.check()['status']=='RESULT_PENDING'
     listed=service.manage(WaitingInput(operation='list'),ctx)
     goal=listed.data['goals'][0]
@@ -74,7 +74,7 @@ def test_waiting_update_projects_old_evidence_and_clears_stale_state(session_fac
     assert set(payload['steps'])=={sid for r in payload['routes'].values() for sid in r['step_refs']}
     assert store.artifacts.read(w['id'],payload['query_ref'])['payload']==goal['query']
     updated=service.manage(WaitingInput(operation='update',goal_ref=goal['ref'],expected_revision=goal['revision'],
-        query=query,authorization=auth,operation_key='update'),ctx)
+        query=query),replace(ctx,call_id='update'))
     assert 'pending_result' not in updated.data['before']
     assert updated.data['before']['result_snapshot_ref']
     assert updated.data['after']['result_ref'] is None

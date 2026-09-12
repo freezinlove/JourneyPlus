@@ -24,6 +24,7 @@ class WorkspaceWrites:
                     raise ValueError('Note source reference missing')
             ref = self.artifacts.put_in(session, workspace_id, 'NOTE', {
                 'content': content, 'source_message_refs': source_message_refs,
+                'origin_scope': 'Messages in the execution turn; not verified provenance of every note statement',
                 'revision': expected_revision + 1}, call_id=call_id, turn_id=turn_id)
             state.update(note_revision=expected_revision + 1, note_ref=ref)
             workspace.state = state

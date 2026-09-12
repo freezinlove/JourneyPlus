@@ -212,8 +212,7 @@ def test_history_preserves_last_search_scope_after_inspect_and_explicit_reset():
 
 def test_operation_fields_cannot_be_silently_ignored():
     from journeyplus.agent.tools.contracts import HoldingsWriteInput,WaitingInput
-    authorization={'message_refs':['message'],'quotes':['authorized']}
-    base={'authorization':authorization,'operation_key':'operation'}
+    base={}
     for invalid in [
         {'operation':'delete','holding_ref':'holding:id','expected_revision':1,'identity':{'program_name':'X'}},
         {'operation':'delete','holding_ref':'holding:id','expected_revision':1,'valid_until':None},

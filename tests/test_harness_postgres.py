@@ -53,7 +53,7 @@ def test_postgres_atomic_effect_replay_and_crash_receipt(pg_factory):
         turn=str(s.get(RunCheckpoint,UUID(run)).turn_id)
         before=s.scalar(select(func.count()).select_from(UserBusinessOperation))
     ctx=ExecutionContext(w['id'],turn,'effect','local-user',monotonic()+60,asyncio.Event(),store.artifacts,store,runtime.services)
-    args=HoldingsWriteInput(operation='create',identity={'program_name':program,'tier_name':'金卡'},operation_key='save',authorization={'message_refs':[message.id],'quotes':[quote]})
+    args=HoldingsWriteInput(operation='create',identity={'program_name':program,'tier_name':'金卡'})
     with ThreadPoolExecutor(2) as pool:results=list(pool.map(lambda _:runtime.services['user_memory'].write(args,ctx),range(2)))
     assert results[0].data==results[1].data and not results[0].error
     with pg_factory() as s:
@@ -90,8 +90,7 @@ def test_postgres_resume_pending_write_after_committed_effect(pg_factory):
     run=store.start(workspace['id'],quote,'save',0)['run_id'];owner=str(uuid4())
     state=store.claim_run(run,owner)
     message=store.load_context_index(workspace['id'])['messages'][0]
-    args=HoldingsWriteInput(operation='create',identity={'program_name':program,'tier_name':'金卡'},
-        operation_key='save',authorization={'message_refs':[message.id],'quotes':[quote]})
+    args=HoldingsWriteInput(operation='create',identity={'program_name':program,'tier_name':'金卡'})
     call={'call_id':'pending-write','name':'holdings.write','arguments':args.model_dump(mode='json',exclude_unset=True)}
     store.append_message(run,owner,ModelMessage(role='assistant',content=[Part(type='tool_call',**call)]))
     call['tool_version']=runtime.ports.registry.validate(call['name'],call['arguments'])[0][0].version
