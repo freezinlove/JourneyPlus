@@ -1,0 +1,35 @@
+{
+  "status": {
+    "status": "READY",
+    "error_type": null,
+    "knowledge": {
+      "status": "AVAILABLE",
+      "program_count": 27,
+      "tier_count": 100,
+      "activity_count": 1,
+      "message": null
+    },
+    "ready_for_route_queries": true
+  },
+  "configuration": {
+    "network_enabled": false,
+    "context_window": 32768,
+    "protocol": "native",
+    "knowledge_read_mode": "legacy",
+    "knowledge_user_writes_paused": false
+  },
+  "sql_errors": [
+    {
+      "table": "agent_interactions",
+      "type": "UndefinedColumn",
+      "sqlstate": "42703",
+      "message": "column agent_interactions.revision does not exist"
+    },
+    {
+      "table": "agent_run_checkpoints",
+      "type": "UndefinedTable",
+      "sqlstate": "42P01",
+      "message": "relation \"agent_run_checkpoints\" does not exist"
+    }
+  ]
+}

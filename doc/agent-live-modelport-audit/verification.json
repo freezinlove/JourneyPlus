@@ -1,0 +1,10 @@
+{
+  "schema_and_data_unchanged": true,
+  "changed_tables": [],
+  "model_requests_total": 2,
+  "startup_probe_requests": 2,
+  "business_model_requests": 0,
+  "business_tool_calls": 0,
+  "workspace_created": false,
+  "normal_conversation_completed": false
+}

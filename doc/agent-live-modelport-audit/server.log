@@ -1,0 +1,38 @@
+INFO:     Started server process [51240]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8013 (Press CTRL+C to quit)
+Agent maintenance failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+INFO:     127.0.0.1:55265 - "GET /workspace HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55265 - "GET /assets/workspace_v3.js?v=20260909-readiness HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55266 - "GET /assets/workspace.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55267 - "GET /assets/workspace_v3.css HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55266 - "GET /assets/route_graph.js?v=20260908-review HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55267 - "GET /assets/knowledge_ui.js?v=20260909-contract HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55265 - "GET /assets/route_step.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55268 - "GET /assets/agent_text.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:55267 - "GET /assets/knowledge_ui.js?v=20260907-agent-repair HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55266 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55267 - "POST /v3/agent/workspaces HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:55267 - "GET /v3/agent/status HTTP/1.1" 200 OK
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Agent maintenance failed: ProgrammingError
+INFO:     127.0.0.1:55278 - "GET /v3/agent/status HTTP/1.1" 200 OK
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+Recovery scan failed: ProgrammingError
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [51240]
