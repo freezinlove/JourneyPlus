@@ -34,6 +34,7 @@ def merge_query(base, patch):
 def route_summary(route,root_ref,steps=None,*,detail=False):
     value={k:deepcopy(v) for k,v in route.items() if k not in {'fact_refs','selection_reasons'}}
     value['ref']=root_ref+'#route:'+route['ref']
+    value['object_type']='route'
     value['step_refs']=[root_ref+'#step:'+sid for sid in route['step_refs']]
     if steps is not None:
         ordered=[steps[sid] for sid in route['step_refs']]
@@ -141,6 +142,7 @@ def evaluate(args, ctx):
                     step=compact({k:v for k,v in obj.steps[sid].items()
                                   if k not in {'fact_refs','evidence_ids','from_tier_id','to_tier_id'}})
                     step['ref']=step_ref
+                    step['object_type']='step'
                     # Preserve original condition text once, together with its
                     # evaluation. Shared steps are returned once across routes.
                     reasons={check.get('reason') for check in step.get('constraint_checks',[])}

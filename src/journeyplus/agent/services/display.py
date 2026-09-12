@@ -2,7 +2,7 @@ from journeyplus.agent.harness.execution import blocking_tool
 from uuid import UUID, uuid5, NAMESPACE_URL
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.agent.services.presentations import build_block
-from .route_objects import RouteObject
+from .route_objects import RouteObject, RouteReferenceError
 
 
 @blocking_tool
@@ -16,7 +16,9 @@ def present(args,ctx):
         for index,selection in enumerate(args.blocks):
             objects=[]
             for ref in selection.object_refs:
-                if ref.startswith('activity:'):
+                if selection.type in {'route_graph','comparison'}:
+                    data=RouteObject.read(ctx.artifact_port,ctx.workspace_id,ref).display_data()
+                elif ref.startswith('activity:'):
                     identity, separator, version=ref.removeprefix('activity:').partition('@')
                     if not separator:raise ValueError('Published display reference requires a version')
                     with ctx.services['knowledge'].read() as read_session:
@@ -25,8 +27,6 @@ def present(args,ctx):
                 else:
                     obj=ctx.artifact_port.read(ctx.workspace_id,ref)
                     data=obj['payload']
-                if selection.type in {'route_graph','comparison'}:
-                    data=RouteObject.read(ctx.artifact_port,ctx.workspace_id,ref).display_data()
                 objects.append(data)
             research=[]
             for ref in selection.research_refs:
@@ -54,7 +54,13 @@ def present(args,ctx):
         for step in args.next_steps:
             for ref in step.subject_refs:store.validate_reference(ctx.workspace_id,ref)
         return {'blocks':blocks,'next_steps':[n.model_dump() for n in args.next_steps],'omissions':[]}
-    ref, receipt = store.save_presentation(ctx.workspace_id, ctx.turn_id, ctx.call_id,
-                                          args.replace_presentation_ref, build)
+    try:
+        ref, receipt = store.save_presentation(ctx.workspace_id, ctx.turn_id, ctx.call_id,
+                                              args.replace_presentation_ref, build)
+    except RouteReferenceError as exc:
+        return ToolResult.failure('WRONG_REFERENCE_TYPE',str(exc),candidates=exc.candidates,
+            fields=[{'received_ref':exc.ref,'expected':'route', 'matching_route_count':exc.total,
+                     'candidates_complete':exc.total==len(exc.candidates),
+                     'snapshot_ref':exc.ref.partition('#')[0]}])
     return ToolResult(data={'presentation_ref':ref,**{k:v for k,v in receipt.items() if k!='blocks'},
                            'blocks':[{k:v for k,v in b.items() if k!='payload'} for b in receipt['blocks']]},artifact_refs=[ref])

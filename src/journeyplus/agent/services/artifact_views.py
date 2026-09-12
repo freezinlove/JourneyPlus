@@ -15,8 +15,11 @@ def matches(value,query):
 def view(records,*,cursor=None,query=None,limit=30):
     if not 1 <= limit <= 30:raise ValueError('Artifact view limit must be between 1 and 30')
     encoded=json.dumps(records,ensure_ascii=False,sort_keys=True)
-    key=hashlib.sha256((encoded+'\n'+(query or '')).encode()).hexdigest()[:24]
-    small = len(encoded.encode()) <= 2500 and not query
+    key=hashlib.sha256(('route-overview-v1\n'+encoded+'\n'+(query or '')).encode()).hexdigest()[:24]
+    from .route_archive import overviews
+    summaries=[section for record in records for section in overviews(record)
+               if not query or matches(section['value'],query.casefold())]
+    small = len(encoded.encode()) <= 2500 and not query and not summaries
     if small:
         offset = 0
         if cursor:
@@ -29,7 +32,7 @@ def view(records,*,cursor=None,query=None,limit=30):
         end = offset+len(selected)
         return {'artifacts': selected, 'total': len(records),
                 'next_cursor': key+'|'+str(end) if end<len(records) else None}
-    chunks=[]
+    chunks=list(summaries)
     def walk(ref,value,path,ancestors=()):
         serialized=json.dumps(value,ensure_ascii=False)
         context={'ancestors':list(ancestors)} if ancestors else {}

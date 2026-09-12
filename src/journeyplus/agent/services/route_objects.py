@@ -3,6 +3,35 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 
 
+class RouteReferenceError(ValueError):
+    """A valid step/snapshot is not a selectable route; expose bounded choices."""
+    def __init__(self, ref, candidates, total):
+        super().__init__('Select a whole route ref (#route:), not a step or snapshot. No presentation was created.')
+        self.ref, self.candidates, self.total = ref, candidates, total
+
+
+def route_choices(artifacts, workspace_id, ref):
+    root_ref, _, fragment = ref.partition('#')
+    root = artifacts.read(workspace_id, root_ref)
+    if root['kind'] != 'ROUTES':
+        return None
+    payload = root['payload']
+    if fragment and (not fragment.startswith('step:') or fragment[5:] not in payload.get('steps', {})):
+        return None
+    choices=[]
+    for key in payload.get('route_order', sorted(payload.get('routes', {}))):
+        route=payload.get('routes', {}).get(key)
+        if not route or fragment and fragment[5:] not in route.get('step_refs', []):
+            continue
+        ids=route.get('step_refs', [])
+        if not ids or any(sid not in payload.get('steps', {}) for sid in ids):
+            continue
+        steps=[payload['steps'][sid] for sid in ids]
+        choices.append({'ref':root_ref+'#route:'+key, 'object_type':'route',
+                        'path':[steps[0].get('from'), *[step.get('to') for step in steps]]})
+    return choices[:10], len(choices)
+
+
 @dataclass(frozen=True)
 class RouteObject:
     ref: str
@@ -17,6 +46,10 @@ class RouteObject:
     def read(cls, artifacts, workspace_id, ref):
         root_ref, separator, fragment = ref.partition('#')
         if not separator or not fragment.startswith('route:'):
+            if ref.startswith('artifact:') and (not separator or fragment.startswith('step:')):
+                choices=route_choices(artifacts,workspace_id,ref)
+                if choices is not None:
+                    raise RouteReferenceError(ref,*choices)
             raise ValueError('Expected a computed route member reference')
         root = artifacts.read(workspace_id, root_ref)
         if root['kind'] != 'ROUTES':
