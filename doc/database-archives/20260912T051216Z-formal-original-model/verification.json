@@ -1,0 +1,698 @@
+{
+  "stamp": "20260912T051216Z",
+  "recovery": "/Users/xd/Documents/ChatGPT/JourneyPlus-recovery/formal-original-model/20260912T051216Z",
+  "stage": "journeyplus_stage_20260912t051216z",
+  "archived": "journeyplus_unified_backup_20260912t051216z",
+  "formal": "journeyplus",
+  "source": "journeyplus_old_flyingblue_20260912t042852z",
+  "before": {
+    "tables": {
+      "activities": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_briefs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_documents": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_edition_reviews": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_knowledge_versions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_observation_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_source_bindings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "activity_supplements": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_artifacts": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_delivery_events": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_delivery_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_interactions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_model_attempts": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_operation_receipts": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_run_checkpoints": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_tool_calls": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_turns": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_wait_goals": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_workspace_messages": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "alembic_version": {
+        "count": 1,
+        "sha256": "e07422a5fbfea61014d8e578625949fc2c4e20e43215a11ae9c041ddc3c4cc5f"
+      },
+      "analysis_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "application_option_versions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "application_options": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_leases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "collection_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "document_sections": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "document_versions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "initialization_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "job_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "membership_aliases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "membership_programs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "membership_tiers": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "option_mappings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "option_price_mappings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "option_prices": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "review_decisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_automation_states": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_items": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "sources": {
+        "count": 2,
+        "sha256": "d9bf6aeaec9f08eda2bda1e6f1c09aa1e03c3b3d3658cf93cf71c0a7b059a159"
+      },
+      "status_holdings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_watch_pages": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_watches": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "user_business_operations": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "schema_sha256": "d2aa1ed21d25ad9632ea2a268e84452ef3022879850963dd090af00ace6fc6f4"
+  },
+  "original": {
+    "tables": {
+      "agent_interactions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_wait_goals": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "alembic_version": {
+        "count": 1,
+        "sha256": "7b01e939068d422deb3050f7b4a89529af77aeca90a028075ec44a99c894fca4"
+      },
+      "analysis_runs": {
+        "count": 2,
+        "sha256": "a7d57bf39a22f5101a1d02c21b59da5874ec62be122555e6e922bebfe64178b7"
+      },
+      "article_analyses": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_briefs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_opportunities": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_leases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "briefs": {
+        "count": 1,
+        "sha256": "d8a02c40814c4024066e85cefe3928c760aa3fb760b30875f39c93ac77f9b1d0"
+      },
+      "buy_points_offers": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "buy_points_snapshots": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "collection_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "document_versions": {
+        "count": 3,
+        "sha256": "ab916a3aef3b3209ac09f6c72a1160cda724a912ba6b1e80a60d82c3d7542acf"
+      },
+      "event_evidence": {
+        "count": 3,
+        "sha256": "a1c1d066c6fb1068f05d88f03fa828fa3b61a1dae3f02fd740970e35808e8929"
+      },
+      "event_revisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "fact_sets": {
+        "count": 1,
+        "sha256": "466bf4e41334a227fea1467d255ea26e6a04c581c4166e61c697d468fca91cf8"
+      },
+      "gold_cases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "initialization_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "job_runs": {
+        "count": 1,
+        "sha256": "838a32baffc5e5317cd900d5b92f81f8d2c13043c44a910a40732a4a9a449005"
+      },
+      "review_decisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_automation_states": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_items": {
+        "count": 3,
+        "sha256": "3fb54f1f69e11c8882c138af8846e4b1252dedc7326b1d0761fe9d79f5975d2b"
+      },
+      "sources": {
+        "count": 7,
+        "sha256": "343f61724d148ae12bbafb8bbc655898d2783c2dfd285aa8a80ba02a52d630de"
+      },
+      "status_events": {
+        "count": 1,
+        "sha256": "fd640a452a33c8fd784c27c14175649c310d9bf9f741186d48c5366045205f90"
+      },
+      "status_holdings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_routes": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_supplements": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_change_sets": {
+        "count": 1,
+        "sha256": "593e7f598f3361bfc37a23b7340c54dd33bbafa8130e6ee3f0480590b835a00b"
+      },
+      "statusmatch_watch_pages": {
+        "count": 3,
+        "sha256": "3e936880114be3172328321fe5f3cfce884a768ecfa20d546ffcff35b6b68f3b"
+      },
+      "statusmatch_watches": {
+        "count": 1,
+        "sha256": "d50c68e0517ddb239b2a4487b3ebe8ba6917619f2315caffc403a7b2c03f0769"
+      }
+    },
+    "schema_sha256": "6874f39cd5f5a1468a1857d82b43548f62a7ddca257047acd73c6b054895db14"
+  },
+  "prepared": {
+    "tables": {
+      "agent_interactions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_wait_goals": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "alembic_version": {
+        "count": 1,
+        "sha256": "7b01e939068d422deb3050f7b4a89529af77aeca90a028075ec44a99c894fca4"
+      },
+      "analysis_runs": {
+        "count": 2,
+        "sha256": "a7d57bf39a22f5101a1d02c21b59da5874ec62be122555e6e922bebfe64178b7"
+      },
+      "article_analyses": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_briefs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_opportunities": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_leases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "briefs": {
+        "count": 1,
+        "sha256": "d8a02c40814c4024066e85cefe3928c760aa3fb760b30875f39c93ac77f9b1d0"
+      },
+      "buy_points_offers": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "buy_points_snapshots": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "collection_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "document_versions": {
+        "count": 3,
+        "sha256": "ab916a3aef3b3209ac09f6c72a1160cda724a912ba6b1e80a60d82c3d7542acf"
+      },
+      "event_evidence": {
+        "count": 3,
+        "sha256": "a1c1d066c6fb1068f05d88f03fa828fa3b61a1dae3f02fd740970e35808e8929"
+      },
+      "event_revisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "fact_sets": {
+        "count": 1,
+        "sha256": "466bf4e41334a227fea1467d255ea26e6a04c581c4166e61c697d468fca91cf8"
+      },
+      "gold_cases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "initialization_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "job_runs": {
+        "count": 1,
+        "sha256": "838a32baffc5e5317cd900d5b92f81f8d2c13043c44a910a40732a4a9a449005"
+      },
+      "review_decisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_automation_states": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_items": {
+        "count": 3,
+        "sha256": "3fb54f1f69e11c8882c138af8846e4b1252dedc7326b1d0761fe9d79f5975d2b"
+      },
+      "sources": {
+        "count": 7,
+        "sha256": "ac837013aa39bb15ddfd4912ea91d77d3960ce46cba5cc43787045b606ab6016"
+      },
+      "status_events": {
+        "count": 1,
+        "sha256": "fd640a452a33c8fd784c27c14175649c310d9bf9f741186d48c5366045205f90"
+      },
+      "status_holdings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_routes": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_supplements": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_change_sets": {
+        "count": 1,
+        "sha256": "593e7f598f3361bfc37a23b7340c54dd33bbafa8130e6ee3f0480590b835a00b"
+      },
+      "statusmatch_watch_pages": {
+        "count": 3,
+        "sha256": "3e936880114be3172328321fe5f3cfce884a768ecfa20d546ffcff35b6b68f3b"
+      },
+      "statusmatch_watches": {
+        "count": 1,
+        "sha256": "d50c68e0517ddb239b2a4487b3ebe8ba6917619f2315caffc403a7b2c03f0769"
+      }
+    },
+    "schema_sha256": "6874f39cd5f5a1468a1857d82b43548f62a7ddca257047acd73c6b054895db14"
+  },
+  "backups": {
+    "formal-before": {
+      "path": "/Users/xd/Documents/ChatGPT/JourneyPlus-recovery/formal-original-model/20260912T051216Z/formal-before.dump",
+      "bytes": 150598,
+      "sha256": "6c56eedd22592e30306c2856ee2cc03ce3cb66b012405d7666049873996cbdb0"
+    },
+    "flyingblue-original": {
+      "path": "/Users/xd/Documents/ChatGPT/JourneyPlus-recovery/formal-original-model/20260912T051216Z/flyingblue-original.dump",
+      "bytes": 197429,
+      "sha256": "e9bb30d26b03b9d97e785e16a48238fe1468fc3c8300f500e4c40534bc5b5976"
+    },
+    "formal-after": {
+      "path": "/Users/xd/Documents/ChatGPT/JourneyPlus-recovery/formal-original-model/20260912T051216Z/formal-after.dump",
+      "bytes": 197315,
+      "sha256": "0b35b8c253944e9efbf0ac647b1b8840b66cd235d102f0046ea95a96d2f9369a"
+    }
+  },
+  "validation": {
+    "brief_readable": true,
+    "brief_sha256": "2f2665b47c4b0716bd7d69832f7a31a2790fe5f47209f22f376922b4c8741417",
+    "graph_nodes": 100,
+    "graph_edges": 97,
+    "graph_audit": {
+      "schema_version": "1",
+      "watch_ids": [
+        "619e8988-4bc1-450b-af47-0956c5d53882"
+      ],
+      "event_ids": [
+        "839fa8c4-ffe5-4a04-8051-e9ad90dc7675"
+      ],
+      "fact_set_ids": [
+        "28b27d20-5e49-4403-99ad-28b69a14ef6f"
+      ],
+      "fidelity": {
+        "expected_claim_count": 97,
+        "represented_claim_count": 97,
+        "missing_claim_ids": [],
+        "invented_claim_ids": [],
+        "duplicate_claim_ids": [],
+        "material_mismatch_claim_ids": [],
+        "direction_mismatch_claim_ids": [],
+        "missing_evidence_claim_ids": [],
+        "unavailable_mapping_count": 26
+      },
+      "topology": {
+        "program_count": 27,
+        "node_count": 100,
+        "edge_count": 97,
+        "rule_count": 0,
+        "self_loop_edge_ids": [],
+        "strongly_connected_components": [],
+        "conditional_edge_count": 44,
+        "conflicting_edge_count": 0,
+        "wildcard_rule_count": 0,
+        "uncertain_rule_count": 0,
+        "alias_ambiguities": [],
+        "representative_roots": [
+          "aegean airlines miles+bonus::gold",
+          "aegean airlines miles+bonus::platinum",
+          "aegean airlines miles+bonus::silver",
+          "air canada aeroplan::elite 25k",
+          "air canada aeroplan::elite 35k"
+        ],
+        "representative_cycle_count": 0,
+        "representative_cross_reference_count": 0,
+        "representative_truncated_count": 0
+      }
+    }
+  },
+  "switched_at_utc": "2026-09-12T05:12:32.211638+00:00",
+  "after": {
+    "tables": {
+      "agent_interactions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "agent_wait_goals": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "alembic_version": {
+        "count": 1,
+        "sha256": "7b01e939068d422deb3050f7b4a89529af77aeca90a028075ec44a99c894fca4"
+      },
+      "analysis_runs": {
+        "count": 2,
+        "sha256": "a7d57bf39a22f5101a1d02c21b59da5874ec62be122555e6e922bebfe64178b7"
+      },
+      "article_analyses": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_briefs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "article_opportunities": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_leases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "automation_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "briefs": {
+        "count": 1,
+        "sha256": "d8a02c40814c4024066e85cefe3928c760aa3fb760b30875f39c93ac77f9b1d0"
+      },
+      "buy_points_offers": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "buy_points_snapshots": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "collection_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "document_versions": {
+        "count": 3,
+        "sha256": "ab916a3aef3b3209ac09f6c72a1160cda724a912ba6b1e80a60d82c3d7542acf"
+      },
+      "event_evidence": {
+        "count": 3,
+        "sha256": "a1c1d066c6fb1068f05d88f03fa828fa3b61a1dae3f02fd740970e35808e8929"
+      },
+      "event_revisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "fact_sets": {
+        "count": 1,
+        "sha256": "466bf4e41334a227fea1467d255ea26e6a04c581c4166e61c697d468fca91cf8"
+      },
+      "gold_cases": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "initialization_runs": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "job_runs": {
+        "count": 1,
+        "sha256": "838a32baffc5e5317cd900d5b92f81f8d2c13043c44a910a40732a4a9a449005"
+      },
+      "review_decisions": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_automation_states": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "source_items": {
+        "count": 3,
+        "sha256": "3fb54f1f69e11c8882c138af8846e4b1252dedc7326b1d0761fe9d79f5975d2b"
+      },
+      "sources": {
+        "count": 7,
+        "sha256": "ac837013aa39bb15ddfd4912ea91d77d3960ce46cba5cc43787045b606ab6016"
+      },
+      "status_events": {
+        "count": 1,
+        "sha256": "fd640a452a33c8fd784c27c14175649c310d9bf9f741186d48c5366045205f90"
+      },
+      "status_holdings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_routes": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_article_supplements": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "statusmatch_change_sets": {
+        "count": 1,
+        "sha256": "593e7f598f3361bfc37a23b7340c54dd33bbafa8130e6ee3f0480590b835a00b"
+      },
+      "statusmatch_watch_pages": {
+        "count": 3,
+        "sha256": "3e936880114be3172328321fe5f3cfce884a768ecfa20d546ffcff35b6b68f3b"
+      },
+      "statusmatch_watches": {
+        "count": 1,
+        "sha256": "d50c68e0517ddb239b2a4487b3ebe8ba6917619f2315caffc403a7b2c03f0769"
+      }
+    },
+    "schema_sha256": "6874f39cd5f5a1468a1857d82b43548f62a7ddca257047acd73c6b054895db14"
+  },
+  "verification": {
+    "brief_readable": true,
+    "brief_sha256": "2f2665b47c4b0716bd7d69832f7a31a2790fe5f47209f22f376922b4c8741417",
+    "graph_nodes": 100,
+    "graph_edges": 97,
+    "graph_audit": {
+      "schema_version": "1",
+      "watch_ids": [
+        "619e8988-4bc1-450b-af47-0956c5d53882"
+      ],
+      "event_ids": [
+        "839fa8c4-ffe5-4a04-8051-e9ad90dc7675"
+      ],
+      "fact_set_ids": [
+        "28b27d20-5e49-4403-99ad-28b69a14ef6f"
+      ],
+      "fidelity": {
+        "expected_claim_count": 97,
+        "represented_claim_count": 97,
+        "missing_claim_ids": [],
+        "invented_claim_ids": [],
+        "duplicate_claim_ids": [],
+        "material_mismatch_claim_ids": [],
+        "direction_mismatch_claim_ids": [],
+        "missing_evidence_claim_ids": [],
+        "unavailable_mapping_count": 26
+      },
+      "topology": {
+        "program_count": 27,
+        "node_count": 100,
+        "edge_count": 97,
+        "rule_count": 0,
+        "self_loop_edge_ids": [],
+        "strongly_connected_components": [],
+        "conditional_edge_count": 44,
+        "conflicting_edge_count": 0,
+        "wildcard_rule_count": 0,
+        "uncertain_rule_count": 0,
+        "alias_ambiguities": [],
+        "representative_roots": [
+          "aegean airlines miles+bonus::gold",
+          "aegean airlines miles+bonus::platinum",
+          "aegean airlines miles+bonus::silver",
+          "air canada aeroplan::elite 25k",
+          "air canada aeroplan::elite 35k"
+        ],
+        "representative_cycle_count": 0,
+        "representative_cross_reference_count": 0,
+        "representative_truncated_count": 0
+      }
+    }
+  }
+}
