@@ -39,54 +39,33 @@ async def search(args,ctx):
 @blocking_tool
 def parse(args,ctx):
     from journeyplus.agent.report_pages import parse_report_detail,report_body_complete
-    from journeyplus.knowledge.publication import canonical_key
-    identities={}
-    subjects={}
-    with ctx.services['knowledge'].read() as s:
-        program_rows, tiers, _ = ctx.services['identities'].catalog(s)
-        programs={p.id:p for p in program_rows}
-        for tier in tiers:
-            program=programs[tier.program_id]
-            identities[canonical_key(program.display_name+' '+tier.display_name)]={'program_ref':str(program.id),'tier_ref':str(tier.id)}
-        if args.subject:
-            for name in ('source','target'):
-                value=getattr(args.subject,name)
-                if value:subjects[name]=ctx.services['identities'].resolve(s,value,context=ctx)
-    reports={};comparisons=[];incomplete_pages=[]
+    reports={};incomplete_pages=[]
     for page_ref in args.page_refs:
         page=ctx.artifact_port.read(ctx.workspace_id,page_ref)
         if page['kind']!='PAGE':raise ValueError('research.parse requires page artifacts')
         data=page['payload']
-        report=parse_report_detail(data['raw_html'],data['final_url'],identities).model_dump(mode='json')
+        report=parse_report_detail(data['raw_html'],data['final_url']).model_dump(mode='json',exclude_none=True)
         page_complete=not data.get('raw_truncated',False)
         body_complete=page_complete or report_body_complete(data['raw_html'])
-        report['evidence_scope']={'page_ref':page_ref,'page_complete':page_complete,
-                                  'report_body_complete':body_complete}
+        report['page_ref']=page_ref
+        report['body_complete']=body_complete
         if not page_complete:incomplete_pages.append(page_ref)
-        if not body_complete:
-            report['normalized_outcome']='UNKNOWN'
-            report['method']=None
-            report['notes'].append('原始报告正文未完整保留，不能根据截断片段确认结果或方式。')
-
-        mismatches=[];missing=[];matched=[]
-        for role,prefix in [('source','from'),('target','to')]:
-            subject=subjects.get(role)
-            if not subject or subject['status']!='OK':missing.append(role);continue
-            for field in ('program_ref','tier_ref'):
-                wanted=subject.get(field);actual=report.get(prefix+'_'+field)
-                if not wanted or not actual:missing.append(role+'.'+field)
-                elif wanted.partition(':')[2]!=actual:mismatches.append(role+'.'+field)
-                else:matched.append(role+'.'+field)
-        if args.method and report.get('method') and args.method!=report['method']:mismatches.append('method')
-        elif args.method and not report.get('method'):missing.append('method')
-        report['identity_matches']={'matched':matched,'missing':missing,'mismatches':mismatches}
         reports[report['report_ref']]=report
-        comparisons.append({'report_ref':report['report_ref'],'level':'INCOMPARABLE' if mismatches else 'UNKNOWN' if not matched else 'PARTIAL' if missing else 'EXACT',
-                            'reasons':mismatches+missing})
+    # Full bodies remain in REPORT artifacts for card detail and workspace.read.
     ref=ctx.artifact_port.put(ctx.workspace_id,'REPORT',{'reports':reports},call_id=ctx.call_id,turn_id=ctx.turn_id,source_refs=args.page_refs)
-    for item in comparisons:item['report_ref']=ref+'#report:'+item['report_ref']
-    return ToolResult(status='PARTIAL' if incomplete_pages else 'OK',data={'report_refs':[ref+'#report:'+key for key in reports], 'reports':list(reports.values()),
-                           'comparisons':comparisons},artifact_refs=[ref],
-                      coverage={'complete':not incomplete_pages,'returned':len(reports),'total':len(reports),
-                                'omissions':['source_page_truncated'] if incomplete_pages else [],
-                                'incomplete_page_refs':incomplete_pages})
+    report_refs=[ref+'#report:'+key for key in reports]
+    projected=[];unread=[]
+    for report,report_ref in zip(reports.values(),report_refs):
+        full=report['text']
+        text=full.encode()[:6000].decode(errors='ignore')
+        item={**report,'text':text}
+        if len(text)<len(full):
+            item.update(text_truncated=True,text_characters=len(full),full_text_ref=report_ref)
+            unread.append(report_ref)
+        projected.append(item)
+    result={'report_refs':report_refs,'reports':projected}
+    return ToolResult(status='PARTIAL' if incomplete_pages or unread else 'OK',data=result,artifact_refs=[ref],
+                      coverage={'complete':not bool(incomplete_pages or unread),'returned':len(reports),'total':len(reports),
+                                'omissions':(['source_page_truncated'] if incomplete_pages else [])+(['report_text_continues'] if unread else []),
+                                **({'incomplete_page_refs':incomplete_pages} if incomplete_pages else {}),
+                                **({'unread_report_refs':unread} if unread else {})})

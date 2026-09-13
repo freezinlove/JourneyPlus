@@ -189,15 +189,8 @@ class WebReadInput(DTO):
         return self
 
 
-class ResearchSubject(DTO):
-    source: IdentityInput | None = None
-    target: IdentityInput | None = None
-
-
 class ResearchInput(DTO):
     page_refs: list[str] = Field(min_length=1, max_length=8)
-    subject: ResearchSubject | None = None
-    method: Literal['MATCH', 'CHALLENGE'] | None = None
 
 
 class SelectionRole(DTO):

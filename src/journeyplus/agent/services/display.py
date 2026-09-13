@@ -27,6 +27,16 @@ def present(args,ctx):
                 else:
                     obj=ctx.artifact_port.read(ctx.workspace_id,ref)
                     data=obj['payload']
+                    if obj['kind']=='PAGE' and selection.type=='experience':
+                        from urllib.parse import urlsplit
+                        url=data.get('final_url',data.get('url',''))
+                        parsed_url=urlsplit(url)
+                        if parsed_url.hostname in {'statusmatcher.com','www.statusmatcher.com'} and parsed_url.path.startswith('/report/'):
+                            from journeyplus.agent.report_pages import parse_report_detail,report_body_complete
+                            # Models may present the page directly. Reuse the same
+                            # parser without imposing an extra model/tool round.
+                            report=parse_report_detail(data['raw_html'],url).model_dump(mode='json',exclude_none=True)
+                            data={**report,'page_ref':ref,'body_complete':not data.get('raw_truncated',False) or report_body_complete(data['raw_html'])}
                 objects.append(data)
             research=[]
             for ref in selection.research_refs:

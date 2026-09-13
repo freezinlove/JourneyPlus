@@ -15,15 +15,19 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0):
     controls=[{'index':index,'tag':node.tag,'name':node.attributes.get('name',''),
                'id':node.attributes.get('id',''),'option_count':len(node.css('option'))}
               for index,node in enumerate(tree.css('select'))]
+    from .statusmatcher_content import cleaned_page
+    cleaned=cleaned_page(page['raw_html'],page.get('final_url',page.get('url',args.url)),include_controls=args.include_controls)
+    links=page['links']
+    if cleaned is not None:
+        tree,links=cleaned
     if args.sections:
-        selected=select_sections(page['raw_html'],args.sections,1_000_000)
+        selected=select_sections(tree.html,args.sections,1_000_000)
         body='\n'.join(section['title']+'\n'+section['text'] for section in selected['sections'])
     else:
         for node in tree.css('script,style,noscript,nav,footer'):node.decompose()
         if not args.include_controls:
             for node in tree.css('select,input,textarea,button'):node.decompose()
         body=(tree.body or tree.root).text(separator=' ',strip=True)
-    links=page['links']
     if text_start>len(body) or link_start>len(links):raise ValueError('Invalid page cursor offset')
     excerpt=body[text_start:text_start+args.max_chars].encode()[:6000].decode(errors='ignore')
     text_end=text_start+len(excerpt)
@@ -59,6 +63,9 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0):
               'text_range':[text_start,text_end],'text_characters':len(body),
               'links_range':[link_start,link_end],'links_total':len(links),
               'oversized_link_indices':oversized,'snapshot_ref':ref}
-    coverage['form_control_count']=len(controls)
+    if cleaned is None or args.include_controls:
+        coverage['form_control_count']=len(controls)
+    else:
+        data.pop('form_controls',None)
     if selected:coverage['available_sections_total']=len(selected['available_sections'])
     return data,coverage,next_cursor

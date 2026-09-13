@@ -99,7 +99,6 @@ class PageData(DTO):
 class ResearchData(DTO):
     report_refs: list[str] | None = None
     reports: list[dict] | None = None
-    comparisons: list[dict] | None = None
 
 
 class PresentationData(DTO):
@@ -119,7 +118,7 @@ REQUIRED={'catalog.lookup':(('candidates',),),'activity.read':(('activities',),(
           'holdings.write':(('operation_ref','outcome'),),'waiting.manage':(('goals',),('operation_ref','outcome')),
           'workspace.read':(('messages',),('artifacts',),('sections',)),
           'workspace.note':(('note_ref','revision'),),'web.search':(('results',),),
-          'web.read':(('page_ref','url','text','content_hash'),),'research.parse':(('reports','report_refs','comparisons'),),
+          'web.read':(('page_ref','url','text','content_hash'),),'research.parse':(('reports','report_refs'),),
           'display.present':(('presentation_ref','blocks','revision'),)}
 
 

@@ -9,22 +9,25 @@ def page(body,label='Match'):
 def test_list_discovers_links_but_never_counts_summary_as_report():
     html='<div><h4 id="report-list-to">Obtaining</h4><a href="/report/1">Match</a><a href="/report/1?tracking=x">Match</a></div>'
     assert list_report_urls(html,'https://statusmatcher.com/company/b')==['https://statusmatcher.com/report/1']
-    with pytest.raises(ValueError):parse_report_detail(html,'https://statusmatcher.com/report/1',{})
+    with pytest.raises(ValueError):parse_report_detail(html,'https://statusmatcher.com/report/1')
 
 
-def test_detail_body_overrides_match_label_and_does_not_infer_dates_or_edition():
-    report=parse_report_detail(page('I was offered a challenge and must fly four segments.'),'https://statusmatcher.com/report/1',{})
-    assert report.reported_label=='MATCH' and report.normalized_outcome=='CHALLENGE'
-    assert report.application_at is None and report.submitted_at is not None
-    assert report.edition_ref is None and report.from_tier_ref is None
-    contradictory=parse_report_detail(page('My application was approved but my request denied.'),'https://statusmatcher.com/report/2',{})
-    assert contradictory.normalized_outcome=='UNKNOWN'
+def test_detail_preserves_label_and_full_body_without_inferred_outcome():
+    body='I was offered a challenge and must fly four segments.'
+    report=parse_report_detail(page(body),'https://statusmatcher.com/report/1')
+    assert report.reported_label=='MATCH' and report.text==body
+    assert report.application_at is None and report.submitted_at=='2026-09-01'
+    assert 'normalized_outcome' not in type(report).model_fields
+    long_body='Please complete identity verification. '*40+'Finally, my match was approved.'
+    report=parse_report_detail(page(long_body),'https://statusmatcher.com/report/2')
+    assert report.text==long_body and report.text.endswith('my match was approved.')
 
 
-def test_label_alone_and_unmatched_identity_remain_unknown():
-    report=parse_report_detail(page('I uploaded a screenshot.'),'https://statusmatcher.com/report/3',{'a gold':{'program_ref':'a','tier_ref':'gold'}})
-    assert report.normalized_outcome=='UNKNOWN' and report.from_program_ref=='a'
-    assert report.to_program_ref is None
+def test_parser_preserves_names_without_requiring_database_identities():
+    report=parse_report_detail(page('I uploaded a screenshot.'),'https://statusmatcher.com/report/3')
+    assert report.original_from=='A Gold' and report.original_to=='B Gold'
+    assert report.text=='I uploaded a screenshot.' and report.reported_label=='MATCH'
+    assert 'from_program_ref' not in type(report).model_fields
 
 
 def test_candidate_selection_prefers_relevant_recent_directions_without_inventing_dates():

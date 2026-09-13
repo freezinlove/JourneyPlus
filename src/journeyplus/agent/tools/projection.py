@@ -76,6 +76,5 @@ def trim_for(name):
                 data['metrics']={key:value for key,value in metrics(data['candidates']).items() if key!='items'}
         elif name=='research.parse':
             data['report_refs']=data['report_refs'][:count]
-            data['comparisons']=data['comparisons'][:count]
         return count
     return trim

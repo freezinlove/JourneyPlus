@@ -148,7 +148,7 @@ def test_production_autogenerate_cannot_restore_retired_catalog(migrated):
     assert metadata.tables['source_items'].c.document_role.nullable
 
 
-def test_report_parse_uses_original_catalog_and_preserves_unknowns(migrated):
+def test_report_parse_preserves_names_without_querying_catalog(migrated):
     seed(migrated)
     runtime, store, ctx, _ = setup(migrated)
     def report(source):
@@ -159,17 +159,17 @@ def test_report_parse_uses_original_catalog_and_preserves_unknowns(migrated):
     known = report('Marriott Bonvoy Platinum')
     unknown = report('Unlisted Club Silver')
     migrated.statements.clear()
-    result = call(runtime, ctx, 'research.parse', {'page_refs': [known], 'subject': {
-        'source': {'program_name': 'Marriott Bonvoy', 'tier_name': 'Platinum'},
-        'target': {'program_name': 'Example Rewards', 'tier_name': 'Gold'}}})
+    result = call(runtime, ctx, 'research.parse', {'page_refs': [known]})
     parsed = result.data['reports'][0]
-    assert parsed['normalized_outcome'] == 'DIRECT_MATCH'
-    assert parsed['from_tier_ref'] and parsed['to_tier_ref']
-    assert parsed['identity_matches']['mismatches'] == []
-    assert result.data['comparisons'][0]['level'] == 'EXACT'
+    assert parsed['text'] == 'My status was matched.'
+    assert 'normalized_outcome' not in parsed and 'comparisons' not in result.data
+    assert parsed['original_from']=='Marriott Bonvoy Platinum'
+    assert parsed['original_to']=='Example Rewards Gold'
+    assert 'from_tier_ref' not in parsed and 'to_tier_ref' not in parsed
     assert store.artifacts.read(ctx.workspace_id, result.artifact_refs[0])['kind'] == 'REPORT'
     result = call(runtime, ctx, 'research.parse', {'page_refs': [unknown]})
-    assert result.data['reports'][0]['from_tier_ref'] is None
+    assert 'from_tier_ref' not in result.data['reports'][0]
+    assert 'comparisons' not in result.data
     assert result.data['reports'][0]['original_from'] == 'Unlisted Club Silver'
     assert 'membership_programs' not in '\n'.join(migrated.statements)
     assert 'membership_tiers' not in '\n'.join(migrated.statements)

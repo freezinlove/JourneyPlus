@@ -54,7 +54,7 @@ def test_artifact_count_pages_have_no_duplicates_or_missing_records(session_fact
     assert seen==refs
 
 
-def test_truncated_body_is_unknown_but_closed_body_before_footer_remains_evidence(session_factory):
+def test_truncated_source_explicitly_reports_body_completeness_without_outcome(session_factory):
     from journeyplus.agent.tools.research import parse
     _,store,w,ctx=context(session_factory)
     prefix='<article><h1>From Example Gold to Other Platinum</h1><div class="instructions">My application was approved'
@@ -63,9 +63,9 @@ def test_truncated_body_is_unknown_but_closed_body_before_footer_remains_evidenc
         ref=store.artifacts.put(w['id'],'PAGE',{'raw_html':html,'final_url':'https://statusmatcher.com/report/12345','raw_truncated':True})
         result=asyncio.run(parse(ResearchInput(page_refs=[ref]),ctx));results.append(result)
         assert result.status=='PARTIAL' and not result.coverage['complete']
-    assert results[0].data['reports'][0]['normalized_outcome']=='UNKNOWN'
-    assert results[1].data['reports'][0]['normalized_outcome']=='DIRECT_MATCH'
-    assert results[1].data['reports'][0]['evidence_scope']['report_body_complete']
+    assert results[0].data['reports'][0]['body_complete'] is False
+    assert results[1].data['reports'][0]['body_complete'] is True
+    assert all('normalized_outcome' not in r.data['reports'][0] for r in results)
 
 
 def test_route_projection_keeps_refs_steps_counts_together_and_defers_source_cursor():

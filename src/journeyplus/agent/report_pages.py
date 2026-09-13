@@ -4,8 +4,20 @@ from urllib.parse import urljoin, urlsplit
 from datetime import date
 from selectolax.parser import HTMLParser
 from journeyplus.agent.research_http import permitted_url
-from journeyplus.agent.step_observations import ReportObservation
+from journeyplus.contracts import StrictModel
 from journeyplus.knowledge.publication import canonical_key
+
+
+class ReportDetail(StrictModel):
+    """Observed report fields, without a second outcome classifier."""
+    report_ref: str
+    url: str
+    original_from: str | None = None
+    original_to: str | None = None
+    reported_label: str | None = None
+    submitted_at: str | None = None
+    application_at: str | None = None
+    text: str
 
 
 def list_report_urls(html, base_url):
@@ -21,8 +33,10 @@ def list_report_urls(html, base_url):
     return urls
 
 
-def parse_report_detail(html,url,identities):
-    tree=HTMLParser(html)
+def parse_report_detail(html,url):
+    from journeyplus.agent.services.statusmatcher_content import cleaned_page
+    cleaned=cleaned_page(html,url)
+    tree=cleaned[0] if cleaned is not None else HTMLParser(html)
     article=tree.css_first('article')
     live=article is None
     article=article or tree.body
@@ -35,41 +49,28 @@ def parse_report_detail(html,url,identities):
     if len(direction)!=2:raise ValueError('REPORT_DIRECTION_MISSING')
     text=' '.join(body.text(separator=' ').split())
     if not text:raise ValueError('REPORT_BODY_MISSING')
-    # Exact curated identity lookup; unmatched labels remain explicitly unknown.
-    left=identities.get(canonical_key(direction[0]),{})
-    right=identities.get(canonical_key(direction[1]),{})
-    denied=bool(re.search(r'\b(?:was denied|was rejected|request denied|application denied)\b',text,re.I))
-    challenge=bool(re.search(r'\b(?:offered a challenge|required to (?:fly|stay)|must (?:fly|stay)|challenge required)\b',text,re.I))
-    matched=bool(re.search(r'\b(?:status was matched|match was approved|application was approved|was approved almost instantly|status matched successfully)\b',text,re.I))
-    outcome='UNKNOWN' if denied and (matched or challenge) else 'DENIED' if denied else 'CHALLENGE' if challenge else 'DIRECT_MATCH' if matched else 'UNKNOWN'
-    if len(text)>600:outcome='UNKNOWN'  # Do not assert an outcome whose full context is not retained.
     label=article.css_first('.result-box span');reported=label.text(strip=True).upper() if label else None
     if live:
         header=article.css_first('h3')
         if header and 'Report:' in header.text():reported=header.text().split('Report:',1)[1].strip().upper()
-    dates={};notes=[]
+    dates={}
     for node in article.css('dt'):
         name=node.text(strip=True).casefold();value=node.next
         if name not in {'submitted','application date'} or value is None or value.tag!='dd':continue
         raw=value.text(strip=True)
         try:parsed=date.fromisoformat(raw)
         except ValueError:continue
-        dates['submitted_at' if name=='submitted' else 'application_at']={'precision':'DATE','date':parsed,'raw_text':raw}
+        dates['submitted_at' if name=='submitted' else 'application_at']=parsed.isoformat()
     if live:
         stamp=re.search(r'From:\s*.*?\bon ([A-Z][a-z]+ \d{1,2}, \d{4})',article.text(separator=' ',strip=True))
         if stamp:
             from datetime import datetime
-            try:dates['submitted_at']={'precision':'DATE','date':datetime.strptime(stamp[1],'%B %d, %Y').date(),'raw_text':stamp[1]}
+            try:dates['submitted_at']=datetime.strptime(stamp[1],'%B %d, %Y').date().isoformat()
             except ValueError:pass
-    if 'application_at' not in dates:notes.append('申请日期未知；提交日期不替代申请日期。')
-    notes.append('未核实活动期次及来源取得方式。')
-    return ReportObservation(report_ref=urlsplit(url).path.rstrip('/').split('/')[-1],url=url,
+    return ReportDetail(report_ref=urlsplit(url).path.rstrip('/').split('/')[-1],url=permitted_url(url),
         original_from=direction[0],original_to=direction[1],
-        from_program_ref=left.get('program_ref'),from_tier_ref=left.get('tier_ref'),
-        to_program_ref=right.get('program_ref'),to_tier_ref=right.get('tier_ref'),
-        reported_label=reported if reported in {'MATCH','CHALLENGE','DENY','OTHER'} else None,
-        normalized_outcome=outcome,method='CHALLENGE' if challenge else None,
-        evidence_excerpt=text[:600],notes=notes,**dates)
+        reported_label=reported, text=text, **dates)
+
 
 
 def list_report_candidates(html,base_url):
