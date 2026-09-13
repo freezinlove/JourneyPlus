@@ -10,6 +10,8 @@ from .adapters.artifacts import digest
 
 def compose(factory, model, definitions=(), services=None):
     instructions = Path(__file__).with_name('instructions.md').read_text()
+    if services and services.get('waiting_enabled') is False:
+        instructions += '\n当前等待功能已关闭，后台不会检查等待任务。不要承诺创建等待或自动追踪；用户仍可主动查询匹配路径。\n'
     store = SessionStore(factory, getattr(getattr(model, 'config', None), 'model', 'test'), digest(instructions))
     registry = Registry()
     for definition in definitions:
@@ -23,7 +25,7 @@ def compose(factory, model, definitions=(), services=None):
     return Runtime(ports, instructions, services,budget_limits), store
 
 
-def compose_business(factory, model, *, network_enabled=False, read_factory=None, knowledge_port=None):
+def compose_business(factory, model, *, network_enabled=False, read_factory=None, knowledge_port=None, waiting_enabled=None):
     from .services.identities import IdentityService
     from .services.user_memory import UserMemory
     from .services.waiting import WaitingService
@@ -31,6 +33,8 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     from .tools.registration import definitions
     from .tools import knowledge, routes, holdings, workspace, research, presentation, waiting
     import json, os
+    if waiting_enabled is None:
+        waiting_enabled = os.getenv('JOURNEYPLUS_AGENT_WAITING_ENABLED', 'false').lower() == 'true'
     from .services.search import HttpJsonSearch
     search=HttpJsonSearch(json.loads(os.environ['JOURNEYPLUS_AGENT_SEARCH_CONFIG']) if os.environ.get('JOURNEYPLUS_AGENT_SEARCH_CONFIG') else None)
     from .services import workspace as workspace_service, display
@@ -49,12 +53,14 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
     memory=memory_type(factory,identities,knowledge_port)
     services={'workspace_read':workspace_service.read,'workspace_note':workspace_service.note,'display':display.present,'knowledge':knowledge_port,'user_data':user_data,'route_queries':queries,'identities':identities,'user_memory':memory,
               'waiting':WaitingService(factory,memory,queries),'research':PublicResearch(network_enabled,search_backend=search)}
+    services['waiting_enabled'] = waiting_enabled
     handlers={'catalog.lookup':knowledge.catalog,'activity.read':knowledge.activity,'routes.evaluate':routes.evaluate,
               'holdings.read':holdings.read,'holdings.write':holdings.write,'workspace.read':workspace.read,'workspace.note':workspace.note,
               'web.search':research.search,'web.read':research.read,
               'display.present':presentation.present,'waiting.manage':waiting.manage}
     from .services.snapshots import snapshot_for
-    registered=definitions(handlers)
+    registered=[definition for definition in definitions(handlers)
+                if waiting_enabled or definition.name != 'waiting.manage']
     for definition in registered:
         definition.snapshot=snapshot_for(definition.name,services['knowledge'],factory)
         if definition.name in {'catalog.lookup','activity.read','routes.evaluate'}:
@@ -74,5 +80,6 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
         runtime.ports.artifacts = ActiveArtifacts(store.artifacts, views)
         runtime.ports.workspace = ActiveWorkspace(store, views)
     services['close_read_connection']=close_read_connection
-    services['maintenance']=lambda:{'cleanup':store.cleanup(),'waiting':services['waiting'].check()}
+    services['maintenance']=lambda:{'cleanup':store.cleanup(),
+        'waiting':services['waiting'].check() if waiting_enabled else {'status':'DISABLED','model_calls':0}}
     return runtime,store

@@ -32,7 +32,7 @@ def migrated(original_factory):
 
 
 def setup(factory, prompt='请保存我的测试俱乐部金卡，之后允许更新或删除这条测试记录，并创建、更新和取消测试等待任务。'):
-    runtime,store=compose_business(factory,FakeModel([]))
+    runtime,store=compose_business(factory,FakeModel([]),waiting_enabled=True)
     workspace=store.create();store.start(workspace['id'],prompt,'test-user-message',0)
     message=store.load_context_index(workspace['id'])['messages'][0]
     ctx=ExecutionContext(workspace['id'],message.metadata['turn_id'],str(uuid4()),'local-user',
@@ -169,6 +169,7 @@ def test_report_read_preserves_names_and_returns_reusable_object(migrated):
 
 def test_independent_maintenance_uses_current_waiting_with_no_model(migrated, monkeypatch):
     from journeyplus.agent import server
+    monkeypatch.setenv('JOURNEYPLUS_AGENT_WAITING_ENABLED', 'true')
     seed(migrated)
     runtime, store, ctx, _ = setup(migrated)
     call(runtime, ctx, 'holdings.write', {'operation': 'create',

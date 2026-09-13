@@ -1,5 +1,7 @@
 # 统一会籍匹配精简验收（2026-09-13）
 
+> 2026-09-13 逐轮复审更正：**费用开关验收不通过，撤回返回内容全部正确的结论。** Asante 和 Royal Jordanian 的部分连接因费用等级名称未对齐，被工具错误标为免费。BA Silver 的仅免费结果实际应只保留 Club Avolta。以下保留原运行记录，并标明错误；详细调用、事实和状态审计见 [九轮真实对话复审](agent-nine-round-deep-audit-20260913.md)。本次复审尚未修复应用代码。
+
 ## 结论与范围
 
 Agent 路径查询、后台等待、`/explore`、个人匹配树和统一会籍树共用确定性最短路径选择。核心关系为会籍项目／等级映射，费用只作为免费／付费开关；地区、金额、币种保留在活动详情，不参与路径分支或优化。不改数据库模型、AIWorkflow、模型端口或 Harness 调度，不增加模型生产调用。
@@ -17,17 +19,19 @@ Agent 路径查询、后台等待、`/explore`、个人匹配树和统一会籍�
 | 场景 | 核对结果 |
 | --- | --- |
 | 假设 BA Silver，允许付费，全部匹配 | 5 条最终路线，6 个目标节点；Flying Blue Gold 作为通向 Royal Jordanian 的中间节点，不再单列重复前缀 |
-| 同起点，只看免费 | Asante Rewards Gold Elite Plus、Club Avolta Gold 两条；与页面一致 |
+| 同起点，只看免费 | 当时返回 Asante Rewards Gold Elite Plus、Club Avolta Gold 两条，与页面一致；复审确认 Asante 应为付费，此项不通过，正确应只有 Club Avolta |
 | 同时假设 BA Bronze + Silver，目标 Flying Blue | 仅选 BA Silver → Flying Blue Gold，隐藏独立的较低 Silver 目标 |
 | 明确只要 Flying Blue Silver | BA Bronze → Flying Blue Silver；不替换为 Gold |
 | 明确询问 Silver 地区价格 | 模型读取既有活动详情，返回希腊 EUR 89、其他已记录地区 USD 99；金额未进入搜索条件 |
 | 等待 BA Silver → Flying Blue Gold | 正常后台维护命中 RESULT_PENDING；模型读取并画出的路径、版本与直接查询一致 |
 | 取消等待及无结果查询 | 本次等待已 CANCELLED；Club Avolta Gold → Flying Blue Gold 返回当前库内无路径，未保存假设会籍 |
 | 等待能力说明复验 | 正确解释“命中即暂停”，确认所有历史等待均已取消 |
-| `/explore` 正常页面 | 允许付费／仅免费分别与 Agent 的 5／2 条路线一致；一张图，无金额输入控件 |
+| `/explore` 正常页面 | 当时允许付费／仅免费与 Agent 的 5／2 条路线一致；一张图，无金额输入控件。仅免费结果同受费用误判影响，一致性不代表事实正确 |
 | 图中点击 Flying Blue | 同版详情仍有 104 项映射和四组地区价格、申请入口；刷新后图恢复正常 |
 
 BA Silver 全部结果仅展开 7 个节点、检查 17 条连接。共享查询结果 8,768 字节；真实 Agent 最终 ROUTES 存档最大 11,813 字节，远低于原来触发故障的 1 MB 限制。逐项核对六条输出连接的 `mapping_ref` 与正式 FactSet 映射：Air Astana、Asante、Club Avolta 通配规则、Lotusmiles、Flying Blue、Royal Jordanian 均相符。该核对使用结构化映射，不要求逐字段原文证据。
+
+上述映射引用核对证明连接存在，未充分核对读取层对价格等级的匹配。复审发现 Asante、Royal Jordanian 的费用标记错误；允许付费结果中的映射仍存在，但部分边的付费显示不正确。
 
 重启加载最终工具说明期间有一次 HTTP 503（服务尚未就绪），状态恢复 READY 后正常重试完成；没有创建失败回合或重复写入。
 

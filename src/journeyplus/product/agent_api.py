@@ -162,6 +162,7 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
         storage=lifecycle.refresh_storage()
         knowledge=runtime.services['knowledge'].availability()
         return {'status': lifecycle.status, 'error_type': lifecycle.error,
+                'waiting_enabled':runtime.services.get('waiting_enabled',False),
                 'knowledge':knowledge,'storage':storage,'ready_for_route_queries':lifecycle.status=='READY' and knowledge['status']=='AVAILABLE'}
 
     app.include_router(router)
