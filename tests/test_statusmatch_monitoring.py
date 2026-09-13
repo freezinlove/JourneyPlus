@@ -86,6 +86,7 @@ class DailyWorkflowProvider:
                 {
                     "identity": {
                         "program": "Example Club",
+                        "title": "Example Club 会籍匹配活动",
                         "summary": "Example Club status match",
                     },
                     "what_happened": {
@@ -807,6 +808,6 @@ def test_daily_cycle_processes_changed_watch_pages_when_mail_source_not_selected
     assert result.statusmatch_pages_changed == 3
     assert result.statusmatch_projects_selected == 1
     assert result.statusmatch_projects_succeeded == 1
-    assert result.statusmatch_project_model_calls == 2
+    assert result.statusmatch_project_model_calls == 1
     assert result.documents_selected == 1
     assert result.documents_succeeded == 1

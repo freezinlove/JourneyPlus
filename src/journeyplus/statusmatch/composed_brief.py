@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.contracts import Brief
+from journeyplus.contracts import StatusMatchBrief, read_brief
 from journeyplus.models import (
     BriefRecord,
     DocumentVersion,
@@ -77,12 +78,12 @@ def composed_statusmatch_brief(
                     highlights=highlights,
                 )
             )
-    brief_payload = Brief.model_validate(brief.content)
+    brief_payload = read_brief(brief.content)
     return ComposedStatusMatchBrief(
         title=brief_payload.title,
         summary=brief_payload.summary,
-        key_points=[point.text for point in brief_payload.key_points],
-        caveats=[point.text for point in brief_payload.caveats],
+        key_points=[point.text for point in getattr(brief_payload, "key_points", [])],
+        caveats=[point.text for point in getattr(brief_payload, "caveats", [])],
         source_links=brief_payload.source_links,
         supplements=supplement_views,
     )

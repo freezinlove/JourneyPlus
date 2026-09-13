@@ -442,3 +442,12 @@ footer { padding: 1.5rem; color: var(--muted); text-align: center; font-size: .7
   .graph-legend { gap: .7rem; }
   .membership-graph { min-height: 360px; }
 }
+
+/* Brief text is authored once; badges, relations and tables are read-time facts. */
+.brief-row h2 a { color: inherit; text-decoration: none; }
+.fee-chip { display: inline-block; margin: .75rem 0; padding: .3rem .65rem; border-radius: .4rem; background: var(--surface, #f0f5f2); color: var(--green-2); font-size: .85rem; font-weight: 650; }
+.brief-links { margin: .5rem 0; font-size: .88rem; overflow-wrap: anywhere; }
+.brief-detail__header time { display: block; color: var(--muted); font-size: .8rem; }
+.table-notes { margin: .6rem 0; font-size: .85rem; }
+.table-notes summary { cursor: pointer; color: var(--green-2); }
+.table-notes p { white-space: normal; overflow-wrap: anywhere; margin: .5rem 0; }

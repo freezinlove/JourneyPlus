@@ -318,3 +318,20 @@ class Brief(StrictModel):
     key_points: list[BriefPoint] = Field(default_factory=list, max_length=10)
     caveats: list[BriefPoint] = Field(default_factory=list, max_length=10)
     source_links: list[HttpUrl] = Field(default_factory=list, max_length=30)
+
+
+class StatusMatchBrief(StrictModel):
+    """Official brief text; tables and personal relevance come from readers."""
+
+    schema_version: str = "statusmatch-brief-1"
+    fact_set_id: UUID
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(min_length=1, max_length=600)
+    source_links: list[HttpUrl] = Field(default_factory=list, max_length=30)
+
+
+def read_brief(content: dict) -> Brief | StatusMatchBrief:
+    # Two active producers: ordinary/editorial briefs and official short briefs.
+    if content.get("schema_version") == "statusmatch-brief-1":
+        return StatusMatchBrief.model_validate(content)
+    return Brief.model_validate(content)

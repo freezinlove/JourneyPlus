@@ -11,11 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
-from journeyplus.briefs.service import (
-    BRIEF_PROMPT_VERSION,
-    BRIEF_SCHEMA_VERSION,
-    BriefGenerator,
-)
+from journeyplus.statusmatch.briefs import OFFICIAL_BRIEF_SCHEMA_VERSION, save_official_brief
 from journeyplus.contracts import (
     AnalysisStage,
     ApplicationRoute,
@@ -76,14 +72,17 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v17"
-PROJECT_SCHEMA_VERSION = "3"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v18"
+PROJECT_SCHEMA_VERSION = "4"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
 *.statusmatch.com host、HOME、FAQ、TERMS 和关闭规则确认它是一个当前会籍匹配机会；不要再分类，
 不要判断它与任何其他事件的关系。三页必须作为一个完整当前快照共同解释。
 
-输出 identity（目标忠诚度项目、简洁活动摘要、目标会籍）以及完整当前事实。字段包括发生事项、
+输出 identity（目标忠诚度项目 program、活动标题 title、简洁活动摘要 summary、目标会籍）以及完整当前事实。
+identity.title 只说明哪个项目的会籍匹配活动，例如“Flying Blue 会籍匹配活动”。
+identity.summary 根据正文用一两句话概述活动核心内容，不列出具体等级对应、地区价格，
+不判断用户是否能申请。标题、摘要将直接作为简报文案，详细表格、个人关系、链接和版本信息由程序提供。字段包括发生事项、
 适用对象、可获得会籍、成本、挑战要求、地域、申请开始时间、截止时间、会籍有效期、行动链接、
 限制和 application_routes。当前材料没有明确支持的值必须为 null；不得从旧 fact set 保留已
 消失的事实。identity、事实值、scope、条件和冲突说明使用简体中文，品牌、项目和等级专有名词
@@ -177,7 +176,7 @@ def statusmatch_project_job_key(
         "provider": provider.metadata.config_version,
         "project": [PROJECT_PROMPT_VERSION, PROJECT_SCHEMA_VERSION],
         "facts": FACT_SCHEMA_VERSION,
-        "brief": [BRIEF_PROMPT_VERSION, BRIEF_SCHEMA_VERSION],
+        "brief": OFFICIAL_BRIEF_SCHEMA_VERSION,
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True).encode()
@@ -301,7 +300,7 @@ class StatusMatchProjectWorkflow:
         self._max_attempts = max_attempts
         self._extraction_override = extraction_override
 
-    def process(self, watch: StatusMatchWatch, *, skip_brief=False) -> StatusMatchProjectResult:
+    def process(self, watch: StatusMatchWatch) -> StatusMatchProjectResult:
         pages = _complete_pages(self._session, watch)
         if pages is None:
             raise ValueError("StatusMatch project requires valid current HOME, FAQ and TERMS")
@@ -392,13 +391,8 @@ class StatusMatchProjectWorkflow:
             faq=faq,
             terms=terms,
         )
-        brief_calls_before = _provider_call_count(self._provider)
-        brief = None if skip_brief else BriefGenerator(self._session, self._provider).generate(record)
-        brief_calls_after = _provider_call_count(self._provider)
-        if brief_calls_before is not None and brief_calls_after is not None:
-            brief_calls = brief_calls_after - brief_calls_before
-        else:
-            brief_calls = 0 if brief is None or brief.reused else 1
+        brief, brief_reused = save_official_brief(self._session, record, extraction.identity)
+        run.result = {**run.result, "fact_set_id": str(record.id), "brief_id": str(brief.id)}
         self._session.flush()
         return StatusMatchProjectResult(
             host=watch.host,
@@ -410,13 +404,13 @@ class StatusMatchProjectWorkflow:
             fact_set_id=str(record.id),
             fact_set_version=record.version,
             fact_reused=reused,
-            brief_id=str(brief.record.id) if brief else "",
-            brief_reused=brief.reused if brief else False,
+            brief_id=str(brief.id),
+            brief_reused=brief_reused,
             mapping_count=len(fact_set.status_mappings),
             change_set_id=str(change_set.id),
             change_kind=change_set.kind,
             changes=tuple(change_set.changes),
-            model_calls=attempts + brief_calls,
+            model_calls=attempts,
         )
 
     def _event_for_watch(self, watch: StatusMatchWatch) -> StatusEvent:
@@ -1215,8 +1209,6 @@ def _safe_error(exc: Exception) -> str:
 
 
 def process_statusmatch_project_in_phases(factory, provider, watch_id):
-    from dataclasses import replace
-    from journeyplus.briefs.service import generate_brief_in_phases
     with factory.begin() as session:
         watch = session.get(StatusMatchWatch, watch_id)
         if watch is None:
@@ -1242,16 +1234,25 @@ def process_statusmatch_project_in_phases(factory, provider, watch_id):
         with factory.begin() as session:
             run=session.get(AnalysisRun,run_id);run.status=RunStatus.FAILED;run.error=_safe_error(exc)
         raise
+    # Keep the completed model output if the publication transaction fails.
+    # Facts, brief and current pointers are then published atomically below.
     with factory.begin() as session:
-        watch=session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id==watch_id).with_for_update())
-        event=session.scalar(select(StatusEvent).where(StatusEvent.id==baseline[0]).with_for_update())
-        pages=_complete_pages(session,watch) if watch else None
-        if (watch is None or watch.current_event_id!=baseline[0] or event.current_fact_set_id!=baseline[1]
-                or pages is None or {k:p.current_document_version_id for k,p in pages.items()}!=baseline[2]):
-            raise ValueError('StatusMatch source or facts changed during extraction')
-        result=StatusMatchProjectWorkflow(session,provider,extraction_override=(extraction,attempts,run_id)).process(watch,skip_brief=True)
-    before=_provider_call_count(provider)
-    brief_id,reused=generate_brief_in_phases(factory,provider,UUID(result.fact_set_id))
-    after=_provider_call_count(provider)
-    calls=after-before if before is not None and after is not None else 0 if reused else 1
-    return replace(result,brief_id=brief_id,brief_reused=reused,model_calls=result.model_calls+calls)
+        run = session.get(AnalysisRun, run_id)
+        run.result = {"extraction": extraction.model_dump(mode="json")}
+        run.error = None
+    try:
+        with factory.begin() as session:
+            watch=session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id==watch_id).with_for_update())
+            event=session.scalar(select(StatusEvent).where(StatusEvent.id==baseline[0]).with_for_update())
+            pages=_complete_pages(session,watch) if watch else None
+            if (watch is None or watch.current_event_id!=baseline[0] or event.current_fact_set_id!=baseline[1]
+                    or pages is None or {k:p.current_document_version_id for k,p in pages.items()}!=baseline[2]):
+                raise ValueError('StatusMatch source or facts changed during extraction')
+            result=StatusMatchProjectWorkflow(session,provider,extraction_override=(extraction,attempts,run_id)).process(watch)
+    except Exception as exc:
+        with factory.begin() as session:
+            run = session.get(AnalysisRun, run_id)
+            run.status = RunStatus.FAILED
+            run.error = _safe_error(exc)
+        raise
+    return result

@@ -145,6 +145,7 @@ class InitializationProjectProvider:
                 {
                     "identity": {
                         "program": host.split(".", 1)[0],
+                        "title": f"{host} 会籍匹配活动",
                         "summary": f"{host} status match",
                     },
                     "what_happened": {
@@ -397,7 +398,7 @@ def test_mail_initialization_processes_only_documents_in_current_discovery(
     assert summary.status == "AWAITING_AUDIT"
     assert summary.documents_selected == 1
     assert summary.backlog_count == 0
-    assert len(provider.calls) == 2
+    assert len(provider.calls) == 1
     assert len(summary.sources[0].document_version_ids) == 3
     assert (
         stale.current_document_version_ids[0]
@@ -482,7 +483,7 @@ def test_public_initialization_routes_linked_article_before_generic_documents(
     assert summary.backlog_count == 0
     assert summary.documents_selected == 2
     assert provider.calls.count("StatusMatchProjectExtraction") == 1
-    assert provider.calls.count("Brief") == 1
+    assert provider.calls.count("Brief") == 0
     assert provider.calls.count("StatusMatchArticleExtraction") == 1
     assert provider.calls.count("RelevanceResult") == 0
     with session_factory() as session:
@@ -541,7 +542,7 @@ def test_failed_mail_initialization_recollects_the_next_attempt(
     assert first.status == "FAILED"
     assert second.status == "AWAITING_AUDIT"
     assert second.documents_selected == 1
-    assert len(second_provider.calls) == 2
+    assert len(second_provider.calls) == 1
     with session_factory() as session:
         keys = set(session.scalars(select(CollectionRun.idempotency_key)))
     assert any(

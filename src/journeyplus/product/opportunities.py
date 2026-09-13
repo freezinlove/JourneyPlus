@@ -25,6 +25,7 @@ from journeyplus.membership.contracts import (
 )
 from journeyplus.membership.normalization import normalize_tier
 from journeyplus.membership.unified import UnifiedMembershipTreeService
+from journeyplus.contracts import StatusMatchBrief, read_brief
 from journeyplus.models import (
     ArticleAnalysisRecord,
     ArticleBriefRecord,
@@ -178,7 +179,9 @@ class PersonalizedMatchService:
             detail = self._article_detail(article)
         if not include_current_path:
             return detail
-        return detail.model_copy(update={"path": self._current_path(resolved_id)})
+        from journeyplus.product.brief_data import relation_context
+        relation = relation_context(self._session).for_opportunity(resolved_id)
+        return detail.model_copy(update={"path": relation.path, "relationship": relation})
 
     def _current_path(self, opportunity_id: UUID) -> list[str] | None:
         holdings = StatusHoldingService(self._session).list()
@@ -355,7 +358,7 @@ class PersonalizedMatchService:
                 .where(BriefRecord.fact_set_id==record.id)
                 .order_by(BriefRecord.version.desc()).limit(1))
         brief = (
-            Brief.model_validate(brief_record.content)
+            read_brief(brief_record.content)
             if brief_record is not None
             else None
         )
@@ -371,7 +374,8 @@ class PersonalizedMatchService:
         )
         from journeyplus.knowledge.source_documents import source_links
         links = source_links(self._session, record)
-        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links))})
+        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links)),
+                                         'brief_updated_at': brief_record.updated_at if brief_record else None})
 
     def _article_detail(self, article: ArticleOpportunityRecord) -> OpportunityDetail:
         facts = _validated_facts(
@@ -385,7 +389,7 @@ class PersonalizedMatchService:
             else None
         )
         brief = (
-            Brief.model_validate(brief_record.content)
+            read_brief(brief_record.content)
             if brief_record is not None
             else None
         )
@@ -402,7 +406,8 @@ class PersonalizedMatchService:
 
         from journeyplus.knowledge.source_documents import source_links
         links = source_links(self._session, article)
-        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links))})
+        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links)),
+                                         'brief_updated_at': brief_record.updated_at if brief_record else None})
 
 
 def _validated_facts(
@@ -431,8 +436,9 @@ def _detail(
     summary: str,
     lifecycle_status: str,
     facts: FactSet,
-    brief: Brief | None,
+    brief: Brief | StatusMatchBrief | None,
 ) -> OpportunityDetail:
+    from journeyplus.product.brief_data import action_links, fee_view
     routes = [_route_view(route, facts) for route in facts.application_routes]
     if not routes:
         virtual = _virtual_route(facts)
@@ -459,6 +465,8 @@ def _detail(
     )
     return OpportunityDetail(
         opportunity_id=opportunity_id,
+        fee=fee_view(facts),
+        action_links=action_links(facts),
         source=source,
         opportunity_kind=facts.opportunity_kind,
         program=program,

@@ -9,6 +9,7 @@ from pydantic import Field, model_validator
 
 from journeyplus.contracts import (
     Brief,
+    StatusMatchBrief,
     EvidenceRef,
     FactSet,
     OpportunityKind,
@@ -171,6 +172,21 @@ class CandidateRouteResult(StrictModel):
     matching_signature: str = Field(min_length=64, max_length=64)
 
 
+class BriefFee(StrictModel):
+    status: str = "UNKNOWN"
+    label: str = "费用待确认"
+    has_conditional_fees: bool = False
+    incomplete: bool = True
+    notes: list[str] = Field(default_factory=list)
+
+
+class BriefRelationship(StrictModel):
+    status: str
+    text: str
+    path: list[str] | None = None
+    path_labels: list[str] = Field(default_factory=list)
+
+
 class OpportunityDetail(StrictModel):
     schema_version: str = "1"
     opportunity_id: UUID
@@ -183,8 +199,12 @@ class OpportunityDetail(StrictModel):
     path: list[str] | None = None
     facts: FactSet
     routes: list[ProductApplicationRoute] = Field(default_factory=list)
-    brief: Brief | None = None
+    brief: Brief | StatusMatchBrief | None = None
     source_links: list[str] = Field(default_factory=list)
+    brief_updated_at: datetime | None = None
+    fee: BriefFee = Field(default_factory=lambda: BriefFee())
+    relationship: BriefRelationship | None = None
+    action_links: list[str] = Field(default_factory=list)
 
 
 class BriefListItem(StrictModel):
@@ -208,6 +228,9 @@ class BriefListItem(StrictModel):
     updated_at: datetime
     path: list[str] | None = None
     reachable: bool = False
+    fee: BriefFee = Field(default_factory=lambda: BriefFee())
+    relationship: BriefRelationship | None = None
+    action_links: list[str] = Field(default_factory=list)
 
 
 class BriefList(StrictModel):

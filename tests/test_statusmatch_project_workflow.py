@@ -93,34 +93,6 @@ class ProjectProvider:
             if not self.extractions:
                 raise RuntimeError("No project extraction remains")
             return output_model.model_validate(self.extractions.pop(0))
-        if output_model is Brief:
-            fact_set_id = request["fact_set_id"]
-            caveats = []
-            if request["fact_set"].get("caveats", {}).get("value"):
-                caveats.append(
-                    {
-                        "text": request["fact_set"]["caveats"]["value"],
-                        "fact_keys": ["caveats"],
-                    }
-                )
-            return output_model.model_validate(
-                {
-                    "schema_version": "1",
-                    "fact_set_id": fact_set_id,
-                    "title": "Example Club 开放会籍匹配",
-                    "title_fact_keys": ["what_happened"],
-                    "summary": "Example Club 当前开放 Gold 会籍匹配。",
-                    "summary_fact_keys": ["what_happened", "target_status"],
-                    "key_points": [
-                        {
-                            "text": "符合资格的 Example Air Gold 会员可申请。",
-                            "fact_keys": ["eligibility"],
-                        }
-                    ],
-                    "caveats": caveats,
-                    "source_links": request["allowed_source_links"],
-                }
-            )
         raise AssertionError(f"Unexpected output model: {output_model}")
 
 
@@ -142,6 +114,7 @@ def _extraction(
         "schema_version": "1",
         "identity": {
             "program": "Example Club",
+            "title": "Example Club 开放会籍匹配",
             "summary": f"{host} 当前开放会籍匹配",
             "target_status": "Gold",
         },
@@ -184,7 +157,7 @@ def _seed_active_watch(session, host: str = "example.statusmatch.com"):
     return watch
 
 
-def test_initial_project_uses_exactly_two_calls_without_generic_analysis(
+def test_initial_project_uses_one_call_and_saves_brief_without_generic_analysis(
     session_factory,
 ) -> None:
     with session_factory.begin() as session:
@@ -195,10 +168,9 @@ def test_initial_project_uses_exactly_two_calls_without_generic_analysis(
     summary = process_pending_statusmatch_projects(session_factory, provider)
 
     assert (summary.selected, summary.succeeded, summary.failed) == (1, 1, 0)
-    assert summary.model_calls == 2
+    assert summary.model_calls == 1
     assert [item["model"] for item in provider.calls] == [
         "StatusMatchProjectExtraction",
-        "Brief",
     ]
     with session_factory() as session:
         watch = session.get(StatusMatchWatch, watch_id)
@@ -220,7 +192,6 @@ def test_initial_project_uses_exactly_two_calls_without_generic_analysis(
         ) == 1
         assert set(session.scalars(select(AnalysisRun.stage))) == {
             "STATUSMATCH_PROJECT_EXTRACTION",
-            "BRIEF_GENERATION",
         }
         evidence_ids = set(
             session.scalars(
@@ -283,7 +254,7 @@ def test_project_extracts_evidenced_route_prices_without_extra_model_stage(
     )
 
     assert summary.succeeded == 1
-    assert summary.model_calls == 2
+    assert summary.model_calls == 1
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
         assert record is not None
@@ -312,25 +283,9 @@ def test_prose_price_without_evidence_reaches_brief_with_optional_cost(
         "availability": "AVAILABLE",
     }]
 
-    class PriceBriefProvider(ProjectProvider):
-        def generate_structured(self, **kwargs):
-            result = super().generate_structured(**kwargs)
-            if kwargs["output_model"] is Brief:
-                payload = result.model_dump(mode="json")
-                payload["key_points"].append({
-                    "text": "Gold 申请费为 USD 99。", "fact_keys": ["application_routes"],
-                })
-                return Brief.model_validate(payload)
-            return result
-
-    provider = PriceBriefProvider([extraction])
+    provider = ProjectProvider([extraction])
     result = process_pending_statusmatch_projects(session_factory, provider)
-
-    assert (result.succeeded, result.failed, result.model_calls) == (1, 0, 2), result.errors
-    request = provider.calls[1]["request"]
-    assert request["fact_set"]["cost"]["value"] == cost_note
-    price = request["fact_set"]["application_routes"][0]["prices"][0]
-    assert (Decimal(price["amount"]), price["currency"], price["evidence"]) == (99, "USD", [])
+    assert (result.succeeded, result.failed, result.model_calls) == (1, 0, 1), result.errors
     with session_factory() as session:
         from journeyplus.product.briefs import _price_summaries
         record = session.scalar(select(FactSetRecord))
@@ -339,7 +294,8 @@ def test_prose_price_without_evidence_reaches_brief_with_optional_cost(
         assert any("99" in text and "USD" in text for text in _price_summaries(facts))
         brief = session.scalar(select(BriefRecord))
         assert brief.fact_set_id == record.id
-        assert brief.content["key_points"][-1]["fact_keys"] == ["application_routes"]
+        assert "key_points" not in brief.content
+        assert brief.content["title"] == extraction["identity"]["title"]
 
 
 def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
@@ -373,7 +329,7 @@ def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
     summary = process_pending_statusmatch_projects(session_factory, provider)
 
     assert summary.succeeded == 1
-    assert summary.model_calls == 2
+    assert summary.model_calls == 1
     request = provider.calls[0]["request"]
     assert request["deterministic_price_routes"]["count"] == 1
     assert "TERMS" in request["documents"]
@@ -664,7 +620,6 @@ def test_invalid_alias_retries_without_persisting_partial_output(
     assert [item["model"] for item in provider.calls] == [
         "StatusMatchProjectExtraction",
         "StatusMatchProjectExtraction",
-        "Brief",
     ]
     with session_factory() as session:
         assert session.scalar(
@@ -690,7 +645,7 @@ def test_explicit_null_unknowns_are_normalized_and_failed_calls_are_counted(
         session_factory, ProjectProvider([valid_with_nulls])
     )
     assert success.succeeded == 1
-    assert success.model_calls == 2
+    assert success.model_calls == 1
 
 
 def test_requalification_requirement_is_mandatory_caveat_with_retry(
@@ -715,11 +670,10 @@ def test_requalification_requirement_is_mandatory_caveat_with_retry(
     summary = process_pending_statusmatch_projects(session_factory, provider)
 
     assert summary.succeeded == 1
-    assert summary.model_calls == 3
+    assert summary.model_calls == 2
     assert [item["model"] for item in provider.calls] == [
         "StatusMatchProjectExtraction",
         "StatusMatchProjectExtraction",
-        "Brief",
     ]
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
@@ -751,7 +705,7 @@ def test_requalify_on_merit_cannot_be_over_specified_as_spend(
     summary = process_pending_statusmatch_projects(session_factory, provider)
 
     assert summary.succeeded == 1
-    assert summary.model_calls == 3
+    assert summary.model_calls == 2
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
         assert record is not None
@@ -914,7 +868,7 @@ def test_selected_host_audit_reports_complete_project_without_reprocessing(
     assert project["change_set"]["kind"] == "INITIAL_SNAPSHOT"
     assert project["brief"]["content"]["title"] == "Example Club 开放会籍匹配"
     assert project["historical_dedicated_project_runs"] == 1
-    assert project["historical_brief_runs"] == 1
+    assert project["historical_brief_runs"] == 0
 
 
 @pytest.mark.parametrize("bad_first_ref", [False, True])
@@ -963,7 +917,7 @@ def test_table_supplements_publish_in_place_with_existing_model_stages(
     result = process_pending_statusmatch_projects(session_factory, provider)
 
     assert (result.succeeded, result.failed) == (1, 0), result.errors
-    assert result.model_calls == 2 + int(bad_first_ref)
+    assert result.model_calls == 1 + int(bad_first_ref)
     request = provider.calls[0]["request"]
     drafts = request["deterministic_status_mappings"]
     assert drafts["count"] == 2

@@ -135,6 +135,7 @@ class DailyArticleProvider:
                 {
                     "identity": {
                         "program": "Kenya Airways Asante Rewards",
+                        "title": "Kenya Airways Asante Rewards 会籍匹配活动",
                         "summary": "Kenya Airways status match",
                         "target_status": "Platinum Elite Plus",
                     },
@@ -649,7 +650,6 @@ def test_daily_cycle_runs_article_branch_before_generic_workflow(
     assert result.documents_selected == 0
     assert provider.calls == [
         "StatusMatchProjectExtraction",
-        "Brief",
         "StatusMatchArticleExtraction",
     ]
     with session_factory() as session:

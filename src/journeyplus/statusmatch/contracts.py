@@ -113,7 +113,8 @@ class AliasedStatusMapping(StrictModel):
 
 class StatusMatchProjectIdentity(StrictModel):
     program: str = Field(min_length=1, max_length=300)
-    summary: str = Field(min_length=1, max_length=1000)
+    title: str = Field(min_length=1, max_length=120)
+    summary: str = Field(min_length=1, max_length=600)
     target_status: str | None = Field(default=None, max_length=300)
 
 

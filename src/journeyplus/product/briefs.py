@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.contracts import Brief, FactSet, RoutePriceAvailability
+from journeyplus.contracts import StatusMatchBrief, read_brief
 from journeyplus.models import (
     ArticleAnalysisRecord,
     ArticleBriefRecord,
@@ -25,7 +26,7 @@ from journeyplus.opportunity_shaping import (
     with_legacy_opportunity_kind,
 )
 from journeyplus.product.contracts import BriefList, BriefListItem
-from journeyplus.product.opportunities import PersonalizedMatchService
+from journeyplus.product.brief_data import action_links, fee_view, relation_context
 
 
 _PUBLIC_FACT_LABELS = {
@@ -55,12 +56,10 @@ class ProductBriefService:
         query: str | None = None,
         reachable_only: bool = False,
     ) -> BriefList:
-        paths = {
-            item.opportunity_id: item.path
-            for item in PersonalizedMatchService(self._session).read().opportunities
-            if item.path is not None
-        }
-        items = [*self._official_items(paths), *self._article_items(paths)]
+        context = relation_context(self._session)
+        items = [*self._official_items(context.paths), *self._article_items(context.paths)]
+        items = [item.model_copy(update={"relationship": context.for_opportunity(item.opportunity_id)})
+                 for item in items]
         if query:
             folded = query.casefold()
             items = [
@@ -114,7 +113,7 @@ class ProductBriefService:
                     target_status=event.target_status,
                 )
             )
-            brief = Brief.model_validate(brief_record.content)
+            brief = read_brief(brief_record.content)
             result.append(
                 _brief_item(
                     opportunity_id=fact_record.id,
@@ -167,7 +166,7 @@ class ProductBriefService:
                         target_status=opportunity.target_status,
                     )
                 )
-                brief = Brief.model_validate(brief_record.content)
+                brief = read_brief(brief_record.content)
                 source_item = self._session.get(SourceItem, analysis.source_item_id)
                 result.append(
                     _brief_item(
@@ -198,7 +197,7 @@ def _brief_item(
     program: str,
     target_status: str | None,
     lifecycle_status: str,
-    brief: Brief,
+    brief: Brief | StatusMatchBrief,
     published_at,
     updated_at,
     path: list[str] | None,
@@ -217,13 +216,15 @@ def _brief_item(
         deadline=facts.deadline.value,
         price_summaries=_price_summaries(facts),
         china_advisories=_china_advisories(facts),
-        key_points=[_public_brief_text(item.text) for item in brief.key_points],
-        caveats=[_public_brief_text(item.text) for item in brief.caveats],
+        key_points=[_public_brief_text(item.text) for item in getattr(brief, "key_points", [])],
+        caveats=[_public_brief_text(item.text) for item in getattr(brief, "caveats", [])],
         source_links=[str(item) for item in brief.source_links],
         published_at=published_at,
         updated_at=updated_at,
         path=path,
         reachable=path is not None,
+        fee=fee_view(facts),
+        action_links=action_links(facts),
     )
 
 

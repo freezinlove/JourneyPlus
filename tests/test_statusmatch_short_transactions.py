@@ -33,7 +33,7 @@ def test_official_http_has_no_checked_out_database_connection(factory):
         event.remove(engine,'checkout',checkout);event.remove(engine,'checkin',checkin)
 
 
-def test_project_and_brief_models_run_without_database_connections(factory):
+def test_project_model_runs_without_database_connections(factory):
     from tests.test_statusmatch_project_workflow import _seed_active_watch, ProjectProvider, _extraction
     from journeyplus.statusmatch.project_workflow import process_pending_statusmatch_projects
     with factory.begin() as s:_seed_active_watch(s)
@@ -47,7 +47,7 @@ def test_project_and_brief_models_run_without_database_connections(factory):
                 assert not active, 'Model called with a database connection checked out'
                 return super().generate_structured(**kwargs)
         result=process_pending_statusmatch_projects(factory,CheckedProvider([_extraction()]))
-        assert result.succeeded==1 and result.failed==0 and result.model_calls==2
+        assert result.succeeded==1 and result.failed==0 and result.model_calls==1
     finally:
         event.remove(engine,'checkout',checkout);event.remove(engine,'checkin',checkin)
 

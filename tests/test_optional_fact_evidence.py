@@ -34,7 +34,7 @@ def test_official_production_archive_brief_and_graph_without_field_evidence(orig
         "target_tier": "Gold", "availability": "AVAILABLE",
     }]))])
     result = process_pending_statusmatch_projects(original_factory, provider)
-    assert (result.succeeded, result.failed, result.model_calls) == (1, 0, 2), result.errors
+    assert (result.succeeded, result.failed, result.model_calls) == (1, 0, 1), result.errors
     fact_id = UUID(result.projects[0].fact_set_id)
     with original_factory.begin() as session:
         record = session.get(FactSetRecord, fact_id)

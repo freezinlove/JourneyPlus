@@ -255,14 +255,14 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
     assert "reachable-only" not in app_script.text
     assert "这里展示现有官方和普通文章的全部简报" not in app_script.text
     assert 'class="brief-row"' in app_script.text
-    assert 'class="brief-row__path-label">可尝试</span>' in app_script.text
+    assert 'class="brief-row__path-label">和我的关系</span>' in app_script.text
     assert 'class="brief-row__path-value"' in app_script.text
     assert "briefDisplayTitle" in app_script.text
     assert "briefCard" not in app_script.text
     assert 'class="card brief-card"' not in app_script.text
-    assert "官方匹配入口" in app_script.text
-    assert "会籍映射表格" in app_script.text
-    assert "匹配费用表格" in app_script.text
+    assert "申请入口" in app_script.text
+    assert "完整映射表" in app_script.text
+    assert "价格表" in app_script.text
     assert 'class="brief-detail"' in app_script.text
     assert "routeCard" not in app_script.text
     assert "factsBlock" not in app_script.text

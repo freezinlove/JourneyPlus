@@ -321,12 +321,19 @@ async function matchesPage() {
 }
 
 function briefDisplayTitle(item) {
-  const original = String(item.title || "").trim();
-  const isManagedStatusMatch = item.opportunity_kind === "STATUS_MATCH" && item.source !== "ORDINARY_ARTICLE";
-  if (!isManagedStatusMatch) return original;
-  const marker = "会籍匹配";
-  const markerIndex = original.indexOf(marker);
-  return markerIndex >= 0 ? original.slice(0, markerIndex + marker.length) : `${item.program}${marker}`;
+  return String(item.title || `${item.program} 会籍匹配活动`).trim();
+}
+
+function briefFee(item) {
+  return `<span class="fee-chip">${escapeHtml(item.fee?.label || "费用待确认")}</span>`;
+}
+
+function briefUpdatedAt(value) {
+  return value ? new Date(value).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", hour12: false }) : "尚未生成";
+}
+
+function publicLinks(links, label) {
+  return (links || []).map((link, index) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener">${escapeHtml(label ? `${label}${links.length > 1 ? ` ${index + 1}` : ""}` : sourceLinkLabel(link))}</a>`).join(" · ");
 }
 
 function membershipNodeText(nodeId) {
@@ -342,14 +349,15 @@ function briefPathText(path) {
 
 function briefRow(item) {
   const title = briefDisplayTitle(item);
-  return `<a class="brief-row" href="/opportunities/${item.opportunity_id}" aria-label="查看${escapeHtml(title)}">
-    <article>
-      <h2>${escapeHtml(title)}</h2>
-      <p class="brief-row__summary">${escapeHtml(item.summary)}</p>
-      <p class="brief-row__path"><span class="brief-row__path-label">可尝试</span><span class="brief-row__path-value">${escapeHtml(briefPathText(item.path))}</span></p>
-      <time datetime="${escapeHtml(item.updated_at)}">更新于 ${dateText(item.updated_at)}</time>
-    </article>
-  </a>`;
+  return `<article class="brief-row">
+    <h2><a href="/opportunities/${item.opportunity_id}">${escapeHtml(title)}</a></h2>
+    <p class="brief-row__summary">${escapeHtml(item.summary)}</p>
+    ${briefFee(item)}
+    <p class="brief-row__path"><span class="brief-row__path-label">和我的关系</span><span class="brief-row__path-value">${escapeHtml(item.relationship?.text || briefPathText(item.path))}</span></p>
+    <p class="brief-links">${publicLinks(item.action_links, "申请入口")}</p>
+    <p class="brief-links">来源：${publicLinks(item.source_links) || "暂无来源链接"}</p>
+    <time datetime="${escapeHtml(item.updated_at)}">简报更新于 ${escapeHtml(briefUpdatedAt(item.updated_at))}（北京时间）</time>
+  </article>`;
 }
 
 async function briefsPage() {
@@ -367,14 +375,6 @@ function titleCaseWords(value) {
   return String(value || "").replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
 
-function membershipPath(path) {
-  if (!path?.length) return '<p class="muted">当前持有会籍暂未找到通往此机会的匹配路径。</p>';
-  return `<div class="detail-path">${path.map((nodeId, index) => {
-    const [program, tier] = nodeId.split("::");
-    const arrow = index ? '<span class="detail-path__arrow" aria-hidden="true">→</span>' : "";
-    return `${arrow}<span class="detail-path__step"><strong>${escapeHtml(titleCaseWords(program))}</strong>${tier ? `<span>${escapeHtml(titleCaseWords(tier))}</span>` : ""}</span>`;
-  }).join("")}</div>`;
-}
 
 function compactTargetTier(value, targetStatus) {
   const raw = String(value || "通用").trim();
@@ -386,13 +386,14 @@ function compactTargetTier(value, targetStatus) {
 }
 
 function mappingCell(items) {
-  const usable = items.filter((item) => item.availability !== "UNAVAILABLE");
-  if (!usable.length) return '<span class="table-empty">—</span>';
-  const tiers = uniqueValues(usable.flatMap((item) => item.source_tiers || []));
-  const notes = [];
-  if (usable.some((item) => item.availability === "CONDITIONAL")) notes.push("可选／有条件");
-  if (usable.some((item) => item.conflict)) notes.push("信息有冲突");
-  return `${tiers.length ? tiers.map((tier) => escapeHtml(tier)).join("<br>") : "符合条件"}${notes.length ? `<small>${escapeHtml(notes.join(" · "))}</small>` : ""}`;
+  if (!items.length) return '<span class="table-empty">—</span>';
+  return items.map((item) => {
+    const tiers = (item.source_tiers || []).map(escapeHtml).join("<br>");
+    const label = item.availability === "UNAVAILABLE" ? `${tiers ? `${tiers}<br>` : ""}不可用` : tiers || "未说明原等级";
+    const availability = { CONDITIONAL: "有条件／可选", UNKNOWN: "可用性待确认" }[item.availability];
+    const notes = uniqueValues([item.conditions, item.conflict_note]);
+    return `<div>${label}${availability ? `<small>${availability}</small>` : ""}${item.conflict ? "<small>信息有冲突</small>" : ""}${notes.length ? `<details class="table-notes"><summary>条件说明</summary>${notes.map(note => `<p>${escapeHtml(note)}</p>`).join("")}</details>` : ""}</div>`;
+  }).join("<hr>");
 }
 
 function mappingTable(detail) {
@@ -414,19 +415,14 @@ function mappingTable(detail) {
 }
 
 function routeLabel(route) {
-  const scope = route.scope || "默认申请方式";
-  if (/travel rewards|credit card|信用卡/i.test(scope)) return "旅行奖励信用卡";
-  if (/alaska airlines/i.test(scope)) return "Alaska Airlines 会籍";
-  if (/hotel/i.test(scope)) return "酒店会籍";
-  if (/airline/i.test(scope)) return "航空会籍";
-  return scope;
+  return route.scope || "默认申请方式";
 }
 
 function priceText(price) {
   if (!price) return '<span class="table-empty">—</span>';
   if (price.amount != null) {
     const amount = String(price.amount).replace(/\.0+$/, "");
-    return `<strong>${escapeHtml(`${price.currency || ""} ${amount}`.trim())}</strong>`;
+    return `<strong>${escapeHtml(`${price.currency || ""} ${amount}`.trim())}</strong>${price.availability === "CONDITIONAL" ? `<small>有条件／可选费用${price.raw_text ? `：${escapeHtml(price.raw_text)}` : ""}</small>` : price.availability === "UNKNOWN" ? "<small>可用性待确认</small>" : ""}`;
   }
   return escapeHtml({ UNAVAILABLE: "不可用", CONDITIONAL: "有条件", UNKNOWN: "未公布" }[price.availability] || price.raw_text || "未公布");
 }
@@ -437,24 +433,11 @@ function priceTable(detail) {
   if (!routes.length || !targetTiers.length) return '<p class="muted">原文没有可展示的匹配费用表。</p>';
   return `<div class="detail-table-wrap"><table class="detail-table price-table">
     <thead><tr><th scope="col">申请方式</th>${targetTiers.map((tier) => `<th scope="col">${escapeHtml(tier)}</th>`).join("")}</tr></thead>
-    <tbody>${routes.map((route) => `<tr><th scope="row">${escapeHtml(routeLabel(route))}${route.conflict ? "<small>信息有冲突</small>" : ""}</th>${targetTiers.map((tier) => `<td>${priceText((route.prices || []).find((price) => (price.target_tier || "通用") === tier))}</td>`).join("")}</tr>`).join("")}</tbody>
+    <tbody>${routes.map((route) => `<tr><th scope="row">${escapeHtml(routeLabel(route))}${uniqueValues([route.region, route.eligibility, route.cost, route.conflict_note]).filter(note => note !== routeLabel(route)).map(note => `<small>${escapeHtml(note)}</small>`).join("")}${route.conflict ? "<small>信息有冲突</small>" : ""}</th>${targetTiers.map((tier) => `<td>${(route.prices || []).filter((price) => (price.target_tier || "通用") === tier).map(priceText).join("<br>") || "—"}</td>`).join("")}</tr>`).join("")}</tbody>
   </table></div>`;
 }
 
-function officialActionLink(detail) {
-  return detail.facts?.action_link?.value || detail.routes?.map((route) => route.action_link).find(Boolean) || null;
-}
 
-function detailNotices(detail) {
-  const briefNotices = (detail.brief?.caveats || []).map((item) => item.text);
-  const fallbackNotices = briefNotices.length
-    ? []
-    : String(detail.facts?.caveats?.value || "").split("；").map((item) => item.trim());
-  const lifecycleNotice = detail.lifecycle_status === "UNKNOWN" && !detail.facts?.deadline?.value
-    ? ["官网未提供明确截止时间，提交申请前请确认活动仍在开放。"]
-    : [];
-  return uniqueValues([...briefNotices, ...fallbackNotices, ...lifecycleNotice]);
-}
 
 function sourceLinkLabel(link) {
   try {
@@ -468,27 +451,22 @@ function sourceLinkLabel(link) {
   }
 }
 
-function sameLink(left, right) {
-  return String(left || "").replace(/\/$/, "") === String(right || "").replace(/\/$/, "");
-}
 
 async function opportunityPage() {
   const id = document.body.dataset.opportunityId;
   const detail = await api(`/v1/match-opportunities/${id}`);
   const title = briefDisplayTitle({ ...detail, title: detail.brief?.title || `${detail.program}${detail.target_status ? ` · ${detail.target_status}` : ""}` });
   const summary = detail.brief?.summary || detail.summary;
-  const notices = detailNotices(detail);
-  const actionLink = officialActionLink(detail);
-  const sourceLinks = (detail.source_links || []).filter((link) => !sameLink(link, actionLink));
+  const sourceLinks = detail.source_links || [];
+  const conditions = uniqueValues([detail.facts?.eligibility?.value, detail.facts?.status_validity?.value, detail.facts?.caveats?.value, detail.facts?.challenge_requirements?.value]);
   app.innerHTML = `<article class="brief-detail">
     <a class="detail-back" href="/briefs">← 返回机会简报</a>
-    <header class="brief-detail__header"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(summary)}</p></header>
-    <section class="detail-section"><h2>跟我的会籍联系</h2>${membershipPath(detail.path)}</section>
-    <section class="detail-section"><h2>注意事项和提醒</h2>${notices.length ? `<ul class="detail-notices">${notices.map((notice) => `<li>${escapeHtml(notice)}</li>`).join("")}</ul>` : '<p class="muted">暂无额外提醒。</p>'}</section>
-    <section class="detail-section official-entry"><h2>官方匹配入口</h2>${actionLink ? `<a class="official-entry__link" href="${escapeHtml(actionLink)}" target="_blank" rel="noopener">前往官方申请页面 <span aria-hidden="true">↗</span></a>` : '<p class="muted">当前没有可验证的官方申请入口。</p>'}</section>
-    <section class="detail-section"><h2>会籍映射表格</h2>${mappingTable(detail)}</section>
-    <section class="detail-section"><h2>匹配费用表格</h2>${priceTable(detail)}</section>
-    <section class="detail-section"><h2>原文链接</h2>${sourceLinks.length ? `<div class="detail-sources">${sourceLinks.map((link) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener"><span>${escapeHtml(sourceLinkLabel(link))}</span><small>${escapeHtml(link)}</small></a>`).join("")}</div>` : '<p class="muted">暂无独立原文链接。</p>'}</section>
+    <header class="brief-detail__header"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(summary)}</p>${briefFee(detail)}<time>简报更新于 ${escapeHtml(briefUpdatedAt(detail.brief_updated_at))}（北京时间）</time></header>
+    <section class="detail-section"><h2>和我的关系</h2><p>${escapeHtml(detail.relationship?.text || "暂未计算")}</p>${detail.relationship?.path_labels?.length ? `<p class="detail-path">${escapeHtml(detail.relationship.path_labels.join(" → "))}</p>` : ""}</section>
+    <section class="detail-section official-entry"><h2>申请入口</h2>${publicLinks(detail.action_links, "前往申请页面") || '<p class="muted">暂无申请入口。</p>'}</section>
+    <section class="detail-section"><h2>完整映射表</h2>${mappingTable(detail)}${conditions.length ? `<details class="table-notes"><summary>活动适用条件</summary>${conditions.map(text => `<p>${escapeHtml(text)}</p>`).join("")}</details>` : ""}</section>
+    <section class="detail-section"><h2>价格表</h2>${priceTable(detail)}${(detail.fee?.notes || []).map(note => `<p class="muted">${escapeHtml(note)}</p>`).join("")}</section>
+    <section class="detail-section"><h2>来源链接</h2>${sourceLinks.length ? `<div class="detail-sources">${sourceLinks.map((link) => `<a href="${escapeHtml(link)}" target="_blank" rel="noopener"><span>${escapeHtml(sourceLinkLabel(link))}</span><small>${escapeHtml(link)}</small></a>`).join("")}</div>` : '<p class="muted">暂无来源链接。</p>'}</section>
   </article>`;
 }
 
