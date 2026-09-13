@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, HttpUrl, field_validator, model_validator
 
@@ -117,6 +117,44 @@ class StatusMatchProjectIdentity(StrictModel):
     target_status: str | None = Field(default=None, max_length=300)
 
 
+class TablePriceUpdate(StrictModel):
+    ref: str = Field(pattern=r"^p[1-9][0-9]*$")
+    target_tier: str | None = None
+    amount: float | None = Field(default=None, ge=0)
+    currency: str | None = None
+    availability: RoutePriceAvailability | None = None
+    raw_text: str | None = None
+    clear_fields: list[Literal["target_tier", "amount", "currency", "raw_text"]] = Field(default_factory=list)
+
+
+class TableRouteUpdate(StrictModel):
+    """Null/omitted values inherit; repeated refs split a base route."""
+
+    ref: str = Field(pattern=r"^r[1-9][0-9]*$")
+    scope: str | None = None
+    eligibility: str | None = None
+    region: str | None = None
+    cost: str | None = None
+    action_link: HttpUrl | None = None
+    conflict: bool | None = None
+    conflict_note: str | None = None
+    price_updates: list[TablePriceUpdate] = Field(default_factory=list)
+    additional_prices: list[AliasedRoutePrice] = Field(default_factory=list)
+    clear_fields: list[Literal["eligibility", "region", "cost", "action_link", "conflict_note"]] = Field(default_factory=list)
+
+
+class TableMappingUpdate(StrictModel):
+    ref: str = Field(pattern=r"^m[1-9][0-9]*$")
+    source_program: str | None = None
+    source_tiers: list[str] | None = None
+    target_tier: str | None = None
+    availability: MappingAvailability | None = None
+    conditions: str | None = None
+    conflict: bool | None = None
+    conflict_note: str | None = None
+    clear_fields: list[Literal["conditions", "conflict_note"]] = Field(default_factory=list)
+
+
 class StatusMatchProjectExtraction(StrictModel):
     schema_version: str = "1"
     identity: StatusMatchProjectIdentity
@@ -139,6 +177,8 @@ class StatusMatchProjectExtraction(StrictModel):
     narrative_status_mappings: list[AliasedStatusMapping] = Field(
         default_factory=list, max_length=500
     )
+    route_updates: list[TableRouteUpdate] = Field(default_factory=list)
+    mapping_updates: list[TableMappingUpdate] = Field(default_factory=list)
 
     @field_validator(
         "eligibility",

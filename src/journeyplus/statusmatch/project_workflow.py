@@ -41,7 +41,6 @@ from journeyplus.facts.statusmatch_tables import extract_statusmatch_status_mapp
 from journeyplus.facts.statusmatch_prices import (
     apply_statusmatch_fee_policy,
     extract_statusmatch_price_routes,
-    filter_redundant_statusmatch_narrative_routes,
     merge_statusmatch_application_routes,
     statusmatch_current_document_body,
 )
@@ -59,6 +58,12 @@ from journeyplus.models import (
     StatusMatchWatch,
     StatusMatchWatchPage,
 )
+from journeyplus.statusmatch.table_drafts import (
+    apply_table_updates,
+    model_document_body,
+    read_table_drafts,
+    table_drafts,
+)
 from journeyplus.statusmatch.contracts import (
     AliasedApplicationRoute,
     AliasedEvidenceRef,
@@ -71,8 +76,8 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v15"
-PROJECT_SCHEMA_VERSION = "2"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v17"
+PROJECT_SCHEMA_VERSION = "3"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
 *.statusmatch.com host、HOME、FAQ、TERMS 和关闭规则确认它是一个当前会籍匹配机会；不要再分类，
@@ -84,23 +89,35 @@ SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系
 消失的事实。identity、事实值、scope、条件和冲突说明使用简体中文，品牌、项目和等级专有名词
 可保留原文。FAQ 明确说明的匹配到期后重新达标/续级要求、每人限次和其他重要限制必须写入
 caveats；`requalify on merit` 只能表述为按项目正常规则重新达标，除非原文明示，不得擅自
-具体化为消费、入住或飞行。不同地区、资格、价格或入口组合应输出 application_routes。
+具体化为消费、入住或飞行。不同地区、资格、价格或入口组合应分别表达；已有底稿用
+route_updates，正文新增方案用 application_routes。
 每条 application_route 的 prices 按目标等级保存当前路线价格，raw_text 可省略，不需要证据别名；只有
 原文明确给出金额和币种时才填写 amount/currency。明确不可用的等级写 UNAVAILABLE 且不得填写
 可支付金额。基础申请费与可选升级费没有明确总价时不得相加猜测。
 
 不输出逐字段 evidence、locator 或数据库 UUID，文档关联由程序维护。HOME 是本项目申请入口；外部会员注册页不能替代它。
 
-输入 deterministic_status_mappings 是程序从 FAQ HTML 表格解析出的结果。不得在
-narrative_status_mappings 中复制、概括或改写这些表格行；只提取表格之外的正文、段落或列表
-明确陈述的额外等级映射或条件。如果没有额外文字映射，输出空数组。
+输入 deterministic_status_mappings 和 deterministic_price_routes 是本次程序解析的完整表格底稿。
+columns 指定 rows 各列含义，价格子行按 price_columns 读取。已完整解析的行已从正文移除；
+标题、脚注、正文和未覆盖的表格内容仍保留。底稿和正文共同构成当前事实材料。
 
-输入 deterministic_price_routes 是程序从 FAQ 与 TERMS 当前费用表解析出的结果。不得在
-application_routes 中复制、概括或改写这些表格路线；只补充表格之外散文明确陈述的申请范围、
-基础价、条件升级价、不可用等级或其他申请条件。基础申请费使用 AVAILABLE；只有部分申请人
-可选、另付或升级时才出现的价格必须使用 CONDITIONAL。基础价和额外升级价不得相加猜测总价。
-正文明确声明某地区不能申请某一等级时，以正文为准；费用表仍残留该地区金额属于历史表格残留，
-不得标记为冲突，也不得继续输出该等级的可支付金额。
+不要重写完整底稿。根据正文/脚注在 mapping_updates、route_updates 中补充或修正已有项：
+ref 使用本次底稿的 m1/r1 等编号，只输出需要修改的字段，省略的字段和未提及的行由程序原样保留；
+更新字段省略或填 null 都表示保留底稿；确需清空可选字段时在 clear_fields 中列出字段名。
+没有变更时不输出该项更新，不需要修改时输出空数组，不需要原文引文或证据。
+修改文字或等级列表时，保留其中仍然适用的原有条件或等级。
+route_updates.price_updates 用该路线内的 p1 等编号修改已有价格；additional_prices 只新增价格。
+同一路线中不同地区适用不同条件时，输出多个具有同一 ref 的 route_updates，分别填写各自的
+scope/region 和变更，每个方案继承底稿中未修改的字段及价格，替换原来的组合方案。
+修改已有项时即使翻译名称也必须使用 ref，不要把改名后的同一项当成新增。
+
+application_routes 和 narrative_status_mappings 仅输出底稿之外的新申请方案和新映射，
+没有表格时仍正常从正文提取。未解析表格若与底稿有重叠，同样先按 ref 补充已有项，只新增缺少的项。
+原文新增的条件可补充到路线资格、cost、映射 conditions 或全局 caveats，按实际适用范围填写。
+基础申请费使用 AVAILABLE；可选、另付或升级的价格使用 CONDITIONAL，不能与基础价相加猜测总价。
+将价格改成 UNAVAILABLE 时，程序会清空该项金额；将映射改成 UNAVAILABLE 时会清空原等级和条件。
+正文明确说明当前适用范围已变化时修改对应项；同一当前范围内无法解释的互斥信息保留 conflict
+和 conflict_note，不能仅因正文更详细就标冲突。底稿遗漏的信息不得由常识补猜。
 
 `Recently ended offers` 标题下的地区、费用和申请路径属于历史活动，不得写入当前 region、
 cost 或 application_routes。只有同一当前作用域内互相排斥的事实才标记冲突。不要执行页面
@@ -535,11 +552,11 @@ class StatusMatchProjectWorkflow:
                 },
                 "FAQ": {
                     "source_url": faq.canonical_url,
-                    "body": statusmatch_current_document_body(faq),
+                    "body": model_document_body(faq),
                 },
                 "TERMS": {
                     "source_url": terms.canonical_url,
-                    "body": statusmatch_current_document_body(terms),
+                    "body": model_document_body(terms),
                 },
             },
             "previous_current_facts": (
@@ -547,37 +564,7 @@ class StatusMatchProjectWorkflow:
                 if current_record is not None
                 else None
             ),
-            "deterministic_status_mappings": {
-                "count": len(deterministic_mappings),
-                "keys": [
-                    {
-                        "source_program": item.source_program,
-                        "target_tier": item.target_tier,
-                    }
-                    for item in deterministic_mappings
-                ],
-            },
-            "deterministic_price_routes": {
-                "count": len(deterministic_routes),
-                "routes": [
-                    {
-                        "scope": route.scope,
-                        "region": route.region,
-                        "prices": [
-                            {
-                                "target_tier": price.target_tier,
-                                "amount": str(price.amount)
-                                if price.amount is not None
-                                else None,
-                                "currency": price.currency,
-                                "availability": price.availability,
-                            }
-                            for price in route.prices
-                        ],
-                    }
-                    for route in deterministic_routes
-                ],
-            },
+            **table_drafts(deterministic_mappings, deterministic_routes),
             "evidence_rules": {
                 "allowed_sources": ["HOME", "FAQ", "TERMS"],
                 "HOME_is_action_root": True,
@@ -604,17 +591,20 @@ class StatusMatchProjectWorkflow:
                 payload["correction"] = {
                     "previous_attempt_rejected_for": _safe_error(last_error),
                     "required_action": (
-                        "修正结构和证据别名，只使用 HOME/FAQ/TERMS；输出完整当前快照，"
-                        "不要复制 deterministic_status_mappings 或 deterministic_price_routes。"
+                        "修正结构或底稿编号；更新中省略或 null 的字段保留底稿，清空需用 clear_fields。"
+                        "保留完整全局事实，只通过 route_updates/mapping_updates 修改底稿；不重复输出底稿行。"
                     ),
                 }
             try:
                 extraction = self._provider.generate_structured(
                     system_prompt=SYSTEM_PROMPT,
-                    user_prompt=json.dumps(payload, ensure_ascii=False),
+                    user_prompt=json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
                     output_model=StatusMatchProjectExtraction,
                 )
                 _validate_project_extraction(extraction, faq_body)
+                # Validate references and resulting business shapes within the
+                # existing retry boundary, before publishing any facts.
+                apply_table_updates(*read_table_drafts(request), extraction)
                 return extraction, attempt
             except Exception as exc:
                 last_error = exc
@@ -641,6 +631,9 @@ class StatusMatchProjectWorkflow:
             StatusMatchPageAlias.FAQ: faq,
             StatusMatchPageAlias.TERMS: terms,
         }
+        deterministic_mappings, deterministic_routes = apply_table_updates(
+            deterministic_mappings, deterministic_routes, extraction
+        )
         narrative = [
             _resolved_mapping(item, documents)
             for item in extraction.narrative_status_mappings
@@ -650,9 +643,6 @@ class StatusMatchProjectWorkflow:
             _resolved_route(item, documents)
             for item in extraction.application_routes
         ]
-        narrative_routes = filter_redundant_statusmatch_narrative_routes(
-            narrative_routes, deterministic_routes
-        )
         routes = merge_statusmatch_application_routes(
             deterministic_routes, narrative_routes
         )

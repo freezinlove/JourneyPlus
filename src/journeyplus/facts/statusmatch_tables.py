@@ -53,6 +53,7 @@ def extract_statusmatch_status_mappings(
     raw_html: str | None,
     canonical_url: str,
     document_version_id: UUID,
+    parsed_table_rows: dict[int, set[int]] | None = None,
 ) -> list[StatusMapping]:
     if raw_html is None or not canonical_url.casefold().endswith("/faq"):
         return []
@@ -64,6 +65,11 @@ def extract_statusmatch_status_mappings(
     footnotes = _footnote_definitions(tree)
     mappings: list[StatusMapping] = []
     for table_index, table in enumerate(tree.css("table"), start=1):
+        covered: set[int] = set()
+        row_positions = (
+            [i for i, row in enumerate(table.css("tr"), 1) if _cells(row)]
+            if parsed_table_rows is not None else []
+        )
         rows = [_cells(row) for row in table.css("tr")]
         rows = [row for row in rows if row]
         if len(rows) < 2:
@@ -73,9 +79,12 @@ def extract_statusmatch_status_mappings(
             canonical_url=canonical_url,
             document_version_id=document_version_id,
             table_index=table_index,
+            covered_rows=covered if parsed_table_rows is not None else None,
         )
         if flat is not None:
             mappings.extend(flat)
+            if parsed_table_rows is not None:
+                parsed_table_rows[table_index] = {row_positions[i - 1] for i in covered}
             continue
         matrix = _matrix_mapping_table(
             rows,
@@ -83,9 +92,12 @@ def extract_statusmatch_status_mappings(
             canonical_url=canonical_url,
             document_version_id=document_version_id,
             table_index=table_index,
+            covered_rows=covered if parsed_table_rows is not None else None,
         )
         if matrix is not None:
             mappings.extend(matrix)
+            if parsed_table_rows is not None:
+                parsed_table_rows[table_index] = {row_positions[i - 1] for i in covered}
     return _deduplicate_mappings(mappings)
 
 
@@ -166,6 +178,7 @@ def _flat_program_tier_table(
     canonical_url: str,
     document_version_id: UUID,
     table_index: int,
+    covered_rows: set[int] | None = None,
 ) -> list[StatusMapping] | None:
     header = [_cell_text(cell) for cell in rows[0]]
     if len(header) != 2 or "existing programme" not in header[0].casefold():
@@ -200,6 +213,8 @@ def _flat_program_tier_table(
                 ],
             )
         )
+        if covered_rows is not None and _plain_cells(row):
+            covered_rows.add(row_index)
     return mappings
 
 
@@ -210,6 +225,7 @@ def _matrix_mapping_table(
     canonical_url: str,
     document_version_id: UUID,
     table_index: int,
+    covered_rows: set[int] | None = None,
 ) -> list[StatusMapping] | None:
     header_index = next(
         (
@@ -299,7 +315,17 @@ def _matrix_mapping_table(
                     ],
                 )
             )
+        if covered_rows is not None and len(row) == len(header) and _plain_cells(row):
+            covered_rows.add(row_index)
     return mappings
+
+
+def _plain_cells(row: list[Node]) -> bool:
+    # Merged cells can contain layout/conditions the parser did not resolve.
+    return all(
+        cell.attributes.get(attribute, "1") == "1"
+        for cell in row for attribute in ("rowspan", "colspan")
+    )
 
 
 def _cells(row: Node) -> list[Node]:

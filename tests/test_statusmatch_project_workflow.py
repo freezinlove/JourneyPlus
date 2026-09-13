@@ -382,6 +382,7 @@ def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(
     assert "Recently ended offers" not in terms_ai_body
     assert "Ended Region" not in terms_ai_body
     assert "USD 999" not in terms_ai_body
+    assert "USD 99" not in terms_ai_body
     assert "Current mapping: Example Air Gold to Example Club Gold" in terms_ai_body
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
@@ -914,3 +915,77 @@ def test_selected_host_audit_reports_complete_project_without_reprocessing(
     assert project["brief"]["content"]["title"] == "Example Club 开放会籍匹配"
     assert project["historical_dedicated_project_runs"] == 1
     assert project["historical_brief_runs"] == 1
+
+
+@pytest.mark.parametrize("bad_first_ref", [False, True])
+def test_table_supplements_publish_in_place_with_existing_model_stages(
+    session_factory, bad_first_ref,
+):
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] += """
+    <table><tr><th>Airline</th><th>Gold</th></tr>
+      <tr><td>Example Air</td><td>Diamond</td></tr>
+      <tr><td>Second Air</td><td>Platinum</td></tr></table>
+    <p>Matching requires local residence. Gold costs USD 99 in Region A and Region B.
+    Platinum costs USD 399 but is currently unavailable in Region A.
+    Co-branded card holders have a separate application route for Gold at USD 99.</p>
+    """
+    responses["https://example.statusmatch.com/terms"] = """
+    <html><body><h1>Example Club Status Match Terms</h1>
+    <table><tr><th>Country/Region</th><th>Status Tier</th><th>Application Fee</th></tr>
+      <tr><td>Region A, Region B</td><td>Gold</td><td>USD 99</td></tr>
+      <tr><td>Region A, Region B</td><td>Platinum</td><td>USD 399</td></tr></table>
+    <h2>StatusMatch.Com Terms of Use</h2><p>Common platform terms.</p></body></html>
+    """
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    extraction = _extraction()
+    extraction.update(application_routes=[{
+            "scope": "联名卡申请", "eligibility": "联名卡持有人", "prices": [{
+                "target_tier": "Gold", "amount": 99, "currency": "USD", "availability": "AVAILABLE",
+            }],
+        }], narrative_status_mappings=[],
+        mapping_updates=[{"ref": "m1", "availability": "CONDITIONAL", "conditions": "本地居民限定"}],
+        route_updates=[
+            {"ref": "r1", "scope": "地区甲", "region": "Region A",
+             "price_updates": [{"ref": "p2", "availability": "UNAVAILABLE"}]},
+            {"ref": "r1", "scope": "地区乙", "region": "Region B"},
+        ])
+    extractions = [extraction]
+    if bad_first_ref:
+        invalid = deepcopy(extraction)
+        invalid["route_updates"][0]["ref"] = "r99"
+        extractions.insert(0, invalid)
+    provider = ProjectProvider(extractions)
+
+    result = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert (result.succeeded, result.failed) == (1, 0), result.errors
+    assert result.model_calls == 2 + int(bad_first_ref)
+    request = provider.calls[0]["request"]
+    drafts = request["deterministic_status_mappings"]
+    assert drafts["count"] == 2
+    assert dict(zip(drafts["columns"], drafts["rows"][0]))["source_tiers"] == ["Diamond"]
+    assert "Second Air" not in request["documents"]["FAQ"]["body"]
+    assert "USD 399" not in request["documents"]["TERMS"]["body"]
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        facts = FactSet.model_validate(record.facts)
+        assert len(facts.application_routes) == 3
+        assert facts.application_routes[0].scope == "地区甲"
+        assert facts.application_routes[0].prices[0].amount == 99
+        assert facts.application_routes[0].prices[1].availability == "UNAVAILABLE"
+        assert facts.application_routes[0].prices[1].amount is None
+        assert facts.application_routes[1].prices[1].amount == 399
+        assert facts.application_routes[2].eligibility == "联名卡持有人"
+        assert facts.application_routes[2].prices[0].amount == 99
+        assert len(facts.status_mappings) == 2
+        assert facts.status_mappings[0].conditions == "本地居民限定"
+        assert not facts.status_mappings[0].conflict
+        assert facts.status_mappings[1].source_tiers == ["Platinum"]
+        assert session.scalar(select(BriefRecord)).fact_set_id == record.id
+        assert "route_updates" not in record.facts
+        assert session.scalar(select(func.count()).select_from(FactSetRecord)) == 1
+    assert process_pending_statusmatch_projects(session_factory, provider).model_calls == 0

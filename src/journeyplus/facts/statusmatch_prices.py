@@ -88,6 +88,7 @@ def extract_statusmatch_price_routes(
     raw_html: str | None,
     canonical_url: str,
     document_version_id: UUID,
+    parsed_table_rows: dict[int, set[int]] | None = None,
 ) -> list[ApplicationRoute]:
     """Deterministically parse current StatusMatch application-fee tables."""
     if raw_html is None:
@@ -120,14 +121,22 @@ def extract_statusmatch_price_routes(
         table_index += 1
         if historical:
             continue
+        covered: set[int] = set()
         parsed = _parse_fee_table(
             node,
             context=current_heading,
             canonical_url=canonical_url,
             document_version_id=document_version_id,
             table_index=table_index,
+            covered_rows=covered if parsed_table_rows is not None else None,
         )
         routes.extend(parsed)
+        if parsed_table_rows is not None:
+            row_positions = [
+                i for i, row in enumerate(node.css("tr"), 1)
+                if any(_text(cell) for cell in row.css("th, td"))
+            ]
+            parsed_table_rows[table_index] = {row_positions[i - 1] for i in covered}
     return merge_statusmatch_application_routes([], routes)
 
 
@@ -301,8 +310,13 @@ def _parse_fee_table(
     canonical_url: str,
     document_version_id: UUID,
     table_index: int,
+    covered_rows: set[int] | None = None,
 ) -> list[ApplicationRoute]:
     rows = _table_rows(table)
+    row_nodes = [
+        tr for tr in table.css("tr")
+        if any(_text(cell) for cell in tr.css("th, td"))
+    ] if covered_rows is not None else []
     header_index = _fee_header_index(rows)
     if header_index is None:
         return []
@@ -406,6 +420,15 @@ def _parse_fee_table(
         )
         if price is None:
             continue
+        known_columns = {status_index, fee_index, scope_index}
+        if (
+            covered_rows is not None
+            and all(not value for i, value in enumerate(row) if i not in known_columns)
+            and all(cell.attributes.get(attr, "1") == "1"
+                    for cell in row_nodes[row_index - 1].css("th, td")
+                    for attr in ("rowspan", "colspan"))
+        ):
+            covered_rows.add(row_index)
         key = (scope, region)
         if key not in grouped:
             grouped[key] = []
