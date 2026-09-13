@@ -12,8 +12,8 @@ class Budget:
     input_tokens: int = 0
     output_tokens: int = 0
     estimated: bool = False
-    soft: dict = field(default_factory=lambda: dict(seconds=120, requests=10, tools=20, input_tokens=45000, output_tokens=8000))
-    hard: dict = field(default_factory=lambda: dict(seconds=180, requests=14, tools=28, input_tokens=60000, output_tokens=12000))
+    soft: dict = field(default_factory=lambda: dict(seconds=120, requests=10, tools=20, input_tokens=450000, output_tokens=8000))
+    hard: dict = field(default_factory=lambda: dict(seconds=180, requests=14, tools=28, input_tokens=500000, output_tokens=12000))
     notified: bool = False
     finalizing: bool = False
     model_configuration_id: str | None = None

@@ -11,7 +11,7 @@ class ContextCapacityError(ValueError):
 
 
 def project(messages, definitions, capabilities, *, note=None, focus=None, reserved_output=2048,
-            context_token_budget=100000, input_estimator=None):
+            context_token_budget=500000, input_estimator=None):
     if context_token_budget <= 0:
         raise ValueError('Context token budget must be positive')
     limit = capabilities.context_window-reserved_output-1024

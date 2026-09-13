@@ -50,6 +50,24 @@ def test_context_config_is_independent_of_provider_window(monkeypatch):
         replace(config, context_token_budget=0)
 
 
+def test_500k_budget_reaches_runtime_without_old_32k_clamp(session_factory):
+    from journeyplus.agent.composition import compose_business
+    from tests.test_harness_runtime import FakeModel
+    config = AgentConfig('test', 'https://test/', '', context_window=1000000)
+    assert config.context_token_budget == config.input_token_limit == 500000
+    assert config.input_token_soft == 450000
+    model = FakeModel([])
+    model.config = config
+    runtime, _ = compose_business(session_factory, model, read_factory=session_factory)
+    assert runtime.budget_limits == {'soft':{'input_tokens':450000},
+        'hard':{'input_tokens':500000},'context_tokens':500000}
+    messages = [ModelMessage(role='user', content=[Part(type='text',text='keep')])]
+    capabilities = CAPS.model_copy(update={'context_window':config.context_window})
+    selected = project(messages, [], capabilities, context_token_budget=config.context_token_budget,
+        input_estimator=lambda *_: 200000)
+    assert selected[-1].id == messages[-1].id
+
+
 def test_operation_projection_retains_changes_unknowns_and_original_archive(migrated):
     runtime, store, ctx, _ = setup(migrated)
     memory = runtime.services['user_memory']

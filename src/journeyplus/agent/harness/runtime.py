@@ -142,7 +142,7 @@ class Runtime:
                 visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
             projected = await blocking_call(project, visible, definitions, capabilities, note=note, focus=focus,
                                 reserved_output=budget.limits(capabilities)['max_output'],
-                                context_token_budget=self.budget_limits.get('context_tokens',100000),
+                                context_token_budget=self.budget_limits.get('context_tokens',500000),
                                 input_estimator=getattr(self.ports.model,'estimate_input',None))
             estimator=getattr(self.ports.model,'estimate_input',None)
             projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
@@ -283,7 +283,7 @@ class Runtime:
                 visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
             projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
                               reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
-                              context_token_budget=self.budget_limits.get('context_tokens',100000),
+                              context_token_budget=self.budget_limits.get('context_tokens',500000),
                               input_estimator=getattr(self.ports.model,'estimate_input',None))
             future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*sum(capacities))])]
             estimator=getattr(self.ports.model,'estimate_final_input',None)
