@@ -1,7 +1,7 @@
 import {activityForStep} from './route_step.js?v=20260913-simple-matching';
 import {renderText} from './agent_text.js';
 import {activityDetail,readable} from './knowledge_ui.js?v=20260912-workflow';
-import {routeGraph,disposeGraphs} from './route_graph.js?v=20260913-simple-matching';
+import {routeGraph,disposeGraphs} from './route_graph.js?v=20260913-source-validity';
 const $=s=>document.querySelector(s);
 const el=(tag,text,cls)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;};
 let workspace=null,run=null,source=null,seq=0,busy=false,resourceFailure=null;

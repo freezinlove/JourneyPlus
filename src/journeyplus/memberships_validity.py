@@ -12,3 +12,11 @@ def membership_date(now=None):
 
 def is_active_membership(valid_until, *, today=None):
     return valid_until is None or valid_until >= (today or membership_date())
+
+
+def membership_validity(valid_until, *, today=None):
+    today = today or membership_date()
+    active = is_active_membership(valid_until, today=today)
+    return {'validity_status': 'EXPIRED' if not active else
+            'NO_EXPIRY_RECORDED' if valid_until is None else 'CURRENT',
+            'usable_as_saved_source': active, 'as_of_date': today.isoformat()}

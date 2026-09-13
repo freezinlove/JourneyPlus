@@ -9,11 +9,13 @@ class CatalogData(DTO):
 
 
 class ActivityData(DTO):
+    documents: list[dict] | None = None
     activities: list[dict] | None = None
     sections: list[dict] | None = None
 
 
 class RouteData(DTO):
+    source_selection: dict | None = None
     readiness: dict | None = None
     query_context: dict | None = None
     retrieval_scope: dict | None = None
@@ -32,6 +34,7 @@ class RouteData(DTO):
 
 
 class HoldingsData(DTO):
+    membership_state: dict | None = None
     holdings: list[dict] | None = None
     snapshot_ref: str | None = None
 
@@ -111,7 +114,7 @@ DATA_MODELS={'catalog.lookup':CatalogData,'activity.read':ActivityData,'routes.e
              'holdings.read':HoldingsData,'holdings.write':OperationData,'waiting.manage':WaitingData,
              'workspace.read':WorkspaceData,'workspace.note':NoteData,'web.search':SearchData,
              'web.read':PageData,'display.present':PresentationData}
-REQUIRED={'catalog.lookup':(('candidates',),),'activity.read':(('activities',),('sections',)),
+REQUIRED={'catalog.lookup':(('candidates',),),'activity.read':(('activities',),('sections',),('documents',)),
           'routes.evaluate':(('candidates',),),'holdings.read':(('holdings','snapshot_ref'),),
           'holdings.write':(('operation_ref','outcome'),),'waiting.manage':(('goals',),('operation_ref','outcome')),
           'workspace.read':(('messages',),('artifacts',),('sections',)),

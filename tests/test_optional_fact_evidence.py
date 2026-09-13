@@ -56,7 +56,7 @@ def test_official_production_archive_brief_and_graph_without_field_evidence(orig
         assert detail['briefs']
         ref = 'document:' + detail['sources'][0]['document_version_ref'] + ':0'
         material = reader.materials(selector={'ref': str(event_id)}, version_ref=str(fact_id), section_refs=[ref])
-        assert material['data']['snippets'][0]['text']
+        assert material['data']['documents'][0]['text']
         graph = MembershipGraphService(session).build()
         assert graph.edges
         batch = StatusMatchOfficialContributionAdapter(session).read()

@@ -66,7 +66,7 @@ class Runtime:
         budget.started -= saved.get('seconds', 0)
         configuration=[getattr(self.ports.model,'configuration_id',None),self.instructions,self.budget_limits,CONTEXT_POLICY_VERSION,
                        [(item.name,item.version,item.description,item.input_schema,item.output_schema,item.effect,item.operation_effects,
-                         item.result_max_bytes,item.operation_result_max_bytes,item.result_budget_field)
+                         item.result_max_bytes,item.operation_result_max_bytes,item.result_budget_field,item.complete_result_operations)
                         for item in self.ports.registry.definitions()]]
         budget.model_configuration_id=hashlib.sha256(json.dumps(configuration,sort_keys=True).encode()).hexdigest()
         workspace_id = state['workspace_id']
@@ -331,8 +331,15 @@ class Runtime:
                 capacity=definition.operation_result_max_bytes.get(getattr(arguments,definition.result_budget_field,None),definition.result_max_bytes)
                 if definition.model_projection:
                     result=definition.model_projection(result)
-            result = bounded_result(result, full_ref, max_bytes=min(capacity, 32000//max(1,len(calls))),
-                                    trim=validated[0].trim_projection if validated else None)
+            complete = validated and getattr(validated[1],validated[0].result_budget_field,None) in validated[0].complete_result_operations
+            if complete and not result.error:
+                # Explicit complete reads are admitted by the actual context
+                # budget below, not the small default tool-observation budget.
+                result.coverage['full_result_ref']=full_ref
+                result.artifact_refs=list(dict.fromkeys([*result.artifact_refs,full_ref]))
+            else:
+                result = bounded_result(result, full_ref, max_bytes=min(capacity, 32000//max(1,len(calls))),
+                                        trim=validated[0].trim_projection if validated else None)
             await self._publish(run_id, owner, 'tool.completed', {'call_id': call['call_id'], 'status': result.status,
                 'summary': result.error.message if result.error else result.data.get('summary', ''), 'artifact_refs': result.artifact_refs})
             return result
@@ -351,6 +358,44 @@ class Runtime:
                 results[index] = await execute(index, call, validated)
         for index, task in reads:
             results[index] = await task
+        complete_indices=[]
+        for index,call in enumerate(calls):
+            validated,_=self.ports.registry.validate(call['name'],call['arguments'])
+            if validated and not results[index].error and getattr(validated[1],validated[0].result_budget_field,None) in validated[0].complete_result_operations:
+                complete_indices.append(index)
+        if complete_indices:
+            from .context import ContextCapacityError
+            # Check the whole batch together, including paired call/result
+            # overhead and any remaining history. Never silently send an excerpt.
+            additions=[ModelMessage(role='tool',content=[Part(type='tool_result',call_id=c['call_id'],result=r.model_dump(mode='json'))])
+                       for c,r in zip(calls,results)]
+            try:
+                definitions=self.ports.registry.definitions()
+                workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
+                note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
+                visible,focus=messages+additions,workspace_state.get('focus')
+                if self.ports.views:
+                    visible,note,focus=await blocking_call(self.ports.views.context,context.workspace_id,visible,note,focus)
+                projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
+                    reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
+                    context_token_budget=self.budget_limits.get('context_tokens',500000),
+                    input_estimator=getattr(self.ports.model,'estimate_input',None))
+                estimator=getattr(self.ports.model,'estimate_input',None)
+                tokens=estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
+                fits=tokens<=min(self.budget_limits.get('context_tokens',500000),budget.hard['input_tokens']-budget.input_tokens)
+            except ContextCapacityError:
+                fits=False
+            if not fits:
+                for index in complete_indices:
+                    original=results[index]
+                    results[index]=ToolResult.failure('CONTEXT_CAPACITY',
+                        '所选完整资料超出本轮可用上下文或输入预算，正文未交付给模型；没有用摘要或片段代替。可在新对话中读取。')
+                    results[index].call_id=calls[index]['call_id']
+                    results[index].artifact_refs=original.artifact_refs
+                    results[index].coverage={'complete':False,'omissions':['complete_body_not_delivered'],
+                        'full_result_ref':original.coverage['full_result_ref']}
+                    await self._publish(run_id,owner,'resource.notice',{'code':'CONTEXT_CAPACITY',
+                        'call_id':calls[index]['call_id'],'message':results[index].error.message})
         paired = {p.call_id for m in messages if m.metadata.get('turn_id')==context.turn_id for p in m.content if p.type == 'tool_result'}
         for call, result in zip(calls, results):
             if call['call_id'] in paired:

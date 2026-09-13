@@ -197,6 +197,7 @@ def evaluate(args, ctx):
     if evaluation.get('error'):
         error=evaluation['error']
         error.data.update(query_ref=query_ref,query_context=lineage,effective_query=query.model_dump(mode='json'))
+        if evaluation.get('source_selection'):error.data['source_selection']=evaluation['source_selection']
         error.artifact_refs.append(query_ref)
         return error
     result,actual=evaluation['result'],evaluation['actual']
@@ -212,12 +213,14 @@ def evaluate(args, ctx):
              'search_metrics':{'matching_count':classifications.get('MATCH',0),'presented_count':len(matching),'candidate_counts':dict(classifications),
                                'scope':('MATCH and UNKNOWN candidates are paged separately by their constraint_match label; UNKNOWN requires inspection and is not a proven match.' if 'UNKNOWN' in presentation_classes else
                                         'Only selected shortest membership paths are retained. Free/paid is the only fee filter; region and exact prices are activity details. No exploration history is stored.')},
-             'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
+             'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved,
+                           'source_selection':evaluation['source_selection']},
              'effective_input':actual.model_dump(mode='json')}
     # The fields exposed by search must exist at the returned immutable member
     # reference too. Keep legacy calculation fields for renderers, and persist
     # the explicit subtotal/path view instead of returning uncitable aliases.
     for route in payload['routes'].values():
+        route['source_mode']=query.sources.mode
         view=route_summary(route,'',payload['steps'],detail=True)
         for key in ('path','source_versions','constraint_match','assessment_scope'):
             route[key]=deepcopy(view[key])
@@ -230,6 +233,7 @@ def evaluate(args, ctx):
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
     return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in candidates) or unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',
         data={'query_ref':query_ref,'query_context':lineage,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
+              'source_selection':evaluation['source_selection'],
               'search_metrics':payload['search_metrics'],
               'unresolved_sources':unresolved,'route_refs':[r['ref'] for r in candidates],'candidates':candidates,
               },

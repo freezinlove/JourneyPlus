@@ -59,6 +59,7 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
     const role=route.classification==='MATCH'?(block.graph_mode==='RECOMMEND'?(route.presentation_role==='PRIMARY'?'首选':route.presentation_role==='ALTERNATIVE'?'备选':block.model_owned_roles?'符合查询条件':'备选'):'符合查询条件'):(labels[route.classification]||'待核实');
     const fee=money(route.cost);
     item.append(el('strong',`方案 ${route.presentation_index||index+1} · ${role}`),el('div',path),el('div',route.cost.state==='PARTIAL'?`已知部分：${fee}；总费用未知`:fee));
+    if(route.source_mode)item.append(el('small',route.source_mode==='saved'?'按查询时有效的已保存会籍计算':route.source_mode==='explicit'?'按提供或假设的身份计算，不代表已核实持有':'未提供会籍起点'));
     if(block.graph_mode==='RECOMMEND'&&route.recommendation_basis)item.append(el('small',route.recommendation_basis));
     const investigated=(payload.research||[]).filter(o=>route.step_refs.includes(o.step_ref));
     if(investigated.length)item.append(el('small',`已查 ${investigated.length}/${route.step_refs.length} 步经验，样本限制见节点详情`));

@@ -94,9 +94,10 @@ def test_original_schema_catalog_routes_inspect_and_progressive_materials(origin
     assert section.data['sections'][0]['payload']['mapping']['from_program']=='Marriott Bonvoy'
     evidence = call(runtime,ctx,'activity.read',{'selector':{'ref':item['ref']},'view':'evidence'})
     src = evidence.data['activities'][0]['evidence']['catalog'][0]
-    assert evidence.data['activities'][0]['evidence']['source_section_count']==0
+    assert evidence.data['activities'][0]['evidence']['source_document_count']==1
+    assert 'source_sections_ref' not in evidence.data['activities'][0]['evidence']
     original = call(runtime,ctx,'activity.read',{'selector':{'ref':item['ref']},'view':'evidence','section_refs':[src['section_ref']]})
-    assert original.data['activities'][0]['evidence']['source_section_count']==1
+    assert original.data['documents'][0]['complete'] is True
     serialized = json.dumps(original_factory.statements).lower()
     assert 'membership_programs' not in serialized and 'application_options' not in serialized
 
@@ -224,7 +225,7 @@ def test_official_historical_factset_never_uses_current_brief(original_factory,s
     assert len(history.data['activities'][0]['history']['versions'])==2
 
 
-def test_explicit_original_chunk_and_requested_price_aspect(original_factory,session_factory):
+def test_complete_original_and_requested_price_aspect(original_factory,session_factory):
     seed(original_factory)
     with original_factory.begin() as s:
         doc=s.scalar(select(DocumentVersion))
@@ -236,13 +237,10 @@ def test_explicit_original_chunk_and_requested_price_aspect(original_factory,ses
     requested=directory.data['activities'][0]['evidence']
     assert any(row['field']=='prices' for row in requested['facts'])
     chunk_ref=requested['catalog'][0]['section_ref']
-    chunks=[]
-    while chunk_ref:
-        result=call(runtime,ctx,'activity.read',{'selector':{'ref':ref},'section_refs':[chunk_ref]})
-        source_ref=result.data['activities'][0]['evidence']['source_sections_ref']
-        value=store.artifacts.read(ctx.workspace_id,source_ref)['payload']['snippets'][0]
-        chunks.append(value['text']);chunk_ref=value['next_ref']
-    assert ''.join(chunks)=='start-'+'x'*13000+'-end'
+    result=call(runtime,ctx,'activity.read',{'selector':{'ref':ref},'view':'original','section_refs':[chunk_ref]})
+    assert result.data['documents'][0]['text']=='start-'+'x'*13000+'-end'
+    assert result.data['documents'][0]['complete'] is True
+
 
 
 def test_original_read_port_does_not_recreate_missing_tables(original_factory,session_factory):

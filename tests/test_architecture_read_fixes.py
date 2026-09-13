@@ -43,7 +43,9 @@ def test_expired_holdings_are_retained_but_excluded_by_all_consumers(original_fa
             return matches, relation, explored, WorkflowUserData(original_factory).route_sources('saved')
     matches, relation, explored, sources = inspect()
     assert len(matches.holdings) == 1 and not matches.forest.roots
-    assert relation.status == 'NO_ACTIVE_HOLDINGS' and not sources and not explored['routes']
+    assert relation.status == 'NO_ACTIVE_HOLDINGS' and sources and not explored['routes']
+    # Internal source reads retain expired rows so Agent can explain exclusion.
+    assert sources[0]['valid_until']==(today-timedelta(days=1)).isoformat()
     for expiry in (today, None):
         with original_factory.begin() as s:
             s.execute(text('UPDATE status_holdings SET valid_until=:expiry'), {'expiry':expiry})

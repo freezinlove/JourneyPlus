@@ -2,7 +2,7 @@
 from journeyplus.agent.adapters.transactions import read_session
 from uuid import UUID
 from sqlalchemy import select
-from journeyplus.models import StatusHolding, now_utc
+from journeyplus.models import StatusHolding
 
 
 class UserData:
@@ -12,12 +12,9 @@ class UserData:
         with read_session(self._factory) as session:
             statement=select(StatusHolding.id,StatusHolding.revision,StatusHolding.tier_id,StatusHolding.valid_until,
                              StatusHolding.program_display_name,StatusHolding.tier_display_name,StatusHolding.source_record)
-            if mode=='saved':
-                statement=statement.where((StatusHolding.valid_until.is_(None))|
-                                           (StatusHolding.valid_until>=now_utc().date()))
-            elif refs:
+            if refs:
                 statement=statement.where(StatusHolding.id.in_([UUID(ref.removeprefix('holding:')) for ref in refs]))
-            else:return []
+            elif mode!='saved':return []
             rows=list(session.execute(statement.order_by(StatusHolding.id)).mappings())
             result= [{'holding_ref':'holding:'+str(row['id']),'revision':row['revision'],
                      'tier_ref':'tier:'+str(row['tier_id']) if row['tier_id'] else None,

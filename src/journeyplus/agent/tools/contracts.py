@@ -32,12 +32,20 @@ class ActivityQuery(DTO):
 
 class ActivityInput(DTO):
     selector: IdentityRef | ActivityQuery
-    view: Literal['overview', 'detail', 'evidence', 'changes'] = 'overview'
+    view: Literal['overview', 'detail', 'evidence', 'original', 'changes'] = 'overview'
     aspects: list[Literal['price', 'eligibility', 'challenge', 'window', 'validity', 'application']] = Field(default_factory=list)
     version_ref: str | None = None
     section_refs: list[str] = Field(default_factory=list)
     cursor: str | None = None
     limit: int = Field(default=5, ge=1, le=10)
+
+    @model_validator(mode='after')
+    def original_document(self):
+        if any(ref.startswith('document:') for ref in self.section_refs):
+            self.view='original'
+        if self.view=='original' and (len(self.section_refs)!=1 or not self.section_refs[0].startswith('document:')):
+            raise ValueError('Select one archived document using section_refs=[document:UUID] from the source directory; use view=evidence to list documents')
+        return self
 
 
 class Sources(DTO):

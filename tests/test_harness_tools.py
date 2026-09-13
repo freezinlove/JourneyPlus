@@ -324,11 +324,12 @@ def test_evidence_projection_keeps_qualifiers_without_replaying_all_material():
         'options':[{'ref':'o','label':'Method','availability':'AVAILABLE','prices':[{'amount':'49','currency':'USD','known_state':'KNOWN','raw_text':'Unless otherwise stated'}],
                     'mappings':[{'ref':'m','from_program':'Other','from_tiers':['Gold'],'to_tier':'Silver'}]}],
         'evidence':{'data':{'facts':[{'field':'prices','value':{'raw_text':'Unless otherwise stated','known_state':'KNOWN'}}],
-            'snippets':[{'ref':str(i),'text':'Source '*1000} for i in range(10)]},'coverage':{'complete':False},'expansions':[{'ref':'more'}]}}
+            'catalog':[{'section_ref':'document:'+str(i),'url':'https://example.test/'+str(i)} for i in range(10)]},'coverage':{'complete':False},'expansions':[{'ref':'more'}]}}
     material=sectioned(detail);projection=summary(material,'artifact:a','evidence')
     assert 'options' not in projection and 'snippets' not in projection['evidence']
     assert projection['evidence']['facts'][0]['value']['raw_text']=='Unless otherwise stated'
-    assert projection['evidence']['source_section_count']==10 and projection['evidence']['expansions']==[{'ref':'more'}]
+    assert projection['evidence']['source_document_count']==10 and projection['evidence']['expansions']==[{'ref':'more'}]
+    assert 'source_sections_ref' not in projection['evidence']
     result=view([{'ref':'artifact:a','payload':material}],query='prices')
     assert result['section_count']==1
     assert result['sections'][0]['value']['prices'][0]['raw_text']=='Unless otherwise stated'

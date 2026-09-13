@@ -153,6 +153,16 @@ def locate_all(reader,**selector):
 
 def material_page(selectors,collection,offset,args,ctx):
     if not 0<=offset<=len(selectors):raise ValueError('Invalid activity cursor offset')
+    if args.view=='original':
+        if len(selectors)!=1:raise ValueError('Select one activity version before reading its archived document')
+        selector=selectors[0]
+        with ctx.services['knowledge'].read() as session:
+            reader=ctx.services['knowledge'].activity_reader(session)
+            material=reader.materials(selector={'ref':selector['activity_ref']},version_ref=selector['version_ref'],
+                                      section_refs=args.section_refs)
+        return ToolResult(data={'documents':material['data']['documents']},
+            coverage={'complete':True,'returned':1,'total':1,'scope':'selected_original_document',
+                      'omissions':[]})
     details=[]
     with ctx.services['knowledge'].read() as s:
         reader=ctx.services['knowledge'].activity_reader(s)

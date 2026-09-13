@@ -84,7 +84,8 @@ def test_operation_projection_retains_changes_unknowns_and_original_archive(migr
     assert view.data['entity']['identity_status'] == 'NEEDS_CONFIRMATION'
     assert view.data['entity']['ref'] == prior['ref']
     assert view.data['entity']['revision'] == updated.data['revision']
-    assert view.data['changes'] == {'valid_until':{'from':'2030-01-01','to':None}}
+    assert view.data['changes'] == {'valid_until':{'from':'2030-01-01','to':None},
+        'validity_status':{'from':'CURRENT','to':'NO_EXPIRY_RECORDED'}}
     assert 'source_record' not in view.data['entity'] and 'before' not in view.data
     assert len(view.model_dump_json().encode()) < len(updated.model_dump_json().encode()) * .7
     assert model_view_for('holdings.write')(view) == view

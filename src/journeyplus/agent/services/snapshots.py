@@ -5,6 +5,7 @@ from datetime import datetime, UTC
 from sqlalchemy import select
 from journeyplus.knowledge.models import Activity, ActivityKnowledgeVersion, MembershipProgram, MembershipTier, MembershipAlias, ActivityObservationState, ApplicationOptionVersion
 from journeyplus.models import StatusHolding, AgentWaitGoal
+from journeyplus.memberships_validity import membership_date
 
 
 def fingerprint(value):
@@ -68,7 +69,7 @@ def snapshot_for(name, knowledge, factory):
             from journeyplus.agent.adapters.transactions import read_session
             with read_session(factory) as session:
                 if read_holdings:
-                    values.append(datetime.now(UTC).date().isoformat())
+                    values.append(membership_date().isoformat())
                     if hasattr(knowledge,'holding_snapshot'):
                         values.append(knowledge.holding_snapshot(session))
                     else:

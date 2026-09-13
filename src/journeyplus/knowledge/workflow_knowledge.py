@@ -237,21 +237,21 @@ class WorkflowActivityReader:
     def materials(self, *, selector, version_ref, section_refs=(), aspects=(), **unused):
         detail = self.detail(UUID(selector['ref']),UUID(version_ref))
         sources = {s['document_version_ref']:s for s in detail['sources']}
-        snippets = []
+        documents = []
         # Default evidence view is a source directory. Original text is fetched
-        # only for explicitly requested document sections, never per-field checks.
+        # only for explicitly selected complete documents, never per-field checks.
         for ref in section_refs:
             raw = ref.removeprefix('document:')
             doc_id, _, chunk = raw.partition(':')
             if doc_id not in sources:
                 raise ValueError('Source does not belong to this activity version')
-            index = int(chunk or '0')
-            if index < 0: raise ValueError('Invalid document chunk')
+            if chunk and chunk!='0':raise ValueError('Read the complete document with document:UUID; chunk offsets are no longer used')
             body = self.session.scalar(select(DocumentVersion.normalized_body).where(DocumentVersion.id==UUID(doc_id))) or ''
-            start = index*6000
-            if start >= len(body): raise LookupError('Document chunk not found')
-            snippets.append({'ref':ref,'url':sources[doc_id]['url'],'text':body[start:start+6000],
-                'next_ref':f'document:{doc_id}:{index+1}' if start+6000<len(body) else None})
+            if not body.strip():raise LookupError('Archived original body is missing; structured facts are not a substitute')
+            documents.append({**sources[doc_id],'ref':'document:'+doc_id,
+                'activity_ref':detail['ref'],'version_ref':detail['version_ref'],
+                'content_kind':'archived_original','content_scope':'complete_normalized_document',
+                'text':body,'characters':len(body),'complete':True})
         fields = {'PRICE':('cost',), 'ELIGIBILITY':('eligibility','region'),
                   'CHALLENGE':('challenge_requirements',), 'WINDOW':('application_start','deadline'),
                   'VALIDITY':('status_validity',), 'APPLICATION':('action_link',)}
@@ -265,7 +265,7 @@ class WorkflowActivityReader:
             for field in sorted({f for aspect in aspects for f in selected.get(aspect,())}):
                 facts.append({'option_ref':option['ref'],'scope':option['label'],
                     'region':option.get('region'),'field':field,'value':option.get(field)})
-        return {'data':{'facts':facts, 'catalog':[{**s,'section_ref':'document:'+key+':0'} for key,s in sources.items()],
-                        'snippets':snippets},
-                'coverage':{'complete':not any(s['next_ref'] for s in snippets),'scope':'requested_document_chunks'},
+        return {'data':{'facts':facts, 'catalog':[{**s,'section_ref':'document:'+key} for key,s in sources.items()],
+                        'documents':documents},
+                'coverage':{'complete':True,'scope':'selected_original_documents' if documents else 'source_directory'},
                 'expansions':[], 'caveats':[]}

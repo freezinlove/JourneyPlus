@@ -15,6 +15,8 @@ class Registry:
     def register(self, definition: ToolDefinition):
         if definition.name in self._definitions:
             raise ValueError('Duplicate tool name')
+        if definition.complete_result_operations and (definition.effect!='READ' or definition.operation_effects):
+            raise ValueError('Complete observations are only supported for read-only tools')
         if any(not 1000 <= value <= 24000 for value in
                [definition.result_max_bytes, *definition.operation_result_max_bytes.values()]):
             raise ValueError('Tool result projection must be between 1000 and 24000 bytes')

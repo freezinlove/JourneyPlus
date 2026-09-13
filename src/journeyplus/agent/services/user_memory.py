@@ -9,12 +9,14 @@ from journeyplus.agent.adapters.models import OperationReceipt
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.membership.normalization import normalize_key, normalize_tier
 from .identities import canonical
+from journeyplus.memberships_validity import membership_date, membership_validity
 
 
 def holding_view(row):
     if row is None:return None
     source=row.source_record or {}
     return {'ref':'holding:'+str(row.id),'revision':row.revision,'program_name':row.program_display_name,
+            **membership_validity(row.valid_until),
             'tier_name':row.tier_display_name,'program_ref':'program:'+str(row.program_id) if row.program_id else None,
             'tier_ref':'tier:'+str(row.tier_id) if row.tier_id else None,'valid_until':row.valid_until.isoformat() if row.valid_until else None,
             'identity_status':row.identity_status,'source_record':source,
@@ -36,8 +38,8 @@ class UserMemory:
     def read(self,args):
         with read_session(self.factory) as s:
             statement=select(StatusHolding).order_by(StatusHolding.created_at,StatusHolding.id)
-            if not args.include_expired:
-                statement=statement.where((StatusHolding.valid_until.is_(None))|(StatusHolding.valid_until>=now_utc().date()))
+            if not args.include_expired and not args.holding_refs:
+                statement=statement.where((StatusHolding.valid_until.is_(None))|(StatusHolding.valid_until>=membership_date()))
             if args.holding_refs:
                 statement=statement.where(StatusHolding.id.in_([UUID(ref.removeprefix('holding:')) for ref in args.holding_refs]))
             rows=list(s.scalars(statement))
@@ -45,6 +47,15 @@ class UserMemory:
                 row.program_display_name+' '+row.tier_display_name+' '+
                 ' '.join(item['text'] for item in (row.source_record or {}).get('original_statements',[])))]
             return [holding_view(r) for r in rows]
+
+    def read_state(self, args):
+        rows = self.read(args.model_copy(update={'include_expired': True}))
+        expired = [row for row in rows if not row['usable_as_saved_source']]
+        selected = rows if args.include_expired or args.holding_refs else [row for row in rows if row['usable_as_saved_source']]
+        return selected, {'as_of_date': membership_date().isoformat(),
+            'active_count': len(rows)-len(expired), 'expired_count': len(expired),
+            'excluded_holdings': [{k:r[k] for k in ('ref','program_name','tier_name','valid_until','validity_status')}
+                                  for r in expired if r not in selected]}
 
     def write(self,args,ctx):
         try:

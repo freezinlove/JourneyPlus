@@ -34,12 +34,6 @@ def sectioned(detail):
             sections['mapping-'+mapping['ref']]={'activity_ref':value['ref'],'version_ref':value['version_ref'],
                 'option_ref':option['ref'],'option_label':option['label'],'mapping':mapping}
             searchable.append('mapping-'+mapping['ref'])
-    if 'evidence' in value:
-        evidence=value['evidence']
-        sections['evidence-sources']={**scope,'snippets':evidence.get('data',{}).get('snippets',[]),
-                                     'coverage':evidence.get('coverage'), 'expansions':evidence.get('expansions',[])}
-        for snippet in evidence.get('data',{}).get('snippets',[]):
-            key='source-'+snippet['ref'];sections[key]={**scope,**snippet};searchable.append(key)
     value['sections']=sections
     value['search_section_keys']=searchable
     return value
@@ -63,14 +57,13 @@ def summary(detail,ref,view):
                 'to_tier':m.get('to_tier')} for m in option.get('mappings',[])[:5]]
             item['mapping_index_complete']=len(option.get('mappings',[]))<=5
             value['options'].append(item)
-        value['section_access']='For a specific source, workspace.read kind=artifact with refs=[material_ref] and query=source name locates matching original sections. Or use activity.read section_refs for a listed section. The mapping index is a preview; omitted mappings remain in the full material.'
+        value['section_access']='Structured sections can be expanded by section_ref. As a last resort, select one document from evidence.catalog and use activity.read view=original with its section_ref for the complete archived body. Mapping index is only a preview.'
     if view=='changes':value['history']=detail.get('history')
     if 'evidence' in detail:
         evidence=detail['evidence'];data=evidence.get('data',{})
         value['evidence']={'facts':compact(data.get('facts',[])), 'catalog':data.get('catalog',[]),
-            'source_sections_ref':ref+'#section:evidence-sources',
-            'source_section_count':len(data.get('snippets',[])),
+            'source_document_count':len(data.get('catalog',[])),
             'coverage':evidence.get('coverage'),'expansions':evidence.get('expansions',[]),
             'caveats':evidence.get('caveats',[]),
-            'scope':'Requested facts with applicable conditions. Original source sections remain separately retrievable; not yet all read.'}
+            'scope':'Source directory only; archived bodies have not been read. Select a catalog section_ref with activity.read view=original to read one complete document.'}
     return value

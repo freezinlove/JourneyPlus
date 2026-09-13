@@ -7,7 +7,7 @@ from journeyplus.agent.adapters.models import OperationReceipt
 from journeyplus.agent.adapters.transactions import read_session, transaction
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.membership.normalization import normalize_key, normalize_tier
-from journeyplus.models import now_utc
+from journeyplus.memberships_validity import membership_date, membership_validity
 from .identities import canonical
 from .user_memory import UserMemory
 from .operation_context import prepare_operation, receipt_result
@@ -32,6 +32,7 @@ class WorkflowUserMemory(UserMemory):
                     {'program_name': row.program_display_name, 'tier_name': row.tier_display_name}, require_tier=True)
         bound = resolved.get('status') == 'OK'
         return {'ref': 'holding:' + str(row.id), 'revision': revision,
+                **membership_validity(row.valid_until),
                 'program_name': row.program_display_name, 'tier_name': row.tier_display_name,
                 'program_ref': resolved.get('program_ref') if bound else None,
                 'tier_ref': resolved.get('tier_ref') if bound else None,
@@ -44,8 +45,8 @@ class WorkflowUserMemory(UserMemory):
     def read(self, args):
         with read_session(self.factory) as session:
             statement = select(Holding).order_by(Holding.created_at, Holding.id)
-            if not args.include_expired:
-                statement = statement.where((Holding.valid_until.is_(None)) | (Holding.valid_until >= now_utc().date()))
+            if not args.include_expired and not args.holding_refs:
+                statement = statement.where((Holding.valid_until.is_(None)) | (Holding.valid_until >= membership_date()))
             if args.holding_refs:
                 statement = statement.where(Holding.id.in_([UUID(r.removeprefix('holding:')) for r in args.holding_refs]))
             values = [self.view(session, row) for row in session.scalars(statement)]

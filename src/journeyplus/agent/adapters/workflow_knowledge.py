@@ -2,7 +2,6 @@
 from types import SimpleNamespace
 from uuid import UUID
 from sqlalchemy import select
-from journeyplus.memberships_validity import membership_date
 from journeyplus.models import StatusHolding
 from journeyplus.knowledge.workflow_knowledge import (
     WorkflowKnowledgePort as SharedWorkflowKnowledgePort,
@@ -21,9 +20,8 @@ class WorkflowUserData:
         with self.factory() as session:
             statement = select(StatusHolding.id, StatusHolding.program_key, StatusHolding.tier_key,
                 StatusHolding.program_display_name, StatusHolding.tier_display_name, StatusHolding.valid_until, StatusHolding.updated_at)
-            if mode == 'saved':
-                statement = statement.where((StatusHolding.valid_until.is_(None)) |
-                    (StatusHolding.valid_until>=membership_date()))
+            # Preserve expired rows until source preparation can explain their
+            # exclusion. Filtering here loses the reason for an empty query.
             if refs:
                 statement = statement.where(StatusHolding.id.in_([UUID(r.removeprefix('holding:')) for r in refs]))
             rows = session.execute(statement.order_by(StatusHolding.id)).mappings().all()
