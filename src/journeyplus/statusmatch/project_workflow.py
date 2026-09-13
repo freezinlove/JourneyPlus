@@ -177,6 +177,8 @@ def statusmatch_project_job_key(
         "activity": str(pages["activity"].current_document_version_id),
         "faq": str(pages["faq"].current_document_version_id),
         "terms": str(pages["terms"].current_document_version_id),
+        "page_changes": {key: page.last_changed_at.isoformat() if page.last_changed_at else None
+                         for key, page in pages.items()},
         "provider": provider.metadata.config_version,
         "project": [PROJECT_PROMPT_VERSION, PROJECT_SCHEMA_VERSION],
         "facts": FACT_SCHEMA_VERSION,

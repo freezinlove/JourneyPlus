@@ -7,6 +7,12 @@ from uuid import UUID
 from selectolax.parser import HTMLParser, Node
 
 from journeyplus.content.cleaner import lightly_clean
+from journeyplus.content.statusmatch_history import (
+    HISTORICAL_HEADING_RE as _HISTORICAL_HEADING_RE,
+    STATUS_HEADER_RE as _STATUS_HEADER_RE,
+    FEE_HEADER_RE as _FEE_HEADER_RE,
+    remove_historical_fee_tables,
+)
 from journeyplus.contracts import (
     ApplicationRoute,
     EvidenceRef,
@@ -20,9 +26,6 @@ from journeyplus.models import DocumentVersion
 from journeyplus.sources.statusmatch_links import is_project_statusmatch_host
 
 
-_HISTORICAL_HEADING_RE = re.compile(r"\brecently\s+ended\s+offers?\b", re.I)
-_STATUS_HEADER_RE = re.compile(r"\bstatus\s+tier\b|\btier$", re.I)
-_FEE_HEADER_RE = re.compile(r"\bapplication\s+fee\b", re.I)
 _SCOPE_HEADER_RE = re.compile(
     r"(?:country|region|residence|airline|hotel|card|membership|programme|program|scope|type)",
     re.I,
@@ -141,45 +144,13 @@ def extract_statusmatch_price_routes(
 
 
 def statusmatch_current_document_body(document: DocumentVersion) -> str:
-    """Build the current-only text view used by AI and fee-signal policy.
-
-    The persisted snapshot remains untouched. Only historical application-fee
-    tables below ``Recently ended offers`` are removed; later status-mapping
-    content stays available to the project workflow.
-    """
+    """Use the same ingestion cleaning policy for extraction's temporary views."""
     if document.raw_body:
-        tree = HTMLParser(document.raw_body)
-        root = tree.body or tree.root
-        if root is not None:
-            historical = False
-            changed = False
-            candidates = [
-                node
-                for node in root.traverse(include_text=False)
-                if node.tag in {"h1", "h2", "h3", "h4", "h5", "h6", "table"}
-            ]
-            for node in candidates:
-                if node.tag in {"h1", "h2", "h3", "h4", "h5", "h6"}:
-                    if _HISTORICAL_HEADING_RE.search(_text(node)):
-                        historical = True
-                        node.decompose()
-                        changed = True
-                    continue
-                if historical and _fee_header_index(_table_rows(node)) is not None:
-                    node.decompose()
-                    changed = True
-            if changed:
-                scoped = lightly_clean(
-                    RawDocument(
-                        source_id="status_services_mail",
-                        external_id=f"statusmatch-current:{document.id}",
-                        canonical_url=document.canonical_url,
-                        body=root.html,
-                        content_type="text/html",
-                    )
-                )
-                return scoped.normalized_body
-    return _remove_historical_fee_tables_from_markdown(document.normalized_body)
+        return lightly_clean(RawDocument(
+            source_id="status_services_mail", external_id=f"statusmatch-current:{document.id}",
+            canonical_url=document.canonical_url, body=document.raw_body, content_type="text/html",
+        )).normalized_body
+    return remove_historical_fee_tables(document.normalized_body)
 
 
 def merge_statusmatch_application_routes(
@@ -470,34 +441,6 @@ def _fee_header_index(rows: list[list[str]]) -> int | None:
         None,
     )
 
-
-def _remove_historical_fee_tables_from_markdown(value: str) -> str:
-    lines = value.splitlines()
-    result: list[str] = []
-    historical = False
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        heading = line.strip().strip("#*_ ")
-        if _HISTORICAL_HEADING_RE.fullmatch(heading):
-            historical = True
-            index += 1
-            continue
-        if historical and line.lstrip().startswith("|"):
-            end = index
-            while end < len(lines) and lines[end].lstrip().startswith("|"):
-                end += 1
-            block = lines[index:end]
-            joined = " ".join(block)
-            if _STATUS_HEADER_RE.search(joined) and _FEE_HEADER_RE.search(joined):
-                index = end
-                continue
-            result.extend(block)
-            index = end
-            continue
-        result.append(line)
-        index += 1
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(result)).strip()
 
 
 def _split_subset_unavailable_routes(

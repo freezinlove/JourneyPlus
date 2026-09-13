@@ -7,6 +7,7 @@ from markdownify import markdownify
 from selectolax.parser import HTMLParser
 
 from journeyplus.content.extractors import extract_source_html
+from journeyplus.content.statusmatch_history import is_statusmatch_project_page, remove_historical_fee_tables
 from journeyplus.contracts import NormalizedDocument, RawDocument
 from journeyplus.sources.statusmatch_links import normalized_statusmatch_mail_html
 
@@ -50,7 +51,11 @@ def _normalize_space(value: str) -> str:
     return value.strip()
 
 
-def lightly_clean(raw: RawDocument) -> NormalizedDocument:
+def parser_version_for_url(url: str) -> str:
+    return PARSER_VERSION + ('-statusmatch-history-v1' if is_statusmatch_project_page(url) else '')
+
+
+def lightly_clean(raw: RawDocument, *, exclude_historical_fees: bool = True) -> NormalizedDocument:
     input_body = raw.body
     if (
         raw.source_id == "status_services_mail"
@@ -79,12 +84,14 @@ def lightly_clean(raw: RawDocument) -> NormalizedDocument:
         body = markdownify(root.html if root is not None else body, heading_style="ATX")
         body = re.sub(r"<![–-]{2}.*?-->", "", body, flags=re.S)
     normalized = _normalize_space(body)
+    if exclude_historical_fees and is_statusmatch_project_page(raw.canonical_url):
+        normalized = remove_historical_fee_tables(normalized)
     return NormalizedDocument(
         raw_body=raw.body,
         normalized_body=normalized,
         raw_hash=_digest(raw.body),
         normalized_hash=_digest(normalized),
-        parser_version=PARSER_VERSION,
+        parser_version=parser_version_for_url(raw.canonical_url),
     )
 
 

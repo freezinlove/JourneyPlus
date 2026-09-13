@@ -6,9 +6,10 @@ from datetime import UTC, datetime
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, aliased
 
-from journeyplus.content.cleaner import PARSER_VERSION, lightly_clean
+from journeyplus.content.cleaner import PARSER_VERSION, lightly_clean, parser_version_for_url
+from journeyplus.content.statusmatch_history import is_statusmatch_project_page
 from journeyplus.contracts import DiscoveredItem, RawDocument
-from journeyplus.models import DocumentVersion, SourceItem
+from journeyplus.models import DocumentVersion, SourceItem, StatusMatchWatchPage
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +61,31 @@ class IngestionService:
             source_item.discovery_fingerprint = item.discovery_fingerprint
 
         cleaned = lightly_clean(raw)
-        existing = self._session.scalar(
+        project_page = is_statusmatch_project_page(raw.canonical_url)
+        # Official-page versioning compares the current complete source, before
+        # historical fees are removed from reading text.
+        if project_page:
+            latest = self._current_project_document(raw.canonical_url) or self._session.scalar(select(DocumentVersion).where(
+                DocumentVersion.source_item_id == source_item.id
+            ).order_by(DocumentVersion.created_at.desc(), DocumentVersion.id.desc()).limit(1))
+            if latest is not None and latest.parser_version == cleaned.parser_version:
+                if latest.raw_hash == cleaned.raw_hash:
+                    return IngestionResult(source_item, latest, new_item, False)
+                if latest.raw_body is not None:
+                    before = lightly_clean(raw.model_copy(update={'body': latest.raw_body}), exclude_historical_fees=False)
+                    after = lightly_clean(raw, exclude_historical_fees=False)
+                    if before.normalized_hash == after.normalized_hash:
+                        return IngestionResult(source_item, latest, new_item, False)
+            # A return to a previous exact snapshot still changes the watched
+            # page, but must not violate the existing unique snapshot key.
+            prior = self._session.scalar(select(DocumentVersion).where(
+                DocumentVersion.source_item_id == source_item.id,
+                DocumentVersion.parser_version == cleaned.parser_version,
+                DocumentVersion.raw_hash == cleaned.raw_hash,
+            ).limit(1))
+            if prior is not None:
+                return IngestionResult(source_item, prior, new_item, True)
+        existing = None if project_page else self._session.scalar(
             select(DocumentVersion)
             .where(
                 DocumentVersion.source_item_id == source_item.id,
@@ -76,7 +101,7 @@ class IngestionService:
         if existing is not None:
             return IngestionResult(source_item, existing, new_item, False)
 
-        duplicate = self._session.scalar(
+        duplicate = None if project_page else self._session.scalar(
             select(DocumentVersion)
             .where(
                 DocumentVersion.normalized_hash == cleaned.normalized_hash,
@@ -103,6 +128,10 @@ class IngestionService:
         return IngestionResult(source_item, version, new_item, True)
 
     def current_document(self, item: DiscoveredItem) -> DocumentVersion | None:
+        if is_statusmatch_project_page(item.canonical_url):
+            current = self._current_project_document(item.canonical_url)
+            if current is not None:
+                return current
         source_item = self._find_item(item)
         if source_item is None:
             return None
@@ -112,6 +141,11 @@ class IngestionService:
             .order_by(DocumentVersion.created_at.desc(), DocumentVersion.id.desc())
             .limit(1)
         )
+
+    def _current_project_document(self, url: str) -> DocumentVersion | None:
+        return self._session.scalar(select(DocumentVersion).join(
+            StatusMatchWatchPage, StatusMatchWatchPage.current_document_version_id == DocumentVersion.id
+        ).where(StatusMatchWatchPage.canonical_url == url).limit(1))
 
     def reparse_outdated_snapshots(
         self,
@@ -133,13 +167,18 @@ class IngestionService:
                 .join(DocumentVersion, DocumentVersion.id == latest_document_id)
                 .where(
                     SourceItem.source_id == source_id,
-                    DocumentVersion.parser_version != PARSER_VERSION,
+                    or_(DocumentVersion.parser_version != PARSER_VERSION,
+                        DocumentVersion.canonical_url.contains('.statusmatch.com')),
                     DocumentVersion.raw_body.is_not(None),
                 )
             )
         )
         results: list[IngestionResult] = []
         for source_item, document in rows:
+            if is_statusmatch_project_page(document.canonical_url):
+                document = self._current_project_document(document.canonical_url) or document
+            if document.parser_version == parser_version_for_url(document.canonical_url):
+                continue
             item = DiscoveredItem(
                 source_id=source_item.source_id,
                 external_id=source_item.external_id,
