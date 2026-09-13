@@ -14,7 +14,7 @@ from journeyplus.contracts import AnalysisStage, Brief, FactSet, RunStatus
 from journeyplus.models import AnalysisRun, BriefRecord, FactSetRecord, StatusEvent
 
 
-BRIEF_PROMPT_VERSION = "chinese-brief-v9"
+BRIEF_PROMPT_VERSION = "chinese-brief-v10"
 BRIEF_SCHEMA_VERSION = "1"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会编辑。只能读取输入的版本化 FactSet，用自己的中文重组核心信息，输出短标题、短摘要、要点、限制/不确定性和来源链接。标题最多引用 3 个最核心的 fact_keys；其余事实仍可在摘要、要点或限制中引用。标题、摘要、每个要点和每项限制都要用 fact_keys 声明依据；unknown_fact_keys 中的字段必须完全省略，不得出现在任何 fact_keys 中，也不得据此写出“符合条件的会员”等暗示存在具体资格的措辞。不得输出“具体要求以活动页面为准”“请查看官网”“条款和费用适用”等没有独立信息价值的通用兜底文字；必须使用 FactSet 中已有的具体资格、映射、价格、地区、有效期、入口或限制，缺失时直接省略。source_links 只能逐项复制 allowed_source_links 中的公开证据来源；Gmail 邮件不是事实材料或引用对象。action_link 是申请入口，可以在有事实依据的行动要点中说明，但绝不能放入 source_links。application_routes 是同一活动下分别有证据的申请路径，应按各路径的资格、地区、价格和入口准确说明，不得把路径差异写成冲突。status_mappings 是完整的原项目/原等级到目标等级映射；引用它时必须列出至少一个具体“原会籍 → 目标会籍”对应关系，禁止用“完整映射见页面”“覆盖多家航司”等概括性文案替代具体事实。文案中必须使用“申请路径”“会籍对应关系”等中文名称，不得直接输出 application_routes、status_mappings 等内部字段名。字段、路径或映射明确标记的冲突必须继续生成简报并写入不确定性，展示双方候选信息，不可擅自选择；NEEDS_REVIEW 只是后台审核状态，不是停止生成简报的条件。不得添加 FactSet 没有的日期、费用、资格、地域或结论，不得复制长段原文。只输出符合 JSON Schema 的 JSON。"""
@@ -390,9 +390,11 @@ class BriefGenerator:
         if existing is None:
             self._session.add(run)
 
+        from journeyplus.knowledge.source_documents import source_links
+        document_links = source_links(self._session, fact_record)
         try:
-            brief = rendered if rendered is not None else self.render(fact_record)
-            self._validate(brief, fact_record, fact_set)
+            brief = rendered if rendered is not None else self.render(fact_record, document_links=document_links)
+            self._validate(brief, fact_record, fact_set, document_links=document_links)
         except Exception as exc:
             run.status = RunStatus.FAILED
             run.error = getattr(exc, "diagnostic_json", str(exc))[:4000]
@@ -422,14 +424,14 @@ class BriefGenerator:
         self._session.flush()
         return BriefGeneration(run, record, brief, False)
 
-    def render(self, fact_record: FactSetRecord) -> Brief:
+    def render(self, fact_record: FactSetRecord, *, document_links=()) -> Brief:
         """Render and ground a detached immutable fact snapshot without database access."""
         fact_set = FactSet.model_validate(fact_record.facts)
         last_error: Exception | None = None
         attempt_diagnostics: list[dict[str, Any]] = []
         brief: Brief | None = None
         known_fact_keys, unknown_fact_keys = _fact_key_availability(fact_set)
-        allowed_source_links = _allowed_source_links(fact_set)
+        allowed_source_links = sorted(set(document_links) | set(_allowed_source_links(fact_set)))
         for attempt in range(1, self._max_attempts + 1):
             request_payload: dict[str, Any] = {
                 "fact_set_id": str(fact_record.id),
@@ -466,7 +468,7 @@ class BriefGenerator:
                 continue
             try:
                 candidate = _normalize_brief_output(candidate, fact_set)
-                self._validate(candidate, fact_record, fact_set)
+                self._validate(candidate, fact_record, fact_set, document_links=document_links)
                 brief = candidate
                 break
             except Exception as exc:
@@ -524,7 +526,7 @@ class BriefGenerator:
         return brief
 
     @staticmethod
-    def _validate(brief: Brief, record: FactSetRecord, fact_set: FactSet) -> None:
+    def _validate(brief: Brief, record: FactSetRecord, fact_set: FactSet, *, document_links=()) -> None:
         if brief.fact_set_id != record.id:
             raise ValueError("Brief fact_set_id does not match its input")
         fields = fact_set.fact_fields()
@@ -622,6 +624,7 @@ class BriefGenerator:
                 ),
             ]
         }
+        allowed_links.update(str(link).rstrip("/") for link in document_links)
         if any(str(link).rstrip("/") not in allowed_links for link in brief.source_links):
             raise ValueError("Brief contains an unsupported source link")
         output_text = "\n".join(
@@ -677,8 +680,10 @@ def generate_brief_in_phases(factory, provider, fact_id):
         key = f"{AnalysisStage.BRIEF_GENERATION}:{record.id}:{provider.metadata.config_version}:{BRIEF_PROMPT_VERSION}"
         existing = session.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key == key))
         cached = Brief.model_validate(existing.result) if existing and existing.result else None
+        from journeyplus.knowledge.source_documents import source_links
+        document_links = source_links(session, record)
         snapshot = SimpleNamespace(id=record.id, event_id=record.event_id, facts=record.facts)
-    rendered = cached or BriefGenerator(None, provider).render(snapshot)
+    rendered = cached or BriefGenerator(None, provider).render(snapshot, document_links=document_links)
     with factory.begin() as session:
         record = session.get(FactSetRecord, fact_id)
         event = session.scalar(select(StatusEvent).where(StatusEvent.id == snapshot.event_id).with_for_update())

@@ -42,7 +42,7 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v9"
+ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v10"
 ARTICLE_INTERPRETATION_SCHEMA_VERSION = "9"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输入这一篇文章，不搜索、不引用、不比较其他文章，也不判断文章间关系。
@@ -52,7 +52,7 @@ SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输�
 - NONE：只有普通积分、折扣、权益介绍、一般信用卡资讯、长期攻略或个人客服成功个案；
 - UNCERTAIN：正文证据不足。
 
-若是 STATUS_OPPORTUNITY，按现实活动输出 opportunities。同一活动的不同目标等级、价格档、资格映射不拆分；不同目标忠诚度项目且有各自独立行动入口才拆分。每个机会提取完整事实、分别有证据的申请路径和会籍对应关系。不要跨机会串日期或条件。
+若是 STATUS_OPPORTUNITY，按现实活动输出 opportunities。同一活动的不同目标等级、价格档、资格映射不拆分；不同目标忠诚度项目且有各自独立行动入口才拆分。每个机会提取完整事实、各自适用的申请路径和会籍对应关系。不要跨机会串日期或条件。
 
 每个 opportunity 必须输出 opportunity_kind，且只能为 STATUS_MATCH 或 OTHER。STATUS_MATCH
 是广义产品范围：直接会籍匹配、会籍挑战、Fast Track、先获得临时会籍再完成任务延长，以及
@@ -60,8 +60,7 @@ SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输�
 MQD、Status Credit 或其他只增加定级进度但不直接取得明确目标等级的活动必须为 OTHER。
 opportunity_kind 只控制个性化匹配，不影响本机会继续生成简报。
 
-每个非空事实都必须附带文章中的短原文 quote，单条 quote 不得超过 480 个字符，
-不得复制整段或整表；quote 必须能在 normalized_body 中按空白归一化后逐字找到，
+直接提取结构化字段，不输出逐字段 evidence、quote、locator；文档关联由程序维护。
 不得使用常识补猜。文章没有明确说明的字段保持 null/空数组。
 application_start/deadline 只能摘录当前活动申请窗口，不能用发布时间或会籍有效期代替。
 action_link 只能使用正文中出现的链接。
@@ -71,11 +70,11 @@ status_mappings 只表示“已有某项目的明确会籍等级，可对应到�
 application_routes 只保存文章描述为当前可用的申请方法；previously、formerly、used to 等明确历史方法不能保存为当前路径。历史方法若放入 caveats，必须明确写成“此前曾使用、未确认当前仍可用”，绝不能改写成“如有问题仍可使用”的当前后备路径。普通限制条件属于 caveats，不要为了保存限制而把 route 标成 conflict。application_route 或 status_mapping 的 conflict 与 conflict_note 必须成对且只表示来源内部真实互斥：没有真实冲突时 conflict=false 且 conflict_note=null。
 
 每条 application_route 的 prices 按目标等级保存当前路线费用。每个 price 必须保留支持该价格的
-短原文证据和 raw_text；只有原文明确给出金额与币种时才填写 amount/currency。明确不可用的等级
+结构化金额与适用等级，raw_text 可省略；只有原文明确给出金额与币种时才填写 amount/currency。明确不可用的等级
 写 availability=UNAVAILABLE 且 amount=null。基础申请费与可选升级费没有明确总价时不得相加猜测。
-共同适用于所有路线的全局价格可以复制到各路线并绑定同一价格证据；原始 cost 文本始终保留。
+共同适用于所有路线的全局价格可以复制到各路线；原始 cost 文本始终保留。
 
-region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，两者 evidence.quote 都逐字复制包含完整范围的原句。只输出 JSON。"""
+region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，无需复制原句。只输出 JSON。"""
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,7 +168,7 @@ class ArticleInterpreter:
             interpretation = ArticleInterpretation(
                 label=DocumentLabel.UNCERTAIN,
                 confidence=0,
-                reason="正文解析在有限重试后未通过结构或证据校验，等待人工复核。",
+                reason="正文解析在有限重试后未通过结构或链接校验，等待人工复核。",
             )
             run.status = RunStatus.FAILED
             run.error = _safe_error(last_error or RuntimeError("unknown error"))
@@ -211,19 +210,7 @@ class ArticleInterpreter:
                     user_prompt=json.dumps(request_payload, ensure_ascii=False),
                     output_model=ArticleInterpretation,
                 )
-                candidate, discarded_evidence = _remove_ungrounded_candidates(
-                    document, candidate
-                )
-                if discarded_evidence:
-                    candidate = candidate.model_copy(
-                        update={
-                            "reason": (
-                                candidate.reason
-                                + f"（确定性证据守卫移除了 {discarded_evidence} 条"
-                                "无法逐字定位的候选证据及其无剩余依据的字段。）"
-                            )[:1000]
-                        }
-                    )
+                candidate = _normalize_application_methods(document, candidate)
                 self._validate_grounding(document, candidate)
                 interpretation = candidate
                 break
@@ -331,43 +318,7 @@ class ArticleInterpreter:
     def _validate_grounding(
         document: DocumentVersion, interpretation: ArticleInterpretation
     ) -> None:
-        normalized_body = _normalize_whitespace(document.normalized_body)
-        readable_body = _readable_markdown_text(document.normalized_body)
-        for opportunity_index, opportunity in enumerate(
-            interpretation.opportunities
-        ):
-            evidence_groups: list[tuple[str, list[EvidenceQuote]]] = [
-                *(
-                    (f"fact.{field_name}", field.evidence)
-                    for field_name, field in opportunity.fact_fields().items()
-                ),
-                *(
-                    (f"application_routes[{index}]", route.evidence)
-                    for index, route in enumerate(opportunity.application_routes)
-                ),
-                *(
-                    (
-                        f"application_routes[{route_index}].prices[{price_index}]",
-                        price.evidence,
-                    )
-                    for route_index, route in enumerate(opportunity.application_routes)
-                    for price_index, price in enumerate(route.prices)
-                ),
-                *(
-                    (f"status_mappings[{index}]", mapping.evidence)
-                    for index, mapping in enumerate(opportunity.status_mappings)
-                ),
-            ]
-            for location, group in evidence_groups:
-                for evidence_index, evidence in enumerate(group):
-                    quote = _normalize_whitespace(evidence.quote)
-                    if quote in normalized_body or quote in readable_body:
-                        continue
-                    raise ValueError(
-                        "Evidence quote was not found in the article body at "
-                        f"opportunities[{opportunity_index}].{location}"
-                        f".evidence[{evidence_index}]"
-                    )
+        for opportunity in interpretation.opportunities:
             links = [
                 *(str(route.action_link) for route in opportunity.application_routes if route.action_link),
                 *(
@@ -472,6 +423,34 @@ class ArticleInterpreter:
         )
 
 
+def _normalize_application_methods(document, interpretation):
+    """Keep link/history normalization without requiring or matching quotations."""
+    content = interpretation.model_dump(mode='json')
+    historical = re.compile(r'\b(?:previously|formerly|used\s+to)\b', re.I)
+    for opportunity in content['opportunities']:
+        action = opportunity['action_link']
+        if action.get('value') and action['value'] not in document.normalized_body:
+            opportunity['action_link'] = {'value': None}
+        routes = []
+        for route in opportunity['application_routes']:
+            if route.get('action_link') and route['action_link'] not in document.normalized_body:
+                route['action_link'] = None
+            # Historical metadata remains usable, but is never required.
+            descriptions = [route.get(key) or '' for key in ('scope', 'eligibility', 'cost')]
+            descriptions.extend(item['quote'] for item in route.get('evidence', []))
+            if any(historical.search(text) for text in descriptions):
+                continue
+            if any(route.get(key) for key in ('eligibility', 'region', 'cost', 'action_link', 'prices')):
+                routes.append(route)
+        opportunity['application_routes'] = routes
+        caveats = opportunity['caveats']
+        if (caveats.get('value')
+                and any(historical.search(item['quote']) for item in caveats.get('evidence', []))
+                and any(marker in caveats['value'] for marker in ('如有问题', '仍可', '可发送', '可以发送'))):
+            caveats['value'] = '文章仅说明邮件申请曾是过去使用的方式，未确认当前仍可用。'
+    return ArticleInterpretation.model_validate(content)
+
+
 def _normalize_whitespace(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", unescape(value)).split())
 
@@ -525,143 +504,7 @@ def _correction_action(exc: Exception) -> str:
             "逐项修正 Schema 错误。AVAILABLE/CONDITIONAL status_mapping 必须有"
             "source_tiers；积分转换项目不是会籍等级映射，应从 status_mappings 删除。"
             "conflict=false 时 conflict_note 必须为 null，存在 conflict_note 时 conflict"
-            "必须为 true。未知事实用 null 或空对象。所有 quote 仍须逐字复制。"
-            "每条 quote 必须少于或等于 480 个字符，禁止复制整段或整表。"
+            "必须为 true。未知事实用 null 或空对象。无需输出逐字段证据。"
+            "不要复制整段或整表。"
         )
-    return (
-        "所有 evidence.quote 必须从 normalized_body 可见文字中连续逐字复制；"
-        "不要改写、拼接、纠正拼写或添加等号。无法找到精确短引文的事实必须"
-        "改为 null/空证据，不能用概括短语充当引用。action_link 必须逐字来自正文。"
-    )
-
-
-def _remove_ungrounded_candidates(
-    document: DocumentVersion,
-    interpretation: ArticleInterpretation,
-) -> tuple[ArticleInterpretation, int]:
-    """Discard unsupported candidate material; never persist a fuzzy quote."""
-    raw_body = _normalize_whitespace(document.normalized_body)
-    readable_body = _readable_markdown_text(document.normalized_body)
-
-    def grounded(quote: str) -> bool:
-        normalized = _normalize_whitespace(quote)
-        return normalized in raw_body or normalized in readable_body
-
-    content = interpretation.model_dump(mode="json")
-    discarded = 0
-    field_names = (
-        "what_happened",
-        "eligibility",
-        "target_status",
-        "cost",
-        "challenge_requirements",
-        "region",
-        "application_start",
-        "deadline",
-        "status_validity",
-        "action_link",
-        "caveats",
-    )
-    for opportunity in content["opportunities"]:
-        for field_name in field_names:
-            field = opportunity[field_name]
-            evidence = field.get("evidence") or []
-            retained = [item for item in evidence if grounded(item["quote"])]
-            discarded += len(evidence) - len(retained)
-            field["evidence"] = retained
-            if field.get("value") is not None and not retained:
-                opportunity[field_name] = {
-                    "value": None,
-                    "evidence": [],
-                    "conflict": False,
-                    "alternatives": [],
-                }
-            elif field.get("conflict") and not retained:
-                opportunity[field_name] = {
-                    "value": None,
-                    "evidence": [],
-                    "conflict": False,
-                    "alternatives": [],
-                }
-        action_value = opportunity["action_link"].get("value")
-        if action_value and action_value not in document.normalized_body:
-            opportunity["action_link"] = {
-                "value": None,
-                "evidence": [],
-                "conflict": False,
-                "alternatives": [],
-            }
-            discarded += 1
-
-        retained_routes = []
-        for route in opportunity.get("application_routes") or []:
-            evidence = route.get("evidence") or []
-            route["evidence"] = [
-                item for item in evidence if grounded(item["quote"])
-            ]
-            discarded += len(evidence) - len(route["evidence"])
-            action_link = route.get("action_link")
-            if action_link and action_link not in document.normalized_body:
-                route["action_link"] = None
-                discarded += 1
-            retained_prices = []
-            for price in route.get("prices") or []:
-                price_evidence = price.get("evidence") or []
-                price["evidence"] = [
-                    item for item in price_evidence if grounded(item["quote"])
-                ]
-                discarded += len(price_evidence) - len(price["evidence"])
-                if price["evidence"]:
-                    retained_prices.append(price)
-            route["prices"] = retained_prices
-            if any(
-                re.search(
-                    r"\b(?:previously|formerly|used\s+to)\b",
-                    item["quote"],
-                    re.IGNORECASE,
-                )
-                for item in route["evidence"]
-            ):
-                discarded += len(route["evidence"])
-                continue
-            if route["evidence"] and (
-                any(
-                    route.get(key) is not None
-                    for key in ("eligibility", "region", "cost", "action_link")
-                )
-                or route["prices"]
-            ):
-                retained_routes.append(route)
-        opportunity["application_routes"] = retained_routes
-
-        caveats = opportunity["caveats"]
-        if (
-            caveats.get("value")
-            and any(
-                re.search(
-                    r"\b(?:previously|formerly|used\s+to)\b",
-                    item["quote"],
-                    re.IGNORECASE,
-                )
-                for item in caveats.get("evidence") or []
-            )
-            and any(
-                marker in caveats["value"]
-                for marker in ("如有问题", "仍可", "可发送", "可以发送")
-            )
-        ):
-            caveats["value"] = (
-                "文章仅说明邮件申请曾是过去使用的方式，未确认当前仍可用。"
-            )
-
-        retained_mappings = []
-        for mapping in opportunity.get("status_mappings") or []:
-            evidence = mapping.get("evidence") or []
-            mapping["evidence"] = [
-                item for item in evidence if grounded(item["quote"])
-            ]
-            discarded += len(evidence) - len(mapping["evidence"])
-            if mapping["evidence"]:
-                retained_mappings.append(mapping)
-        opportunity["status_mappings"] = retained_mappings
-    return ArticleInterpretation.model_validate(content), discarded
+    return "修正字段结构和内部关系；缺失事实保持 null，不需要逐字段引文。申请链接使用正文中的实际链接。"

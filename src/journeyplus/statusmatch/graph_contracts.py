@@ -63,7 +63,7 @@ class MappingClaim(StrictModel):
     source_category: ProgramCategory = ProgramCategory.UNKNOWN
     availability: MappingAvailability
     conditions: str | None = Field(default=None, max_length=1000)
-    evidence: list[EvidenceRef] = Field(min_length=1, max_length=20)
+    evidence: list[EvidenceRef] = Field(default_factory=list, max_length=20)
     conflict: bool = False
     conflict_note: str | None = Field(default=None, max_length=1000)
 

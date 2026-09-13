@@ -262,7 +262,7 @@ def test_same_full_document_is_scoped_to_each_linked_event(db_session) -> None:
     assert sas_result.fact_set.cost.value == "EUR 99"
 
 
-def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
+def test_fact_consolidation_preserves_unknowns_and_validates_event_identity(
     db_session,
 ) -> None:
     event, documents = _event_with_documents(
@@ -280,7 +280,7 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
     assert len(provider.calls) == 1
 
     invalid = _fact_response(event, documents[0])
-    invalid["deadline"]["evidence"][0]["document_version_id"] = str(uuid4())
+    invalid["event_id"] = str(uuid4())
     bad_provider = SequenceAIProvider([invalid, invalid])
     with pytest.raises(ValueError, match="Fact consolidation failed after 2 attempts"):
         FactConsolidator(
@@ -289,7 +289,7 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
     assert len(bad_provider.calls) == 2
     retry_request = json.loads(bad_provider.calls[1]["user_prompt"])
     assert retry_request["correction"]["previous_attempt_rejected_for"] == (
-        "Fact cites a document outside the event"
+        "FactSet event_id does not match the requested event"
     )
     failed = db_session.scalar(
         select(AnalysisRun).where(
@@ -312,9 +312,7 @@ def test_fact_consolidation_preserves_unknowns_and_requires_associated_evidence(
 def test_fact_retry_uses_validation_correction_and_can_recover(db_session) -> None:
     event, documents = _event_with_documents(db_session, ["Match to Gold."])
     invalid = _fact_response(event, documents[0])
-    invalid["what_happened"]["evidence"][0]["source_url"] = (
-        "https://example.com/not-the-material-source"
-    )
+    invalid["event_id"] = str(uuid4())
     valid = _fact_response(event, documents[0])
     provider = SequenceAIProvider([invalid, valid])
 
@@ -330,7 +328,7 @@ def test_fact_retry_uses_validation_correction_and_can_recover(db_session) -> No
     retry_request = json.loads(provider.calls[1]["user_prompt"])
     assert "correction" not in first_request
     assert retry_request["correction"]["previous_attempt_rejected_for"] == (
-        "Fact cites a source URL outside the event"
+        "FactSet event_id does not match the requested event"
     )
 
 
@@ -1155,23 +1153,16 @@ def test_statusmatch_html_table_is_injected_without_model_copying_rows(
     assert request["evidence_rules"]["deterministic_status_mapping_count"] == 2
 
 
-def test_missing_region_cannot_be_inferred_as_global(db_session) -> None:
+def test_missing_region_remains_unknown_without_evidence(db_session) -> None:
     event, documents = _event_with_documents(
-        db_session,
-        ["Eligible members may apply for the status match."],
+        db_session, ["Eligible members may apply for the status match."],
     )
-    unsupported = _fact_response(event, documents[0])
-    unsupported["region"] = {
-        "value": "Global",
-        "evidence": [_evidence(documents[0], "region is not mentioned")],
-    }
-
-    with pytest.raises(ValueError, match="Fact consolidation failed after 2 attempts"):
-        FactConsolidator(
-            db_session,
-            SequenceAIProvider([unsupported, unsupported]),
-            prompt_version="unsupported-global-region",
-        ).consolidate(event)
+    response = _fact_response(event, documents[0])
+    response["region"] = {"value": None}
+    provider = SequenceAIProvider([response])
+    result = FactConsolidator(db_session, provider).consolidate(event)
+    assert result.fact_set.region.value is None
+    assert "不得把“未提及地域”推断为全球" in provider.calls[0]['system_prompt']
 
 
 def test_structured_explicit_extension_advances_active_deadline(

@@ -58,6 +58,7 @@ class StatusMatchOfficialContributionAdapter:
     def read(self) -> OfficialMappingContributionBatch:
         snapshot = MembershipGraphService(self._session).build()
         node_by_id = {node.id: node for node in snapshot.nodes}
+        document_cache = {}
         contributions: list[MembershipMappingContribution] = []
         for edge in snapshot.edges:
             source_node = node_by_id[edge.source_node_id]
@@ -65,7 +66,7 @@ class StatusMatchOfficialContributionAdapter:
             for claim in edge.claims:
                 contributions.append(
                     _official_contribution(
-                        claim=claim,
+                        session=self._session, document_cache=document_cache, claim=claim,
                         source_program=source_node.program,
                         source_tier=source_node.tier,
                         target_program=target_node.program,
@@ -77,7 +78,7 @@ class StatusMatchOfficialContributionAdapter:
             target_node = node_by_id[rule.target_node_id]
             for claim in rule.claims:
                 contribution = _official_contribution(
-                    claim=claim,
+                    session=self._session, document_cache=document_cache, claim=claim,
                     source_program=claim.source_program,
                     source_tier=claim.source_tier,
                     target_program=target_node.program,
@@ -104,7 +105,7 @@ class StatusMatchOfficialContributionAdapter:
 
 
 class OrdinaryArticleContributionAdapter:
-    """Read grounded direct mappings from current ordinary article analyses."""
+    """Read valid direct mappings from current ordinary article analyses."""
 
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -227,9 +228,6 @@ class OrdinaryArticleContributionAdapter:
                             _excluded(opportunity.id, "MISSING_SOURCE_TIER", None)
                         )
                         continue
-                    if not _evidence_is_grounded(mapping.evidence, document):
-                        excluded.append(_excluded(opportunity.id, "UNGROUNDED", None))
-                        continue
                     for tier_index, source_tier in enumerate(mapping.source_tiers):
                         contributions.append(
                             MembershipMappingContribution(
@@ -270,11 +268,17 @@ class OrdinaryArticleContributionAdapter:
 
 
 def _official_contribution(
-    *, claim, source_program: str, source_tier: str, target_program: str,
+    *, session, document_cache, claim, source_program: str, source_tier: str, target_program: str,
     target_tier: str, certainty: ContributionCertainty,
 ) -> MembershipMappingContribution:
     evidence = list(claim.evidence)
-    first = evidence[0]
+    from journeyplus.models import FactSetRecord
+    from journeyplus.knowledge.source_documents import source_documents
+    if claim.fact_set_id not in document_cache:
+        record = session.get(FactSetRecord, claim.fact_set_id)
+        documents = source_documents(session, record) if record else []
+        document_cache[claim.fact_set_id] = documents[0] if documents else None
+    document = document_cache[claim.fact_set_id]
     return MembershipMappingContribution(
         contribution_id=f"official:{claim.id}",
         source=MappingContributionSource.STATUSMATCH_OFFICIAL,
@@ -291,8 +295,8 @@ def _official_contribution(
         source_category=MembershipProgramCategory(str(claim.source_category)),
         provenance=MappingContributionProvenance(
             subject_id=claim.fact_set_id,
-            source_document_version_id=first.document_version_id,
-            source_url=str(first.source_url),
+            source_document_version_id=document.id if document else None,
+            source_url=document.canonical_url if document else None,
             fact_set_id=claim.fact_set_id,
             event_id=claim.event_id,
             watch_id=claim.watch_id,
@@ -326,14 +330,3 @@ def _visibility_exclusion_reason(
     if current >= as_beijing(opportunity.visibility_until_at):
         return "EXPIRED"
     return None
-
-
-def _evidence_is_grounded(evidence, document: DocumentVersion) -> bool:
-    body = " ".join(document.normalized_body.split()).casefold()
-    if not evidence:
-        return False
-    return all(
-        item.document_version_id == document.id
-        and " ".join(item.locator.split()).casefold() in body
-        for item in evidence
-    )

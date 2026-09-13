@@ -50,8 +50,8 @@ class UnifiedTreeNodeState(StrEnum):
 
 class MappingContributionProvenance(StrictModel):
     subject_id: UUID
-    source_document_version_id: UUID
-    source_url: str = Field(min_length=1)
+    source_document_version_id: UUID | None = None
+    source_url: str | None = None
     fact_set_id: UUID | None = None
     event_id: UUID | None = None
     watch_id: UUID | None = None
@@ -67,7 +67,7 @@ class MembershipMappingContribution(StrictModel):
     target_tier: str = Field(min_length=1, max_length=300)
     availability: MappingAvailability
     conditions: str | None = Field(default=None, max_length=1000)
-    evidence: list[EvidenceRef] = Field(min_length=1, max_length=20)
+    evidence: list[EvidenceRef] = Field(default_factory=list, max_length=20)
     conflict: bool = False
     conflict_note: str | None = Field(default=None, max_length=1000)
     certainty: ContributionCertainty = ContributionCertainty.EXACT

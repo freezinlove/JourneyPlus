@@ -70,7 +70,7 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v13"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v14"
 PROJECT_SCHEMA_VERSION = "2"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
@@ -84,12 +84,11 @@ SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系
 可保留原文。FAQ 明确说明的匹配到期后重新达标/续级要求、每人限次和其他重要限制必须写入
 caveats；`requalify on merit` 只能表述为按项目正常规则重新达标，除非原文明示，不得擅自
 具体化为消费、入住或飞行。不同地区、资格、价格或入口组合应输出 application_routes。
-每条 application_route 的 prices 按目标等级保存当前路线价格，保留 raw_text 和证据别名；只有
+每条 application_route 的 prices 按目标等级保存当前路线价格，raw_text 可省略，不需要证据别名；只有
 原文明确给出金额和币种时才填写 amount/currency。明确不可用的等级写 UNAVAILABLE 且不得填写
 可支付金额。基础申请费与可选升级费没有明确总价时不得相加猜测。原始 cost 文本始终保留。
 
-每条证据只能使用 source=HOME、source=FAQ 或 source=TERMS，并提供简短 locator。不得输出数据库 UUID，
-不得把行动入口当成 source。HOME 是本项目申请入口；外部会员注册页不能替代它。
+不输出逐字段 evidence、locator 或数据库 UUID，文档关联由程序维护。HOME 是本项目申请入口；外部会员注册页不能替代它。
 
 输入 deterministic_status_mappings 是程序从 FAQ HTML 表格解析出的结果。不得在
 narrative_status_mappings 中复制、概括或改写这些表格行；只提取表格之外的正文、段落或列表
@@ -693,14 +692,6 @@ class StatusMatchProjectWorkflow:
         }
         FactConsolidator._validate_evidence(
             fact_set, event, allowed_ids, allowed_urls
-        )
-        FactConsolidator._validate_region_claims(
-            fact_set,
-            {
-                activity.id: activity.normalized_body,
-                faq.id: faq.normalized_body,
-                terms.id: terms.normalized_body,
-            },
         )
         return fact_set
 

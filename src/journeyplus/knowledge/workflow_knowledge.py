@@ -186,14 +186,8 @@ class WorkflowActivityReader:
         # The original mappings are activity-wide, not duplicated per region.
         options.append({'ref':'mappings','label':'会籍匹配关系','availability':'UNKNOWN','mappings':mappings})
         brief_content = brief.content if brief else detail.brief.model_dump(mode='json') if detail.brief and not event else None
-        source_ids = set()
-        def evidence(value):
-            if isinstance(value,dict):
-                if value.get('document_version_id'): source_ids.add(UUID(value['document_version_id']))
-                for child in value.values(): evidence(child)
-            elif isinstance(value,list):
-                for child in value: evidence(child)
-        evidence(detail.facts.model_dump(mode='json'))
+        from .source_documents import source_documents
+        source_ids = {document.id for document in source_documents(self.session, record)}
         if event and brief:
             from journeyplus.statusmatch.composed_brief import _latest_routes_for_event, _current_supplements
             supplements = _current_supplements(self.session,

@@ -328,8 +328,6 @@ class MembershipGraphService:
             claim = represented_claims.get(claim_id)
             if claim is None:
                 continue
-            if not claim.evidence:
-                missing_evidence.append(claim_id)
             record_facts = records.get(claim.fact_set_id)
             if record_facts is None:
                 record = self._session.get(FactSetRecord, claim.fact_set_id)

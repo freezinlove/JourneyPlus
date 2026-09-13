@@ -20,7 +20,7 @@ LoyaltyLobby DocumentVersion
                   │      ├─ DROP：停止，不读正文
                   │      └─ PASS / NEEDS_BODY
                   ├─ 一次正文理解
-                  │      └─ 最终标签 + 0..N ArticleOpportunity + FactSet + 逐字证据
+                  │      └─ 最终标签 + 0..N ArticleOpportunity + FactSet（原文通过分析记录关联）
                   └─ 每个机会一次简报（只读已持久化 FactSet）
 ```
 
@@ -39,16 +39,18 @@ LoyaltyLobby DocumentVersion
 | 相同输入与版本完整重跑 | 0 |
 | 通用关系或 AI 事实协调 | 0 |
 
-标题批次失败、缺项、重复 ID 或低置信度 `DROP` 都保守转换为 `NEEDS_BODY`。正文结构或证据失败保存为待复核分析。简报失败不回滚文章分析和事实；再次运行只重试缺失简报。标题、正文和简报各自以输入、模型、提示词及 Schema 版本形成独立幂等键，因此只升级一个阶段时不会强制重跑其他 AI 阶段。
+标题批次失败、缺项、重复 ID 或低置信度 `DROP` 都保守转换为 `NEEDS_BODY`。正文结构或链接校验失败保存为待复核分析。简报失败不回滚文章分析和事实；再次运行只重试缺失简报。标题、正文和简报各自以输入、模型、提示词及 Schema 版本形成独立幂等键，因此只升级一个阶段时不会强制重跑其他 AI 阶段。
+
+逐字段 `evidence` 和价格 `raw_text` 是可选历史元数据，不要求模型生成引文，不以缺少证据或引文逐字匹配作为入库、简报或入图条件。保留未知项、内部冲突与金额/币种等业务校验。原文目录与来源链接由共享读取层使用现有 `article_analyses.document_version_id` 获取，不新增表或生产阶段。
 
 ## 数据与低耦合
 
 V2 使用独立的 `ArticleAnalysisRecord`、`ArticleOpportunityRecord`、`ArticleBriefRecord`，不把普通文章写入共享 `StatusEvent`。事实字段继续复用 `FactField`、`ApplicationRoute`、`StatusMapping` 和 `Brief` 等稳定核心契约，因此前端可以用相近读取模型展示，但生命周期、持久化和专用处理器互不依赖。
 
-每个机会保留稳定 ID、SourceItem、DocumentVersion、canonical URL、发布时间、项目、目标等级、摘要、活动窗口、行动链接、完整事实、逐字证据、正文签名和事实签名。以后需要跨来源分组时，可以把最新成功 ArticleOpportunity 作为只读输入另建投影；当前表中没有 `group_id`、候选、关系类型或关系置信度字段。
+每个机会保留稳定 ID、SourceItem、DocumentVersion、canonical URL、发布时间、项目、目标等级、摘要、活动窗口、行动链接、完整事实、原文快照关联、正文签名和事实签名。以后需要跨来源分组时，可以把最新成功 ArticleOpportunity 作为只读输入另建投影；当前表中没有 `group_id`、候选、关系类型或关系置信度字段。
 
 StatusMatch 关联文章只补充 highlights，不提取或审批第三方映射，也不修改官方 FactSet、Brief 或图。
-普通文章 FactSet 中具有逐字证据的直接等级映射可作为来源中立贡献进入统一树；没有明确截止日期时，
+普通文章 FactSet 中结构有效、无冲突且可用的直接等级映射可作为来源中立贡献进入统一树；没有明确截止日期时，
 该贡献从发布时间起严格可见 180 天。完整生命周期、用户/管理员合同和回滚说明见
 [统一会籍匹配树与普通文章映射生命周期](unified-membership-tree.md)。
 

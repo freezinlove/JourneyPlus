@@ -359,7 +359,7 @@ class PersonalizedMatchService:
             if brief_record is not None
             else None
         )
-        return _detail(
+        result = _detail(
             opportunity_id=record.id,
             source="STATUSMATCH_OFFICIAL" if managed else "STATUS_EVENT",
             program=event.program,
@@ -369,6 +369,9 @@ class PersonalizedMatchService:
             facts=facts,
             brief=brief,
         )
+        from journeyplus.knowledge.source_documents import source_links
+        links = source_links(self._session, record)
+        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links))})
 
     def _article_detail(self, article: ArticleOpportunityRecord) -> OpportunityDetail:
         facts = _validated_facts(
@@ -386,7 +389,7 @@ class PersonalizedMatchService:
             if brief_record is not None
             else None
         )
-        return _detail(
+        result = _detail(
             opportunity_id=article.id,
             source="ORDINARY_ARTICLE",
             program=article.program,
@@ -396,6 +399,10 @@ class PersonalizedMatchService:
             facts=facts,
             brief=brief,
         )
+
+        from journeyplus.knowledge.source_documents import source_links
+        links = source_links(self._session, article)
+        return result.model_copy(update={'source_links': sorted(set(map(str, result.source_links)) | set(links))})
 
 
 def _validated_facts(
@@ -508,7 +515,7 @@ def _virtual_route(facts: FactSet) -> ProductApplicationRoute | None:
         return None
     prices = (
         parse_route_prices(facts.cost.value, evidence=facts.cost.evidence)
-        if facts.cost.value and facts.cost.evidence
+        if facts.cost.value
         else []
     )
     return ProductApplicationRoute(
@@ -573,7 +580,7 @@ def _fee_labels_for_target(facts: FactSet, target_tier_key: str) -> list[str]:
     else:
         prices = (
             parse_route_prices(facts.cost.value, evidence=facts.cost.evidence)
-            if facts.cost.value and facts.cost.evidence
+            if facts.cost.value
             else []
         )
         label = _route_fee_label(

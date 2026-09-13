@@ -25,7 +25,7 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_BRIEF_PROMPT_VERSION = "generic-article-brief-v1"
+ARTICLE_BRIEF_PROMPT_VERSION = "generic-article-brief-v2"
 ARTICLE_BRIEF_SCHEMA_VERSION = "1"
 
 
@@ -93,9 +93,11 @@ class ArticleBriefGenerator:
             self._session.add(run)
         self._session.flush()
 
+        from journeyplus.knowledge.source_documents import source_links
+        document_links = source_links(self._session, opportunity)
         try:
-            brief = rendered if rendered is not None else self.render(opportunity)
-            BriefGenerator._validate(brief, opportunity, fact_set)
+            brief = rendered if rendered is not None else self.render(opportunity, document_links=document_links)
+            BriefGenerator._validate(brief, opportunity, fact_set, document_links=document_links)
         except Exception as exc:
             run.status = RunStatus.FAILED
             run.error = str(exc)[:4000]
@@ -127,11 +129,11 @@ class ArticleBriefGenerator:
         self._session.flush()
         return ArticleBriefGeneration(run, record, brief, False)
 
-    def render(self, opportunity):
+    def render(self, opportunity, *, document_links=()):
         """Render a detached opportunity; no database session is required."""
         fact_set = FactSet.model_validate(opportunity.facts)
         known_fact_keys, unknown_fact_keys = _fact_key_availability(fact_set)
-        allowed_source_links = _allowed_source_links(fact_set)
+        allowed_source_links = sorted(set(document_links) | set(_allowed_source_links(fact_set)))
         last_error: Exception | None = None
         brief: Brief | None = None
         for _attempt in range(self._max_attempts):
@@ -159,7 +161,7 @@ class ArticleBriefGenerator:
                     output_model=Brief,
                 )
                 candidate = _normalize_brief_output(candidate, fact_set)
-                BriefGenerator._validate(candidate, opportunity, fact_set)
+                BriefGenerator._validate(candidate, opportunity, fact_set, document_links=document_links)
                 brief = candidate
                 break
             except Exception as exc:

@@ -108,9 +108,8 @@ def test_legacy_yes_no_labels_are_rejected() -> None:
         )
 
 
-def test_known_fact_requires_evidence() -> None:
-    with pytest.raises(ValidationError):
-        FactField(value="2026-12-31")
+def test_known_fact_allows_optional_evidence() -> None:
+    assert FactField(value="2026-12-31").evidence == []
 
     field = FactField(
         value="2026-12-31",
@@ -163,7 +162,7 @@ def test_fact_set_treats_explicit_null_optional_fields_as_unknown() -> None:
     assert facts.status_mappings == []
 
 
-def test_application_route_requires_evidence_and_scoped_detail() -> None:
+def test_application_route_allows_evidence_and_requires_scoped_detail() -> None:
     evidence = EvidenceRef(
         document_version_id=uuid4(),
         source_url="https://example.com/route",

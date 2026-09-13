@@ -30,11 +30,9 @@ class AliasedFactField(StrictModel):
     alternatives: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
-    def known_values_need_evidence(self) -> AliasedFactField:
-        if self.value is not None and not self.evidence:
-            raise ValueError("Known facts require at least one evidence alias")
-        if self.conflict and (len(self.alternatives) < 2 or not self.evidence):
-            raise ValueError("Conflicting facts require alternatives and evidence")
+    def conflicts_need_alternatives(self) -> AliasedFactField:
+        if self.conflict and len(self.alternatives) < 2:
+            raise ValueError("Conflicting facts require alternatives")
         return self
 
 
@@ -43,8 +41,8 @@ class AliasedRoutePrice(StrictModel):
     amount: float | None = Field(default=None, ge=0)
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     availability: RoutePriceAvailability = RoutePriceAvailability.UNKNOWN
-    raw_text: str = Field(min_length=1, max_length=1000)
-    evidence: list[AliasedEvidenceRef] = Field(min_length=1, max_length=20)
+    raw_text: str = Field(default="", max_length=1000)
+    evidence: list[AliasedEvidenceRef] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
     def amount_and_availability_are_consistent(self) -> AliasedRoutePrice:
@@ -62,7 +60,7 @@ class AliasedApplicationRoute(StrictModel):
     cost: str | None = Field(default=None, max_length=1000)
     prices: list[AliasedRoutePrice] = Field(default_factory=list, max_length=50)
     action_link: HttpUrl | None = None
-    evidence: list[AliasedEvidenceRef] = Field(min_length=1, max_length=20)
+    evidence: list[AliasedEvidenceRef] = Field(default_factory=list, max_length=20)
     conflict: bool = False
     conflict_note: str | None = Field(default=None, max_length=1000)
 
@@ -92,7 +90,7 @@ class AliasedStatusMapping(StrictModel):
     target_tier: str = Field(min_length=1, max_length=200)
     availability: MappingAvailability
     conditions: str | None = Field(default=None, max_length=1000)
-    evidence: list[AliasedEvidenceRef] = Field(min_length=1, max_length=20)
+    evidence: list[AliasedEvidenceRef] = Field(default_factory=list, max_length=20)
     conflict: bool = False
     conflict_note: str | None = Field(default=None, max_length=1000)
 

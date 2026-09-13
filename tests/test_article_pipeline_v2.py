@@ -492,7 +492,7 @@ def test_failed_interpretation_is_retryable_and_limits_internal_quotes(
 
     assert failed.failed == 1
     assert failed.documents[0].document_label == "UNCERTAIN"
-    assert "480" in provider.calls[-1]["request"]["correction"]["required_action"]
+    assert "无需输出逐字段证据" in provider.calls[-1]["request"]["correction"]["required_action"]
     with session_factory() as session:
         analysis = session.scalar(select(ArticleAnalysisRecord))
         assert analysis is not None and analysis.status == "NEEDS_REVIEW"

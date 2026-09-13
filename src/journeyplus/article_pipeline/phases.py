@@ -56,13 +56,15 @@ def interpret_in_phases(factory,provider,document_id):
 def article_brief_in_phases(factory,provider,opportunity_id):
     with factory() as s:
         op=s.get(ArticleOpportunityRecord,opportunity_id)
+        from journeyplus.knowledge.source_documents import source_links
+        document_links=source_links(s,op)
         baseline=op.fact_signature
         key=f'{AnalysisStage.ARTICLE_BRIEF}:{op.id}:{baseline}:{provider.metadata.config_version}:{ARTICLE_BRIEF_PROMPT_VERSION}'
         run=s.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key==key))
         cached=Brief.model_validate(run.result) if run and run.result else None
         s.expunge_all()
     try:
-        rendered=cached or ArticleBriefGenerator(None,provider).render(op)
+        rendered=cached or ArticleBriefGenerator(None,provider).render(op,document_links=document_links)
         with factory.begin() as s:
             op=s.scalar(select(ArticleOpportunityRecord).where(ArticleOpportunityRecord.id==opportunity_id).with_for_update())
             if op.fact_signature!=baseline:raise ValueError('Article facts changed during brief generation')

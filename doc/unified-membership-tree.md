@@ -5,7 +5,7 @@
 统一树是一个只读投影，不是新的活动合并系统。它在查询时组合两类直接贡献：
 
 - ACTIVE StatusMatch 项目当前官方 FactSet 中的映射；
-- LoyaltyLobby 普通文章最新成功分析中、有逐字证据且当前可见的直接映射。
+- LoyaltyLobby 普通文章最新成功分析中、结构有效、无冲突且当前可见的直接映射。
 
 两条工作流不互相导入，也不修改对方的数据。只有
 `UnifiedMembershipTreeService` 可以组合两个来源中立适配器。树构建、同边去重、循环检测和多跳展开
@@ -13,7 +13,7 @@
 或事实协调。
 
 默认用户树不显示“官方/第三方”标签、贡献者列表、证据 provenance 或 180 天内部字段。同一对规范化
-起止节点只显示一条边；管理员审计保留每个独立贡献及其原始证据、DocumentVersion、FactSet 或
+起止节点只显示一条边；管理员审计保留每个独立贡献及可选历史证据、已有文档关联中的 DocumentVersion、FactSet 或
 ArticleOpportunity 和生命周期。
 
 ## 普通文章有效期

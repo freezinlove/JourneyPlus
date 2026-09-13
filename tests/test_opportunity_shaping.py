@@ -53,7 +53,7 @@ def test_opportunity_kind_has_exactly_two_values_and_legacy_is_conservative() ->
     assert with_legacy_opportunity_kind(mapping_payload)["opportunity_kind"] == "STATUS_MATCH"
 
 
-def test_route_price_requires_evidence_and_never_invents_unavailable_amount() -> None:
+def test_route_price_allows_evidence_and_never_invents_unavailable_amount() -> None:
     evidence = _evidence()
     price = RoutePrice(
         target_tier="Gold",

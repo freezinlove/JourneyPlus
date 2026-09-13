@@ -243,7 +243,7 @@ def _price_summaries(facts: FactSet) -> list[str]:
             ("默认申请路线", price)
             for price in (
                 parse_route_prices(facts.cost.value, evidence=facts.cost.evidence)
-                if facts.cost.value and facts.cost.evidence
+                if facts.cost.value
                 else []
             )
         ]
