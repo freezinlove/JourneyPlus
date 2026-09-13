@@ -1,19 +1,14 @@
 """Derived brief display data, never a second stored knowledge model."""
 from dataclasses import dataclass
 from datetime import datetime
-import re
 
 from journeyplus.contracts import FactSet
 from journeyplus.lifecycle.service import BEIJING_TZ
 from journeyplus.membership.unified import UnifiedMembershipTreeService
-from journeyplus.opportunity_shaping import parse_route_prices
+from journeyplus.fee_policy import route_fees
+from journeyplus.memberships_validity import is_active_membership, membership_date
 from journeyplus.product.contracts import BriefFee, BriefRelationship
 from journeyplus.product.holdings import StatusHoldingService
-
-
-_FREE = re.compile(r"^(?:(?:基础)?申请(?:费)?(?:为|是)?\s*)?(?:免费|无费用|无需付费|free(?: of charge)?)(?:$|[，。；,. ;])", re.I)
-_PAID = re.compile(r"^(?:申请费(?:为|是)?\s*)?(?:收费|付费|paid|fees? apply)(?:$|[，。；,. ;])", re.I)
-_OPTIONAL = re.compile(r"可选|额外|另付|升级|optional|additional|upgrade", re.I)
 
 
 def fee_view(facts: FactSet) -> BriefFee:
@@ -22,33 +17,13 @@ def fee_view(facts: FactSet) -> BriefFee:
     notes = [facts.cost.value] if facts.cost.value else []
     routes = facts.application_routes or [None]
     for route in routes:
-        text = (route.cost if route else None) or facts.cost.value or ""
+        policy = route_fees(facts, route)
         if route and route.cost:
             notes.append(f"{route.scope}：{route.cost}")
-        prices = route.prices if route else []
-        optional_text = bool(_OPTIONAL.search(text))
-        if not prices and not optional_text:
-            prices = parse_route_prices(text, evidence=[]) if text else []
-        conditional |= any(p.availability == "CONDITIONAL" and p.amount is not None and p.amount > 0 for p in prices)
-        conditional |= optional_text and bool(parse_route_prices(text, evidence=[]))
-        if facts.cost.conflict or (route and route.conflict):
-            states.append("UNKNOWN")
+        conditional |= policy.conditional
+        states.extend(policy.states)
+        if policy.conflict:
             notes.append((route.conflict_note if route else None) or "费用信息存在冲突")
-            continue
-        base = [p for p in prices if p.availability not in {"CONDITIONAL", "UNAVAILABLE"}]
-        if base:
-            states.extend(
-                "UNKNOWN" if p.amount is None or p.availability == "UNKNOWN"
-                else "FREE" if p.amount == 0 else "PAID" for p in base
-            )
-        elif _FREE.search(text.strip()):
-            states.append("FREE")
-        elif _PAID.search(text.strip()):
-            states.append("PAID")
-        elif prices and all(p.availability == "UNAVAILABLE" for p in prices):
-            continue
-        else:
-            states.append("UNKNOWN")
     known = set(states) - {"UNKNOWN"}
     incomplete = "UNKNOWN" in states or not states
     if known == {"FREE", "PAID"}:
@@ -101,7 +76,7 @@ def relation_context(session) -> RelationContext:
     from journeyplus.product.opportunities import _opportunity_paths
     now = datetime.now(BEIJING_TZ)
     holdings = StatusHoldingService(session).list()
-    active = [h for h in holdings if h.valid_until is None or h.valid_until >= now.date()]
+    active = [h for h in holdings if is_active_membership(h.valid_until, today=membership_date(now))]
     if not active:
         return RelationContext({}, {}, bool(holdings), False, False)
     forest = UnifiedMembershipTreeService(session).reachable_forest([h.node_id for h in active], now=now)

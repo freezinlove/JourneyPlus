@@ -8,10 +8,11 @@ from journeyplus.knowledge.routes import RouteService
 from journeyplus.knowledge.publication import signature
 from journeyplus.knowledge.selection import order_candidates
 from journeyplus.membership.unified import _outgoing
-from journeyplus.membership.normalization import normalize_tier, stable_id
+from journeyplus.membership.normalization import stable_id
 from journeyplus.product.opportunities import PersonalizedMatchService
 from journeyplus.product.candidate_routes import _NO_CHALLENGE, _CHALLENGE
-from .workflow_knowledge import catalog, graph_state, identity_id
+from journeyplus.fee_policy import route_fees
+from .workflow_knowledge import catalog, graph_state, identity_id, brief_url
 
 
 def regional_applicability(region, residency):
@@ -102,12 +103,12 @@ class WorkflowRouteService:
                     # minimize across regions or charge a different target tier's fee.
                     for index, option in enumerate(facts.application_routes or [None]):
                         applies = regional_applicability(option.region if option else None,query.residency)
-                        if applies is False:
-                            continue
-                        eligible_prices = [(i,p) for i,p in enumerate(option.prices) if not p.target_tier or
-                            normalize_tier(p.target_tier)==target.tier_key] if option else []
+                        # Region annotates applicability and prices, never removes a path.
+                        policy = route_fees(facts, option, target_tier=target.tier_key)
+                        eligible_prices = policy.prices
                         if eligible_prices and all(p.availability=='UNAVAILABLE' for _,p in eligible_prices):
                             continue
+                        base_prices = [p for _,p in eligible_prices if p.availability not in {'CONDITIONAL','UNAVAILABLE'}]
                         fees, conditional = [], []
                         for price_index, price in eligible_prices:
                             if price.availability=='UNAVAILABLE': continue
@@ -115,11 +116,12 @@ class WorkflowRouteService:
                                 'amount':str(price.amount) if price.amount is not None else None,
                                 'currency':price.currency,'role':'APPLICATION','raw_text':price.raw_text,
                                 'conditions':[option.region] if option and option.region else []}
-                            if (applies is True and len(eligible_prices)==1 and price.availability=='AVAILABLE'
-                                    and price.amount is not None and not option.conflict):
+                            if (applies is True and len(base_prices)==1 and price.availability=='AVAILABLE'
+                                    and price.amount is not None and not policy.conflict):
                                 fees.append(value)
                             else:
-                                conditional.append({**value,'applicability':'UNKNOWN','reason':option.region or '价格适用条件待确认'})
+                                conditional.append({**value,'applicability':'UNKNOWN',
+                                    'reason':(option.region if option else None) or price.raw_text or '价格适用条件待确认'})
                         texts = [facts.eligibility.value, facts.region.value, claim.conditions,
                                  option.eligibility if option else None, option.region if option else None]
                         checks = [{'topic':'ELIGIBILITY','result':'UNKNOWN','reason':v} for v in dict.fromkeys(texts) if v]
@@ -142,7 +144,8 @@ class WorkflowRouteService:
                             'target_program_id':str(pref),
                             'target_alliance':str(target.alliance) if target.alliance else None,
                             'fees':fees,'conditional_items':conditional,'alternative_items':[],
-                            'fee_unknown':not bool(fees),'fee_conflict':bool(option and option.conflict or facts.cost.conflict),
+                            'fee_unknown':not bool(fees) and not policy.free,'fee_conflict':policy.conflict,
+                            'fee_free':policy.free,
                             'challenge':challenge,'eligibility':'UNKNOWN','constraint_checks':checks,
                             'source_acquisition':query.source_acquisition if not path else 'MATCHED',
                             'material_caveats':[c['reason'] for c in checks]+[v for v in
@@ -152,8 +155,9 @@ class WorkflowRouteService:
                             'status_validity':facts.status_validity.model_dump(mode='json'),
                             'action_link':str(option.action_link) if option and option.action_link else facts.action_link.value,
                             'source_links':detail.source_links, 'application_scope':option.scope if option else None,
-                            'cost_description':option.cost if option else facts.cost.value,
-                            'brief_url':f'/opportunities/{opportunity_id}'}
+                            'cost_description':policy.text or ('免费（未提供费用信息）'
+                                if policy.free_basis=='NO_FEE_INFORMATION' else '免费' if policy.free else None),
+                            'brief_url':brief_url(activity,version)}
                         next_path = [*path,sid]
                         if tuple(next_path) in seen_paths: continue
                         seen_paths.add(tuple(next_path))

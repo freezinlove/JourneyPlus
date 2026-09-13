@@ -70,8 +70,10 @@ class PersonalizedMatchService:
     ) -> PersonalizedMatches:
         current = as_beijing(now or datetime.now(BEIJING_TZ))
         holdings = StatusHoldingService(self._session).list()
+        from journeyplus.memberships_validity import is_active_membership, membership_date
+        active = [item for item in holdings if is_active_membership(item.valid_until, today=membership_date(current))]
         forest = UnifiedMembershipTreeService(self._session).reachable_forest(
-            [item.node_id for item in holdings],
+            [item.node_id for item in active],
             technical_node_limit=technical_node_limit,
             now=current,
         )
@@ -570,32 +572,19 @@ def _is_managed_event(session: Session, event_id: UUID) -> bool:
 
 
 def _fee_labels_for_target(facts: FactSet, target_tier_key: str) -> list[str]:
+    from journeyplus.fee_policy import route_fees
     labels: list[str] = []
-    if facts.application_routes:
-        for route in facts.application_routes:
-            prices = effective_route_prices(
-                route,
-                common_cost=facts.cost.value,
-                common_evidence=facts.cost.evidence,
-            )
-            label = _route_fee_label(
-                prices,
-                target_tier_key=target_tier_key,
-                raw_cost=route.cost or facts.cost.value,
-            )
-            if label is not None:
-                labels.append(label)
-    else:
-        prices = (
-            parse_route_prices(facts.cost.value, evidence=facts.cost.evidence)
-            if facts.cost.value
-            else []
-        )
-        label = _route_fee_label(
-            prices,
-            target_tier_key=target_tier_key,
-            raw_cost=facts.cost.value,
-        )
+    for route in facts.application_routes or [None]:
+        policy = route_fees(facts, route, target_tier=target_tier_key)
+        if policy.conflict:
+            label = "费用存在冲突"
+        else:
+            label = _route_fee_label([p for _,p in policy.prices],
+                target_tier_key=target_tier_key, raw_cost=policy.text)
+            if policy.free and not label:
+                label = "免费"
+            elif policy.free and policy.conditional and "免费" not in label:
+                label = "免费；" + label
         if label is not None:
             labels.append(label)
     return list(dict.fromkeys(labels))

@@ -29,3 +29,13 @@ test('stale versions or foreign mappings never acquire current facts',()=>{
   assert.throws(()=>activityForStep(detail,{...step,version_ref:'facts-2'}));
   assert.throws(()=>activityForStep(detail,{...step,mapping_ref:'unknown'}));
 });
+
+test('a selected tier does not inherit whole-activity mixed fee badges',()=>{
+  const activity=structuredClone(detail);
+  activity.fee={label:'部分免费／部分付费'};activity.options[0].fee={label:'部分免费／部分付费'};
+  const selected=activityForStep(activity,step);
+  assert.equal(selected.fee,undefined);assert.equal(selected.options[0].fee,undefined);
+  const free=activityForStep(activity,{...step,fee_free:true});
+  assert.equal(free.options[0].fee.label,'免费');
+  assert.equal(activity.fee.label,'部分免费／部分付费');
+});

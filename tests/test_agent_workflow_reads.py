@@ -86,7 +86,7 @@ def test_original_schema_catalog_routes_inspect_and_progressive_materials(origin
     item = overview.data['activities'][0]
     assert item['ref'].startswith('activity:'+str(identity)+'@')
     assert 'facts' not in item and 'options' not in item
-    assert item['brief_url']==f'/opportunities/{identity}'
+    assert item['brief_url'].startswith(f'/knowledge?activity_id={identity}&version_ref=')
     detailed = call(runtime,ctx,'activity.read',{'selector':{'ref':item['ref']},'view':'detail'})
     mapping = detailed.data['activities'][0]['options'][-1]['mapping_index'][0]
     section = call(runtime,ctx,'activity.read',{'selector':{'ref':item['ref']},'section_refs':[mapping['section_ref']]})
@@ -270,7 +270,7 @@ def test_conditional_mapping_is_disclosed_instead_of_an_empty_result(original_fa
     assert any(c['reason']=='Restricted to eligible residents' for c in inspected.data['steps'][0]['constraint_checks'])
 
 
-def test_explicit_residency_selects_only_its_country_list_and_price_index(original_factory,session_factory):
+def test_explicit_residency_retains_other_regions_without_mixing_prices(original_factory,session_factory):
     identity=seed(original_factory)
     with original_factory.begin() as s:
         row=s.get(ArticleOpportunityRecord,identity)
@@ -278,17 +278,19 @@ def test_explicit_residency_selects_only_its_country_list_and_price_index(origin
         route=facts['application_routes'][0];route['region']='Greece';route['scope']='Greece'
         gold={**route['prices'][0],'target_tier':'Gold'}
         route['prices']=[{**gold,'target_tier':'Silver','amount':'1'},gold]
-        foreign=json.loads(json.dumps(route));foreign['region']='Argentina, Chile';foreign['scope']='South America'
+        foreign=json.loads(json.dumps(route));foreign['region']='Argentina, Chile';foreign['scope']='South America';foreign['prices'][1]['amount']='199'
         facts['application_routes'].append(foreign);row.facts=facts
     runtime,_,ctx=context(session_factory,original_factory)
     query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]},
            'constraints':{'residency':'希腊','max_amount':'50','currency':'USD'}}
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
-    assert len(result.data['route_refs'])==1 and result.status=='OK'
-    assert result.data['candidates'][0]['cost']['totals'][0]['amount']=='49'
+    assert len(result.data['route_refs'])==2 and result.status=='PARTIAL'
     inspected=call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':result.data['route_refs']})
-    step=inspected.data['steps'][0]
-    assert step['application_scope']=='Greece' and step['fees'][0]['ref'].endswith('/price-1')
+    steps={step['application_scope']:step for step in inspected.data['steps']}
+    assert steps['Greece']['fees'][0]['ref'].endswith('/price-1')
+    assert steps['Greece']['fees'][0]['amount']=='49'
+    assert not steps['South America']['fees']
+    assert steps['South America']['conditional_items'][0]['amount']=='199'
 
 
 def test_region_prose_and_mixed_challenge_are_not_assumed_proven(original_factory,session_factory):

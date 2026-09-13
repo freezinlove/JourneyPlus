@@ -47,9 +47,9 @@ def test_legacy_read_and_import_preserve_text_without_executing_pending(session_
             assert 'task_context' not in session.get(AgentInteraction,UUID(response.json()['id'])).state
 
 
-def test_retired_execution_precedes_all_rollout_modes(session_factory):
-    for mode in ('legacy','unified','rollback'):
-        with TestClient(create_product_app(session_factory,knowledge_read_mode=mode)) as client:
+def test_retired_execution_precedes_maintenance(session_factory):
+    for paused in (False,True):
+        with TestClient(create_product_app(session_factory,knowledge_user_writes_paused=paused)) as client:
             for path in ('/v1/agent/turn','/v2/agent/workspaces/x/messages','/v2/wait-goal/x/seen'):
                 assert client.post(path,json={}).status_code==410
             assert client.get('/v1/agent/state').status_code==200

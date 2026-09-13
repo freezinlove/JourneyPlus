@@ -4,7 +4,7 @@ from contextlib import nullcontext
 from datetime import date
 from journeyplus.knowledge.routes import RouteService, RouteQuery, HoldingSnapshot
 from journeyplus.agent.harness.contracts import ToolResult
-from journeyplus.models import now_utc
+from journeyplus.memberships_validity import is_active_membership
 
 
 class RouteQueries:
@@ -22,7 +22,7 @@ class RouteQueries:
             for holding in holdings:
                 if holding.get('resolution_state')=='INVALID_REFERENCE':
                     unresolved.append(holding)
-                elif holding['valid_until'] and date.fromisoformat(holding['valid_until'])<now_utc().date():
+                elif holding['valid_until'] and not is_active_membership(date.fromisoformat(holding['valid_until'])):
                     unresolved.append({**holding,'code':'HOLDING_EXPIRED','resolution_state':'EXPIRED'})
                 elif holding['tier_ref']:
                     inputs.append(({'ref':holding['tier_ref']},holding))

@@ -3,7 +3,7 @@ const $ = (q) => document.querySelector(q);
 const labels = {FRESH:'近期资料',STALE:'资料较旧',MATCH:'符合查询条件',NEARBY:'接近要求',UNKNOWN:'有待核实',NONE:'无需挑战',REQUIRED:'需要挑战',PARTIAL:'部分费用已知',KNOWN:'已核实',AVAILABLE:'可申请',UNAVAILABLE:'不可申请',INCOMPLETE:'资料待补全',DISABLED:'调查未启用',NOT_REQUESTED:'未请求经验调查'};
 const el = (tag, text, cls) => {const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 async function api(path, body, method) {const r=await fetch(path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'请求未完成，请检查输入或刷新后重试');return data;}
-function money(cost){if(cost?.is_proven_free)return '明确免费';const totals=cost?.totals||[];const parts=totals.filter(x=>!totals.some(v=>Number(v.amount)>0)||Number(x.amount)>0).map(x=>`${x.role==='CHALLENGE_SPEND'?'挑战支出':'申请费用'} ${x.currency||''} ${Number(x.amount).toLocaleString('zh-CN')}`);return parts.join('；')||'费用未知';}
+function money(cost){if(cost?.is_proven_free)return '免费';const totals=cost?.totals||[];const parts=totals.filter(x=>!totals.some(v=>Number(v.amount)>0)||Number(x.amount)>0).map(x=>`${x.role==='CHALLENGE_SPEND'?'挑战支出':'申请费用'} ${x.currency||''} ${Number(x.amount).toLocaleString('zh-CN')}`);return parts.join('；')||'费用未知';}
 function readable(value){if(value==null)return '未知';if(typeof value!=='object')return labels[value]||String(value);if(value.known_state)return value.known_state==='KNOWN'?readable(value.value):labels[value.known_state]||'待核实';if(Array.isArray(value))return value.map(readable).join('；')||'暂无';if(value.items)return value.items.map(x=>x.raw_text||x.reason||'有资格条件，需核对来源').join('；')||'暂无已记录条件';if(value.kind==='NONE')return '无需挑战';if(value.kind==='DURATION')return `${({COMPLETION:'完成要求后',APPROVAL:'批准后',APPLICATION:'申请后'})[value.anchor]||'起算时间待核实，持续'} ${value.months!=null?value.months+' 个月':value.days+' 天'}`;if(value.kind==='FIXED_END')return `有效至 ${readable(value.end)}`;if(value.precision==='DATE')return value.date;if(value.precision==='MONTH')return value.month;if(value.precision==='INSTANT')return value.instant;if(value.precision==='RELATIVE')return `相对约定起点 ${value.offset_days} 天，具体起点请核对原文`;if(value.raw_text)return value.raw_text;return Object.entries(value).filter(([k])=>!k.endsWith('_id')&&!k.endsWith('_ids')&&!['schema_version','evidence_ids'].includes(k)).map(([k,v])=>`${({activity:'活动',option:'申请方式',kind:'类型',start:'开始',end:'结束',date:'日期',duration:'期限',unit:'单位',amount:'金额',currency:'币种',metrics:'要求',precision:'精度'})[k]||k}：${readable(v)}`).join('；');}
 const detailNavigation=new WeakMap();
 function showDetail(dialog){
@@ -24,6 +24,8 @@ function workflowActivityDetail(a,parent,includeHistory,checks){
   parent.append(el('h3',a.name||'活动资料'));
   if(a.is_current===false)parent.append(el('p','这是回答当时的历史版本，当前资料已有更新。','caveat'));
   fact(parent,'资料状态',a.card?.lifecycle_status);
+  if(a.fee)fact(parent,'付费情况',a.fee.label);
+  if(value(a.facts?.cost))fact(parent,'费用说明',value(a.facts.cost));
   for(const check of checks)fact(parent,check.result==='PASS'?'已核对条件':'待核对条件',check.reason);
   for(const [key,label] of [['eligibility','申请资格'],['challenge_requirements','挑战要求'],['application_start','申请开始'],['deadline','申请截止'],['status_validity','会籍有效期'],['caveats','注意事项']]){
     if(a.facts?.[key])fact(parent,label,value(a.facts[key]));
@@ -32,9 +34,17 @@ function workflowActivityDetail(a,parent,includeHistory,checks){
     const section=el('section',undefined,'detail-option');section.append(el('h4',option.label));
     if(option.region)fact(section,'适用地区',option.region);
     if(option.eligibility)fact(section,'申请条件',option.eligibility);
+    if(option.fee)fact(section,'付费情况',option.fee.label);
+    if(option.cost)fact(section,'费用说明',option.cost);
     if(option.mappings?.length)mappingDetails(option,section);
     for(const price of option.prices||[]){
-      fact(section,`${price.target_tier||''}申请费用`,price.availability==='UNAVAILABLE'?'此等级不可申请':price.conflict?'费用存在冲突':price.amount!=null?`${price.currency||''} ${price.amount}`:'费用未知');
+      const unavailable=price.availability==='UNAVAILABLE';
+      const conflict=price.conflict||option.conflict||a.facts?.cost?.conflict;
+      let amount=unavailable?'此等级不可申请':conflict?'费用存在冲突':price.amount!=null?(Number(price.amount)===0?'免费':`${price.currency||''} ${price.amount}`):'费用待确认';
+      if(!unavailable&&!conflict&&price.availability==='CONDITIONAL')amount+='（条件费用，不作为确定必付金额）';
+      if(!unavailable&&!conflict&&price.availability==='UNKNOWN')amount+='（适用性待确认）';
+      fact(section,`${price.target_tier||''}申请费用`,amount);
+      if(price.availability==='CONDITIONAL'&&price.raw_text)fact(section,'费用条件',price.raw_text);
     }
     const url=option.action_link||value(a.facts?.action_link);
     if(typeof url==='string'&&/^https?:\/\//.test(url)){const link=el('a','官方申请入口 ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';section.append(link);}
@@ -62,7 +72,7 @@ function mappingDetails(option,parent){
         mapping.source_scope?.kind==='PUBLIC'?'公开申请':mapping.source_scope?.rule_text||'来源资格尚未核实';
       const row=el('section',undefined,'detail-option');row.append(el('strong',`${source} → ${mapping.to_tier}`));
       if(mapping.availability!=='AVAILABLE')row.append(el('p',mapping.availability==='UNAVAILABLE'?'不可申请':'资格或适用性待核实','caveat'));
-      if(mapping.conditions?.items?.length)row.append(el('p',readable(mapping.conditions)));
+      if((typeof mapping.conditions==='string'&&mapping.conditions.trim())||mapping.conditions?.items?.length)row.append(el('p',readable(mapping.conditions)));
       list.append(row);
     }
     notice.textContent=selected.length?`已显示 ${Math.min(visible,selected.length)} / ${selected.length} 项`:'本次筛选未找到记录，不代表官方未提供其他机会。';
@@ -106,9 +116,10 @@ function activityHistory(activity,parent){
       notice.remove();loaded=true;
       for(const version of result.versions){
         const entry=el('details');
-        entry.append(el('summary',`${version.is_current?'当前':'历史'} · ${new Date(version.published_at).toLocaleString('zh-CN')}`));
-        for(const brief of version.briefs||[])if(brief.status==='READY')briefContent(brief,entry);
-        if(!(version.briefs||[]).some(b=>b.status==='READY'))entry.append(el('p','简报待生成，可查看当时的完整资料。'));
+        entry.append(el('summary',`${version.is_current?'当前':'历史'} · ${new Date(version.created_at).toLocaleString('zh-CN')}`));
+        if(version.brief_status==='READY'){
+          const link=el('a','查看此版本简报');link.href=version.brief_url;entry.append(link);
+        }else entry.append(el('p',version.brief_status==='MISSING'?'此版本尚无简报，可查看当时的完整资料。':'简报状态暂不可用，可查看当时的完整资料。'));
         const button=el('button','查看此版本资料');entry.append(button);
         button.onclick=async()=>{
           button.disabled=true;

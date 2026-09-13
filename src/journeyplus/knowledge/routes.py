@@ -314,7 +314,7 @@ class RouteService:
                 "cost":{"state":"CONFLICT" if any(x.get("fee_conflict") for x in items) else "PARTIAL" if unknown and totals else "UNKNOWN" if unknown else "KNOWN",
                         "totals":[{"currency":c,"role":r,"amount":str(a)} for (c,r),a in totals.items()],
                         "conditional_items":[p for x in items for p in x["conditional_items"]],"alternative_items":[p for x in items for p in x["alternative_items"]],
-                        "is_proven_free":bool(app) and not unknown and all(a==0 for a in app.values()),"scope":"已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计"},
+                        "is_proven_free":not unknown and (bool(app) or all(x.get('fee_free',False) for x in items)) and all(a==0 for a in app.values()),"scope":"已确认必付费用按角色和币种分别列出；条件及互斥费用不计入确定合计；未提供费用信息按免费处理"},
                 "eligibility":"UNKNOWN" if any(x["eligibility"]=="UNKNOWN" for x in items) else "PASS",
                 "challenge":challenge,"material_caveats":[c for x in items for c in x["material_caveats"]],
                 "needs_inspection":unknown or challenge=='UNKNOWN' or bool(unknowns) or any(x['eligibility']=='UNKNOWN' for x in items),

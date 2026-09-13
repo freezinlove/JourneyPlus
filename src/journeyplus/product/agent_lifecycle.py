@@ -51,8 +51,11 @@ class AgentLifecycle:
             if config:
                 self.store.model_name = config.model
                 self.runtime.budget_limits = {
+                    **self.runtime.budget_limits,
                     'soft': {'input_tokens': config.input_token_soft},
                     'hard': {'input_tokens': config.input_token_limit},
+                    'context_tokens': getattr(config, 'context_token_budget',
+                        self.runtime.budget_limits.get('context_tokens', 100000)),
                 }
             self.model_ready = True
             self.status = 'READY'

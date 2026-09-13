@@ -33,7 +33,6 @@ def create_product_app(
     *,
     agent_model=None,
     agent_network_enabled: bool = False,
-    knowledge_read_mode: str = 'legacy',
     knowledge_user_writes_paused: bool = False,
 ) -> FastAPI:
     from journeyplus.agent.composition import compose_business
@@ -42,10 +41,9 @@ def create_product_app(
     runtime,store=compose_business(session_factory,agent_model or UnconfiguredModel(),network_enabled=agent_network_enabled)
     app = FastAPI(title='JourneyPlus personalized status matches')
     install_agent(app, runtime, store, include_home=False)
-    from journeyplus.product.rollout import install_rollout
-    install_rollout(app,knowledge_read_mode,knowledge_user_writes_paused)
-    from journeyplus.knowledge.user_journal import configure_user_data
-    configure_user_data(session_factory,knowledge_read_mode.casefold(),knowledge_user_writes_paused)
+    from journeyplus.product.rollout import install_rollout, configure_user_writes
+    install_rollout(app,knowledge_user_writes_paused)
+    configure_user_writes(session_factory,knowledge_user_writes_paused)
     @app.exception_handler(SQLAlchemyError)
     async def database_unavailable(_request, _exc) -> JSONResponse:
         return JSONResponse(

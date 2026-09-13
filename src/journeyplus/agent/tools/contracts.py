@@ -62,7 +62,7 @@ class Constraints(DTO):
     allow_challenge: bool | None = None
     source_acquisition: Literal['EARNED', 'MATCHED', 'UNKNOWN'] = Field(default='UNKNOWN',
         description='Origin of the ALREADY HELD status, not the desired activity method. UNKNOWN unless stated by the user.')
-    residency: str | None = None
+    residency: str | None = Field(default=None,description='Optional residence for regional price context only; never excludes routes from other regions.')
     prior_participation: str | None = None
     require_proven_eligibility: bool = False
 

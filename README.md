@@ -2,15 +2,23 @@
 
 > **当前目标架构**：[目标架构与模块职责](doc/target-system-architecture.md)。两个板块：AIWorkflow 生产并存储正式知识，提供简报和完整匹配图；Agent 消费同一数据库中的知识并引用简报。正式业务模型采用当前 AIWorkflow 产出结构，保留业务数据，按实际缺口增量修复。已完成部分适配和分项验证，整体目标仍须按文档要求验收；不再以清库重建为实施前提。
 
-## 历史实现与运行记录（待按目标架构审计）
+## 当前运行入口
 
-以下为既有系统说明，保留作审计参考，不作为新架构已实现或旧命令仍适用的证明。
+正常产品启动：`uv run journeyplus product-api`。使用当前 AIWorkflow 数据库，不需要选择 legacy/unified/rollback 模式；旧 `JOURNEYPLUS_KNOWLEDGE_READ_MODE` 环境变量已退出。
 
-> 统一知识库与 Agent 重构正在隔离验收，默认入口尚未切换。当前新设计、已实现能力、许可关闭及剩余事项见[统一基线](doc/unified-knowledge-agent-baseline.md)，进度见[OpenSpec任务](openspec/changes/rebuild-membership-knowledge-and-agent/tasks.md)。下文原产品描述及 `/v1` 属于默认 legacy 模式；新预览入口为 `/knowledge`、`/explore`、`/workspace`。
+- `/holdings` 管理会籍，`/matches` 查看匹配图，`/briefs` 查看简报。
+- `/knowledge` 和 `/explore` 使用同一正式模型读取知识、查询路径。
+- `/workspace` 使用 Agent。模型按需选择工具和图卡，回复为自然语言。
+- 独立知识服务：`uv run python -m journeyplus.product.knowledge_server --port 8014`，无需启动模型。
+- `JOURNEYPLUS_KNOWLEDGE_USER_WRITES_PAUSED=true` 仅暂停会籍和等待任务的用户变更，不切换数据模型或关闭知识读取。
 
-JourneyPlus 当前收敛为一个默认面向中国用户的个性化常旅客会籍匹配产品。用户从规范化目录选择自己已有的会籍，系统沿现有官方与普通文章映射图计算完整可达关系，匹配图对每个会籍只绘制一次并只展示离已有会籍最近的到达路径；产品同时展示匹配/挑战机会、分路线价格、原始证据和中文简报。中国地区只生成提示，不过滤、不阻止、不替换任何机会或价格。
+费用信息未提供时按免费处理；地区只作适用范围和价格说明，不排除路径。过期会籍保留记录，但不参与匹配计算。
 
-当前可运行底座是 AI Workflow：AI 用于正文事实提取与简报生成，会籍目录、持有会籍、路径遍历、闭环处理、价格继承、地区提示和页面查询全部由确定性程序完成。当前产品定位在此基础上增加一个有严格边界的会籍策略 Agent，由它理解用户自然语言中的已有会籍、目标和取舍，必要时发起一次关键确认，基于程序候选给出推荐，并处理受限的 StatusMatcher 经验调查、一次最小条件调整和一个经用户确认的等待目标。它不是多 Agent 系统，也不把普通工作流包装成 Agent。
+历史架构、迁移与审计记录继续留档；与当前说明冲突时，以目标架构及当前实现为准。
+
+JourneyPlus 当前收敛为一个默认面向中国用户的个性化常旅客会籍匹配产品。用户从规范化目录选择自己已有的会籍，系统沿现有官方与普通文章映射图计算完整可达关系，匹配图对每个会籍只绘制一次并只展示离已有会籍最近的到达路径；产品同时展示匹配/挑战机会、分路线价格、原文归档和中文简报。中国地区只生成提示，不过滤、不阻止、不替换任何机会或价格。
+
+AIWorkflow 负责事实生产。官方 StatusMatch 的标题与摘要随首次事实提取生成，程序绑定版本并提供简报；普通文章保留独立解释与简报链路。会籍目录、路径遍历、价格展示和页面查询由程序完成。Agent 通过通用 Harness 使用工具、联网和记忆，自主决定查询、比较、展示及后续对话；用户业务变更通过明确操作保存。
 
 机会事实只分为 `STATUS_MATCH | OTHER`：真正的会籍匹配、挑战、Fast Track 和临时会籍挑战属于前者，其他会籍相关机会属于后者。`OTHER` 仍照常生成并展示简报，只是不进入个性化匹配图。
 
@@ -41,7 +49,7 @@ uv run journeyplus product-api
 uv run journeyplus review-api
 ```
 
-打开 `http://127.0.0.1:8000/agent` 即可使用会籍策略 Agent；“我的会籍”“匹配图”“机会简报”和“机会详情”仍可独立使用，接口文档位于 `http://127.0.0.1:8000/docs`。Agent 能理解自然语言目标和取舍、确认并保存新会籍、调用现有匹配图查询事实候选、给出个性化首选，在无方案时提出一次有候选依据的最小调整，并在用户确认后保存一个持续跟进目标。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
+打开 `http://127.0.0.1:8000/workspace` 即可使用会籍策略 Agent；“我的会籍”“匹配图”“机会简报”和“机会详情”仍可独立使用，接口文档位于 `http://127.0.0.1:8000/docs`。Agent 按需读取知识、比较路径、展示图卡、管理明确要求保存的会籍和等待任务，交互步骤由模型决定。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
 
 自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源只有 LoyaltyLobby 通用文章和 StatusMatch 邮件专用来源。AwardWallet 买分来源仍为 `enabled=true`，但 `automatic_scheduling=false`；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
@@ -53,7 +61,7 @@ uv run alembic upgrade head
 uv run journeyplus seed-sources
 ```
 
-`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用采集和对应处理器的薄编排。AwardWallet 来源路由到 `process-buy-points`，即使没有 AI 凭证也可运行；其余普通文章处理规则保持不变。普通文章中有逐字证据的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)，买分字段、状态、排障与回滚见 [买分优惠监控运维说明](doc/buy-points-monitoring.md)。
+`collect` 只负责采集与精确去重，`process-pending` 只处理 LoyaltyLobby 待分析文档，`run-source` 是依次调用采集和对应处理器的薄编排。AwardWallet 来源路由到 `process-buy-points`，即使没有 AI 凭证也可运行；其余普通文章处理规则保持不变。普通文章中已提取的直接会籍映射会与 StatusMatch 官方映射查询时组成同一棵来源中立树；无明确截止日的普通文章映射严格可见 180 天。完整规则见 [统一会籍匹配树说明](doc/unified-membership-tree.md)，买分字段、状态、排障与回滚见 [买分优惠监控运维说明](doc/buy-points-monitoring.md)。
 
 LoyaltyLobby 和 Gmail 使用持久化增量边界。AwardWallet 买分页每轮只发现同一个稳定条目并重新请求唯一 canonical URL，不跟随正文中的详情或购买链接；正文哈希与规范化哈希保证内容不变时复用 `DocumentVersion`，内容变化时才形成新版本和不可变买分快照。
 
@@ -78,7 +86,7 @@ Agent 已迁移到独立的模型适配器、harness 和工具注册器。旧 v1
 
 Agent 配置见 `.env.example`，旧三次调用和 StatusMatcher 专用开关已退役。工作区临时资料保留 24 小时，已成功的用户操作回执单独持久保存。
 
-当前实施与审核边界见 [Agent 解耦实施总纲](openspec/changes/decouple-agent-harness-and-tools/charter.md)。无需调用模型的本地页面可用 `uv run python -m journeyplus.agent.server --no-model` 启动；人工模型席位调试使用 `scripts/review_agent_harness.py` 并显式指定隔离数据库。普通 Agent 服务启动会初始化模型协议，须在用户审核许可后使用。
+无需调用模型的本地页面可用 `uv run python -m journeyplus.agent.server --no-model` 启动。正常 Agent 启动读取现有配置并初始化模型协议；人工模型席位调试脚本和历史验收记录用于开发排查。当前运行原则以目标架构为准，不沿用历史重构阶段的许可关闭状态。
 
 ## 配置
 
@@ -115,7 +123,7 @@ uv run python scripts/smoke_public_sources.py
 
 该命令只验证无需账号的公开来源适配器是否还能发现材料并取得首条正文，不写数据库、不调用 AI，也不测试 Gmail；这不代表被关闭的来源会进入自动调度或通用 V2。
 
-当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`；当前 Agent 的实施与验收任务位于 `openspec/changes/decouple-agent-harness-and-tools/`。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前产品总方针、Agent 专项方针和当前实施 change 为准。
+当前确定性产品底座的已完成 OpenSpec 位于 `openspec/changes/converge-personalized-status-match-product/`；当前 Agent 的实施与验收任务位于 `openspec/changes/decouple-agent-harness-and-tools/`。其他历史变更仍保留在原 OpenSpec 目录中；范围冲突时，以当前目标架构和用户已确认的业务规则为准。
 
 ## 当前已知限制
 
@@ -127,4 +135,4 @@ uv run python scripts/smoke_public_sources.py
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
-- 会籍策略 Agent 使用 v3 工作区、持久运行、独立工具及确定性等待检查。模型未配置时会明确报告不可用，知识、简报和完整图可独立浏览。当前 change 的真实模型验收须等待用户审核批准。
+- 会籍策略 Agent 使用 v3 工作区、持久运行、独立工具及确定性等待检查。模型未配置时会明确报告不可用，知识、简报和完整图可独立浏览。真实模型验收应记录所用模型、工具输入输出及实际完成的场景。

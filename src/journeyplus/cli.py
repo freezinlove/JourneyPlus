@@ -263,8 +263,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     engine = engine_from_settings(settings)
     factory = create_session_factory(engine)
-    from journeyplus.knowledge.user_journal import configure_user_data
-    configure_user_data(factory,settings.knowledge_read_mode,settings.knowledge_user_writes_paused)
+    from journeyplus.product.rollout import configure_user_writes
+    configure_user_writes(factory,settings.knowledge_user_writes_paused)
     if args.command == "review-api":
         import uvicorn
 
@@ -293,7 +293,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 factory,
                 agent_model=model,
                 agent_network_enabled=not args.no_agent and os.getenv("JOURNEYPLUS_AGENT_NETWORK_ENABLED", "false").lower() == "true",
-                knowledge_read_mode=settings.knowledge_read_mode,
                 knowledge_user_writes_paused=settings.knowledge_user_writes_paused,
             ),
             host=args.host,

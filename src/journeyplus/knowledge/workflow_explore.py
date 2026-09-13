@@ -1,7 +1,6 @@
 """Page projections of AIWorkflow knowledge, without an Agent runtime."""
-from datetime import UTC, datetime
-
 from sqlalchemy import select
+from journeyplus.memberships_validity import membership_date
 
 from journeyplus.models import StatusHolding, StatusEvent, FactSetRecord, ArticleOpportunityRecord
 from .text import canonical
@@ -46,7 +45,7 @@ def explore(session, query):
         # Select original columns only: the chosen schema has no program/tier FKs.
         rows = session.execute(select(StatusHolding.program_key, StatusHolding.tier_key).where(
             (StatusHolding.valid_until.is_(None)) |
-            (StatusHolding.valid_until >= datetime.now(UTC).date())))
+            (StatusHolding.valid_until >= membership_date())))
         for program_key, tier_key in rows:
             tier = identity_id('tier', program_key + '::' + tier_key)
             if tier in tier_ids:

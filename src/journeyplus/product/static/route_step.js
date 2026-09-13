@@ -12,6 +12,11 @@ export function activityForStep(detail, step) {
   if(option.mappings.length!==1)throw Error('版本与来源映射不一致');
   const prices=new Set(['fees','conditional_items','alternative_items'].flatMap(key=>(step[key]||[]).map(item=>item.ref)));
   option.prices=(option.prices||[]).filter((price,index)=>prices.has(detail.data_model==='aiworkflow'?`${detail.version_ref}/${option.ref}/price-${index}`:price.ref));
+  // Activity/option fee badges summarize all tiers; don't carry them into one selected edge.
+  if(detail.data_model==='aiworkflow'){
+    delete activity.fee;delete option.fee;
+    if(step.fee_free)option.fee={label:'免费'};
+  }
   activity.detail_scope='SELECTED_ROUTE_STEP';
   return activity;
 }

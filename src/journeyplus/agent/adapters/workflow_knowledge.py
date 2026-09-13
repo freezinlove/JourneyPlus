@@ -1,8 +1,8 @@
 """Agent hooks for the shared, read-only AIWorkflow knowledge projection."""
-from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import UUID
 from sqlalchemy import select
+from journeyplus.memberships_validity import membership_date
 from journeyplus.models import StatusHolding
 from journeyplus.knowledge.workflow_knowledge import (
     WorkflowKnowledgePort as SharedWorkflowKnowledgePort,
@@ -23,7 +23,7 @@ class WorkflowUserData:
                 StatusHolding.program_display_name, StatusHolding.tier_display_name, StatusHolding.valid_until, StatusHolding.updated_at)
             if mode == 'saved':
                 statement = statement.where((StatusHolding.valid_until.is_(None)) |
-                    (StatusHolding.valid_until>=datetime.now(UTC).date()))
+                    (StatusHolding.valid_until>=membership_date()))
             if refs:
                 statement = statement.where(StatusHolding.id.in_([UUID(r.removeprefix('holding:')) for r in refs]))
             rows = session.execute(statement.order_by(StatusHolding.id)).mappings().all()

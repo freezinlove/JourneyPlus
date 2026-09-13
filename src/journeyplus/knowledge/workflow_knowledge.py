@@ -19,6 +19,10 @@ def identity_id(kind, key):
     return uuid5(NAMESPACE_URL, 'journeyplus:workflow:' + kind + ':' + key)
 
 
+def brief_url(activity, version):
+    return f'/knowledge?activity_id={activity}&version_ref={version}&section=brief'
+
+
 def graph_state(session):
     # Cache only inside this read transaction; never hide later workflow updates.
     cached = session.info.get('workflow_graph')
@@ -183,6 +187,9 @@ class WorkflowActivityReader:
         routes = facts.pop('application_routes',[])
         options = [{'ref':'route-'+str(i), 'label':r['scope'], 'availability':'CONFLICT' if r['conflict'] else 'UNKNOWN',
                     **r, 'mappings':[]} for i,r in enumerate(routes)]
+        from journeyplus.product.brief_data import fee_view
+        for option, route in zip(options, detail.facts.application_routes):
+            option['fee'] = fee_view(detail.facts.model_copy(update={'application_routes':[route]})).model_dump(mode='json')
         # The original mappings are activity-wide, not duplicated per region.
         options.append({'ref':'mappings','label':'会籍匹配关系','availability':'UNKNOWN','mappings':mappings})
         brief_content = brief.content if brief else detail.brief.model_dump(mode='json') if detail.brief and not event else None
@@ -202,21 +209,29 @@ class WorkflowActivityReader:
         return {'data_model':'aiworkflow','ref':str(identity),'version_ref':str(selected),'current_version_ref':current,
             'is_current':str(selected)==current,'name':brief_content.get('title',detail.program) if brief_content else detail.program,
             'kind':str(detail.opportunity_kind),'facts':facts,'options':options,'sources':sources,
+            'fee':fee_view(detail.facts).model_dump(mode='json'),
             'briefs':[{'content':brief_content}] if brief_content else [],
             'card':{'summary':brief_content.get('summary',detail.summary) if brief_content else detail.summary,
                     'lifecycle_status':detail.lifecycle_status,'source_links':detail.source_links},
-            'brief_url':f'/opportunities/{record.id}'}
+            'brief_url':brief_url(identity,selected)}
 
     def history(self, identity, *, before_version=None, limit=10):
         event = self.session.get(StatusEvent,identity)
         if not event:
-            return {'activity_ref':str(identity),'versions':[],'has_more':False}
+            return {'activity_ref':str(identity),'versions':[],'has_more':False,'next_before_version':None}
         statement=select(FactSetRecord).where(FactSetRecord.event_id==identity)
         if before_version is not None:statement=statement.where(FactSetRecord.version<before_version)
         rows=list(self.session.scalars(statement.order_by(FactSetRecord.version.desc()).limit(limit+1)))
+        selected = rows[:limit]
+        # History only needs presence/status, not every brief's complete content.
+        ready = set(self.session.scalars(select(BriefRecord.fact_set_id).where(
+            BriefRecord.fact_set_id.in_([r.id for r in selected]))))
         return {'activity_ref':str(identity),'versions':[{'version_ref':str(r.id),'version_no':r.version,
-            'is_current':r.id==event.current_fact_set_id,'created_at':r.created_at.isoformat()} for r in rows[:limit]],
-            'has_more':len(rows)>limit}
+            'is_current':r.id==event.current_fact_set_id,'created_at':r.created_at.isoformat(),
+            'brief_status':'READY' if r.id in ready else 'MISSING',
+            'brief_url':brief_url(identity,r.id) if r.id in ready else None} for r in selected],
+            'has_more':len(rows)>limit,
+            'next_before_version':selected[-1].version if len(rows)>limit else None}
 
     def materials(self, *, selector, version_ref, section_refs=(), aspects=(), **unused):
         detail = self.detail(UUID(selector['ref']),UUID(version_ref))

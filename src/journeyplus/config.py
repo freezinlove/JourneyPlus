@@ -26,7 +26,6 @@ class Settings:
     automation_document_limit: int = 20
     automation_model_call_limit: int = 100
     automation_lease_seconds: int = 3600
-    knowledge_read_mode: str = 'legacy'
     knowledge_user_writes_paused: bool = False
     generic_article_pipeline: str = "v2"
     generic_title_drop_enabled: bool = True
@@ -68,7 +67,6 @@ class Settings:
             automation_lease_seconds=_positive_env_int(
                 "JOURNEYPLUS_AUTOMATION_LEASE_SECONDS", 3600
             ),
-            knowledge_read_mode=_choice_env('JOURNEYPLUS_KNOWLEDGE_READ_MODE','legacy',{'legacy','unified','rollback'}),
             knowledge_user_writes_paused=_boolean_env('JOURNEYPLUS_KNOWLEDGE_USER_WRITES_PAUSED',False),
             generic_article_pipeline=_choice_env(
                 "JOURNEYPLUS_GENERIC_ARTICLE_PIPELINE", "v2", {"v1", "v2"}

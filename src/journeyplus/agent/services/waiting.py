@@ -74,6 +74,8 @@ class WaitingService:
         return result
 
     def _manage(self,args,ctx):
+        if args.operation != 'list' and self.factory.kw.get('info', {}).get('user_business_writes_paused'):
+            return ToolResult.failure('USER_WRITES_PAUSED','系统维护中，暂不接受等待任务变更；已有任务保留。')
         if args.operation=='list':
             with read_session(self.factory) as s:
                 from journeyplus.agent.adapters.pagination import page
@@ -158,6 +160,12 @@ class WaitingService:
             identity,revision,raw=row.id,row.revision,deepcopy(row.query)
         query=RouteRequest.model_validate(raw)
         evaluation=self.queries.evaluate(query)
+        if evaluation.get('error') and evaluation['error'].error.code == 'KNOWLEDGE_NOT_READY':
+            # Missing knowledge is temporary, not a change to the user's intent.
+            # Keep the active goal and retry on the next maintenance check.
+            return {'status':'KNOWLEDGE_NOT_READY','model_calls':0,'retryable':True,
+                    'coverage':{'complete':False,'search_performed':False},
+                    'readiness':{'ready':False,'issues':[{'code':'KNOWLEDGE_NOT_READY'}]}}
         if evaluation.get('error') or evaluation['unresolved']:
             coverage=(evaluation['error'].coverage if evaluation.get('error')
                       else evaluation['result']['coverage'])
