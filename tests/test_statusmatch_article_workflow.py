@@ -62,7 +62,8 @@ class ArticleAdapter:
                 discovered_url=ARTICLE_URL,
                 canonical_url=ARTICLE_URL,
                 title="Kenya Airways match",
-                raw_metadata={"content_strategy": "feed_body_only"},
+                raw_metadata={"content_strategy": "feed_body_only",
+                              "feed_body": f'<a href="https://{HOST}/">official</a>' if self.linked else "no project link"},
             )
         ]
 

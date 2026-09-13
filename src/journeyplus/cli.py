@@ -578,7 +578,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     provider = (
         OpenAICompatibleProvider(settings)
-        if args.command == "run-source"
+        if (args.command == "run-source" or args.source_id == GENERIC_PUBLIC_SOURCE_ID)
         and args.source_id != BUY_POINTS_SOURCE_ID
         else None
     )
@@ -586,7 +586,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed_sources(session)
     adapter = build_configured_adapter(args.source_id, settings)
     collection = collect_in_phases(
-        factory, adapter, idempotency_key=args.idempotency_key, max_items=args.limit
+        factory, adapter, idempotency_key=args.idempotency_key, max_items=args.limit,
+        article_provider=provider, title_drop_enabled=settings.generic_title_drop_enabled,
     )
     if args.command == "collect":
         print(json.dumps(asdict(collection), ensure_ascii=False))

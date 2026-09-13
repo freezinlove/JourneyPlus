@@ -86,7 +86,7 @@ def test_source_discovery_and_fetch_are_outside_transactions(factory):
             def fetch(self,item):
                 assert not active
                 return super().fetch(item)
-        result=collect_in_phases(factory,CheckedAdapter('loyaltylobby_feed'),idempotency_key='short-tx-fixture')
+        result=collect_in_phases(factory,CheckedAdapter('status_services_mail'),idempotency_key='short-tx-fixture')
         assert result.new_versions==1
     finally:
         event.remove(engine,'checkout',checkout);event.remove(engine,'checkin',checkin)
@@ -97,8 +97,6 @@ def test_article_models_run_outside_database_transactions(factory):
     from journeyplus.sources.collection import collect_in_phases
     from journeyplus.article_operations import process_pending_articles
     with factory.begin() as s:seed_sources(s)
-    collected=collect_in_phases(factory,ArticleBatchAdapter([('tx-example','Status match offer',
-        'Example Air offers a direct status match to Gold. Apply at https://example-air.test/apply')]),idempotency_key='article-model-tx')
     engine=factory.kw['bind'];active=[]
     def checkout(*a):active.append(1)
     def checkin(*a):active.pop()
@@ -109,6 +107,9 @@ def test_article_models_run_outside_database_transactions(factory):
                 assert not active
                 return super().generate_structured(**kw)
         provider=CheckedProvider()
+        collected=collect_in_phases(factory,ArticleBatchAdapter([('tx-example','Status match offer',
+            'Example Air offers a direct status match to Gold. Apply at https://example-air.test/apply')]),
+            idempotency_key='article-model-tx', article_provider=provider)
         result=process_pending_articles(factory,provider,document_ids=collected.document_version_ids)
         assert result.failed==0
         assert {call['model'] for call in provider.calls}=={'TitleScreenBatch','ArticleInterpretation','Brief'}

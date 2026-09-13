@@ -249,6 +249,7 @@ def _run_initialization(
                     end=end,
                     max_items=limits.source_items_per_source,
                     now=current,
+                    article_provider=budgeted,
                 )
             )
 
@@ -467,6 +468,7 @@ def _collect_initialization_source(
     end: date | None,
     max_items: int,
     now: datetime,
+    article_provider=None,
 ) -> InitializationSourceSummary:
     key = f"{batch_key}:{source_id}"
     historical: HistoricalFeedWindowAdapter | None = None
@@ -477,7 +479,8 @@ def _collect_initialization_source(
                 raise TypeError(f"{source_id} historical initialization requires FeedAdapter")
             historical = HistoricalFeedWindowAdapter(adapter,start=start,end=end)
             adapter = historical
-        collection = collect_in_phases(session_factory,adapter,idempotency_key=key,max_items=max_items)
+        collection = collect_in_phases(session_factory,adapter,idempotency_key=key,max_items=max_items,
+                                      article_provider=article_provider)
         report = historical.report if historical is not None else None
         if report is not None and report.eligible > max_items:
             raise RuntimeError(

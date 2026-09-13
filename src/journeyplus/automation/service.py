@@ -93,6 +93,10 @@ class SourceCycleSummary:
     new_documents: int = 0
     reused: bool = False
     error: str | None = None
+    title_dropped: int = 0
+    body_dropped: int = 0
+    title_model_calls: int = 0
+    interpretation_model_calls: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,6 +308,8 @@ def run_daily_cycle(
                 adapter_factory=adapter_factory,
                 max_items=resolved_limits.source_items_per_source,
                 now=current,
+                article_provider=budgeted,
+                title_drop_enabled=generic_title_drop_enabled,
             )
             source_summaries.append(summary)
 
@@ -448,10 +454,10 @@ def run_daily_cycle(
                 "opportunities": generic_payload["opportunities"],
                 "briefs": generic_payload["briefs"],
                 "generic_model_calls": {
-                    "title_batches": generic_payload["title_model_calls"],
+                    "title_batches": generic_payload["title_model_calls"] + sum(s.title_model_calls for s in source_summaries),
                     "article_interpretation": generic_payload[
                         "interpretation_model_calls"
-                    ],
+                    ] + sum(s.interpretation_model_calls for s in source_summaries),
                     "article_briefs": generic_payload["brief_model_calls"],
                 },
                 "statusmatch_monitoring": asdict(monitoring),
@@ -847,12 +853,15 @@ def _run_source_collection(
     adapter_factory: Callable[[str], SourceAdapter],
     max_items: int,
     now: datetime,
+    article_provider=None,
+    title_drop_enabled: bool = True,
 ) -> SourceCycleSummary:
     key = f"daily:{day_bucket.isoformat()}:{source_id}"
     try:
         from journeyplus.sources.collection import collect_in_phases
         collection = collect_in_phases(
-            session_factory, adapter_factory(source_id), idempotency_key=key, max_items=max_items
+            session_factory, adapter_factory(source_id), idempotency_key=key, max_items=max_items,
+            article_provider=article_provider, title_drop_enabled=title_drop_enabled,
         )
         _record_source_success(
             session_factory,
@@ -868,6 +877,10 @@ def _run_source_collection(
             considered=collection.considered,
             new_documents=collection.new_versions,
             reused=collection.reused_run,
+            title_dropped=collection.title_dropped,
+            body_dropped=collection.body_dropped,
+            title_model_calls=collection.title_model_calls,
+            interpretation_model_calls=collection.interpretation_model_calls,
         )
     except Exception as exc:
         error = _safe_error(exc)
@@ -889,6 +902,8 @@ def _run_source_collection(
             source_id=source_id,
             status=RunStatus.FAILED,
             error=error,
+            title_model_calls=getattr(exc, "admission_title_model_calls", 0),
+            interpretation_model_calls=getattr(exc, "admission_interpretation_model_calls", 0),
         )
 
 

@@ -32,6 +32,10 @@ class CollectionSummary:
     document_version_ids: tuple[str, ...] = ()
     current_document_version_ids: tuple[str, ...] = ()
     reused_run: bool = False
+    title_dropped: int = 0
+    body_dropped: int = 0
+    title_model_calls: int = 0
+    interpretation_model_calls: int = 0
 
 
 def collect_manual(
@@ -205,11 +209,19 @@ def _source_automation_state(
     return state
 
 
-def collect_in_phases(factory, adapter, *, idempotency_key, max_items=None):
+def collect_in_phases(factory, adapter, *, idempotency_key, max_items=None,
+                      article_provider=None, title_drop_enabled=True):
     """Discover/fetch without a DB session, then atomically ingest and advance cursor."""
     from copy import deepcopy
     if max_items is not None and max_items < 1:
         raise ValueError('max_items must be positive')
+    if adapter.source_id == "loyaltylobby_feed":
+        if article_provider is None:
+            raise ValueError("LoyaltyLobby collection requires article admission before storage")
+        from journeyplus.sources.article_admission import collect_status_articles
+        return collect_status_articles(factory, adapter, article_provider,
+                                       idempotency_key=idempotency_key, max_items=max_items,
+                                       title_drop_enabled=title_drop_enabled)
     idempotency_key = idempotency_key or f'manual:{adapter.source_id}:{uuid4()}'
     with factory.begin() as session:
         existing = session.scalar(select(CollectionRun).where(CollectionRun.idempotency_key == idempotency_key))
