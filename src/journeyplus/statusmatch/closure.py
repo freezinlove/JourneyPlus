@@ -14,7 +14,6 @@ class ClosureAssessment:
     closed: bool
     reason: str | None = None
     evidence_page_kind: str | None = None
-    inconsistent: bool = False
 
 
 _WAITLIST_PATH_RE = re.compile(r"/(?:[^/]+/)*waitlist(?:\.php)?/?$", re.I)
@@ -51,36 +50,6 @@ _ACTIVE_ACTION_RE = re.compile(
 _WAITLIST_ACTION_RE = re.compile(
     r"(?:waitlist|register\s+(?:your\s+)?interest|future\s+opportunit)", re.I
 )
-
-
-def assess_statusmatch_closure(
-    *,
-    activity: DocumentVersion,
-    activity_item: SourceItem,
-    faq: DocumentVersion,
-    faq_item: SourceItem,
-    terms: DocumentVersion,
-    terms_item: SourceItem,
-) -> ClosureAssessment:
-    home = assess_statusmatch_home_closure(
-        activity=activity,
-        activity_item=activity_item,
-    )
-    if home.closed:
-        return home
-    page_states = {
-        "faq": _page_closure_reason(faq, faq_item, check_flow=False),
-        "terms": _page_closure_reason(terms, terms_item, check_flow=False),
-    }
-    closed_pages = [kind for kind, reason in page_states.items() if reason]
-    if closed_pages:
-        return ClosureAssessment(
-            False,
-            "STATUSMATCH_PAGE_STATE_INCONSISTENT",
-            closed_pages[0],
-            True,
-        )
-    return ClosureAssessment(False)
 
 
 def assess_statusmatch_home_closure(

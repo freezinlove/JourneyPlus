@@ -17,7 +17,6 @@ from journeyplus.models import (
 from journeyplus.sources.base import Fetcher
 from journeyplus.statusmatch.closure import (
     ClosureAssessment,
-    assess_statusmatch_closure,
     assess_statusmatch_home_closure,
 )
 from journeyplus.statusmatch.fetching import fetch_statusmatch_page
@@ -206,35 +205,12 @@ def finalize_statusmatch_watch(
         for page in pages.values()
     ):
         return False
-    activity, activity_item = _page_document_and_item(session, pages["activity"])
-    faq, faq_item = _page_document_and_item(session, pages["faq"])
-    terms, terms_item = _page_document_and_item(session, pages["terms"])
-    assessment = assess_statusmatch_closure(
-        activity=activity,
-        activity_item=activity_item,
-        faq=faq,
-        faq_item=faq_item,
-        terms=terms,
-        terms_item=terms_item,
-    )
-    if assessment.inconsistent:
-        watch.status = "PENDING"
-        watch.last_error = assessment.reason
-        session.flush()
-        return False
-    if not assessment.closed:
-        watch.status = "ACTIVE"
-        watch.last_error = None
-        session.flush()
-        return False
-    _archive_and_remove_watch(
-        session,
-        watch=watch,
-        assessment=assessment,
-        documents={"activity": activity, "faq": faq, "terms": terms},
-        checked_at=checked_at or datetime.now(UTC),
-    )
-    return True
+    # HOME was checked above. FAQ/Terms only contribute content versions and
+    # fetch health; their wording cannot close or suspend an otherwise open offer.
+    watch.status = "ACTIVE"
+    watch.last_error = None
+    session.flush()
+    return False
 
 
 def _archive_and_remove_watch(
