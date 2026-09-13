@@ -5,7 +5,7 @@ from uuid import uuid4,UUID
 from sqlalchemy import create_engine,event,select,func
 from sqlalchemy.orm import sessionmaker
 from journeyplus.agent.adapters.models import Artifact,OperationReceipt
-from journeyplus.agent.tools.contracts import DisplayInput,WorkspaceReadInput,ResearchInput,WaitingInput
+from journeyplus.agent.tools.contracts import DisplayInput,WorkspaceReadInput,WaitingInput
 from journeyplus.agent.harness.context import bounded_result
 from journeyplus.agent.harness.contracts import ToolResult
 from tests.test_harness_tools import context
@@ -55,17 +55,17 @@ def test_artifact_count_pages_have_no_duplicates_or_missing_records(session_fact
 
 
 def test_truncated_source_explicitly_reports_body_completeness_without_outcome(session_factory):
-    from journeyplus.agent.tools.research import parse
+    from tests.test_statusmatcher_content import snapshot,read_snapshot
     _,store,w,ctx=context(session_factory)
     prefix='<article><h1>From Example Gold to Other Platinum</h1><div class="instructions">My application was approved'
     results=[]
     for html in (prefix,prefix+'</div></article><footer>cut'):
-        ref=store.artifacts.put(w['id'],'PAGE',{'raw_html':html,'final_url':'https://statusmatcher.com/report/12345','raw_truncated':True})
-        result=asyncio.run(parse(ResearchInput(page_refs=[ref]),ctx));results.append(result)
+        raw=snapshot(html,'https://statusmatcher.com/report/12345');raw['raw_truncated']=True
+        result=read_snapshot(ctx,raw);results.append(result)
         assert result.status=='PARTIAL' and not result.coverage['complete']
-    assert results[0].data['reports'][0]['body_complete'] is False
-    assert results[1].data['reports'][0]['body_complete'] is True
-    assert all('normalized_outcome' not in r.data['reports'][0] for r in results)
+    assert results[0].data['report']['body_complete'] is False
+    assert results[1].data['report']['body_complete'] is True
+    assert all('normalized_outcome' not in r.data['report'] for r in results)
 
 
 def test_route_projection_keeps_refs_steps_counts_together_and_defers_source_cursor():

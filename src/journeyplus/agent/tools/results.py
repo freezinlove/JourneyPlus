@@ -73,6 +73,9 @@ class SearchData(DTO):
 
 
 class PageData(DTO):
+    report_ref: str | None = None
+    report: dict | None = None
+    report_error: str | None = None
     evidence_scope: dict | None = None
     page_ref: str | None = None
     url: str | None = None
@@ -96,11 +99,6 @@ class PageData(DTO):
     form_controls: list[dict] | None = None
 
 
-class ResearchData(DTO):
-    report_refs: list[str] | None = None
-    reports: list[dict] | None = None
-
-
 class PresentationData(DTO):
     presentation_ref: str | None = None
     revision: int | None = None
@@ -112,13 +110,13 @@ class PresentationData(DTO):
 DATA_MODELS={'catalog.lookup':CatalogData,'activity.read':ActivityData,'routes.evaluate':RouteData,
              'holdings.read':HoldingsData,'holdings.write':OperationData,'waiting.manage':WaitingData,
              'workspace.read':WorkspaceData,'workspace.note':NoteData,'web.search':SearchData,
-             'web.read':PageData,'research.parse':ResearchData,'display.present':PresentationData}
+             'web.read':PageData,'display.present':PresentationData}
 REQUIRED={'catalog.lookup':(('candidates',),),'activity.read':(('activities',),('sections',)),
           'routes.evaluate':(('candidates',),),'holdings.read':(('holdings','snapshot_ref'),),
           'holdings.write':(('operation_ref','outcome'),),'waiting.manage':(('goals',),('operation_ref','outcome')),
           'workspace.read':(('messages',),('artifacts',),('sections',)),
           'workspace.note':(('note_ref','revision'),),'web.search':(('results',),),
-          'web.read':(('page_ref','url','text','content_hash'),),'research.parse':(('reports','report_refs'),),
+          'web.read':(('page_ref','url','text','content_hash'),),
           'display.present':(('presentation_ref','blocks','revision'),)}
 
 

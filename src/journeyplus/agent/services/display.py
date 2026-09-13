@@ -26,21 +26,14 @@ def present(args,ctx):
                     data.setdefault('brief_url',f'/knowledge?activity_id={identity}&version_ref={version}&section=brief')
                 else:
                     obj=ctx.artifact_port.read(ctx.workspace_id,ref)
+                    from .research_pages import resolve_report
+                    if selection.type=='experience':obj=resolve_report(obj,ctx)
                     data=obj['payload']
-                    if obj['kind']=='PAGE' and selection.type=='experience':
-                        from urllib.parse import urlsplit
-                        url=data.get('final_url',data.get('url',''))
-                        parsed_url=urlsplit(url)
-                        if parsed_url.hostname in {'statusmatcher.com','www.statusmatcher.com'} and parsed_url.path.startswith('/report/'):
-                            from journeyplus.agent.report_pages import parse_report_detail,report_body_complete
-                            # Models may present the page directly. Reuse the same
-                            # parser without imposing an extra model/tool round.
-                            report=parse_report_detail(data['raw_html'],url).model_dump(mode='json',exclude_none=True)
-                            data={**report,'page_ref':ref,'body_complete':not data.get('raw_truncated',False) or report_body_complete(data['raw_html'])}
                 objects.append(data)
             research=[]
             for ref in selection.research_refs:
-                related=ctx.artifact_port.read(ctx.workspace_id,ref)
+                from .research_pages import resolve_report
+                related=resolve_report(ctx.artifact_port.read(ctx.workspace_id,ref),ctx)
                 if related['kind']!='REPORT':raise ValueError('Research attachment requires parsed reports')
                 raw=related['payload'];reports=list(raw['reports'].values()) if 'reports' in raw else [raw]
                 bindings=[]
@@ -55,7 +48,7 @@ def present(args,ctx):
                     if selection.type in {'route_graph','comparison'} and not candidates:
                         raise ValueError('Research report identities are incompatible with selected route steps')
                     bindings.append({'report_ref':report.get('report_ref'),'compatible_steps':candidates})
-                research.append({'ref':ref,'data':raw,'bindings':bindings})
+                research.append({'ref':related['ref'],'data':raw,'bindings':bindings})
             block=build_block(selection,objects)
             block['payload']['research']=research
             block['research_bindings']=[binding for item in research for binding in item['bindings']]

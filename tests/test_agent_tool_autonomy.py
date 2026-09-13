@@ -28,7 +28,7 @@ def test_model_schemas_have_no_proof_or_operation_key_fields():
     removed = {'authorization', 'operation_key', 'constraint_changes', 'source_message_refs'}
     for name, model in INPUTS.items():
         assert not removed & set(model.model_fields), name
-    assert 'context' not in INPUTS['research.parse'].model_fields
+    assert 'research.parse' not in INPUTS
     with pytest.raises(ValueError):
         HoldingsWriteInput.model_validate({**create_args().model_dump(), 'authorization': {}})
 

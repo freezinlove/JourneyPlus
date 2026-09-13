@@ -148,29 +148,21 @@ def test_production_autogenerate_cannot_restore_retired_catalog(migrated):
     assert metadata.tables['source_items'].c.document_role.nullable
 
 
-def test_report_parse_preserves_names_without_querying_catalog(migrated):
-    seed(migrated)
-    runtime, store, ctx, _ = setup(migrated)
-    def report(source):
-        return store.artifacts.put(ctx.workspace_id, 'PAGE', {
-            'raw_html': f'<article><h1>From {source} to Example Rewards Gold</h1><div class="instructions">My status was matched.</div></article>',
-            'final_url': 'https://statusmatcher.com/report/original-schema', 'raw_truncated': False,
-        }, call_id=ctx.call_id, turn_id=ctx.turn_id)
-    known = report('Marriott Bonvoy Platinum')
-    unknown = report('Unlisted Club Silver')
+def test_report_read_preserves_names_and_returns_reusable_object(migrated):
+    from tests.test_statusmatcher_content import snapshot,SnapshotReader
+    runtime,store,ctx,_=setup(migrated)
     migrated.statements.clear()
-    result = call(runtime, ctx, 'research.parse', {'page_refs': [known]})
-    parsed = result.data['reports'][0]
-    assert parsed['text'] == 'My status was matched.'
-    assert 'normalized_outcome' not in parsed and 'comparisons' not in result.data
-    assert parsed['original_from']=='Marriott Bonvoy Platinum'
-    assert parsed['original_to']=='Example Rewards Gold'
-    assert 'from_tier_ref' not in parsed and 'to_tier_ref' not in parsed
-    assert store.artifacts.read(ctx.workspace_id, result.artifact_refs[0])['kind'] == 'REPORT'
-    result = call(runtime, ctx, 'research.parse', {'page_refs': [unknown]})
-    assert 'from_tier_ref' not in result.data['reports'][0]
-    assert 'comparisons' not in result.data
-    assert result.data['reports'][0]['original_from'] == 'Unlisted Club Silver'
+    for source in ('Marriott Bonvoy Platinum','Unlisted Club Silver'):
+        raw=snapshot(f'<article><h1>From {source} to Example Rewards Gold</h1><div class="instructions">My status was matched.</div></article>',
+                     'https://statusmatcher.com/report/original-schema')
+        runtime.services['research']=SnapshotReader(raw)
+        result=call(runtime,ctx,'web.read',{'url':raw['url']})
+        assert result.data['report']['original_from']==source
+        assert result.data['report']['original_to']=='Example Rewards Gold'
+        assert result.data['text']=='My status was matched.'
+        assert 'from_tier_ref' not in result.data['report']
+        stored=store.artifacts.read(ctx.workspace_id,result.data['report_ref'])
+        assert stored['kind']=='REPORT' and stored['payload']['text']==result.data['text']
     assert 'membership_programs' not in '\n'.join(migrated.statements)
     assert 'membership_tiers' not in '\n'.join(migrated.statements)
 

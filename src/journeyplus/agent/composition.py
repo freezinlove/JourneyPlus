@@ -51,7 +51,7 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
               'waiting':WaitingService(factory,memory,queries),'research':PublicResearch(network_enabled,search_backend=search)}
     handlers={'catalog.lookup':knowledge.catalog,'activity.read':knowledge.activity,'routes.evaluate':routes.evaluate,
               'holdings.read':holdings.read,'holdings.write':holdings.write,'workspace.read':workspace.read,'workspace.note':workspace.note,
-              'web.search':research.search,'web.read':research.read,'research.parse':research.parse,
+              'web.search':research.search,'web.read':research.read,
               'display.present':presentation.present,'waiting.manage':waiting.manage}
     from .services.snapshots import snapshot_for
     registered=definitions(handlers)

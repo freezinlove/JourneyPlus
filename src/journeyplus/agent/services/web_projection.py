@@ -9,7 +9,7 @@ def binding(args):
     return hashlib.sha256(json.dumps([args.url,args.sections,args.include_controls],ensure_ascii=False).encode()).hexdigest()[:20]
 
 
-def page_excerpt(page,ref,args,text_start=0,link_start=0):
+def page_excerpt(page,ref,args,text_start=0,link_start=0,*,report=None):
     selected=None
     tree=HTMLParser(page['raw_html'])
     controls=[{'index':index,'tag':node.tag,'name':node.attributes.get('name',''),
@@ -28,6 +28,8 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0):
         if not args.include_controls:
             for node in tree.css('select,input,textarea,button'):node.decompose()
         body=(tree.body or tree.root).text(separator=' ',strip=True)
+    report_body=report is not None and not args.sections and not args.include_controls
+    if report_body:body=report['text']
     if text_start>len(body) or link_start>len(links):raise ValueError('Invalid page cursor offset')
     excerpt=body[text_start:text_start+args.max_chars].encode()[:6000].decode(errors='ignore')
     text_end=text_start+len(excerpt)
@@ -43,7 +45,7 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0):
     next_cursor=(f'{ref}|{text_end}|{link_end}|{binding(args)}'
                  if text_end<len(body) or link_end<len(links) else None)
     missing=selected['missing_sections'] if selected else []
-    omissions=([*missing]+(['download_prefix_only'] if page.get('raw_truncated') else [])+
+    omissions=([*missing]+(['report_extraction_failed'] if page.get('report_error') else [])+(['download_prefix_only'] if page.get('raw_truncated') else [])+
                (['links_omitted_during_storage'] if page.get('links_truncated') else [])+
                (['oversized_links_expand_page_artifact'] if oversized else []))
     data={key:page[key] for key in ('url','final_url','title','observed_at','content_hash','content_hash_scope',
@@ -55,6 +57,11 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0):
                 truncated=bool(next_cursor or omissions),missing_sections=missing,
                 content_scope='selected_sections' if selected else 'page_text_including_form_options' if args.include_controls else 'page_text_excluding_form_controls',
                 form_controls=controls[:10])
+    if report is not None:
+        data['report_ref']=page['report_ref']
+        data['report']={key:value for key,value in report.items() if key not in {'text','report_ref','page_ref','url'}}
+        if report_body:data['content_scope']='report_body'
+    if page.get('report_error'):data['report_error']=page['report_error']
     if selected:
         data['sections']=[{'id':section['id'],'title':section['title']} for section in selected['sections']]
         data['available_sections']=[{'id':section['id'],'title':section['title'][:300]}

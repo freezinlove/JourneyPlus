@@ -4,7 +4,7 @@ from .results import DATA_MODELS
 PRIMARY = {'catalog.lookup': ('candidates',), 'activity.read': ('activities','sections'),
            'routes.evaluate': ('candidates',), 'holdings.read': ('holdings',),
            'waiting.manage': ('goals',), 'workspace.read': ('messages','artifacts','sections'),
-           'web.search': ('results',), 'research.parse': ('reports',)}
+           'web.search': ('results',)}
 
 
 def model_view_for(name):
@@ -74,7 +74,5 @@ def trim_for(name):
             if 'metrics' in data:
                 from journeyplus.agent.services.route_metrics import metrics
                 data['metrics']={key:value for key,value in metrics(data['candidates']).items() if key!='items'}
-        elif name=='research.parse':
-            data['report_refs']=data['report_refs'][:count]
         return count
     return trim

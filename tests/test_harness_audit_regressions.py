@@ -14,7 +14,7 @@ from journeyplus.agent.composition import compose, compose_business
 from journeyplus.agent.harness.contracts import ModelMessage, Part, ToolDefinition, ToolResult
 from journeyplus.agent.harness.context import bounded_result
 from journeyplus.agent.adapters.models import RunCheckpoint
-from journeyplus.agent.tools.contracts import DisplayInput, WorkspaceReadInput, ResearchInput
+from journeyplus.agent.tools.contracts import DisplayInput, WorkspaceReadInput
 from journeyplus.models import now_utc
 
 
@@ -99,11 +99,11 @@ def test_sync_service_respects_tool_timeout(session_factory):
 
 
 def test_parse_truncated_page_preserves_incomplete_coverage(session_factory):
-    from journeyplus.agent.tools.research import parse
+    from tests.test_statusmatcher_content import snapshot,read_snapshot
     _,store,w,ctx = context(session_factory)
     html = '<article><h1>From Example Gold to Other Platinum</h1><div class="instructions">My application was approved</div></article>'
-    ref = store.artifacts.put(w['id'],'PAGE',{'raw_html':html,'final_url':'https://statusmatcher.com/report/12345','raw_truncated':True})
-    result = asyncio.run(parse(ResearchInput(page_refs=[ref]),ctx))
+    raw=snapshot(html,'https://statusmatcher.com/report/12345');raw['raw_truncated']=True
+    result=read_snapshot(ctx,raw)
     assert result.coverage['complete'] is False, result.model_dump()
 
 

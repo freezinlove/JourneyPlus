@@ -189,10 +189,6 @@ class WebReadInput(DTO):
         return self
 
 
-class ResearchInput(DTO):
-    page_refs: list[str] = Field(min_length=1, max_length=8)
-
-
 class SelectionRole(DTO):
     ref: str
     role: Literal['primary', 'alternative']
@@ -264,6 +260,6 @@ INPUTS = {
     'catalog.lookup': CatalogInput, 'activity.read': ActivityInput, 'routes.evaluate': RoutesInput,
     'holdings.read': HoldingsReadInput, 'holdings.write': HoldingsWriteInput,
     'workspace.read': WorkspaceReadInput, 'workspace.note': NoteInput,
-    'web.search': SearchInput, 'web.read': WebReadInput, 'research.parse': ResearchInput,
+    'web.search': SearchInput, 'web.read': WebReadInput,
     'display.present': DisplayInput, 'waiting.manage': WaitingInput,
 }
