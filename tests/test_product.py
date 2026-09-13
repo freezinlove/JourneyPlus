@@ -249,7 +249,8 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
     assert "graph-arrow" not in app_script.text
     assert "marker-end" not in app_script.text
     assert 'id="brief-list" class="brief-list"' in app_script.text
-    assert 'api("/v1/briefs")' in app_script.text
+    assert '/v1/briefs' in app_script.text
+    assert 'include_archived=true' in app_script.text
     assert "brief-search" not in app_script.text
     assert "brief-query" not in app_script.text
     assert "reachable-only" not in app_script.text

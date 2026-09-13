@@ -341,7 +341,10 @@ def test_explicit_deadline_wins_and_missing_publish_time_uses_first_collection(
         == ArticleVisibilityPolicy.DEFAULT_180_DAYS
     )
     summary = advance_article_lifecycles(db_session, now=explicit)
-    assert summary.mapping_archived == 2
+    assert summary.mapping_archived == 1  # The explicit deadline includes this instant.
+    assert explicit_opportunity.archived_at is None
+    later = advance_article_lifecycles(db_session, now=explicit+timedelta(microseconds=1))
+    assert later.mapping_archived == 1
     assert explicit_opportunity.archive_reason == ArticleArchiveReason.DEADLINE_EXPIRED
 
 
@@ -387,7 +390,9 @@ def test_same_edge_survives_until_last_contributor_expires(db_session) -> None:
     )
     restored = service.audit(now=base + timedelta(days=2))
     middle = service.audit(now=base + timedelta(days=6))
-    final = service.tree("Source Club", "Gold", now=base + timedelta(days=10))
+    at_deadline = service.tree("Source Club", "Gold", now=base + timedelta(days=10))
+    assert at_deadline.root.state != UnifiedTreeNodeState.LEAF
+    final = service.tree("Source Club", "Gold", now=base + timedelta(days=10, microseconds=1))
 
     assert len(initial.edges) == 1
     assert len(initial.edges[0].contributions) == 2

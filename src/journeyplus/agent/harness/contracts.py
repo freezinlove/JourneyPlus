@@ -217,3 +217,4 @@ class RuntimePorts:
     events: EventSink
     clock: Callable[[], float]
     workspace: WorkspacePort | None = None
+    views: Any | None = None

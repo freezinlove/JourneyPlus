@@ -403,7 +403,7 @@ class UnifiedMembershipTreeService:
         )
 
     def _build_state(self, *, now: datetime | None) -> _State:
-        official = StatusMatchOfficialContributionAdapter(self._session).read()
+        official = StatusMatchOfficialContributionAdapter(self._session).read(now=now)
         ordinary = OrdinaryArticleContributionAdapter(self._session).read(now=now)
         assert official.snapshot is not None
         snapshot = official.snapshot

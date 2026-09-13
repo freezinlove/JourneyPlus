@@ -67,10 +67,5 @@ def is_mapping_visible(
         return False
     if opportunity.analysis_id != analysis.id or opportunity.archived_at is not None:
         return False
-    current = as_beijing(now or datetime.now(BEIJING_TZ))
-    if opportunity.application_start_at is not None:
-        if current < as_beijing(opportunity.application_start_at):
-            return False
-    if opportunity.visibility_until_at is None:
-        return False
-    return current < as_beijing(opportunity.visibility_until_at)
+    from journeyplus.lifecycle.visibility import contributes
+    return contributes(opportunity, now=now)

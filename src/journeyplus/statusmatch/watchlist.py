@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import is_ended
+
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -218,8 +220,10 @@ def associate_watch_event(
         watch.current_event_id = event.id
     elif watch.current_event_id != event.id:
         current = session.get(StatusEvent, watch.current_event_id)
-        event.status = "NEEDS_REVIEW"
-        if current is not None:
+        if current is None or is_ended(current):
+            watch.current_event_id = event.id
+        else:
+            event.status = "NEEDS_REVIEW"
             current.status = "NEEDS_REVIEW"
     session.flush()
 
@@ -238,7 +242,7 @@ def watch_event_for_document(
     if watch is None or watch.current_event_id is None:
         return None
     event = session.get(StatusEvent, watch.current_event_id)
-    if event is None or event.archived_at is not None or event.merged_into_id is not None:
+    if event is None or is_ended(event) or event.merged_into_id is not None:
         return None
     return event
 
@@ -260,7 +264,7 @@ def resolve_watch_event(session: Session, watch: StatusMatchWatch) -> StatusEven
         event
         for event_id in event_ids
         if (event := session.get(StatusEvent, event_id)) is not None
-        and event.archived_at is None
+        and not is_ended(event)
         and event.merged_into_id is None
     ]
     if len(active_events) == 1:

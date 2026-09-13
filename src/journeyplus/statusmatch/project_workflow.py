@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import is_ended
+
 import hashlib
 import json
 import re
@@ -167,6 +169,7 @@ def statusmatch_project_job_key(
     watch: StatusMatchWatch,
     pages: dict[str, StatusMatchWatchPage],
     provider: AIProvider,
+    *, event: StatusEvent | None = None,
 ) -> str:
     payload = {
         "watch_id": str(watch.id),
@@ -178,6 +181,8 @@ def statusmatch_project_job_key(
         "facts": FACT_SCHEMA_VERSION,
         "brief": OFFICIAL_BRIEF_SCHEMA_VERSION,
     }
+    if event is not None and event.created_from_key != f"statusmatch-watch:{watch.id}":
+        payload['event'] = str(event.id)
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True).encode()
     ).hexdigest()[:24]
@@ -215,6 +220,16 @@ def process_pending_statusmatch_projects(
             return process_statusmatch_project_in_phases(session_factory, counted, current_watch_id)
 
         try:
+            # Allocate the new event before choosing its job namespace. A reopened
+            # homepage may be byte-identical to an earlier period's snapshot.
+            with session_factory.begin() as session:
+                watch = session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id == watch_id).with_for_update())
+                pages = _complete_pages(session, watch) if watch else None
+                if pages is None:
+                    skipped += 1
+                    continue
+                event = StatusMatchProjectWorkflow(session, counted)._event_for_watch(watch)
+                key = statusmatch_project_job_key(watch, pages, counted, event=event)
             result, was_skipped = runner.execute(
                 idempotency_key=key,
                 job_type="statusmatch_project_workflow",
@@ -274,7 +289,17 @@ def _pending_project_rows(
         pages = _complete_pages(session, watch)
         if pages is None:
             continue
-        key = statusmatch_project_job_key(watch, pages, provider)
+        event = session.get(StatusEvent, watch.current_event_id) if watch.current_event_id else None
+        key = statusmatch_project_job_key(watch, pages, provider, event=event)
+        if event is not None and is_ended(event):
+            previous_home = session.scalar(select(AnalysisRun.document_version_id).where(
+                AnalysisRun.event_id == event.id,
+                AnalysisRun.stage == AnalysisStage.STATUSMATCH_PROJECT_EXTRACTION,
+                AnalysisRun.status == RunStatus.SUCCEEDED).order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc()).limit(1))
+            if previous_home == pages['activity'].current_document_version_id:
+                continue  # FAQ edits or prompt changes alone cannot reopen a period.
+            rows.append((watch.id, key))
+            continue
         completed = session.scalar(
             select(JobRun.id).where(
                 JobRun.idempotency_key == key,
@@ -419,12 +444,18 @@ class StatusMatchProjectWorkflow:
             if watch.current_event_id is not None
             else None
         )
-        if event is not None and event.archived_at is None and event.merged_into_id is None:
+        if event is not None and not is_ended(event) and event.merged_into_id is None:
             return event
         key = f"statusmatch-watch:{watch.id}"
-        event = self._session.scalar(
-            select(StatusEvent).where(StatusEvent.created_from_key == key)
-        )
+        if event is None:
+            event = self._session.scalar(
+                select(StatusEvent).where(StatusEvent.created_from_key == key)
+            )
+        if event is not None and (is_ended(event) or event.merged_into_id is not None):
+            # Keep the previous event immutable. The watch now owns a fresh record.
+            from uuid import uuid4
+            key = f"{key}:{uuid4()}"
+            event = None
         if event is None:
             event = StatusEvent(
                 created_from_key=key,
@@ -495,6 +526,7 @@ class StatusMatchProjectWorkflow:
             json.dumps(
                 {
                     "watch": str(watch.id),
+                    "event": str(event.id),
                     "activity": str(activity.id),
                     "faq": str(faq.id),
                     "terms": str(terms.id),
@@ -821,7 +853,7 @@ def backfill_current_statusmatch_change_sets(
             if watch.current_event_id is not None
             else None
         )
-        if pages is None or event is None:
+        if pages is None or event is None or is_ended(event):
             continue
         current = _current_fact_record(session, event)
         if current is None:
@@ -1210,7 +1242,7 @@ def _safe_error(exc: Exception) -> str:
 
 def process_statusmatch_project_in_phases(factory, provider, watch_id):
     with factory.begin() as session:
-        watch = session.get(StatusMatchWatch, watch_id)
+        watch = session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id == watch_id).with_for_update())
         if watch is None:
             raise LookupError('StatusMatch watch disappeared before processing')
         workflow = StatusMatchProjectWorkflow(session, provider)
@@ -1245,7 +1277,8 @@ def process_statusmatch_project_in_phases(factory, provider, watch_id):
             watch=session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.id==watch_id).with_for_update())
             event=session.scalar(select(StatusEvent).where(StatusEvent.id==baseline[0]).with_for_update())
             pages=_complete_pages(session,watch) if watch else None
-            if (watch is None or watch.current_event_id!=baseline[0] or event.current_fact_set_id!=baseline[1]
+            if (watch is None or event is None or watch.current_event_id!=baseline[0] or event.current_fact_set_id!=baseline[1]
+                    or (baseline[1] is not None and is_ended(event))
                     or pages is None or {k:p.current_document_version_id for k,p in pages.items()}!=baseline[2]):
                 raise ValueError('StatusMatch source or facts changed during extraction')
             result=StatusMatchProjectWorkflow(session,provider,extraction_override=(extraction,attempts,run_id)).process(watch)

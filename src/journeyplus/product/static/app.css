@@ -451,3 +451,7 @@ footer { padding: 1.5rem; color: var(--muted); text-align: center; font-size: .7
 .table-notes { margin: .6rem 0; font-size: .85rem; }
 .table-notes summary { cursor: pointer; color: var(--green-2); }
 .table-notes p { white-space: normal; overflow-wrap: anywhere; margin: .5rem 0; }
+
+.lifecycle-notice { display: inline-block; margin: .5rem .7rem .5rem 0; padding: .35rem .65rem; background: #f7ead8; color: #703e08; border-radius: .35rem; }
+.archive-toggle { display: inline-flex; align-items: center; gap: .6rem; margin-bottom: 1rem; }
+.archive-toggle input[type="checkbox"] { width: 1rem; height: 1rem; min-height: 0; margin: 0; padding: 0; accent-color: var(--green); }

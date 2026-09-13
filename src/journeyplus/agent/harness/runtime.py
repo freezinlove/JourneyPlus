@@ -137,7 +137,10 @@ class Runtime:
             note = None
             if workspace_state.get('note_ref'):
                 note = (await blocking_call(self.ports.artifacts.read, context.workspace_id, workspace_state['note_ref']))['payload']
-            projected = await blocking_call(project, messages, definitions, capabilities, note=note, focus=workspace_state.get('focus'),
+            visible, focus = messages, workspace_state.get('focus')
+            if self.ports.views:
+                visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
+            projected = await blocking_call(project, visible, definitions, capabilities, note=note, focus=focus,
                                 reserved_output=budget.limits(capabilities)['max_output'],
                                 context_token_budget=self.budget_limits.get('context_tokens',100000),
                                 input_estimator=getattr(self.ports.model,'estimate_input',None))
@@ -275,7 +278,10 @@ class Runtime:
             definitions=self.ports.registry.definitions()
             workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
             note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
-            projected=await blocking_call(project,messages,definitions,self.ports.model.capabilities(),note=note,focus=workspace_state.get('focus'),
+            visible, focus = messages, workspace_state.get('focus')
+            if self.ports.views:
+                visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
+            projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
                               reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
                               context_token_budget=self.budget_limits.get('context_tokens',100000),
                               input_estimator=getattr(self.ports.model,'estimate_input',None))
@@ -313,6 +319,8 @@ class Runtime:
                         result = await self.ports.registry.execute(validated, local)
                 result.call_id = call['call_id']
                 full_ref = (await blocking_call(self.ports.sessions.tool_result, run_id, owner, call, result))
+            if self.ports.views:
+                result = await blocking_call(self.ports.views.result, context.workspace_id, result)
             fingerprint = call.get('progress_fingerprint')
             if not call.get('runtime_error') and budget.repeat_state.get('fingerprint') == fingerprint:
                 budget.repeat_state['result_refs'] = [*budget.repeat_state.get('result_refs', []),full_ref][-2:]

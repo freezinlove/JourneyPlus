@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import contributes
+
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -186,8 +188,9 @@ class _Outgoing:
 
 
 class MembershipGraphService:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: Session, *, now=None) -> None:
         self._session = session
+        self._now = now
 
     def build(self) -> GraphSnapshot:
         return self._build_state().snapshot
@@ -560,7 +563,7 @@ class MembershipGraphService:
             if (
                 event is None
                 or event.current_fact_set_id is None
-                or event.archived_at is not None
+                or not contributes(event, now=self._now)
                 or event.merged_into_id is not None
             ):
                 continue

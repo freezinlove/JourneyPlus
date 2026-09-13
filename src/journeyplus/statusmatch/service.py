@@ -224,7 +224,7 @@ def _archive_and_remove_watch(
     event = resolve_watch_event(session, watch)
     evidence_kind = assessment.evidence_page_kind or "activity"
     evidence_document = documents[evidence_kind]
-    if event is not None:
+    if event is not None and event.archived_at is None:
         event.archived_at = checked_at
         event.lifecycle_status = LifecycleStatus.EXPIRED
         event.archive_reason = assessment.reason

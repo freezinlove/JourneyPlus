@@ -68,14 +68,8 @@ def calculate_lifecycle(
 def event_closed_for_automation(
     event: StatusEvent, *, now: datetime | None = None
 ) -> bool:
-    if event.archived_at is not None:
-        return True
-    if event.lifecycle_status == LifecycleStatus.EXPIRED:
-        return True
-    if event.application_deadline_at is None:
-        return False
-    current = as_beijing(now or datetime.now(BEIJING_TZ))
-    return current > as_beijing(event.application_deadline_at)
+    from journeyplus.lifecycle.visibility import is_ended
+    return is_ended(event, now=now)
 
 
 def windows_non_overlapping(
@@ -145,7 +139,7 @@ def advance_lifecycles(
         before = (event.lifecycle_status, event.archived_at)
         lifecycle = (
             LifecycleStatus.EXPIRED
-            if event.archived_at is not None
+            if event.archived_at is not None or event.lifecycle_status == LifecycleStatus.EXPIRED
             else calculate_lifecycle(
                 event.application_start_at,
                 event.application_deadline_at,

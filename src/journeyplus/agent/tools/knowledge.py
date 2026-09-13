@@ -25,7 +25,7 @@ def catalog(args, ctx):
         programs, tiers, aliases = ctx.services['identities'].catalog(s)
         if not programs:
             return ToolResult.failure('KNOWLEDGE_NOT_READY',
-                'The configured knowledge catalogue is empty. This is a deployment/data readiness issue, not absence of the requested membership. Rephrasing names cannot repair it.',status='UNAVAILABLE')
+                '当前没有可用的匹配目录：可能尚未生产资料，或相关活动已结束。此时无法通过当前目录解析会籍；可以稍后重新查询。',status='UNAVAILABLE')
         allowed = None
         if args.program:
             resolved=ctx.services['identities'].resolve(s,args.program,context=ctx)

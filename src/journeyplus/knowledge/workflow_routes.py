@@ -81,7 +81,7 @@ class WorkflowRouteService:
                     if opportunity_id not in details:
                         details[opportunity_id] = PersonalizedMatchService(self.session).detail(opportunity_id,include_current_path=False)
                     detail = details[opportunity_id]
-                    if detail.lifecycle_status in {'CLOSED','EXPIRED','ARCHIVED'} or claim.availability=='UNAVAILABLE':
+                    if detail.lifecycle_status in {'CLOSED','EXPIRED','ARCHIVED','STALE'} or claim.availability=='UNAVAILABLE':
                         continue
                     activity = origin.event_id or origin.opportunity_id
                     if origin.fact_set_id:
@@ -93,11 +93,8 @@ class WorkflowRouteService:
                     facts = detail.facts
                     from journeyplus.models import StatusEvent
                     event = self.session.get(StatusEvent,activity) if origin.event_id else None
-                    now = datetime.now(UTC)
-                    def utc(value):
-                        return value.replace(tzinfo=UTC) if value and value.tzinfo is None else value
-                    if event and (event.application_start_at and utc(event.application_start_at)>now or
-                                  event.application_deadline_at and utc(event.application_deadline_at)<now):
+                    from journeyplus.lifecycle.visibility import contributes
+                    if event and not contributes(event):
                         continue
                     # Each regional application route is a distinct variant. Never
                     # minimize across regions or charge a different target tier's fee.

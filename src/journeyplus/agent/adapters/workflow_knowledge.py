@@ -41,7 +41,29 @@ class WorkflowUserData:
 class WorkflowKnowledgePort(SharedWorkflowKnowledgePort):
     user_data = WorkflowUserData
 
+    @staticmethod
+    def activity_reader(session):
+        return ActiveActivityReader(session)
+
     @property
     def memory_type(self):
         from journeyplus.agent.services.workflow_memory import WorkflowUserMemory
         return WorkflowUserMemory
+
+
+class ActiveActivityReader(WorkflowActivityReader):
+    def _require_active(self, identity):
+        from journeyplus.models import StatusEvent, ArticleOpportunityRecord
+        from journeyplus.lifecycle.visibility import is_ended
+        from .activity_access import NOTICE
+        record = self.session.get(StatusEvent, identity) or self.session.get(ArticleOpportunityRecord, identity)
+        if record is not None and is_ended(record):
+            raise LookupError(NOTICE)
+
+    def detail(self, identity, version=None):
+        self._require_active(identity)
+        return super().detail(identity, version)
+
+    def history(self, identity, **kwargs):
+        self._require_active(identity)
+        return super().history(identity, **kwargs)

@@ -7,10 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from journeyplus.lifecycle.service import calculate_lifecycle
+from journeyplus.lifecycle.visibility import effective_status, is_ended
 from journeyplus.models import ArticleOpportunityRecord
 from journeyplus.article_pipeline.visibility import (
     ArticleArchiveReason,
-    ArticleVisibilityPolicy,
 )
 from journeyplus.lifecycle.service import BEIJING_TZ, as_beijing
 
@@ -53,18 +53,12 @@ def advance_article_lifecycles(
                 expired += 1
             if opportunity.archived_at is not None:
                 archived_retained += 1
-            elif (
-                opportunity.visibility_until_at is not None
-                and current >= as_beijing(opportunity.visibility_until_at)
-            ):
+            elif is_ended(opportunity, now=current):
+                state = effective_status(opportunity, now=current)
                 opportunity.archived_at = current
                 opportunity.archive_reason = (
-                    ArticleArchiveReason.DEADLINE_EXPIRED
-                    if opportunity.visibility_policy
-                    == ArticleVisibilityPolicy.EXPLICIT_DEADLINE
-                    else ArticleArchiveReason.STALE_180D
-                    if opportunity.visibility_policy
-                    == ArticleVisibilityPolicy.DEFAULT_180_DAYS
+                    ArticleArchiveReason.DEADLINE_EXPIRED if state == "EXPIRED"
+                    else ArticleArchiveReason.STALE_180D if state == "STALE"
                     else ArticleArchiveReason.MANUAL
                 )
                 mapping_archived += 1

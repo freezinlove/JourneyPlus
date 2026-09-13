@@ -66,6 +66,13 @@ def compose_business(factory, model, *, network_enabled=False, read_factory=None
             definition.availability=lambda:{'status':'AVAILABLE' if network_enabled else 'DISABLED'}
     runtime,store=compose(factory,model,registered,services)
     store.published_refs=services['knowledge']
+    from .adapters.workflow_knowledge import WorkflowKnowledgePort
+    if isinstance(knowledge_port, WorkflowKnowledgePort):
+        from .adapters.activity_access import ActivityViews, ActiveArtifacts, ActiveWorkspace
+        views = ActivityViews(knowledge_port, store.artifacts, store)
+        runtime.ports.views = views
+        runtime.ports.artifacts = ActiveArtifacts(store.artifacts, views)
+        runtime.ports.workspace = ActiveWorkspace(store, views)
     services['close_read_connection']=close_read_connection
     services['maintenance']=lambda:{'cleanup':store.cleanup(),'waiting':services['waiting'].check()}
     return runtime,store

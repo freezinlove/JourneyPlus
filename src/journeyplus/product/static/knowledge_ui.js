@@ -1,6 +1,6 @@
 'use strict';
 const $ = (q) => document.querySelector(q);
-const labels = {FRESH:'近期资料',STALE:'资料较旧',MATCH:'符合查询条件',NEARBY:'接近要求',UNKNOWN:'有待核实',NONE:'无需挑战',REQUIRED:'需要挑战',PARTIAL:'部分费用已知',KNOWN:'已核实',AVAILABLE:'可申请',UNAVAILABLE:'不可申请',INCOMPLETE:'资料待补全',DISABLED:'调查未启用',NOT_REQUESTED:'未请求经验调查'};
+const labels = {EXPIRED:'已结束',ARCHIVED:'已归档',UPCOMING:'尚未开始',ACTIVE:'进行中',FRESH:'近期资料',STALE:'资料已过期',MATCH:'符合查询条件',NEARBY:'接近要求',UNKNOWN:'有待核实',NONE:'无需挑战',REQUIRED:'需要挑战',PARTIAL:'部分费用已知',KNOWN:'已核实',AVAILABLE:'可申请',UNAVAILABLE:'不可申请',INCOMPLETE:'资料待补全',DISABLED:'调查未启用',NOT_REQUESTED:'未请求经验调查'};
 const el = (tag, text, cls) => {const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 async function api(path, body, method) {const r=await fetch(path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'请求未完成，请检查输入或刷新后重试');return data;}
 function money(cost){if(cost?.is_proven_free)return '免费';const totals=cost?.totals||[];const parts=totals.filter(x=>!totals.some(v=>Number(v.amount)>0)||Number(x.amount)>0).map(x=>`${x.role==='CHALLENGE_SPEND'?'挑战支出':'申请费用'} ${x.currency||''} ${Number(x.amount).toLocaleString('zh-CN')}`);return parts.join('；')||'费用未知';}

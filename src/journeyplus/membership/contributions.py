@@ -55,8 +55,8 @@ class StatusMatchOfficialContributionAdapter:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def read(self) -> OfficialMappingContributionBatch:
-        snapshot = MembershipGraphService(self._session).build()
+    def read(self, *, now=None) -> OfficialMappingContributionBatch:
+        snapshot = MembershipGraphService(self._session, now=now).build()
         node_by_id = {node.id: node for node in snapshot.nodes}
         document_cache = {}
         contributions: list[MembershipMappingContribution] = []
@@ -320,13 +320,12 @@ def _excluded(
 def _visibility_exclusion_reason(
     opportunity: ArticleOpportunityRecord, *, current: datetime
 ) -> str | None:
-    if opportunity.archived_at is not None:
-        return "ARCHIVED"
+    from journeyplus.lifecycle.visibility import is_ended
+    if is_ended(opportunity, now=current):
+        return "ARCHIVED" if opportunity.archived_at is not None else "EXPIRED"
     if opportunity.application_start_at is not None:
         if current < as_beijing(opportunity.application_start_at):
             return "UPCOMING"
     if opportunity.visibility_until_at is None:
         return "MISSING_VISIBILITY"
-    if current >= as_beijing(opportunity.visibility_until_at):
-        return "EXPIRED"
     return None

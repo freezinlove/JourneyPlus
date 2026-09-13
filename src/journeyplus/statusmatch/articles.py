@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import is_ended
+
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
@@ -314,7 +316,7 @@ def _event_has_current_official_output(
 ) -> bool:
     if (
         event is None
-        or event.archived_at is not None
+        or is_ended(event)
         or event.merged_into_id is not None
         or event.current_fact_set_id is None
         or event.current_brief_id is None

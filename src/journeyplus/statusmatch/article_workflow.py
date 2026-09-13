@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import is_ended
+
 import hashlib
 import json
 import unicodedata
@@ -436,6 +438,8 @@ def _pending_route_rows(
         )
     rows: list[tuple[UUID, str]] = []
     for route, event in session.execute(statement):
+        if is_ended(event):
+            continue
         key = statusmatch_article_job_key(route, event, provider)
         completed = session.scalar(
             select(JobRun.id).where(
@@ -469,7 +473,7 @@ def _ready_materials(
     if (
         event is None
         or watch is None
-        or event.archived_at is not None
+        or is_ended(event)
         or event.current_fact_set_id is None
         or event.current_brief_id is None
     ):

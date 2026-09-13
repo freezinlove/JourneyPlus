@@ -1,5 +1,6 @@
 """Read projections of the chosen AIWorkflow schema. No writes or shadow tables."""
 from datetime import UTC, datetime
+from journeyplus.lifecycle.visibility import is_ended
 from types import SimpleNamespace
 from uuid import UUID, NAMESPACE_URL, uuid5
 
@@ -86,15 +87,15 @@ class WorkflowKnowledgePort(KnowledgePort):
         values = [[tuple(r) for r in session.execute(select(m.id,m.updated_at).order_by(m.id))] for m in models]
         now = datetime.now(UTC)
         windows = []
-        for model, end in ((StatusEvent,StatusEvent.application_deadline_at),
-                           (ArticleOpportunityRecord,ArticleOpportunityRecord.visibility_until_at)):
-            for identity, start, finish in session.execute(select(model.id,model.application_start_at,end).order_by(model.id)):
-                def state(value):
-                    if value is None: return None
-                    aware = value.replace(tzinfo=UTC) if value.tzinfo is None else value
-                    return aware<=now
-                windows.append((str(identity),state(start),state(finish)))
-        return ['workflow-v1',now.date().isoformat(),windows,*values]
+        from journeyplus.lifecycle.visibility import effective_status, contributes
+        for model in (StatusEvent, ArticleOpportunityRecord):
+            fields = [model.id, model.archived_at, model.lifecycle_status,
+                      model.application_start_at, model.application_deadline_at]
+            fields += ([model.visibility_until_at, model.visibility_policy, model.archive_reason]
+                       if model is ArticleOpportunityRecord else [model.merged_into_id])
+            for row in session.scalars(select(model).options(load_only(*fields)).order_by(model.id)):
+                windows.append((str(row.id), effective_status(row, now=now), contributes(row, now=now)))
+        return ['workflow-v2-lifecycle',now.date().isoformat(),windows,*values]
 
     @staticmethod
     def holding_snapshot(session):
@@ -132,7 +133,7 @@ class WorkflowActivityReader:
             latest.setdefault(a.source_item_id,a.id)
         articles = list(self.session.scalars(select(ArticleOpportunityRecord).where(
             ArticleOpportunityRecord.analysis_id.in_(latest.values())).order_by(ArticleOpportunityRecord.id)))
-        rows = [*events,*articles]
+        rows = [r for r in [*events,*articles] if not is_ended(r)]
         if ref:
             direct = [r for r in rows if str(r.id)==ref]
             if direct:

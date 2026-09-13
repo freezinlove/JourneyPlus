@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import effective_status
+
 import re
 from decimal import Decimal
 from uuid import UUID
@@ -55,11 +57,14 @@ class ProductBriefService:
         *,
         query: str | None = None,
         reachable_only: bool = False,
+        include_archived: bool = False,
     ) -> BriefList:
         context = relation_context(self._session)
         items = [*self._official_items(context.paths), *self._article_items(context.paths)]
         items = [item.model_copy(update={"relationship": context.for_opportunity(item.opportunity_id)})
                  for item in items]
+        if not include_archived:
+            items = [item for item in items if item.lifecycle_status not in {"EXPIRED", "STALE", "ARCHIVED"}]
         if query:
             folded = query.casefold()
             items = [
@@ -83,7 +88,7 @@ class ProductBriefService:
         events = self._session.scalars(
             select(StatusEvent).where(
                 StatusEvent.current_fact_set_id.is_not(None),
-                StatusEvent.archived_at.is_(None),
+                StatusEvent.merged_into_id.is_(None),
             )
         )
         for event in events:
@@ -121,7 +126,7 @@ class ProductBriefService:
                     facts=facts,
                     program=event.program,
                     target_status=event.target_status,
-                    lifecycle_status=event.lifecycle_status,
+                    lifecycle_status=effective_status(event),
                     brief=brief,
                     published_at=event.created_at,
                     updated_at=brief_record.updated_at,
@@ -175,7 +180,7 @@ class ProductBriefService:
                         facts=facts,
                         program=opportunity.program,
                         target_status=opportunity.target_status,
-                        lifecycle_status=opportunity.lifecycle_status,
+                        lifecycle_status=effective_status(opportunity),
                         brief=brief,
                         published_at=(
                             source_item.published_at

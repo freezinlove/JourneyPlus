@@ -130,11 +130,13 @@ def create_product_app(
     def briefs(
         q: str | None = Query(default=None, max_length=300),
         reachable_only: bool = False,
+        include_archived: bool = False,
     ) -> BriefList:
         with session_factory.begin() as session:
             return ProductBriefService(session).list(
                 query=q,
                 reachable_only=reachable_only,
+                include_archived=include_archived,
             )
 
     @app.get(

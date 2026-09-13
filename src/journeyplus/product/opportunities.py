@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from journeyplus.lifecycle.visibility import effective_status, contributes
+
 import re
 from collections import deque
 from datetime import datetime
@@ -80,12 +82,12 @@ class PersonalizedMatchService:
         paths = _opportunity_paths(forest.roots)
         summaries: dict[UUID, MatchOpportunitySummary] = {}
         for opportunity_id, path in paths.items():
-            summary = self._summary(opportunity_id, path=path)
+            summary = self._summary(opportunity_id, path=path, now=current)
             if summary is not None:
                 summaries[opportunity_id] = summary
         for summary in self._standalone_article_matches(current):
             summaries.setdefault(summary.opportunity_id, summary)
-        for summary in self._standalone_official_matches():
+        for summary in self._standalone_official_matches(now=current):
             summaries.setdefault(summary.opportunity_id, summary)
         return PersonalizedMatches(
             holdings=holdings,
@@ -193,7 +195,7 @@ class PersonalizedMatchService:
         return _opportunity_paths(forest.roots).get(opportunity_id)
 
     def _summary(
-        self, opportunity_id: UUID, *, path: list[str] | None
+        self, opportunity_id: UUID, *, path: list[str] | None, now=None
     ) -> MatchOpportunitySummary | None:
         fact_record = self._session.get(FactSetRecord, opportunity_id)
         if fact_record is not None:
@@ -215,7 +217,7 @@ class PersonalizedMatchService:
                 program=event.program,
                 target_status=event.target_status,
                 summary=event.summary,
-                lifecycle_status=event.lifecycle_status,
+                lifecycle_status=effective_status(event, now=now),
                 path=path,
                 deadline=facts.deadline.value,
                 conflict=_has_conflict(facts),
@@ -237,7 +239,7 @@ class PersonalizedMatchService:
             program=article.program,
             target_status=article.target_status,
             summary=article.summary,
-            lifecycle_status=article.lifecycle_status,
+            lifecycle_status=effective_status(article, now=now),
             path=path,
             deadline=facts.deadline.value,
             conflict=_has_conflict(facts),
@@ -272,9 +274,7 @@ class PersonalizedMatchService:
                 .where(ArticleOpportunityRecord.analysis_id == analysis.id)
                 .order_by(ArticleOpportunityRecord.opportunity_index)
             ):
-                if article.archived_at is not None:
-                    continue
-                if as_beijing(article.visibility_until_at) <= current:
+                if not contributes(article, now=current):
                     continue
                 facts = _validated_facts(
                     article.facts,
@@ -294,7 +294,7 @@ class PersonalizedMatchService:
                         program=article.program,
                         target_status=article.target_status,
                         summary=article.summary,
-                        lifecycle_status=article.lifecycle_status,
+                        lifecycle_status=effective_status(article, now=current),
                         path=None,
                         deadline=facts.deadline.value,
                         conflict=_has_conflict(facts),
@@ -302,7 +302,7 @@ class PersonalizedMatchService:
                 )
         return result
 
-    def _standalone_official_matches(self) -> list[MatchOpportunitySummary]:
+    def _standalone_official_matches(self, *, now=None) -> list[MatchOpportunitySummary]:
         result: list[MatchOpportunitySummary] = []
         for watch in self._session.scalars(
             select(StatusMatchWatch).where(
@@ -310,7 +310,7 @@ class PersonalizedMatchService:
             )
         ):
             event = self._session.get(StatusEvent, watch.current_event_id)
-            if event is None or event.current_fact_set_id is None:
+            if event is None or event.current_fact_set_id is None or not contributes(event, now=now):
                 continue
             fact_record = self._session.get(FactSetRecord, event.current_fact_set_id)
             if fact_record is None:
@@ -331,7 +331,7 @@ class PersonalizedMatchService:
                     program=event.program,
                     target_status=event.target_status,
                     summary=event.summary,
-                    lifecycle_status=event.lifecycle_status,
+                    lifecycle_status=effective_status(event, now=now),
                     path=None,
                     deadline=facts.deadline.value,
                     conflict=_has_conflict(facts),
@@ -370,7 +370,7 @@ class PersonalizedMatchService:
             program=event.program,
             target_status=event.target_status,
             summary=event.summary,
-            lifecycle_status=event.lifecycle_status,
+            lifecycle_status=effective_status(event),
             facts=facts,
             brief=brief,
         )
@@ -401,7 +401,7 @@ class PersonalizedMatchService:
             program=article.program,
             target_status=article.target_status,
             summary=article.summary,
-            lifecycle_status=article.lifecycle_status,
+            lifecycle_status=effective_status(article),
             facts=facts,
             brief=brief,
         )

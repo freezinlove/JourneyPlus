@@ -324,6 +324,11 @@ function briefDisplayTitle(item) {
   return String(item.title || `${item.program} 会籍匹配活动`).trim();
 }
 
+function lifecycleBadge(item) {
+  const label = {EXPIRED: '已结束', STALE: '资料已过期', ARCHIVED: '已归档', UPCOMING: '尚未开始'}[item.lifecycle_status];
+  return label ? `<strong class="lifecycle-notice" role="status">${label}</strong>` : '';
+}
+
 function briefFee(item) {
   return `<span class="fee-chip">${escapeHtml(item.fee?.label || "费用待确认")}</span>`;
 }
@@ -352,7 +357,7 @@ function briefRow(item) {
   return `<article class="brief-row">
     <h2><a href="/opportunities/${item.opportunity_id}">${escapeHtml(title)}</a></h2>
     <p class="brief-row__summary">${escapeHtml(item.summary)}</p>
-    ${briefFee(item)}
+    ${lifecycleBadge(item)} ${briefFee(item)}
     <p class="brief-row__path"><span class="brief-row__path-label">和我的关系</span><span class="brief-row__path-value">${escapeHtml(item.relationship?.text || briefPathText(item.path))}</span></p>
     <p class="brief-links">${publicLinks(item.action_links, "申请入口")}</p>
     <p class="brief-links">来源：${publicLinks(item.source_links) || "暂无来源链接"}</p>
@@ -364,8 +369,10 @@ async function briefsPage() {
   app.innerHTML = hero(
     "ALL BRIEFS",
     "机会简报",
-  ) + `<section id="brief-list" class="brief-list"></section>`;
-  const payload = await api("/v1/briefs");
+  ) + `<label class="archive-toggle"><input type="checkbox" id="include-archived"> 显示已结束和已归档的简报</label><section id="brief-list" class="brief-list"></section>`;
+  document.querySelector('#include-archived').checked = new URLSearchParams(location.search).get('include_archived') === 'true';
+  document.querySelector('#include-archived').onchange = event => { location.href = event.target.checked ? '/briefs?include_archived=true' : '/briefs'; };
+  const payload = await api('/v1/briefs' + (document.querySelector('#include-archived').checked ? '?include_archived=true' : ''));
   document.querySelector("#brief-list").innerHTML = payload.items.map(briefRow).join("") || '<div class="empty"><h2>暂无简报</h2><p>当前没有可展示的简报。</p></div>';
 }
 
@@ -461,7 +468,7 @@ async function opportunityPage() {
   const conditions = uniqueValues([detail.facts?.eligibility?.value, detail.facts?.status_validity?.value, detail.facts?.caveats?.value, detail.facts?.challenge_requirements?.value]);
   app.innerHTML = `<article class="brief-detail">
     <a class="detail-back" href="/briefs">← 返回机会简报</a>
-    <header class="brief-detail__header"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(summary)}</p>${briefFee(detail)}<time>简报更新于 ${escapeHtml(briefUpdatedAt(detail.brief_updated_at))}（北京时间）</time></header>
+    <header class="brief-detail__header"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(summary)}</p>${lifecycleBadge(detail)} ${briefFee(detail)}<time>简报更新于 ${escapeHtml(briefUpdatedAt(detail.brief_updated_at))}（北京时间）</time></header>
     <section class="detail-section"><h2>和我的关系</h2><p>${escapeHtml(detail.relationship?.text || "暂未计算")}</p>${detail.relationship?.path_labels?.length ? `<p class="detail-path">${escapeHtml(detail.relationship.path_labels.join(" → "))}</p>` : ""}</section>
     <section class="detail-section official-entry"><h2>申请入口</h2>${publicLinks(detail.action_links, "前往申请页面") || '<p class="muted">暂无申请入口。</p>'}</section>
     <section class="detail-section"><h2>完整映射表</h2>${mappingTable(detail)}${conditions.length ? `<details class="table-notes"><summary>活动适用条件</summary>${conditions.map(text => `<p>${escapeHtml(text)}</p>`).join("")}</details>` : ""}</section>
