@@ -25,7 +25,7 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_BRIEF_PROMPT_VERSION = "generic-article-brief-v2"
+ARTICLE_BRIEF_PROMPT_VERSION = "generic-article-brief-v3"
 ARTICLE_BRIEF_SCHEMA_VERSION = "1"
 
 

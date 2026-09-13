@@ -33,6 +33,7 @@ from journeyplus.contracts import (
     StatusMapping,
 )
 from journeyplus.lifecycle.service import calculate_lifecycle, normalize_event_time
+from journeyplus.cost_semantics import COST_EXTRACTION_RULES
 from journeyplus.models import (
     AnalysisRun,
     ArticleAnalysisRecord,
@@ -42,7 +43,7 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v10"
+ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v11"
 ARTICLE_INTERPRETATION_SCHEMA_VERSION = "9"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输入这一篇文章，不搜索、不引用、不比较其他文章，也不判断文章间关系。
@@ -72,9 +73,9 @@ application_routes 只保存文章描述为当前可用的申请方法；previou
 每条 application_route 的 prices 按目标等级保存当前路线费用。每个 price 必须保留支持该价格的
 结构化金额与适用等级，raw_text 可省略；只有原文明确给出金额与币种时才填写 amount/currency。明确不可用的等级
 写 availability=UNAVAILABLE 且 amount=null。基础申请费与可选升级费没有明确总价时不得相加猜测。
-共同适用于所有路线的全局价格可以复制到各路线；原始 cost 文本始终保留。
+共同适用于所有路线的全局价格可以复制到各路线。
 
-region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，无需复制原句。只输出 JSON。"""
+region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，无需复制原句。只输出 JSON。""" + "\n\n" + COST_EXTRACTION_RULES
 
 
 @dataclass(frozen=True, slots=True)

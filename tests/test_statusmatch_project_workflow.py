@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from datetime import UTC, datetime
+from decimal import Decimal
 
 import pytest
 from sqlalchemy import func, select
@@ -290,6 +291,55 @@ def test_project_extracts_evidenced_route_prices_without_extra_model_stage(
         assert facts.opportunity_kind == OpportunityKind.STATUS_MATCH
         assert facts.application_routes[0].prices[0].currency == "USD"
         assert facts.application_routes[0].prices[0].amount == 99
+
+
+@pytest.mark.parametrize("cost_note", [None, "申请费不退"])
+def test_prose_price_without_evidence_reaches_brief_with_optional_cost(
+    session_factory, cost_note,
+) -> None:
+    responses = _responses()
+    responses["https://example.statusmatch.com/faq"] += (
+        "<p>The application fee for Gold is USD 99 and is non-refundable.</p>"
+    )
+    with session_factory.begin() as session:
+        seed_sources(session)
+        ensure_statusmatch_watch(session, "example.statusmatch.com")
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    extraction = _extraction()
+    extraction["cost"] = {"value": cost_note}
+    extraction["application_routes"][0]["prices"] = [{
+        "target_tier": "Gold", "amount": 99, "currency": "USD",
+        "availability": "AVAILABLE",
+    }]
+
+    class PriceBriefProvider(ProjectProvider):
+        def generate_structured(self, **kwargs):
+            result = super().generate_structured(**kwargs)
+            if kwargs["output_model"] is Brief:
+                payload = result.model_dump(mode="json")
+                payload["key_points"].append({
+                    "text": "Gold 申请费为 USD 99。", "fact_keys": ["application_routes"],
+                })
+                return Brief.model_validate(payload)
+            return result
+
+    provider = PriceBriefProvider([extraction])
+    result = process_pending_statusmatch_projects(session_factory, provider)
+
+    assert (result.succeeded, result.failed, result.model_calls) == (1, 0, 2), result.errors
+    request = provider.calls[1]["request"]
+    assert request["fact_set"]["cost"]["value"] == cost_note
+    price = request["fact_set"]["application_routes"][0]["prices"][0]
+    assert (Decimal(price["amount"]), price["currency"], price["evidence"]) == (99, "USD", [])
+    with session_factory() as session:
+        from journeyplus.product.briefs import _price_summaries
+        record = session.scalar(select(FactSetRecord))
+        facts = FactSet.model_validate(record.facts)
+        assert facts.cost.value == cost_note
+        assert any("99" in text and "USD" in text for text in _price_summaries(facts))
+        brief = session.scalar(select(BriefRecord))
+        assert brief.fact_set_id == record.id
+        assert brief.content["key_points"][-1]["fact_keys"] == ["application_routes"]
 
 
 def test_terms_fee_table_is_deterministic_and_uses_no_extra_model_call(

@@ -378,3 +378,50 @@ def test_fee_policy_marks_explicit_free_and_paid_conflict() -> None:
     assert result.cost.conflict
     assert result.cost.value is None
     assert result.cost.alternatives == ["免费", "付费"]
+
+
+@pytest.mark.parametrize("amount", [0, 99])
+@pytest.mark.parametrize("availability", ["AVAILABLE", "CONDITIONAL"])
+@pytest.mark.parametrize("note", [None, "申请费不退；可能另收未公布金额的处理费。"])
+def test_fee_policy_keeps_evidence_free_prices_and_optional_notes(
+    amount, availability, note,
+) -> None:
+    documents = [_document("faq", f"The application fee is USD {amount}.")]
+    facts = _facts(documents).model_copy(update={
+        "cost": FactField(value=note),
+        "application_routes": [ApplicationRoute(
+            scope="Gold 申请", prices=[RoutePrice(
+                target_tier="Gold", amount=amount, currency="USD",
+                availability=availability,
+            )],
+        )],
+    })
+
+    result = apply_statusmatch_fee_policy(facts, documents)
+
+    assert result.cost == facts.cost
+    assert result.application_routes == facts.application_routes
+    assert result.application_routes[0].prices[0].evidence == []
+
+
+@pytest.mark.parametrize("scoped", [False, True])
+@pytest.mark.parametrize("note", ["USD 99", "申请费不退", "另收可退押金 USD 50"])
+def test_fee_policy_keeps_text_only_cost_without_citations(scoped, note) -> None:
+    documents = [_document("faq", "Application fees apply.")]
+    facts = _facts(documents).model_copy(update=(
+        {"application_routes": [ApplicationRoute(scope="申请", cost=note)]}
+        if scoped else {"cost": FactField(value=note)}
+    ))
+
+    result = apply_statusmatch_fee_policy(facts, documents)
+
+    assert result == facts
+
+
+def test_fee_policy_does_not_erase_existing_cost_conflict() -> None:
+    documents = [_document("faq", "Application fees apply.")]
+    facts = _facts(documents).model_copy(update={
+        "cost": FactField(conflict=True, alternatives=["申请费可退", "申请费不退"]),
+    })
+
+    assert apply_statusmatch_fee_policy(facts, documents).cost == facts.cost

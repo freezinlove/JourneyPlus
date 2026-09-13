@@ -259,32 +259,31 @@ def apply_statusmatch_fee_policy(
             re.I,
         ),
     )
-    price_evidence = _merge_evidence(
-        [],
-        [
-            evidence
-            for route in fact_set.application_routes
-            for price in route.prices
-            if price.amount is not None
-            for evidence in price.evidence
-        ],
+    # A price is known from its fields, never from optional citation metadata.
+    # Zero and conditional amounts are still known within their own scope.
+    has_amount = any(
+        price.amount is not None and price.currency is not None
+        for route in fact_set.application_routes
+        for price in route.prices
     )
-    has_amount = bool(price_evidence) or _fact_cost_has_amount(fact_set.cost.value)
 
-    if free_evidence and paid_evidence:
+    if fact_set.cost.conflict:
+        cost = fact_set.cost
+    elif free_evidence and paid_evidence:
         cost = FactField(
             value=None,
             evidence=_merge_evidence(free_evidence, paid_evidence),
             conflict=True,
             alternatives=["免费", "付费"],
         )
-    elif has_amount:
+    elif (
+        has_amount
+        or fact_set.cost.value is not None
+        or any(route.cost is not None for route in fact_set.application_routes)
+    ):
+        # Keep supplemental/text-only fee terms. Structured prices do not need
+        # a second prose summary, and null cost does not mean unknown prices.
         cost = fact_set.cost
-        if cost.value is None:
-            cost = FactField(
-                value="费用因申请路线和目标等级而异",
-                evidence=price_evidence,
-            )
     elif paid_evidence:
         cost = FactField(value="收费，金额未公布", evidence=paid_evidence)
     elif free_evidence:
@@ -695,10 +694,6 @@ def _signal_evidence(
             )
         )
     return result
-
-
-def _fact_cost_has_amount(value: str | None) -> bool:
-    return bool(value and _NUMERIC_FEE_RE.search(value))
 
 
 def _combined_scope(context: str | None, row_scope: str) -> str:
