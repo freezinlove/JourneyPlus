@@ -128,7 +128,7 @@ uv run python scripts/smoke_public_sources.py
 ## 当前已知限制
 
 - 每日单轮命令、数据库租约、北京时间日桶、限额、故障隔离和状态报告已经实现；当前只允许 LoyaltyLobby 通用链路和 StatusMatch/GetStatus Gmail 专用链路被自动选择，买分保留手工运行，其他公开来源保持关闭。
-- LoyaltyLobby 已以北京时间 2026-08-24 全天为一次性追赶基线并在成功后按 Feed GUID 增量；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
+- LoyaltyLobby 首次采集从北京时间 2026-09-09（含当天）开始，成功后按 Feed GUID 增量；内部排他基线设为 2026-09-08；Gmail 已按持久化 History ID 增量，过期时安全回退全量 ID 对账。两类游标都只在不会遗漏材料的成功边界推进。
 - 活动申请窗口、北京时间规范化、独立生命周期和过期软归档已接入每日单轮编排。
 - Gmail 在首次部署时需要 Desktop OAuth 客户端 JSON 和浏览器授权；实现会安全保存并自动刷新只读令牌。
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。

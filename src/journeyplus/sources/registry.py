@@ -89,7 +89,7 @@ SOURCE_REGISTRY: tuple[SourceDefinition, ...] = (
         discovery_config={
             "feed_url": "https://loyaltylobby.com/feed/",
             "strip_query_params": ["omhide"],
-            "incremental_baseline_date": "2026-08-24",
+            "incremental_baseline_date": "2026-09-08",  # Exclusive boundary: include September 9.
             "incremental_timezone": "Asia/Shanghai",
             "incremental_max_pages": 100,
         },

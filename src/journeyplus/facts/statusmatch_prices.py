@@ -186,11 +186,12 @@ def merge_statusmatch_application_routes(
     deterministic: list[ApplicationRoute],
     narrative: list[ApplicationRoute],
 ) -> list[ApplicationRoute]:
-    merged: dict[str, ApplicationRoute] = {}
-    order: list[str] = []
+    merged: dict[tuple[str, str], ApplicationRoute] = {}
+    order: list[tuple[str, str]] = []
     for raw_route in [*deterministic, *narrative]:
         route = _normalize_conditional_prices(raw_route)
-        key = _normalize(route.scope).casefold()
+        # Identical route labels can have different regional fee schedules.
+        key = (_normalize(route.scope).casefold(), _normalize(route.region or "").casefold())
         existing = merged.get(key)
         if existing is None:
             merged[key] = route

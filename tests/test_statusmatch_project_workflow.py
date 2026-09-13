@@ -264,6 +264,34 @@ def test_project_extracts_evidenced_route_prices_without_extra_model_stage(
         assert facts.application_routes[0].prices[0].amount == 99
 
 
+def test_project_publishes_same_named_regional_routes_without_false_conflict(session_factory):
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    extraction = _extraction()
+    extraction["application_routes"] = [
+        {"scope": "Airline Status Match", "region": region,
+         "prices": [{"target_tier": "Gold", "amount": amount,
+                     "currency": "USD", "availability": "AVAILABLE"}]}
+        for region, amount in [("Americas", 299), ("All other countries", 175)]
+    ]
+    provider = ProjectProvider([extraction])
+    result = process_pending_statusmatch_projects(session_factory, provider)
+    assert result.succeeded == 1 and result.failed == 0
+    assert result.model_calls == 1
+    with session_factory() as session:
+        record = session.scalar(select(FactSetRecord))
+        assert record is not None and not record.has_conflicts
+        facts = FactSet.model_validate(record.facts)
+        assert len({route.scope for route in facts.application_routes}) == 2
+        assert [(route.region, route.prices[0].amount) for route in facts.application_routes] == [
+            ("Americas", 299), ("All other countries", 175),
+        ]
+        assert session.scalar(select(StatusEvent)).status != "NEEDS_REVIEW"
+        assert session.scalar(select(func.count()).select_from(BriefRecord)) == 1
+    repeated = process_pending_statusmatch_projects(session_factory, provider)
+    assert repeated.selected == 0 and repeated.model_calls == 0
+
+
 @pytest.mark.parametrize("cost_note", [None, "申请费不退"])
 def test_prose_price_without_evidence_reaches_brief_with_optional_cost(
     session_factory, cost_note,

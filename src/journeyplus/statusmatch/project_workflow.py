@@ -5,6 +5,7 @@ from journeyplus.lifecycle.visibility import is_ended
 import hashlib
 import json
 import re
+from collections import Counter
 from dataclasses import asdict, dataclass
 from typing import Any
 from uuid import UUID
@@ -672,6 +673,13 @@ class StatusMatchProjectWorkflow:
         routes = merge_statusmatch_application_routes(
             deterministic_routes, narrative_routes
         )
+        # Keep stored route labels unique without combining regional prices.
+        scope_counts = Counter(" ".join(route.scope.casefold().split()) for route in routes)
+        routes = [
+            route.model_copy(update={"scope": f"{route.scope}（{route.region or '未注明地区'}）"})
+            if scope_counts[" ".join(route.scope.casefold().split())] > 1 else route
+            for route in routes
+        ]
         payload: dict[str, Any] = {
             "schema_version": FACT_SCHEMA_VERSION,
             "event_id": event.id,

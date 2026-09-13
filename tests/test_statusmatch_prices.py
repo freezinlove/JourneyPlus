@@ -271,6 +271,25 @@ def test_fee_route_merge_combines_equal_evidence_and_marks_real_conflicts() -> N
     assert "不同当前价格" in (conflict[0].conflict_note or "")
 
 
+def test_same_named_routes_keep_separate_regional_prices() -> None:
+    def route(region: str | None, amount: int) -> ApplicationRoute:
+        return ApplicationRoute(
+            scope="Airline Status Match",
+            region=region,
+            prices=[RoutePrice(target_tier="Silver", amount=amount,
+                               currency="USD", availability="AVAILABLE")],
+        )
+
+    routes = merge_statusmatch_application_routes(
+        [], [route("Americas", 99), route("All other countries", 80),
+             route("  AMERICAS  ", 99), route(None, 90)],
+    )
+    assert len(routes) == 3
+    assert [r.region for r in routes] == ["Americas", "All other countries", None]
+    assert [[p.amount for p in r.prices] for r in routes] == [[99], [80], [90]]
+    assert not any(r.conflict for r in routes)
+
+
 def test_narrative_additional_fee_is_normalized_to_conditional() -> None:
     terms = _document("terms", "TERMS")
     evidence = _evidence(terms, "select-member upgrade")

@@ -102,5 +102,5 @@ def test_loyalty_registry_has_one_time_incremental_baseline() -> None:
     loyalty = next(
         item for item in SOURCE_REGISTRY if item.source_id == "loyaltylobby_feed"
     )
-    assert loyalty.discovery_config["incremental_baseline_date"] == "2026-08-24"
+    assert loyalty.discovery_config["incremental_baseline_date"] == "2026-09-08"
     assert loyalty.discovery_config["incremental_timezone"] == "Asia/Shanghai"
