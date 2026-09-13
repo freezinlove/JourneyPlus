@@ -109,13 +109,16 @@ class _ProgramRegistry:
         self.ambiguities: dict[str, set[str]] = defaultdict(set)
 
     def add_target(self, label: str, target_tiers: Iterable[str]) -> _TargetIdentity:
+        from journeyplus.membership.identity import canonical_program
+        original_label = label
+        label = canonical_program(label)
         key = _normalize_key(label)
         record = self.records.setdefault(
             key,
             _ProgramRecord(key=key, label=_display_text(label)),
         )
         record.target_program = True
-        aliases = target_program_aliases(label, target_tiers)
+        aliases = target_program_aliases(label, target_tiers) | {original_label}
         for alias in aliases:
             record.aliases.add(alias)
             self.target_aliases[_normalize_key(alias)].add(key)
@@ -125,6 +128,8 @@ class _ProgramRegistry:
         )
 
     def resolve(self, raw_program: str) -> str:
+        from journeyplus.membership.identity import canonical_program
+        raw_program = canonical_program(raw_program)
         resolution = resolve_alias(raw_program, self.target_aliases)
         candidates = set(resolution.candidates)
         if len(candidates) == 1:
@@ -593,7 +598,8 @@ class MembershipGraphService:
         *,
         raw_alias: str,
     ) -> str:
-        tier_label = _display_tier(tier)
+        from journeyplus.membership.identity import canonical_tier
+        tier_label = _display_tier(canonical_tier(registry.records[program_key].label, tier))
         tier_key = _normalize_tier(tier_label)
         node_id = f"{program_key}::{tier_key}"
         program = registry.records[program_key]

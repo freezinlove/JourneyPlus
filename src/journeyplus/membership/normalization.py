@@ -62,7 +62,12 @@ def strip_program_prefix(value: str, aliases: Iterable[str] = ()) -> str:
 
 
 def program_tier_key(value: str, aliases: Iterable[str] = ()) -> str:
-    return normalize_tier(strip_program_prefix(value, aliases))
+    aliases = tuple(aliases)
+    label = strip_program_prefix(value, aliases)
+    from .identity import resolve_identity
+    names = {r['tier_name'] for alias in aliases
+             if (r := resolve_identity(alias, label))['status'] == 'OK'}
+    return normalize_tier(next(iter(names)) if len(names) == 1 else label)
 
 
 def common_target_prefix(values: Iterable[str]) -> str | None:

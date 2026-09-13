@@ -49,6 +49,27 @@ def catalog(session, *, state=None):
         if pid in programs:
             aliases.extend(SimpleNamespace(program_id=pid,tier_id=None,normalized_alias=name,
                 locale=None,origin='WORKFLOW_CATALOG') for name in sorted(record.aliases))
+    # Identities exist independently of matching opportunities. This local
+    # directory is queried by tools; it is never inserted into model prompts.
+    from journeyplus.membership.identity import directory
+    tier_ids = {t.id for t in tiers}
+    for p in directory()['programs']:
+        if p['category'] not in {'AIRLINE','HOTEL'}:
+            continue
+        pid = identity_id('program', p['key'])
+        from journeyplus.membership.alliances import airline_alliance
+        programs[pid] = SimpleNamespace(id=pid, display_name=p['name'], canonical_key=p['key'],
+            category=p['category'], alliance=str(airline_alliance(p['name'])) if airline_alliance(p['name']) else None)
+        aliases.extend(SimpleNamespace(program_id=pid,tier_id=None,normalized_alias=a,
+            locale=None,origin='IDENTITY_DIRECTORY') for a in p['aliases'])
+        from journeyplus.membership.normalization import normalize_tier
+        for t in p['tiers']:
+            tid = identity_id('tier',p['key']+'::'+normalize_tier(t['name']))
+            if tid not in tier_ids:
+                tiers.append(SimpleNamespace(id=tid,program_id=pid,display_name=t['name'],canonical_key=normalize_tier(t['name'])))
+                tier_ids.add(tid)
+            aliases.extend(SimpleNamespace(program_id=pid,tier_id=tid,normalized_alias=a,
+                locale=None,origin='IDENTITY_DIRECTORY') for a in t['aliases'])
     return sorted(programs.values(),key=lambda p:p.display_name), tiers, aliases
 
 
@@ -95,7 +116,8 @@ class WorkflowKnowledgePort(KnowledgePort):
                        if model is ArticleOpportunityRecord else [model.merged_into_id])
             for row in session.scalars(select(model).options(load_only(*fields)).order_by(model.id)):
                 windows.append((str(row.id), effective_status(row, now=now), contributes(row, now=now)))
-        return ['workflow-v2-lifecycle',now.date().isoformat(),windows,*values]
+        from journeyplus.membership.identity import directory_version
+        return ['workflow-v2-lifecycle',directory_version(),now.date().isoformat(),windows,*values]
 
     @staticmethod
     def holding_snapshot(session):

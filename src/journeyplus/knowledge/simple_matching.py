@@ -42,7 +42,9 @@ def highest_targets(nodes, targets):
     selected, unordered = [], []
     for program, ids in sorted(groups.items()):
         order = TIER_ORDERS.get(normalize_key(program), ())
-        ranks = {normalize_tier(tier): index for index, tier in enumerate(order)}
+        from journeyplus.membership.identity import canonical_tier
+        ranks = {normalize_tier(label): index for index, tier in enumerate(order)
+                 for label in (tier, canonical_tier(program, tier))}
         if len(ids) == 1:
             selected.extend(ids)
         elif all(nodes[node].tier_key in ranks for node in ids):

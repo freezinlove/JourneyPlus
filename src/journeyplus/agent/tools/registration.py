@@ -23,7 +23,8 @@ def definitions(handlers):
     async def unavailable(args, ctx):
         return ToolResult.failure('UNAVAILABLE','Capability not available in this runtime assembly',status='UNAVAILABLE')
     return [ToolDefinition(name=name,description=description,input_model=INPUTS[name],handler=handlers.get(name,unavailable),
-                          effect=effect,version='9' if name=='activity.read' else '8',trim_projection=trim_for(name),model_projection=model_view_for(name),timeout_seconds=timeout,progress_label=label,output_model=OUTPUTS[name],
+                          effect=effect,version=('identity-v1' if name in {'catalog.lookup','routes.evaluate','holdings.read','holdings.write'}
+                              else '9' if name=='activity.read' else '8'),trim_projection=trim_for(name),model_projection=model_view_for(name),timeout_seconds=timeout,progress_label=label,output_model=OUTPUTS[name],
                           complete_result_operations=('original',) if name=='activity.read' else (),
                           operation_result_max_bytes=({'inspect':24000,'compare':24000} if name=='routes.evaluate' else
                                                       {'detail':24000,'evidence':24000} if name=='activity.read' else {}),

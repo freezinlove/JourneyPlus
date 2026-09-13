@@ -91,6 +91,14 @@ class StatusHoldingService:
         self._session.flush()
 
     def _catalog_node(self, program_key: str, tier_key: str) -> UnifiedMembershipNode:
+        from journeyplus.membership.identity import resolve_identity
+        identity = resolve_identity(program_key, tier_key)
+        if identity['status'] == 'OK' and identity['category'] in {'AIRLINE', 'HOTEL'}:
+            from journeyplus.membership.alliances import airline_alliance
+            return UnifiedMembershipNode(id=identity['program_key']+'::'+identity['tier_key'],
+                program_key=identity['program_key'], tier_key=identity['tier_key'],
+                program=identity['program_name'], tier=identity['tier_name'],
+                categories=[identity['category']], alliance=airline_alliance(identity['program_name']))
         node_id = f"{program_key}::{tier_key}"
         catalog = UnifiedMembershipTreeService(self._session).catalog()
         node = next((item for item in catalog.nodes if item.id == node_id), None)

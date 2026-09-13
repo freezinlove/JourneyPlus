@@ -33,7 +33,8 @@ class WorkflowUserMemory(UserMemory):
         bound = resolved.get('status') == 'OK'
         return {'ref': 'holding:' + str(row.id), 'revision': revision,
                 **membership_validity(row.valid_until),
-                'program_name': row.program_display_name, 'tier_name': row.tier_display_name,
+                'program_name': resolved['program_name'] if bound else row.program_display_name,
+                'tier_name': resolved['tier_name'] if bound else row.tier_display_name,
                 'program_ref': resolved.get('program_ref') if bound else None,
                 'tier_ref': resolved.get('tier_ref') if bound else None,
                 'valid_until': row.valid_until.isoformat() if row.valid_until else None,
@@ -51,8 +52,10 @@ class WorkflowUserMemory(UserMemory):
                 statement = statement.where(Holding.id.in_([UUID(r.removeprefix('holding:')) for r in args.holding_refs]))
             values = [self.view(session, row) for row in session.scalars(statement)]
             if args.query:
+                from journeyplus.membership.identity import matches_identity_query
                 values = [v for v in values if canonical(args.query) in canonical(
-                    v['program_name'] + ' ' + v['tier_name'] + ' ' + (v['display_statement'] or ''))]
+                    v['program_name'] + ' ' + v['tier_name'] + ' ' + (v['display_statement'] or ''))
+                    or matches_identity_query(args.query, v['program_name'], v['tier_name'])]
             return values
 
     def write(self, args, ctx):

@@ -73,6 +73,8 @@ class _Registry:
             self.aliases[normalize_key(displayed)].add(key)
 
     def resolve(self, raw_program: str) -> str:
+        from journeyplus.membership.identity import canonical_program, program_record
+        raw_program = canonical_program(raw_program)
         resolution = resolve_alias(raw_program, self.aliases)
         candidates = set(resolution.candidates)
         if len(candidates) == 1:
@@ -86,6 +88,9 @@ class _Registry:
         )
         record.aliases.add(resolution.label)
         self.aliases[resolution.normalized].add(key)
+        known = program_record(raw_program)
+        if known and known['category'] in {'AIRLINE','HOTEL'}:
+            record.categories.add(MembershipProgramCategory(known['category']))
         return key
 
 
@@ -372,7 +377,8 @@ def _ensure_node(
     tier: str,
 ) -> UnifiedMembershipNode:
     record = registry.programs[program_key]
-    tier_label = display_tier(tier)
+    from journeyplus.membership.identity import canonical_tier
+    tier_label = display_tier(canonical_tier(record.label, tier))
     node_id = f"{program_key}::{normalize_tier(tier_label)}"
     node = nodes.get(node_id)
     if node is None:

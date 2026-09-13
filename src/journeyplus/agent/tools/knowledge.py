@@ -33,6 +33,7 @@ def catalog(args, ctx):
                 return ToolResult.failure(resolved['code'],'Program could not be uniquely resolved',status=resolved['status'],candidates=resolved['candidates'])
             allowed=resolved['program_ref']
         query=canonical(args.query)
+        from journeyplus.membership.identity import matches_identity_query
         results=[]
         for program in programs:
             pref='program:'+str(program.id)
@@ -50,7 +51,9 @@ def catalog(args, ctx):
                         continue
                     ta=[{'name':a.normalized_alias,'locale':a.locale,'origin':a.origin} for a in aliases if a.tier_id==tier.id]
                     combined=canonical(program.display_name+' '+tier.display_name+' '+' '.join(a['name'] for a in pa+ta))
-                    if query in canonical(tier.display_name) or any(query in canonical(a['name']) for a in ta) or all(token in combined for token in query.split()):
+                    if (query in canonical(tier.display_name) or any(query in canonical(a['name']) for a in ta)
+                            or all(token in combined for token in query.split())
+                            or matches_identity_query(args.query, program.display_name, tier.display_name)):
                         results.append({'ref':'tier:'+str(tier.id),'program_ref':pref,'program_name':program.display_name,'name':tier.display_name,'aliases':ta,'match_basis':'tier_name_or_alias'})
     ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',{'catalog_query_hash':query_hash,'candidates':results},call_id=ctx.call_id,turn_id=ctx.turn_id)
     return catalog_page(results,ref,0,args.limit)

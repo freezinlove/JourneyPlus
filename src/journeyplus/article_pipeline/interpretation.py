@@ -261,6 +261,10 @@ class ArticleInterpreter:
             )
         records: list[ArticleOpportunityRecord] = []
         for extracted in interpretation.opportunities:
+            from journeyplus.membership.identity import canonical_program, canonical_tier, normalize_facts
+            extracted = extracted.model_copy(update={'program': canonical_program(extracted.program)})
+            if extracted.target_status_name:
+                extracted.target_status_name = canonical_tier(extracted.program, extracted.target_status_name)
             application_start_at = (
                 normalize_event_time(extracted.application_start.value, end_of_day=False)
                 if not extracted.application_start.conflict
@@ -303,7 +307,7 @@ class ArticleInterpreter:
             )
             self._session.add(record)
             self._session.flush()
-            facts = self._to_fact_set(document, record.id, extracted)
+            facts = normalize_facts(self._to_fact_set(document, record.id, extracted), extracted.program)
             facts_json = facts.model_dump(mode="json")
             record.facts = facts_json
             record.fact_signature = _json_signature(facts_json)

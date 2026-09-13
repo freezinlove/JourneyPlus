@@ -1,0 +1,5629 @@
+{
+  "version": "2026-09-14.1",
+  "as_of": "2026-09-14",
+  "policy": "Exact programme-scoped aliases only. OBSERVED means a stored activity label, not official verification. No inferred status equivalence, transfer or eligibility.",
+  "programs": [
+    {
+      "key": "accor all",
+      "name": "Accor ALL",
+      "category": "HOTEL",
+      "aliases": [
+        "ALL Accor Live Limitless",
+        "Accor",
+        "Accor ALL",
+        "Accor Live Limitless",
+        "Novotel",
+        "Pullman",
+        "Sofitel",
+        "accor all",
+        "索菲特",
+        "诺富特",
+        "铂尔曼",
+        "雅高",
+        "雅高心悦界"
+      ],
+      "tiers": [
+        {
+          "name": "Classic",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Limitless",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PLUS",
+          "aliases": [
+            "ACCOR PLUS",
+            "Accor Plus"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://all.accor.com/loyalty-program/cards-status-benefits-details/index.en.shtml"
+      ],
+      "note": ""
+    },
+    {
+      "key": "aegean airlines miles+bonus",
+      "name": "Aegean Airlines Miles+Bonus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aegean",
+        "Aegean Airlines",
+        "Aegean Airlines Miles+Bonus",
+        "Miles+Bonus",
+        "aegean airlines miles+bonus",
+        "爱琴海",
+        "爱琴海航空"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://en.aegeanair.com/conditions-notices/milesbonus-terms-and-conditions/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "aer lingus aerclub",
+      "name": "aer lingus aerclub",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aer Lingus AerClub",
+        "aer lingus aerclub"
+      ],
+      "tiers": [
+        {
+          "name": "Concierge",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "aeroflot aeroflot bonus",
+      "name": "aeroflot aeroflot bonus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aeroflot Aeroflot Bonus",
+        "aeroflot aeroflot bonus"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "aerolíneas argentinas aerolíneas plus",
+      "name": "Aerolíneas Argentinas Aerolíneas Plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aerolineas Argentinas",
+        "Aerolineas Plus",
+        "Aerolíneas Argentinas",
+        "Aerolíneas Argentinas Aerolíneas Plus",
+        "阿根廷航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamante",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Oro",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platino",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.aerolineas.com.ar/salon-condor"
+      ],
+      "note": ""
+    },
+    {
+      "key": "aeromexico rewards",
+      "name": "Aeromexico Rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aeromexico",
+        "Aeromexico Rewards",
+        "Aeroméxico",
+        "Club Premier",
+        "墨航",
+        "墨西哥航空"
+      ],
+      "tiers": [
+        {
+          "name": "Oro",
+          "aliases": [
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Plata",
+          "aliases": [
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platino",
+          "aliases": [
+            "Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanio",
+          "aliases": [
+            "Titanium",
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.aeromexico.com/es-mx/aeromexico-rewards"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air astana nomad club",
+      "name": "Air Astana Nomad Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air Astana Nomad Club",
+        "Nomad Club"
+      ],
+      "tiers": [
+        {
+          "name": "DIAMOND",
+          "aliases": [
+            "Nomad Club DIAMOND",
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "Nomad Club GOLD",
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "Nomad Club SILVER",
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air canada aeroplan",
+      "name": "Air Canada Aeroplan",
+      "category": "AIRLINE",
+      "aliases": [
+        "Aeroplan",
+        "Air Canada",
+        "Air Canada Aeroplan",
+        "air canada aeroplan",
+        "加拿大航空",
+        "加航"
+      ],
+      "tiers": [
+        {
+          "name": "25K",
+          "aliases": [
+            "Aeroplan 25K",
+            "ELITE 25K",
+            "Elite 25K"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "35K",
+          "aliases": [
+            "ELITE 35K",
+            "Elite 35K"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "50K",
+          "aliases": [
+            "ELITE 50K",
+            "Elite 50K"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "75K",
+          "aliases": [
+            "ELITE 75K",
+            "Elite 75K"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Super Elite",
+          "aliases": [
+            "SUPER ELITE 100K",
+            "Super Elite 100K"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.aircanada.com/co/en/aco/home/aeroplan/status/tiers.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air china phoenixmiles",
+      "name": "Air China PhoenixMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air China",
+        "Air China PhoenixMiles",
+        "PhoenixMiles",
+        "air china phoenixmiles",
+        "中国国际航空",
+        "凤凰知音",
+        "国航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Lifetime Platinum",
+          "aliases": [
+            "终身白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.phoenixmiles.com/appen/en/plan-en/questions.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air europa suma",
+      "name": "Air Europa SUMA",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air Europa",
+        "Air Europa SUMA",
+        "SUMA",
+        "air europa suma",
+        "欧罗巴",
+        "欧罗巴航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "SUMA",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.aireuropa.com/de/en/aea/suma/our-program/cards-and-benefits.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air france flying blue",
+      "name": "Air France Flying Blue",
+      "category": "OTHER",
+      "aliases": [
+        "Air France Flying Blue"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "ULTIMATE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air india maharaja club",
+      "name": "Air India Maharaja Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air India",
+        "Air India Maharaja Club",
+        "Maharaja Club",
+        "air india maharaja club",
+        "印度航空",
+        "印航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Red",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.airindia.com/in/en/maharaja-club/about.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "air new zealand koru",
+      "name": "Air New Zealand Koru",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air New Zealand",
+        "Air New Zealand Koru",
+        "Koru",
+        "air new zealand koru",
+        "新西兰航空",
+        "纽航"
+      ],
+      "tiers": [
+        {
+          "name": "Black",
+          "aliases": [
+            "Koru Black",
+            "黑卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Bronze",
+          "aliases": [
+            "Koru Bronze",
+            "铜",
+            "铜卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "Koru Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Koru Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "Koru Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.airnewzealand.eu/koru"
+      ],
+      "note": ""
+    },
+    {
+      "key": "alaska airlines atmos rewards",
+      "name": "Alaska Airlines Atmos Rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Alaska Airlines",
+        "Alaska Airlines ATMOS Rewards",
+        "Alaska Airlines Atmos Rewards",
+        "Atmos Rewards",
+        "alaska airlines atmos rewards",
+        "阿拉斯加",
+        "阿拉斯加航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/alaska-airlines"
+      ],
+      "note": ""
+    },
+    {
+      "key": "all major airlines",
+      "name": "all major airlines",
+      "category": "AIRLINE",
+      "aliases": [
+        "All major airlines",
+        "all major airlines"
+      ],
+      "tiers": [
+        {
+          "name": "All membership levels",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "all major hotels",
+      "name": "all major hotels",
+      "category": "OTHER",
+      "aliases": [
+        "All major hotels",
+        "all major hotels"
+      ],
+      "tiers": [
+        {
+          "name": "All membership levels",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": "Generic eligibility rule label, not a named hotel loyalty programme."
+    },
+    {
+      "key": "american airlines aadvantage",
+      "name": "American Airlines AAdvantage",
+      "category": "AIRLINE",
+      "aliases": [
+        "AAdvantage",
+        "American Airlines",
+        "American Airlines AAdvantage",
+        "Fiji Airways",
+        "american airlines aadvantage",
+        "斐济航空",
+        "美国航空",
+        "美航"
+      ],
+      "tiers": [
+        {
+          "name": "CONCIERGE KEY",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Executive Platinum",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Pro",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/american-airlines"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ana mileage club",
+      "name": "ANA Mileage Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "ANA",
+        "ANA Mileage Club",
+        "All Nippon Airways",
+        "ana mileage club",
+        "全日空",
+        "全日空航空"
+      ],
+      "tiers": [
+        {
+          "name": "Bronze",
+          "aliases": [
+            "铜",
+            "铜卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Super Flyers",
+          "aliases": [
+            "SFC"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.ana.co.jp/es/mx/amc/premium-members/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "asante rewards",
+      "name": "Asante Rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Asante",
+        "Asante Rewards",
+        "Kenya Airways",
+        "Kenya Airways Asante",
+        "Kenya Airways Asante Rewards",
+        "肯尼亚航空",
+        "肯尼亚航空 Asante",
+        "肯航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "Asante Rewards Gold Elite Plus",
+            "GOLD ELITE PLUS",
+            "Gold Elite Plus",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Asante Rewards Platinum Elite Plus",
+            "PLATINUM ELITE PLUS",
+            "Platinum Elite Plus",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Ruby",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "Asante Rewards Silver Elite",
+            "SILVER ELITE",
+            "Silver Elite",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://corporate.kenya-airways.com/globalassets/corporate/news--press-releases/2023/june/2023-june-14.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ascott star rewards",
+      "name": "Ascott Star Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "ASR",
+        "Ascott",
+        "Ascott Star Rewards",
+        "The Ascott Star Rewards",
+        "the ascott star rewards",
+        "雅诗阁"
+      ],
+      "tiers": [
+        {
+          "name": "Classic",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.discoverasr.com/content/dam/tal/media/images/ascottliving/Ascott-Living-July-Dec-2019.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "key": "asiana airlines asiana club",
+      "name": "Asiana Airlines Asiana Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Asiana",
+        "Asiana Airlines",
+        "Asiana Airlines Asiana Club",
+        "Asiana Club",
+        "asiana airlines asiana club",
+        "韩亚",
+        "韩亚航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond Plus",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://m.flyasiana.com/C/US/EN/contents/view-elite-membership-benefits-by-tier"
+      ],
+      "note": ""
+    },
+    {
+      "key": "australia singapore japan korea singapore and malaysia",
+      "name": "australia singapore japan korea singapore and malaysia",
+      "category": "OTHER",
+      "aliases": [
+        "Australia, Singapore, Japan, Korea, Singapore and Malaysia",
+        "australia singapore japan korea singapore and malaysia"
+      ],
+      "tiers": [
+        {
+          "name": "AMEX: Platinum Credit & Charge Cards",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "MASTERCARD: World, World Elite",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "VISA: Infinite, Signature, Rewards, Platinum",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "austrian airlines miles more",
+      "name": "Austrian Airlines Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "Austrian Airlines",
+        "Austrian Airlines Miles & More",
+        "austrian airlines miles more",
+        "奥地利航空"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "avianca lifemiles",
+      "name": "Avianca LifeMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Avianca",
+        "Avianca LifeMiles",
+        "LifeMiles",
+        "avianca lifemiles",
+        "哥伦比亚航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Red Plus",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://helpcenter.lifemiles.com/hc/en-us/categories/15711372731035-Elite-Program"
+      ],
+      "note": ""
+    },
+    {
+      "key": "best western rewards",
+      "name": "Best Western Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Best Western",
+        "Best Western Rewards",
+        "best western rewards",
+        "最佳西方",
+        "贝斯特韦斯特"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond Select",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.bestwestern.com/en_US/best-western-rewards.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "british airways club",
+      "name": "British Airways Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "BA",
+        "BA Club",
+        "British Airways",
+        "British Airways Club",
+        "British Airways Executive Club",
+        "The British Airways Club",
+        "british airways club",
+        "英国航空",
+        "英航"
+      ],
+      "tiers": [
+        {
+          "name": "Bronze",
+          "aliases": [
+            "铜",
+            "铜卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "GOLD GUEST LIST",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PREMIER",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/british-airways",
+        "https://www.britishairways.com/content/en/bb/the-british-airways-club/about-the-club/tiers-and-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "brussels airlines miles more",
+      "name": "Brussels Airlines Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "Brussels Airlines",
+        "Brussels Airlines Miles & More",
+        "brussels airlines miles more",
+        "布鲁塞尔航空"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "cathay pacific cathay",
+      "name": "Cathay Pacific Cathay",
+      "category": "AIRLINE",
+      "aliases": [
+        "Cathay",
+        "Cathay Pacific",
+        "Cathay Pacific Cathay",
+        "Marco Polo Club",
+        "cathay pacific cathay",
+        "国泰",
+        "国泰航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "DIAMOND PLUS",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "INVITATION",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Green",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/cathay-pacific",
+        "https://www.cathaypacific.com/cx/en_PH/membership/status-points.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "centara hotels resorts centarathe1",
+      "name": "centara hotels resorts centarathe1",
+      "category": "HOTEL",
+      "aliases": [
+        "Centara Hotels & Resorts CentaraThe1",
+        "centara hotels resorts centarathe1"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "china airlines dynasty flyer",
+      "name": "China Airlines Dynasty Flyer",
+      "category": "AIRLINE",
+      "aliases": [
+        "China Airlines",
+        "China Airlines Dynasty Flyer",
+        "Dynasty Flyer",
+        "china airlines dynasty flyer",
+        "中华航空",
+        "华夏会员",
+        "华航"
+      ],
+      "tiers": [
+        {
+          "name": "Dynasty",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Emerald",
+          "aliases": [
+            "翡翠"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Paragon",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.china-airlines.com/us/en/member/planning/introduction/membership-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "china eastern airlines eastern miles",
+      "name": "China Eastern Airlines Eastern Miles",
+      "category": "AIRLINE",
+      "aliases": [
+        "China Eastern Airlines",
+        "China Eastern Airlines Eastern Miles",
+        "Eastern Miles",
+        "东方万里行",
+        "东航",
+        "中国东方航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.ceair.com/global/easternmiles/zh/aboutus/dataDownLoad/memberManual/202406/W020241204488742515864.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "key": "china southern sky pearl club",
+      "name": "china southern sky pearl club",
+      "category": "AIRLINE",
+      "aliases": [
+        "China Southern Sky Pearl Club",
+        "china southern sky pearl club"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "choice hotels international choice privileges",
+      "name": "Choice Hotels International Choice Privileges",
+      "category": "HOTEL",
+      "aliases": [
+        "Choice",
+        "Choice Hotels",
+        "Choice Hotels International Choice Privileges",
+        "Choice Privileges",
+        "choice hotels international choice privileges",
+        "精选国际"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.choicehotels.com/choice-privileges/new-rewards"
+      ],
+      "note": ""
+    },
+    {
+      "key": "citizenm mycitizenm+",
+      "name": "citizenm mycitizenm+",
+      "category": "HOTEL",
+      "aliases": [
+        "citizenM mycitizenm+",
+        "citizenm mycitizenm+"
+      ],
+      "tiers": [
+        {
+          "name": "MYCITIZENM+",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "club avolta",
+      "name": "Club Avolta",
+      "category": "OTHER",
+      "aliases": [
+        "Club Avolta"
+      ],
+      "tiers": [
+        {
+          "name": "Gold status",
+          "aliases": [
+            "Club Avolta Gold status",
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "copa airlines connectmiles",
+      "name": "Copa Airlines ConnectMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "ConnectMiles",
+        "Copa",
+        "Copa Airlines",
+        "Copa Airlines ConnectMiles",
+        "copa airlines connectmiles",
+        "巴拿马航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Presidential Platinum",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": ""
+    },
+    {
+      "key": "croatia airlines miles more",
+      "name": "Croatia Airlines Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "Croatia Airlines",
+        "Croatia Airlines Miles & More",
+        "croatia airlines miles more",
+        "克罗地亚航空"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "czech airlines ok plus",
+      "name": "czech airlines ok plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Czech Airlines OK Plus",
+        "czech airlines ok plus"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "delta air lines skymiles",
+      "name": "Delta Air Lines SkyMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Delta",
+        "Delta Air Lines",
+        "Delta Air Lines SkyMiles",
+        "SkyMiles",
+        "delta air lines skymiles",
+        "达美",
+        "达美航空"
+      ],
+      "tiers": [
+        {
+          "name": "360",
+          "aliases": [
+            "DELTA 360"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Diamond Medallion",
+          "aliases": [
+            "Diamond",
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold Medallion",
+          "aliases": [
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Medallion",
+          "aliases": [
+            "Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver Medallion",
+          "aliases": [
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.delta.com/us/en/skymiles/medallion-program"
+      ],
+      "note": ""
+    },
+    {
+      "key": "dusit international dusit gold",
+      "name": "dusit international dusit gold",
+      "category": "HOTEL",
+      "aliases": [
+        "Dusit International Dusit Gold",
+        "dusit international dusit gold"
+      ],
+      "tiers": [
+        {
+          "name": "ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "EXECUTIVE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "easyjet easyjet plus",
+      "name": "easyjet easyjet plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "EasyJet EasyJet Plus",
+        "easyjet easyjet plus"
+      ],
+      "tiers": [
+        {
+          "name": "EASYJET FLIGHT CLUB",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "EASYJET PLUS MEMBERSHIP",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "egyptair plus",
+      "name": "EgyptAir Plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "EgyptAir",
+        "EgyptAir Plus",
+        "Egyptair Plus",
+        "egyptair plus",
+        "埃及航空",
+        "埃航"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Elite",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.egyptair.com/en/about-egyptair/Documents/EGYPTAIR%20Report%202020-2021.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "key": "el al matmid",
+      "name": "el al matmid",
+      "category": "AIRLINE",
+      "aliases": [
+        "El Al Matmid",
+        "el al matmid"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "TOP PLATINUM",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "emirates skywards",
+      "name": "emirates skywards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Emirates Skywards",
+        "emirates skywards"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ethiopian airlines shebamiles",
+      "name": "Ethiopian Airlines ShebaMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Ethiopian Airlines",
+        "Ethiopian Airlines ShebaMiles",
+        "ShebaMiles",
+        "ethiopian airlines shebamiles",
+        "埃塞俄比亚航空",
+        "埃塞航"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Welcome",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://shebamiles.ethiopianairlines.com/status-and-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "etihad guest",
+      "name": "etihad guest",
+      "category": "AIRLINE",
+      "aliases": [
+        "Etihad Guest",
+        "etihad guest"
+      ],
+      "tiers": [
+        {
+          "name": "EMERALD",
+          "aliases": [
+            "翡翠"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "eva air infinity mileagelands",
+      "name": "EVA Air Infinity MileageLands",
+      "category": "AIRLINE",
+      "aliases": [
+        "EVA Air",
+        "EVA Air Infinity MileageLands",
+        "Infinity MileageLands",
+        "eva air infinity mileagelands",
+        "无限万哩游",
+        "长荣",
+        "长荣航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Green",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.evaair.com/en-ph/infinity-mileagelands/about-infinity-mileagelands/introduction-of-infinity-mileageLands/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "finnair plus",
+      "name": "Finnair Plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Finnair",
+        "Finnair Plus",
+        "finnair plus",
+        "芬兰航空",
+        "芬航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Lumo",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Basic",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/finnair",
+        "https://www.finnair.com/en/finnair-plus/finnair-plus-membership-tiers-and-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "flying blue",
+      "name": "Flying Blue",
+      "category": "AIRLINE",
+      "aliases": [
+        "Air France",
+        "Flying Blue",
+        "KLM",
+        "KLM Royal Dutch Airlines",
+        "TAROM",
+        "法国航空",
+        "法航",
+        "法荷航",
+        "罗马尼亚航空",
+        "荷兰皇家航空",
+        "荷航",
+        "蓝天飞行"
+      ],
+      "tiers": [
+        {
+          "name": "Explorer",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "Flying Blue GOLD",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Flying Blue PLATINUM",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "Flying Blue SILVER",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Ultimate",
+          "aliases": [
+            "Flying Blue ULTIMATE"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.flyingblue.com/en/programme/more-info/status"
+      ],
+      "note": ""
+    },
+    {
+      "key": "frasers frasers world",
+      "name": "frasers frasers world",
+      "category": "HOTEL",
+      "aliases": [
+        "Frasers Frasers World",
+        "frasers frasers world"
+      ],
+      "tiers": [
+        {
+          "name": "DIAMOND",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SAPPHIRE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "garuda indonesia garudamiles",
+      "name": "Garuda Indonesia GarudaMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Garuda Indonesia",
+        "Garuda Indonesia Garuda Miles",
+        "Garuda Indonesia GarudaMiles",
+        "Garuda Miles",
+        "GarudaMiles",
+        "garuda indonesia garuda miles",
+        "印尼鹰航",
+        "印度尼西亚鹰航",
+        "鹰航"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold Privilege",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Junior",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.garuda-indonesia.com/static/en/garudamiles/tentang-garudamiles/benefit-comparison.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "gha discovery",
+      "name": "GHA DISCOVERY",
+      "category": "HOTEL",
+      "aliases": [
+        "Anantara",
+        "GHA",
+        "GHA DISCOVERY",
+        "GHA Discovery",
+        "Kempinski",
+        "Pan Pacific",
+        "gha discovery",
+        "全球酒店联盟",
+        "凯宾斯基",
+        "安纳塔拉",
+        "泛太平洋"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.ghadiscovery.com/our-programme"
+      ],
+      "note": ""
+    },
+    {
+      "key": "gulf air falconflyer",
+      "name": "gulf air falconflyer",
+      "category": "AIRLINE",
+      "aliases": [
+        "Gulf Air Falconflyer",
+        "gulf air falconflyer"
+      ],
+      "tiers": [
+        {
+          "name": "BLACK",
+          "aliases": [
+            "黑卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hainan airlines fortune wings club",
+      "name": "hainan airlines fortune wings club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Hainan Airlines Fortune Wings Club",
+        "hainan airlines fortune wings club"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hawaiian airlines atmos rewards",
+      "name": "Hawaiian Airlines Atmos Rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Hawaiian Airlines",
+        "Hawaiian Airlines ATMOS Rewards",
+        "Hawaiian Airlines Atmos Rewards",
+        "hawaiian airlines atmos rewards",
+        "夏威夷航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/travel-benefits"
+      ],
+      "note": "Shares Atmos Rewards; carrier-qualified activity scope retained."
+    },
+    {
+      "key": "hilton hilton honors",
+      "name": "Hilton Hilton Honors",
+      "category": "HOTEL",
+      "aliases": [
+        "Conrad",
+        "Hilton",
+        "Hilton Hilton Honors",
+        "Hilton Honors",
+        "Waldorf Astoria",
+        "hilton hilton honors",
+        "华尔道夫",
+        "希尔顿",
+        "希尔顿荣誉客会",
+        "康莱德"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond Reserve",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Lifetime Diamond",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.hilton.com/en/hilton-honors/support-faq/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hong kong airlines fortune wings club",
+      "name": "hong kong airlines fortune wings club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Hong Kong Airlines Fortune Wings Club",
+        "hong kong airlines fortune wings club"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "hyatt world of hyatt",
+      "name": "Hyatt World of Hyatt",
+      "category": "HOTEL",
+      "aliases": [
+        "Hyatt",
+        "Hyatt World of Hyatt",
+        "World of Hyatt",
+        "hyatt world of hyatt",
+        "凯悦",
+        "凯悦天地"
+      ],
+      "tiers": [
+        {
+          "name": "Discoverist",
+          "aliases": [
+            "探索者"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Explorist",
+          "aliases": [
+            "冒险家"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Globalist",
+          "aliases": [
+            "环球客"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Lifetime Globalist",
+          "aliases": [
+            "终身环球客"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://world.hyatt.com/content/gp/en/tiers-and-benefits.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "iberia club",
+      "name": "Iberia Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Iberia",
+        "Iberia Club",
+        "Iberia Plus",
+        "iberia club",
+        "伊比利亚航空",
+        "西班牙国家航空"
+      ],
+      "tiers": [
+        {
+          "name": "Infinita",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Infinita Prime",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Oro",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Plata",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platino",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Singular",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/iberia"
+      ],
+      "note": ""
+    },
+    {
+      "key": "icelandair saga club",
+      "name": "icelandair saga club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Icelandair Saga Club",
+        "icelandair saga club"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ihg ihg one rewards",
+      "name": "IHG IHG One Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Crowne Plaza",
+        "Holiday Inn",
+        "IHG",
+        "IHG IHG One Rewards",
+        "IHG One Rewards",
+        "InterContinental",
+        "ihg ihg one rewards",
+        "假日酒店",
+        "洲际",
+        "洲际优悦会",
+        "皇冠假日"
+      ],
+      "tiers": [
+        {
+          "name": "Club Member",
+          "aliases": [
+            "Club"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond Elite",
+          "aliases": [
+            "Diamond",
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold Elite",
+          "aliases": [
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Elite",
+          "aliases": [
+            "Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "ROYAL AMBASSADOR",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver Elite",
+          "aliases": [
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.ihg.com/onerewards/content/us/en/tier-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ita airways miles more",
+      "name": "ITA Airways Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "ITA",
+        "ITA Airways",
+        "ITA Airways Miles & More",
+        "ITA Airways Miles&More",
+        "ita airways miles more",
+        "意大利航空"
+      ],
+      "tiers": [
+        {
+          "name": "Executive",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Executive per sempre",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Plus",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Premium",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.miles-and-more.com/at/en/program/news/2603_announcement_m-m_neues_loyalitaetsprogramm_der_ita_news_2603.html"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "japan airlines mileage bank",
+      "name": "Japan Airlines Mileage Bank",
+      "category": "AIRLINE",
+      "aliases": [
+        "JAL",
+        "JMB",
+        "Japan Airlines",
+        "Japan Airlines Mileage Bank",
+        "japan airlines mileage bank",
+        "日本航空",
+        "日航"
+      ],
+      "tiers": [
+        {
+          "name": "Crystal",
+          "aliases": [
+            "JMB Crystal"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond",
+          "aliases": [
+            "JMB Diamond",
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Global Club",
+          "aliases": [
+            "JGC"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Global Club Crystal",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Global Club Diamond",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "GLOBAL CLUB / GLOBAL CLUB CRYSTAL",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Global Club Premier",
+          "aliases": [
+            "JGC Premier"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Global Club Sapphire",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Sapphire",
+          "aliases": [
+            "JMB Sapphire"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/japan-airlines"
+      ],
+      "note": ""
+    },
+    {
+      "key": "jetblue trueblue rewards",
+      "name": "jetblue trueblue rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "JetBlue TrueBlue Rewards",
+        "jetblue trueblue rewards"
+      ],
+      "tiers": [
+        {
+          "name": "Mosaic 1",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Mosaic 2",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Mosaic 3",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Mosaic 4",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "klm flying blue",
+      "name": "KLM Flying Blue",
+      "category": "OTHER",
+      "aliases": [
+        "KLM Flying Blue"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "ULTIMATE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "korean air skypass",
+      "name": "Korean Air SKYPASS",
+      "category": "AIRLINE",
+      "aliases": [
+        "Korean Air",
+        "Korean Air SKYPASS",
+        "SKYPASS",
+        "korean air skypass",
+        "大韩",
+        "大韩航空"
+      ],
+      "tiers": [
+        {
+          "name": "Million Miler Club",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Morning Calm Club",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Morning Calm Premium Club",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.koreanair.com/contents/skypass/benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "kuwait airways oasis club",
+      "name": "kuwait airways oasis club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Kuwait Airways Oasis Club",
+        "kuwait airways oasis club"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "langham brilliant",
+      "name": "Langham Brilliant",
+      "category": "HOTEL",
+      "aliases": [
+        "Brilliant by Langham",
+        "Langham",
+        "Langham Brilliant",
+        "Langham Hotels",
+        "Langham Hotels Brilliant",
+        "langham hotels brilliant",
+        "朗廷",
+        "朗廷卓逸会"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Onyx",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Ruby",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Ruby Elite",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Ruby IO",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Sapphire",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Topaz",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.brilliantbylangham.com/en/member-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "latam latam pass",
+      "name": "latam latam pass",
+      "category": "AIRLINE",
+      "aliases": [
+        "LATAM LATAM Pass",
+        "latam latam pass"
+      ],
+      "tiers": [
+        {
+          "name": "Black",
+          "aliases": [
+            "黑卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Black Signature",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Gold Plus",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "lot polish airlines miles more",
+      "name": "LOT Polish Airlines Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "LOT Polish Airlines",
+        "LOT Polish Airlines Miles & More",
+        "lot polish airlines miles more",
+        "波兰航空"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "lotusmiles",
+      "name": "Lotusmiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Lotusmiles",
+        "Lotusmiles (Vietnam Airlines)",
+        "Vietnam Airlines",
+        "Vietnam Airlines Lotusmiles",
+        "越南航空",
+        "越航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "Vietnam Airlines Lotusmiles GOLD",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Million Miler",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Vietnam Airlines Lotusmiles PLATINUM",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Registered",
+          "aliases": [
+            "Registration"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "Vietnam Airlines Lotusmiles TITANIUM",
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://enews.vietnamairlines.com/2025/11/nang-hang-mm-en/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "lufthansa miles more",
+      "name": "Lufthansa Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "Lufthansa",
+        "Lufthansa Miles & More",
+        "Miles & More",
+        "Miles and More",
+        "lufthansa miles more",
+        "德国汉莎航空",
+        "汉莎",
+        "汉莎航空"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "常旅客",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [
+            "HON",
+            "HON Circle Member"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "汉莎金卡",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.miles-and-more.com/de/en/program/status-benefits/senator-status.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "malaysia airlines enrich",
+      "name": "Malaysia Airlines Enrich",
+      "category": "AIRLINE",
+      "aliases": [
+        "Enrich",
+        "Malaysia Airlines",
+        "Malaysia Airlines Enrich",
+        "马来西亚航空",
+        "马航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "Enrich Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Enrich Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "Enrich Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/malaysia-airlines",
+        "https://enrich.malaysiaairlines.com/EnrichUpdates2026"
+      ],
+      "note": ""
+    },
+    {
+      "key": "marriott bonvoy",
+      "name": "Marriott Bonvoy",
+      "category": "HOTEL",
+      "aliases": [
+        "JW Marriott",
+        "Marriott",
+        "Marriott Bonvoy",
+        "Marriott Hotels",
+        "Ritz-Carlton",
+        "Sheraton",
+        "Westin",
+        "marriott bonvoy",
+        "万豪",
+        "万豪旅享家",
+        "丽思卡尔顿",
+        "喜来登",
+        "威斯汀"
+      ],
+      "tiers": [
+        {
+          "name": "Ambassador Elite",
+          "aliases": [
+            "Ambassador",
+            "大使"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold Elite",
+          "aliases": [
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Elite",
+          "aliases": [
+            "Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver Elite",
+          "aliases": [
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium Elite",
+          "aliases": [
+            "Titanium",
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://help.marriott.com/s/article/marriott-bonvoy-elite-status-tiers"
+      ],
+      "note": ""
+    },
+    {
+      "key": "melia hotels melia rewards",
+      "name": "Melia Hotels Melia Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Mealia Hotels International Mealia Rewards",
+        "Melia",
+        "Melia Hotels Melia Rewards",
+        "Melia Rewards",
+        "Meliá",
+        "mealia hotels international mealia rewards",
+        "melia hotels melia rewards",
+        "美利亚"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "White",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.meliaria.com/en/melia-rewards/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "middle east airlines cedar miles",
+      "name": "Middle East Airlines Cedar Miles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Cedar Miles",
+        "CedarMiles",
+        "MEA",
+        "Middle East Airlines",
+        "Middle East Airlines Cedar Miles",
+        "middle east airlines cedar miles",
+        "中东航空"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [
+            "Cedar Blue"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "Cedar Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "Cedar Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PRESIDENTS CLUB",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "Cedar Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.sixt.com/partners/sc_mea/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "nh hotels nh rewards",
+      "name": "nh hotels nh rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "NH Hotels NH Rewards",
+        "nh hotels nh rewards"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "oman air sindbad",
+      "name": "Oman Air Sindbad",
+      "category": "AIRLINE",
+      "aliases": [
+        "Oman Air",
+        "Oman Air Sindbad",
+        "Sindbad",
+        "oman air sindbad",
+        "阿曼",
+        "阿曼航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/oman-air",
+        "https://sindbad.omanair.com/earn-miles-with-omanair"
+      ],
+      "note": ""
+    },
+    {
+      "key": "omni hotels select guest",
+      "name": "Omni Hotels Select Guest",
+      "category": "HOTEL",
+      "aliases": [
+        "Omni",
+        "Omni Hotels",
+        "Omni Hotels & Resorts Select Guest",
+        "Omni Hotels Select Guest",
+        "Select Guest",
+        "omni hotels resorts select guest"
+      ],
+      "tiers": [
+        {
+          "name": "Black",
+          "aliases": [
+            "黑卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Champion",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Icon",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Insider",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "https://www.omnihotels.com/loyalty/terms-and-conditions"
+      ],
+      "note": ""
+    },
+    {
+      "key": "philippine airlines mabuhay miles",
+      "name": "philippine airlines mabuhay miles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Philippine Airlines Mabuhay Miles",
+        "philippine airlines mabuhay miles"
+      ],
+      "tiers": [
+        {
+          "name": "ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "MILLION MILER",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PREMIER ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "preferred hotels resorts i prefer",
+      "name": "Preferred Hotels & Resorts I Prefer",
+      "category": "HOTEL",
+      "aliases": [
+        "I Prefer",
+        "Preferred Hotel Group Prefer Hotel Rewards",
+        "Preferred Hotels",
+        "Preferred Hotels & Resorts I Prefer",
+        "Preferred Hotels and Resorts",
+        "preferred hotel group prefer hotel rewards",
+        "璞富腾"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Titanium",
+          "aliases": [
+            "钛金",
+            "钛金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://iprefer.com/membership"
+      ],
+      "note": ""
+    },
+    {
+      "key": "qantas frequent flyer",
+      "name": "Qantas Frequent Flyer",
+      "category": "AIRLINE",
+      "aliases": [
+        "Qantas",
+        "Qantas Frequent Flyer",
+        "qantas frequent flyer",
+        "澳洲航空",
+        "澳航"
+      ],
+      "tiers": [
+        {
+          "name": "CHAIRMANS LOUNGE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum One",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Bronze",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/qantas",
+        "https://www.qantas.com/en-nz/frequent-flyer/status-tiers/compare"
+      ],
+      "note": ""
+    },
+    {
+      "key": "qatar airways privilege club",
+      "name": "Qatar Airways Privilege Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Privilege Club",
+        "Qatar Airways",
+        "Qatar Airways Privilege Club",
+        "qatar airways privilege club",
+        "卡塔尔航空",
+        "卡航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Burgundy",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/qatar-airways",
+        "https://www.qatarairways.com/en-na/Privilege-Club/membership-tiers.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "radisson hotel group radisson rewards",
+      "name": "Radisson Hotel Group Radisson Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Radisson",
+        "Radisson Hotel Group Radisson Rewards",
+        "Radisson Rewards",
+        "radisson hotel group radisson rewards",
+        "丽笙",
+        "丽笙礼赏"
+      ],
+      "tiers": [
+        {
+          "name": "Club",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Premium",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "VIP",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.radissonhotels.com/en-us/rewards/benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "royal air maroc safar flyer",
+      "name": "Royal Air Maroc Safar Flyer",
+      "category": "AIRLINE",
+      "aliases": [
+        "Royal Air Maroc",
+        "Royal Air Maroc Safar Flyer",
+        "Safar Flyer",
+        "royal air maroc safar flyer",
+        "摩洛哥皇家航空"
+      ],
+      "tiers": [
+        {
+          "name": "Ambassador",
+          "aliases": [
+            "大使"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/royal-air-maroc"
+      ],
+      "note": ""
+    },
+    {
+      "key": "royal brunei royal skies",
+      "name": "royal brunei royal skies",
+      "category": "AIRLINE",
+      "aliases": [
+        "Royal Brunei Royal Skies",
+        "royal brunei royal skies"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "royal jordanian royal club",
+      "name": "Royal Jordanian Royal Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Royal Club",
+        "Royal Jordanian",
+        "Royal Jordanian Royal Club",
+        "皇家约旦航空",
+        "约旦皇家航空",
+        "约航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold Sparrow",
+          "aliases": [
+            "Gold",
+            "Royal Jordanian Royal Club Gold Sparrow",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum Hawk",
+          "aliases": [
+            "Platinum",
+            "Royal Jordanian Royal Club Platinum Hawk",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver Jay",
+          "aliases": [
+            "Royal Jordanian Royal Club Silver Jay",
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/royal-jordanian"
+      ],
+      "note": ""
+    },
+    {
+      "key": "s7 airlines priority",
+      "name": "s7 airlines priority",
+      "category": "AIRLINE",
+      "aliases": [
+        "S7 Airlines Priority",
+        "s7 airlines priority"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "sarova hotels and resorts kenya sarova zawadi rewards",
+      "name": "sarova hotels and resorts kenya sarova zawadi rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Sarova Hotels and Resorts Kenya Sarova Zawadi Rewards",
+        "sarova hotels and resorts kenya sarova zawadi rewards"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Emerald",
+          "aliases": [
+            "翡翠"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "sas eurobonus",
+      "name": "SAS EuroBonus",
+      "category": "AIRLINE",
+      "aliases": [
+        "EuroBonus",
+        "SAS",
+        "SAS EuroBonus",
+        "Scandinavian Airlines",
+        "sas eurobonus",
+        "北欧",
+        "北欧航空"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [
+            "Basic"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PANDION",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.flysas.com/en/eurobonus/membership-levels/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "saudia alfursan",
+      "name": "Saudia Alfursan",
+      "category": "AIRLINE",
+      "aliases": [
+        "Alfursan",
+        "Saudia",
+        "Saudia Alfursan",
+        "saudia alfursan",
+        "沙特航空",
+        "沙特阿拉伯航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Green",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://prod.dcloud.saudia.com/pages/help/faqs/alfursan-faq"
+      ],
+      "note": ""
+    },
+    {
+      "key": "scandic hotels friends",
+      "name": "scandic hotels friends",
+      "category": "HOTEL",
+      "aliases": [
+        "Scandic Hotels Friends",
+        "scandic hotels friends"
+      ],
+      "tiers": [
+        {
+          "name": "LEVEL 1",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "LEVEL 2",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "LEVEL 3",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "RED",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "TOP",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "serena hotels serena prestige club global",
+      "name": "serena hotels serena prestige club global",
+      "category": "HOTEL",
+      "aliases": [
+        "Serena Hotels Serena Prestige Club Global",
+        "serena hotels serena prestige club global"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "shangri la circle",
+      "name": "Shangri-La Circle",
+      "category": "HOTEL",
+      "aliases": [
+        "Golden Circle",
+        "Shangri La Hotels and Resorts Golden Circle",
+        "Shangri-La",
+        "Shangri-La Circle",
+        "Shangri-La Hotels and Resorts Golden Circle",
+        "shangri la hotels and resorts golden circle",
+        "香格里拉",
+        "香格里拉会"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Jade",
+          "aliases": [
+            "翡翠"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Polaris",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.shangri-la.com/corporate/shangrilacircle/membership-benefits/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "shenzhen airlines phoenixmiles",
+      "name": "Shenzhen Airlines PhoenixMiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Shenzhen Airlines",
+        "Shenzhen Airlines PhoenixMiles",
+        "shenzhen airlines phoenixmiles",
+        "深圳航空",
+        "深航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shares PhoenixMiles; carrier-qualified activity scope retained."
+    },
+    {
+      "key": "shilo inns star rewards",
+      "name": "shilo inns star rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Shilo Inns Star Rewards",
+        "shilo inns star rewards"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "singapore airlines krisflyer",
+      "name": "Singapore Airlines KrisFlyer",
+      "category": "AIRLINE",
+      "aliases": [
+        "KrisFlyer",
+        "Singapore Airlines",
+        "Singapore Airlines KrisFlyer",
+        "singapore airlines krisflyer",
+        "新加坡航空",
+        "新加坡航空 KrisFlyer",
+        "新航"
+      ],
+      "tiers": [
+        {
+          "name": "Elite Gold",
+          "aliases": [
+            "GOLD",
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Elite Silver",
+          "aliases": [
+            "SILVER",
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "KrisFlyer",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PPS Club",
+          "aliases": [
+            "PPS"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Solitaire PPS Club",
+          "aliases": [
+            "PPS SOLITAIRE",
+            "PPS Solitaire"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.singaporeair.com/en_UK/us/ppsclub-krisflyer/termsconditions-kf/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "sonesta travel pass",
+      "name": "Sonesta Travel Pass",
+      "category": "HOTEL",
+      "aliases": [
+        "Sonesta",
+        "Sonesta Hotels",
+        "Sonesta Travel Pass",
+        "sonesta travel pass"
+      ],
+      "tiers": [
+        {
+          "name": "Bronze",
+          "aliases": [
+            "铜",
+            "铜卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "PREFERRED",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.sonesta.com/travel-pass/terms-conditions"
+      ],
+      "note": ""
+    },
+    {
+      "key": "south african airways saa voyager",
+      "name": "South African Airways SAA Voyager",
+      "category": "AIRLINE",
+      "aliases": [
+        "SAA Voyager",
+        "South African Airways",
+        "South African Airways SAA Voyager",
+        "Voyager",
+        "south african airways saa voyager",
+        "南非航空"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Lifetime Platinum",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://voyager.flysaa.com/tier-status-and-benefits"
+      ],
+      "note": ""
+    },
+    {
+      "key": "southwest rapid rewards",
+      "name": "southwest rapid rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "Southwest Rapid Rewards",
+        "southwest rapid rewards"
+      ],
+      "tiers": [
+        {
+          "name": "A-List",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "A-List Preferred",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Companion Pass",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "srilankan airlines flysmiles",
+      "name": "SriLankan Airlines FlySmiLes",
+      "category": "AIRLINE",
+      "aliases": [
+        "FlySmiLes",
+        "SriLankan Airlines",
+        "SriLankan Airlines FlySmiLes",
+        "srilankan airlines flysmiles",
+        "斯航",
+        "斯里兰卡航空"
+      ],
+      "tiers": [
+        {
+          "name": "Classic",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.oneworld.com/members/srilankan-airlines"
+      ],
+      "note": ""
+    },
+    {
+      "key": "swiss miles more",
+      "name": "SWISS Miles & More",
+      "category": "AIRLINE",
+      "aliases": [
+        "SWISS",
+        "SWISS International Air Lines",
+        "SWISS Miles & More",
+        "swiss miles more",
+        "瑞士国际航空",
+        "瑞航"
+      ],
+      "tiers": [
+        {
+          "name": "Frequent Traveller",
+          "aliases": [
+            "FTL",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "HON Circle",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Senator",
+          "aliases": [
+            "SEN",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://portal.staralliance.com/cms/products/benefits/our-FFPs"
+      ],
+      "note": "Shared Miles & More programme; carrier-qualified activity scope retained. Volare labels are not Senator aliases."
+    },
+    {
+      "key": "taj hotels innercircle",
+      "name": "taj hotels innercircle",
+      "category": "HOTEL",
+      "aliases": [
+        "Taj Hotels InnerCircle",
+        "taj hotels innercircle"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "tap air portugal miles go",
+      "name": "TAP Air Portugal Miles&Go",
+      "category": "AIRLINE",
+      "aliases": [
+        "Miles&Go",
+        "TAP Air Portugal",
+        "TAP Air Portugal Miles&Go",
+        "TAP Miles&Go",
+        "tap air portugal miles go",
+        "葡航",
+        "葡萄牙航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Navigator",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "TAP Miles&Go",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://points-storefront.flytap.com/pt-ve/miles-and-go/estatutos"
+      ],
+      "note": ""
+    },
+    {
+      "key": "thai airways royal orchid plus",
+      "name": "Thai Airways Royal Orchid Plus",
+      "category": "AIRLINE",
+      "aliases": [
+        "Royal Orchid Plus",
+        "Thai Airways",
+        "Thai Airways International",
+        "Thai Airways Royal Orchid Plus",
+        "thai airways royal orchid plus",
+        "泰国航空",
+        "泰航"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Member",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.thaiairways.com/app/rop/wallet/index-TH.html"
+      ],
+      "note": ""
+    },
+    {
+      "key": "the leading hotels of the world leaders club",
+      "name": "the leading hotels of the world leaders club",
+      "category": "HOTEL",
+      "aliases": [
+        "The Leading Hotels of The World Leaders Club",
+        "the leading hotels of the world leaders club"
+      ],
+      "tiers": [
+        {
+          "name": "CLUB",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "STERLING",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "turkish airlines miles smiles",
+      "name": "Turkish Airlines Miles&Smiles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Miles&Smiles",
+        "Turkish Airlines",
+        "Turkish Airlines Miles&Smiles",
+        "turkish airlines miles smiles",
+        "土耳其航空",
+        "土航"
+      ],
+      "tiers": [
+        {
+          "name": "Classic",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Classic Plus",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Elite",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Elite Plus",
+          "aliases": [],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.turkishairlines.com/en-mx/miles-and-smiles/miles-features/benefits-and-privileges/"
+      ],
+      "note": ""
+    },
+    {
+      "key": "ukraine international airlines panorama club",
+      "name": "ukraine international airlines panorama club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Ukraine International Airlines Panorama Club",
+        "ukraine international airlines panorama club"
+      ],
+      "tiers": [
+        {
+          "name": "ELITE",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PREMIUM",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "united airlines mileageplus",
+      "name": "United Airlines MileagePlus",
+      "category": "AIRLINE",
+      "aliases": [
+        "MileagePlus",
+        "United",
+        "United Airlines",
+        "United Airlines MileagePlus",
+        "united airlines mileageplus",
+        "美国联合航空",
+        "美联航"
+      ],
+      "tiers": [
+        {
+          "name": "Global Services",
+          "aliases": [
+            "GS"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Premier 1K",
+          "aliases": [
+            "1K"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Premier Gold",
+          "aliases": [
+            "Gold",
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Premier Platinum",
+          "aliases": [
+            "Platinum",
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Premier Silver",
+          "aliases": [
+            "Silver",
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://mileageplustravel.united.com/explore/why-mileageplustravel"
+      ],
+      "note": ""
+    },
+    {
+      "key": "virgin atlantic flying club",
+      "name": "Virgin Atlantic Flying Club",
+      "category": "AIRLINE",
+      "aliases": [
+        "Flying Club",
+        "Virgin Atlantic",
+        "Virgin Atlantic Flying Club",
+        "virgin atlantic flying club",
+        "维珍大西洋航空",
+        "维珍航空"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Red",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.virginatlantic.com/en-US/flying-club/membership-tiers"
+      ],
+      "note": ""
+    },
+    {
+      "key": "virgin australia velocity",
+      "name": "virgin australia velocity",
+      "category": "AIRLINE",
+      "aliases": [
+        "Virgin Australia Velocity",
+        "virgin australia velocity"
+      ],
+      "tiers": [
+        {
+          "name": "BEYOND",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "visa credit cards mastercard credit cards american express travel credit charge cards",
+      "name": "visa credit cards mastercard credit cards american express travel credit charge cards",
+      "category": "OTHER",
+      "aliases": [
+        "Visa Credit Cards Mastercard Credit Cards American Express Travel/Credit/Charge Cards",
+        "visa credit cards mastercard credit cards american express travel credit charge cards"
+      ],
+      "tiers": [
+        {
+          "name": "AMEX: Platinum/Charge",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "MASTERCARD: World, World Elite",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "VISA: Infinite, Signature, Rewards, Platinum",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "vistara club vistara",
+      "name": "vistara club vistara",
+      "category": "AIRLINE",
+      "aliases": [
+        "Vistara Club Vistara",
+        "vistara club vistara"
+      ],
+      "tiers": [
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "SILVER",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "warwick hotels and resorts journeys",
+      "name": "warwick hotels and resorts journeys",
+      "category": "HOTEL",
+      "aliases": [
+        "Warwick Hotels and Resorts Journeys",
+        "warwick hotels and resorts journeys"
+      ],
+      "tiers": [
+        {
+          "name": "BLACK",
+          "aliases": [
+            "黑卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PURPLE",
+          "aliases": [],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "westjet westjet rewards",
+      "name": "westjet westjet rewards",
+      "category": "AIRLINE",
+      "aliases": [
+        "WestJet Westjet Rewards",
+        "westjet westjet rewards"
+      ],
+      "tiers": [
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "world hotels world hotels rewards",
+      "name": "world hotels world hotels rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "World Hotels World Hotels Rewards",
+        "world hotels world hotels rewards"
+      ],
+      "tiers": [
+        {
+          "name": "DIAMOND",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "DIAMOND SELECT",
+          "aliases": [],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "GOLD",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OBSERVED"
+        },
+        {
+          "name": "PLATINUM",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "existing_database:2026-09-13"
+      ],
+      "note": ""
+    },
+    {
+      "key": "wyndham hotels and resorts wyndham rewards",
+      "name": "Wyndham Hotels and Resorts Wyndham Rewards",
+      "category": "HOTEL",
+      "aliases": [
+        "Wyndham",
+        "Wyndham Hotels and Resorts Wyndham Rewards",
+        "Wyndham Rewards",
+        "wyndham hotels and resorts wyndham rewards",
+        "温德姆",
+        "温德姆奖赏计划"
+      ],
+      "tiers": [
+        {
+          "name": "Blue",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.wyndhamhotels.com/wyndham-rewards/faqs/member-levels"
+      ],
+      "note": ""
+    },
+    {
+      "key": "xiamen air egret miles",
+      "name": "Xiamen Air Egret Miles",
+      "category": "AIRLINE",
+      "aliases": [
+        "Egret Miles",
+        "Xiamen Air",
+        "Xiamen Air Egret Miles",
+        "Xiamen Airlines",
+        "XiamenAir",
+        "xiamen air egret miles",
+        "厦航",
+        "厦门航空",
+        "白鹭会员"
+      ],
+      "tiers": [
+        {
+          "name": "Diamond",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Gold",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Platinum",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "Silver",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://ffp.xiamenair.com/en-US/upload/files/2019/vip-book_en.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "key": "亚朵 a card",
+      "name": "亚朵 A-Card",
+      "category": "HOTEL",
+      "aliases": [
+        "A-Card",
+        "Atour",
+        "亚朵",
+        "亚朵 A-Card"
+      ],
+      "tiers": [
+        {
+          "name": "金会员",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "铂金会员",
+          "aliases": [
+            "铂金",
+            "铂金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "黑金会员",
+          "aliases": [
+            "黑金",
+            "黑金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "注册会员",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "银会员",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OBSERVED"
+        }
+      ],
+      "sources": [
+        "https://wechat.yaduo.com/atour/center/agreement",
+        "https://wechat.yaduo.com/atour/static/privacy",
+        "https://mwm.ai/pt/apps/app/1113883381"
+      ],
+      "note": "Silver name observed in published app screenshots; exact current tier rules have not been independently verified. No English-tier equivalence is assumed."
+    },
+    {
+      "key": "华住会",
+      "name": "华住会",
+      "category": "HOTEL",
+      "aliases": [
+        "Huazhu",
+        "全季",
+        "华住",
+        "华住会",
+        "桔子酒店",
+        "汉庭"
+      ],
+      "tiers": [
+        {
+          "name": "星会员",
+          "aliases": [
+            "星"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "金会员",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "铂金会员",
+          "aliases": [
+            "铂金",
+            "铂金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "银会员",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://m.huazhu.com/help/membership"
+      ],
+      "note": ""
+    },
+    {
+      "key": "锦江荟",
+      "name": "锦江荟",
+      "category": "HOTEL",
+      "aliases": [
+        "Jin Jiang",
+        "WeHotel",
+        "锦江",
+        "锦江荟"
+      ],
+      "tiers": [
+        {
+          "name": "普卡",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "白金会员",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "金卡",
+          "aliases": [
+            "金",
+            "金会员"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "银卡",
+          "aliases": [
+            "银",
+            "银会员"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://jinjianghotels.com.cn/cn/col45/209",
+        "https://h5.bestwehotel.com/view/91279e60C2"
+      ],
+      "note": ""
+    },
+    {
+      "key": "首旅如家 如life会员",
+      "name": "首旅如家 如LIFE会员",
+      "category": "HOTEL",
+      "aliases": [
+        "BTG Homeinns",
+        "如LIFE",
+        "如家",
+        "首旅",
+        "首旅如家",
+        "首旅如家 如LIFE会员"
+      ],
+      "tiers": [
+        {
+          "name": "如会员",
+          "aliases": [],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "白金会员",
+          "aliases": [
+            "白金",
+            "白金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "金会员",
+          "aliases": [
+            "金",
+            "金卡"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "钻石会员",
+          "aliases": [
+            "钻卡",
+            "钻石"
+          ],
+          "state": "OFFICIAL"
+        },
+        {
+          "name": "银会员",
+          "aliases": [
+            "银",
+            "银卡"
+          ],
+          "state": "OFFICIAL"
+        }
+      ],
+      "sources": [
+        "https://www.bthhotels.com/Member/BasicRights"
+      ],
+      "note": ""
+    }
+  ]
+}

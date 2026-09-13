@@ -1,0 +1,855 @@
+{
+  "ANA Mileage Club": [
+    "BRONZE",
+    "Bronze",
+    "DIAMOND",
+    "Diamond",
+    "PLATINUM",
+    "Platinum",
+    "SUPER FLYERS",
+    "Super Flyers"
+  ],
+  "Accor ALL": [
+    "ACCOR PLUS",
+    "Accor Plus",
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Aegean Airlines Miles+Bonus": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Aer Lingus AerClub": [
+    "Concierge",
+    "Platinum",
+    "Silver"
+  ],
+  "Aeroflot Aeroflot Bonus": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "Air Astana Nomad Club": [
+    "Nomad Club DIAMOND",
+    "Nomad Club GOLD",
+    "Nomad Club SILVER"
+  ],
+  "Air Canada Aeroplan": [
+    "Aeroplan 25K",
+    "ELITE 25K",
+    "ELITE 35K",
+    "ELITE 50K",
+    "ELITE 75K",
+    "Elite 25K",
+    "Elite 35K",
+    "Elite 50K",
+    "Elite 75K",
+    "SUPER ELITE 100K",
+    "Super Elite 100K"
+  ],
+  "Air China PhoenixMiles": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Air Europa SUMA": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Air France Flying Blue": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver",
+    "ULTIMATE",
+    "Ultimate"
+  ],
+  "Air India Maharaja Club": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Air New Zealand Koru": [
+    "BLACK",
+    "Black",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Alaska Airlines ATMOS Rewards": [
+    "Gold",
+    "Platinum",
+    "Silver",
+    "Titanium"
+  ],
+  "All major airlines": [
+    "All membership levels"
+  ],
+  "All major hotels": [
+    "All membership levels"
+  ],
+  "American Airlines AAdvantage": [
+    "CONCIERGE KEY",
+    "Concierge Key",
+    "EXECUTIVE PLATINUM",
+    "Executive Platinum",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "PLATINUM PRO",
+    "Platinum",
+    "Platinum Pro"
+  ],
+  "Asante Rewards": [
+    "Asante Rewards Gold Elite Plus",
+    "Asante Rewards Platinum Elite Plus",
+    "Asante Rewards Silver Elite"
+  ],
+  "Asiana Airlines Asiana Club": [
+    "Diamond",
+    "Diamond Plus",
+    "Gold",
+    "Platinum"
+  ],
+  "Australia, Singapore, Japan, Korea, Singapore and Malaysia": [
+    "AMEX: Platinum Credit & Charge Cards",
+    "MASTERCARD: World, World Elite",
+    "VISA: Infinite, Signature, Rewards, Platinum"
+  ],
+  "Austrian Airlines Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Avianca LifeMiles": [
+    "Diamond",
+    "Gold",
+    "Silver"
+  ],
+  "Best Western Rewards": [
+    "DIAMOND",
+    "DIAMOND SELECT",
+    "Diamond",
+    "Diamond Select",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum"
+  ],
+  "British Airways Club": [
+    "BRONZE",
+    "Bronze",
+    "GOLD",
+    "GOLD GUEST LIST",
+    "Gold",
+    "Gold Guest List",
+    "PREMIER",
+    "Premier",
+    "SILVER",
+    "Silver"
+  ],
+  "Brussels Airlines Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Cathay Pacific Cathay": [
+    "DIAMOND",
+    "DIAMOND PLUS",
+    "Diamond",
+    "Diamond Plus",
+    "GOLD",
+    "Gold",
+    "INVITATION",
+    "Invitation",
+    "SILVER",
+    "Silver"
+  ],
+  "Centara Hotels & Resorts CentaraThe1": [
+    "GOLD",
+    "PLATINUM ELITE",
+    "SILVER"
+  ],
+  "China Airlines Dynasty Flyer": [
+    "EMERALD",
+    "GOLD",
+    "PARAGON"
+  ],
+  "China Southern Sky Pearl Club": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Choice Hotels International Choice Privileges": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum"
+  ],
+  "Club Avolta": [
+    "Club Avolta Gold status"
+  ],
+  "Copa Airlines ConnectMiles": [
+    "Gold",
+    "Platinum",
+    "Presidential Platinum",
+    "Silver"
+  ],
+  "Croatia Airlines Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Czech Airlines OK Plus": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "Delta Air Lines SkyMiles": [
+    "DELTA 360",
+    "DIAMOND MEDALLION",
+    "GOLD MEDALLION",
+    "PLATINUM MEDALLION",
+    "SILVER MEDALLION"
+  ],
+  "Dusit International Dusit Gold": [
+    "ELITE",
+    "EXECUTIVE"
+  ],
+  "EVA Air Infinity MileageLands": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "EasyJet EasyJet Plus": [
+    "EASYJET FLIGHT CLUB",
+    "EASYJET PLUS MEMBERSHIP"
+  ],
+  "Egyptair Plus": [
+    "ELITE",
+    "Elite",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "El Al Matmid": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver",
+    "TOP PLATINUM",
+    "Top Platinum"
+  ],
+  "Emirates Skywards": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Ethiopian Airlines ShebaMiles": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Etihad Guest": [
+    "EMERALD",
+    "Emerald",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Finnair Plus": [
+    "Gold",
+    "Platinum",
+    "Platinum Lumo",
+    "Silver"
+  ],
+  "Flying Blue": [
+    "Flying Blue GOLD",
+    "Flying Blue PLATINUM",
+    "Flying Blue SILVER",
+    "Flying Blue ULTIMATE"
+  ],
+  "Frasers Frasers World": [
+    "DIAMOND",
+    "SAPPHIRE"
+  ],
+  "GHA Discovery": [
+    "Gold",
+    "Platinum",
+    "Titanium"
+  ],
+  "Garuda Indonesia Garuda Miles": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "Garuda Indonesia GarudaMiles": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Gulf Air Falconflyer": [
+    "BLACK",
+    "Black",
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "Hainan Airlines Fortune Wings Club": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Hawaiian Airlines ATMOS Rewards": [
+    "Gold",
+    "Platinum",
+    "Silver",
+    "Titanium"
+  ],
+  "Hilton Hilton Honors": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "Hong Kong Airlines Fortune Wings Club": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Hyatt World of Hyatt": [
+    "DISCOVERIST",
+    "Discoverist",
+    "EXPLORIST",
+    "Explorist",
+    "GLOBALIST",
+    "Globalist"
+  ],
+  "IHG IHG One Rewards": [
+    "DIAMOND ELITE",
+    "Diamond Elite",
+    "GOLD ELITE",
+    "Gold Elite",
+    "PLATINUM ELITE",
+    "Platinum Elite",
+    "ROYAL AMBASSADOR",
+    "Royal Ambassador",
+    "SILVER ELITE",
+    "Silver Elite"
+  ],
+  "ITA Airways Miles&More": [
+    "Executive",
+    "Executive per sempre",
+    "Plus",
+    "Premium"
+  ],
+  "Iberia Club": [
+    "INFINITA",
+    "INFINITA PRIME",
+    "Infinita",
+    "Infinita Prime",
+    "ORO",
+    "Oro",
+    "PLATA",
+    "PLATINO",
+    "Plata",
+    "Platino"
+  ],
+  "Icelandair Saga Club": [
+    "Gold",
+    "Silver"
+  ],
+  "Japan Airlines Mileage Bank": [
+    "CRYSTAL",
+    "Crystal",
+    "GLOBAL CLUB / GLOBAL CLUB CRYSTAL",
+    "GLOBAL CLUB DIAMOND",
+    "GLOBAL CLUB PREMIER",
+    "GLOBAL CLUB SAPPHIRE",
+    "Global Club / Global Club Crystal",
+    "Global Club Diamond",
+    "Global Club Premier",
+    "Global Club Sapphire"
+  ],
+  "JetBlue TrueBlue Rewards": [
+    "Mosaic 1",
+    "Mosaic 2",
+    "Mosaic 3",
+    "Mosaic 4"
+  ],
+  "KLM Flying Blue": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver",
+    "ULTIMATE",
+    "Ultimate"
+  ],
+  "Kenya Airways Asante Rewards": [
+    "GOLD ELITE PLUS",
+    "PLATINUM ELITE PLUS",
+    "SILVER ELITE"
+  ],
+  "Korean Air SKYPASS": [
+    "MILLION MILER CLUB",
+    "MORNING CALM CLUB",
+    "MORNING CALM PREMIUM CLUB"
+  ],
+  "Kuwait Airways Oasis Club": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "LATAM LATAM Pass": [
+    "Black",
+    "Black Signature",
+    "Gold",
+    "Gold Plus",
+    "Platinum"
+  ],
+  "LOT Polish Airlines Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Langham Hotels Brilliant": [
+    "DIAMOND",
+    "Diamond",
+    "RUBY",
+    "Ruby",
+    "SAPPHIRE",
+    "Sapphire",
+    "TOPAZ",
+    "Topaz"
+  ],
+  "Lotusmiles": [
+    "Vietnam Airlines Lotusmiles GOLD",
+    "Vietnam Airlines Lotusmiles PLATINUM",
+    "Vietnam Airlines Lotusmiles TITANIUM"
+  ],
+  "Lufthansa Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Malaysia Airlines Enrich": [
+    "Enrich Gold",
+    "Enrich Platinum",
+    "Enrich Silver",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Marriott Bonvoy": [
+    "AMBASSADOR ELITE",
+    "Ambassador Elite",
+    "GOLD ELITE",
+    "Gold Elite",
+    "PLATINUM ELITE",
+    "Platinum Elite",
+    "SILVER ELITE",
+    "Silver Elite",
+    "TITANIUM ELITE",
+    "Titanium Elite"
+  ],
+  "Mealia Hotels International Mealia Rewards": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Melia Hotels Melia Rewards": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Middle East Airlines Cedar Miles": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "PRESIDENTS CLUB",
+    "Platinum",
+    "Presidents Club",
+    "SILVER",
+    "Silver"
+  ],
+  "NH Hotels NH Rewards": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Oman Air Sindbad": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Omni Hotels & Resorts Select Guest": [
+    "Black",
+    "Platinum"
+  ],
+  "Philippine Airlines Mabuhay Miles": [
+    "ELITE",
+    "Elite",
+    "MILLION MILER",
+    "Million Miler",
+    "PREMIER ELITE",
+    "Premier Elite"
+  ],
+  "Preferred Hotel Group Prefer Hotel Rewards": [
+    "Gold",
+    "Silver",
+    "Titanium"
+  ],
+  "Qantas Frequent Flyer": [
+    "CHAIRMANS LOUNGE",
+    "Chairmans Lounge",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "PLATINUM ONE",
+    "Platinum",
+    "Platinum One",
+    "SILVER",
+    "Silver"
+  ],
+  "Qatar Airways Privilege Club": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Radisson Hotel Group Radisson Rewards": [
+    "CLUB",
+    "Club",
+    "PREMIUM",
+    "Premium",
+    "VIP"
+  ],
+  "Royal Air Maroc Safar Flyer": [
+    "AMBASSADOR",
+    "Ambassador",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Royal Brunei Royal Skies": [
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "Royal Jordanian Royal Club": [
+    "GOLD SPARROW",
+    "Gold SPARROW",
+    "PLATINUM HAWK",
+    "Platinum HAWK",
+    "Royal Jordanian Royal Club Gold Sparrow",
+    "Royal Jordanian Royal Club Platinum Hawk",
+    "Royal Jordanian Royal Club Silver Jay",
+    "SILVER JAY",
+    "Silver JAY"
+  ],
+  "S7 Airlines Priority": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "SAS EuroBonus": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "PANDION",
+    "Pandion",
+    "SILVER",
+    "Silver"
+  ],
+  "SWISS Miles & More": [
+    "FREQUENT TRAVELLER",
+    "Frequent Traveller",
+    "HON CIRCLE",
+    "HON Circle",
+    "SENATOR",
+    "Senator"
+  ],
+  "Sarova Hotels and Resorts Kenya Sarova Zawadi Rewards": [
+    "Diamond",
+    "Emerald"
+  ],
+  "Saudia Alfursan": [
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "Scandic Hotels Friends": [
+    "LEVEL 1",
+    "LEVEL 2",
+    "LEVEL 3",
+    "RED",
+    "TOP"
+  ],
+  "Serena Hotels Serena Prestige Club Global": [
+    "Gold",
+    "Platinum"
+  ],
+  "Shangri-La Hotels and Resorts Golden Circle": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "JADE",
+    "Jade"
+  ],
+  "Shenzhen Airlines PhoenixMiles": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Shilo Inns Star Rewards": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "Singapore Airlines KrisFlyer": [
+    "GOLD",
+    "Gold",
+    "PPS",
+    "PPS SOLITAIRE",
+    "PPS Solitaire",
+    "SILVER",
+    "Silver"
+  ],
+  "Sonesta Travel Pass": [
+    "ELITE",
+    "Elite",
+    "PREFERRED",
+    "Preferred"
+  ],
+  "South African Airways SAA Voyager": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "Southwest Rapid Rewards": [
+    "A-List",
+    "A-List Preferred",
+    "Companion Pass"
+  ],
+  "SriLankan Airlines FlySmiLes": [
+    "Classic",
+    "Gold",
+    "Platinum"
+  ],
+  "TAP Air Portugal Miles&Go": [
+    "GOLD",
+    "Gold",
+    "NAVIGATOR",
+    "Navigator",
+    "SILVER",
+    "Silver"
+  ],
+  "Taj Hotels InnerCircle": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Thai Airways Royal Orchid Plus": [
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "The Ascott Star Rewards": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "The Leading Hotels of The World Leaders Club": [
+    "CLUB",
+    "Club",
+    "STERLING",
+    "Sterling"
+  ],
+  "Turkish Airlines Miles&Smiles": [
+    "CLASSIC PLUS",
+    "Classic Plus",
+    "ELITE",
+    "ELITE PLUS",
+    "Elite",
+    "Elite Plus"
+  ],
+  "Ukraine International Airlines Panorama Club": [
+    "ELITE",
+    "PREMIUM"
+  ],
+  "United Airlines MileagePlus": [
+    "GLOBAL SERVICES",
+    "Global Services",
+    "PREMIER 1K",
+    "PREMIER GOLD",
+    "PREMIER PLATINUM",
+    "PREMIER SILVER",
+    "Premier 1K",
+    "Premier Gold",
+    "Premier Platinum",
+    "Premier Silver"
+  ],
+  "Vietnam Airlines Lotusmiles": [
+    "GOLD",
+    "PLATINUM",
+    "TITANIUM"
+  ],
+  "Virgin Atlantic Flying Club": [
+    "GOLD",
+    "Gold",
+    "SILVER",
+    "Silver"
+  ],
+  "Virgin Australia Velocity": [
+    "BEYOND",
+    "Beyond",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum",
+    "SILVER",
+    "Silver"
+  ],
+  "Visa Credit Cards Mastercard Credit Cards American Express Travel/Credit/Charge Cards": [
+    "AMEX: Platinum/Charge",
+    "MASTERCARD: World, World Elite",
+    "VISA: Infinite, Signature, Rewards, Platinum"
+  ],
+  "Vistara Club Vistara": [
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "Warwick Hotels and Resorts Journeys": [
+    "BLACK",
+    "GOLD",
+    "PURPLE"
+  ],
+  "WestJet Westjet Rewards": [
+    "Gold",
+    "Platinum",
+    "Silver"
+  ],
+  "World Hotels World Hotels Rewards": [
+    "DIAMOND",
+    "DIAMOND SELECT",
+    "Diamond",
+    "Diamond Select",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum"
+  ],
+  "Wyndham Hotels and Resorts Wyndham Rewards": [
+    "DIAMOND",
+    "Diamond",
+    "GOLD",
+    "Gold",
+    "PLATINUM",
+    "Platinum"
+  ],
+  "Xiamen Air Egret Miles": [
+    "DIAMOND",
+    "GOLD",
+    "PLATINUM",
+    "SILVER"
+  ],
+  "citizenM mycitizenm+": [
+    "MYCITIZENM+",
+    "Mycitizenm+"
+  ]
+}

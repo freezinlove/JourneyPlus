@@ -19,6 +19,12 @@ class IdentityService:
 
     def resolve(self, session, identity, *, require_tier=False, context=None):
         value = identity.model_dump(exclude_none=True) if hasattr(identity, 'model_dump') else dict(identity)
+        if value.get('program_name') and not value.get('ref'):
+            from journeyplus.membership.identity import canonical_program, canonical_tier
+            original = value['program_name']
+            value['program_name'] = canonical_program(original)
+            if value.get('tier_name'):
+                value['tier_name'] = canonical_tier(original, value['tier_name'])
         reference=value.get('ref','')
         if reference and reference.partition(':')[0] not in {'program','tier','artifact'}:
             return {'status':'NOT_FOUND','code':'INVALID_REFERENCE','resolution_state':'INVALID_REFERENCE',

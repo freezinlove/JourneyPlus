@@ -375,8 +375,9 @@ class StatusMatchProjectWorkflow:
             deterministic_mappings=deterministic_mappings,
             deterministic_routes=deterministic_routes,
         )
-        event.program = extraction.identity.program
-        event.target_status = extraction.identity.target_status
+        from journeyplus.membership.identity import canonical_program, canonical_tier
+        event.program = canonical_program(extraction.identity.program)
+        event.target_status = canonical_tier(event.program, extraction.identity.target_status)
         event.summary = extraction.identity.summary
         event.search_text = " ".join(
             value
@@ -399,6 +400,8 @@ class StatusMatchProjectWorkflow:
             deterministic_routes=deterministic_routes,
             evidence=evidence,
         )
+        from journeyplus.membership.identity import normalize_facts
+        fact_set = normalize_facts(fact_set, event.program)
         run.result = {
             "extraction": extraction.model_dump(mode="json"),
             "resolved_fact_set": fact_set.model_dump(mode="json"),

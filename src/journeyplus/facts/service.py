@@ -160,7 +160,8 @@ class FactConsolidator:
             select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
         )
         if existing and existing.result:
-            existing_fact_set = FactSet.model_validate(existing.result)
+            from journeyplus.membership.identity import normalize_facts
+            existing_fact_set = normalize_facts(FactSet.model_validate(existing.result), event.program)
             record = self._record_for_fact_set(event, existing_fact_set)
             if record is not None:
                 refresh_event_lifecycle(event, existing_fact_set)
@@ -350,6 +351,10 @@ class FactConsolidator:
                 f"{diagnostic_json}"
             ) from last_error
 
+        from journeyplus.membership.identity import canonical_program, canonical_tier, normalize_facts
+        event.program = canonical_program(event.program)
+        event.target_status = canonical_tier(event.program, event.target_status)
+        fact_set = normalize_facts(fact_set, event.program)
         run.status = RunStatus.SUCCEEDED
         run.result = fact_set.model_dump(mode="json")
         run.error = None

@@ -26,10 +26,18 @@ class WorkflowUserData:
                 statement = statement.where(StatusHolding.id.in_([UUID(r.removeprefix('holding:')) for r in refs]))
             rows = session.execute(statement.order_by(StatusHolding.id)).mappings().all()
             from .workflow_holdings import holding_revision
-            result = [{'holding_ref':'holding:'+str(r['id']), 'revision':holding_revision(SimpleNamespace(**r)),
-                'tier_ref':'tier:'+str(identity_id('tier',r['program_key']+'::'+r['tier_key'])),
-                'program_name':r['program_display_name'], 'tier_name':r['tier_display_name'],
-                'valid_until':r['valid_until'].isoformat() if r['valid_until'] else None} for r in rows]
+            from journeyplus.agent.services.identities import IdentityService
+            identities = IdentityService(catalog)
+            result = []
+            for r in rows:
+                resolved = identities.resolve(session, {'program_name': r['program_display_name'],
+                    'tier_name': r['tier_display_name']}, require_tier=True)
+                bound = resolved['status'] == 'OK'
+                result.append({'holding_ref':'holding:'+str(r['id']), 'revision':holding_revision(SimpleNamespace(**r)),
+                    'tier_ref': resolved.get('tier_ref') if bound else None,
+                    'program_name': resolved['program_name'] if bound else r['program_display_name'],
+                    'tier_name': resolved['tier_name'] if bound else r['tier_display_name'],
+                    'valid_until':r['valid_until'].isoformat() if r['valid_until'] else None})
             found = {r['holding_ref'] for r in result}
             result.extend({'holding_ref':r,'resolution_state':'INVALID_REFERENCE','code':'STALE_REFERENCE'}
                           for r in refs if r not in found)

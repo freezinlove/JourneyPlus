@@ -9,9 +9,10 @@ class IdentityRef(DTO):
 
 
 class IdentityName(DTO):
-    program_name: str = Field(min_length=1, max_length=300)
+    program_name: str = Field(min_length=1, max_length=300,
+        description='Original or official program/carrier/hotel name; registered aliases are normalized by the tool.')
     tier_name: str | None = Field(default=None, min_length=1, max_length=300,
-        description='User-requested tier; omit for a program-only destination.')
+        description='Original or official tier name; no need to translate it. Omit for a program-only destination.')
     alternatives: list[str] = Field(default_factory=list, max_length=3)
 
 

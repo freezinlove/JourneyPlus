@@ -211,6 +211,13 @@ def airline_alliance(program: str) -> AirlineAlliance | None:
     direct = _ALLIANCE_BY_ALIAS.get(normalized)
     if direct is not None:
         return direct
+    from journeyplus.membership.identity import program_record
+    record = program_record(program)
+    if record:
+        matches = {_ALLIANCE_BY_ALIAS[normalize_key(alias)] for alias in record['aliases']
+                   if normalize_key(alias) in _ALLIANCE_BY_ALIAS}
+        if len(matches) == 1:
+            return next(iter(matches))
     for alias in _ALIASES_BY_LENGTH:
         if normalized.startswith(f"{alias} ") or normalized.endswith(f" {alias}"):
             return _ALLIANCE_BY_ALIAS[alias]

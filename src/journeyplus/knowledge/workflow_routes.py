@@ -38,8 +38,15 @@ class WorkflowRouteService:
 
     def query(self, query, *, shortlist=8, max_states=10000, max_edges=20000, deadline_seconds=2):
         state = self.state if self.state is not None else graph_state(self.session)
-        programs, _, _ = catalog(self.session, state=state)
+        programs, tiers, _ = catalog(self.session, state=state)
         programs = {p.id: p for p in programs}
+        # A known saved identity may have no current activity node. Add only
+        # requested roots, never the entire directory or fabricated edges.
+        from journeyplus.membership.unified import UnifiedMembershipTreeService
+        available = {identity_id('tier', n.id) for n in state.nodes.values()}
+        for tier in tiers:
+            if tier.id in query.starting_tier_ids and tier.id not in available:
+                UnifiedMembershipTreeService._query_node(state, programs[tier.program_id].display_name, tier.display_name)
         tier_nodes = {identity_id('tier', n.id): n for n in state.nodes.values()}
         roots = [tier_nodes[t].id for t in query.starting_tier_ids if t in tier_nodes]
         details = {}
