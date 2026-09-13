@@ -218,3 +218,46 @@ def test_old_private_delivery_drafts_stay_hidden_on_reload_and_next_turn(migrate
     assert 'private-old-envelope' not in visible_context
     assert 'private-old-repair' not in visible_context
     assert '原来已经显示的回答。' in visible_context
+
+
+@pytest.mark.parametrize("answer_in_tool", [False, True])
+def test_query_answer_and_graph_complete_in_two_model_calls(migrated, answer_in_tool):
+    seed(migrated)
+    conclusion='找到一条付费匹配路线，图中可查看活动详情。'
+    class Model(FakeModel):
+        async def stream(self, messages, definitions, limits, cancel_token):
+            self.inputs.append(messages)
+            if len(self.inputs)==1:
+                yield tool('routes.evaluate', {'operation':'search','query':{'sources':{'mode':'explicit','identities':[
+                    {'program_name':'Marriott Bonvoy','tier_name':'Platinum'},
+                    {'program_name':'Lufthansa Miles & More','tier_name':'Senator'}]}}},'query')
+            elif len(self.inputs)==2:
+                refs=last_result(messages)['data']['route_refs']
+                assert refs
+                if not answer_in_tool:
+                    yield ModelEvent(type='text_delta',text=conclusion)
+                yield tool('display.present',{'complete':True,'answer':conclusion if answer_in_tool else None,'blocks':[{'type':'route_graph','object_refs':refs,
+                    'columns':['cost','steps']}]},'show')
+            else:
+                raise AssertionError('No model round trip for a successful final display')
+            yield ModelEvent(type='turn_end',finish_reason='tool_calls')
+    model=Model([])
+    runtime,store=compose_business(migrated,model)
+    w=store.create();run=store.start(w['id'],'查看匹配并画图','two-rounds',0)
+    asyncio.run(runtime.run(run['run_id']))
+    assert store.events(w['id'],run['run_id'])[1]=='COMPLETED'
+    view=store.read(w['id'])
+    assert len(model.inputs)==2
+    if not answer_in_tool:
+        assert prose(view)[-1]==conclusion
+    presentation=store.artifacts.read(w['id'],view['presentation_refs'][0])['payload']
+    assert presentation.get('answer')==(conclusion if answer_in_tool else None)
+    assert presentation['blocks'][0]['type']=='route_graph'
+    route=presentation['blocks'][0]['payload']['objects'][0]['data']
+    assert route['query_sources'][0]['program_name']=='Marriott Bonvoy'
+    assert route['cost']['paid'] is True
+    # Full pairing remains available to the next turn after early delivery.
+    model=FakeModel([answer('好的')]);runtime.ports.model=model
+    next_run=store.start(w['id'],'好的','followup-two',view['revision'])
+    asyncio.run(runtime.run(next_run['run_id']))
+    assert any(p.type=='tool_result' and p.call_id=='show' for m in model.inputs[0] for p in m.content)

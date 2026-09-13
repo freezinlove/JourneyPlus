@@ -73,6 +73,7 @@ class RouteObject:
                  for key, step in self.steps.items()}
         return {**deepcopy(self.route), 'ref':self.ref, 'steps':steps,
                 'step_refs':list(steps),
+                'query_sources':deepcopy(self.resolution.get('resolved_sources', [])),
                 'brief_links':[{'url':step.get('brief_url') or f"/knowledge?activity_id={step['activity_ref']}&version_ref={step['version_ref']}&section=brief",
                                 'version_ref':step['version_ref'], 'title':step.get('to')}
                                for step in steps.values()]}

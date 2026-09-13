@@ -46,6 +46,12 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
         # Keep explicit endpoints: a route passing through a program is not a
         # route ending at that program. Full steps remain addressable by ref.
         value.pop('step_refs',None)
+    if not detail and route.get('source_group'):
+        # A union query is presented as a union, not as a per-membership
+        # eligibility verdict. The exact supporting origin remains in inspect.
+        value['from'] = route['source_group']['label']
+        if value.get('path'):
+            value['path'][0] = value['from']
     if 'cost' in value:
         if value['cost'].get('state')!='KNOWN':
             # A partial sum is not a total, especially when the only known
@@ -78,17 +84,18 @@ def result_page(payload,root_ref,offset,limit):
     # PostgreSQL JSONB reorders object keys. A cursor must index an explicit
     # immutable list, never Python dict insertion order before/after storage.
     refs=payload.get('route_order',sorted(payload['routes']));selected=[]
-    paths={}
+    paths={}; route_paths={}
     if payload.get('steps') is not None:
         for key in refs:
             route=payload['routes'][key]
             ordered=[payload['steps'][sid] for sid in route['step_refs']]
             path=tuple([ordered[0]['from'],*[step['to'] for step in ordered]]) if ordered else ()
             paths.setdefault(path,[]).append(key)
+            route_paths[key]=path
     for key in refs[offset:offset+limit]:
         candidate=route_summary(payload['routes'][key],root_ref,payload.get('steps'))
         if 'path' in candidate:
-            variants=paths[tuple(candidate['path'])]
+            variants=paths[route_paths[key]]
             if len(variants)>1:
                 candidate['same_path_variants']={'index':variants.index(key)+1,'total':len(variants)}
         # Leave room for the query/coverage envelope within the 12 KB result
@@ -221,6 +228,9 @@ def evaluate(args, ctx):
     # the explicit subtotal/path view instead of returning uncitable aliases.
     for route in payload['routes'].values():
         route['source_mode']=query.sources.mode
+        if len(sources) > 1:
+            route['source_group']={'label':'所选会籍组合', 'count':len(sources),
+                'scope':'任一所选起点可达；不能据此判断其他起点不支持，实际来源见 inspect。'}
         view=route_summary(route,'',payload['steps'],detail=True)
         for key in ('path','source_versions','constraint_match','assessment_scope'):
             route[key]=deepcopy(view[key])

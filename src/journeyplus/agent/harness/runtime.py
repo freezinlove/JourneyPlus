@@ -109,6 +109,8 @@ class Runtime:
                 return
 
     async def _loop(self, run_id, owner, context, budget, state):
+        if (state.get('budget') or {}).get('delivery_complete'):
+            return 'CANCELED' if context.cancel_token.is_set() else 'COMPLETED'
         previous_configuration=(state.get('budget') or {}).get('model_configuration_id')
         if previous_configuration and previous_configuration!=budget.model_configuration_id:
             await self._publish(run_id,owner,'resource.notice',{'code':'MODEL_CONFIGURATION_CHANGED','message':'模型、指令或工具配置已改变，保留上次结果，请发起新一轮。'})
@@ -121,7 +123,8 @@ class Runtime:
             notice = ModelMessage(role='system', content=[Part(type='text', text='runtime_interruption: Previous execution was interrupted. Reuse completed receipts. Incomplete text is marked interrupted.')])
             messages.append(notice)
         if state.get('pending_calls'):
-            await self._calls(run_id, owner, context, budget, state['pending_calls'], messages)
+            if await self._calls(run_id, owner, context, budget, state['pending_calls'], messages):
+                return 'CANCELED' if context.cancel_token.is_set() else 'COMPLETED'
         repeated = budget.repeat_state
         format_failures = empty = 0
         while not context.cancel_token.is_set() and not budget.reached('hard'):
@@ -253,7 +256,8 @@ class Runtime:
                     call['prior_result_refs'] = list(repeated.get('result_refs', []))
                 if repeated['count'] > 3:
                     repeated['stop'] = True
-            await self._calls(run_id, owner, context, budget, calls, messages)
+            if await self._calls(run_id, owner, context, budget, calls, messages):
+                return 'CANCELED' if context.cancel_token.is_set() else 'COMPLETED'
             if repeated.get('stop'):
                 return 'PARTIAL'
         return 'CANCELED' if context.cancel_token.is_set() else 'PARTIAL'
@@ -403,4 +407,15 @@ class Runtime:
             message = ModelMessage(role='tool', content=[Part(type='tool_result', call_id=call['call_id'], result=result.model_dump(mode='json'))])
             (await blocking_call(self.ports.sessions.append_message, run_id, owner, message))
             messages.append(message)
-        (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='READY_MODEL', pending_calls=[], remaining_budget=budget.snapshot()))
+        # Only an explicitly final, wholly successful delivery batch may end a
+        # turn. Mixed reads/writes and failures must return observations to the
+        # model. Keep this generic: the registry owns each capability's policy.
+        terminal = bool(calls)
+        for call, result in zip(calls, results):
+            validated, _ = self.ports.registry.validate(call['name'], call['arguments'])
+            terminal = terminal and bool(validated and not result.error and result.status == 'OK'
+                and validated[0].completes_turn
+                and validated[0].completes_turn(validated[1], result))
+        (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='READY_MODEL', pending_calls=[],
+            remaining_budget={**budget.snapshot(), 'delivery_complete': terminal}))
+        return terminal

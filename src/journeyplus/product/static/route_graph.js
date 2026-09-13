@@ -4,13 +4,23 @@ export function disposeGraphs(){for(const observer of observers)observer.disconn
 
 export function graphStructure(payload){
   const nodes=new Map(),edges=new Map();
+  const sources=new Map();
+  const rootLabel=payload.routes.every(route=>route.source_mode==='explicit')?'本次起点':'我的会籍';
+  for(const route of payload.routes){
+    for(const source of route.query_sources||[]){
+      if(source.program_name)sources.set(source.tier_ref||`${source.program_name} ${source.tier_name||''}`,
+        `${source.program_name} ${source.tier_name||''}`.trim());
+    }
+    const first=payload.steps[route.step_refs[0]];
+    if(first?.from&&!route.query_sources?.length)sources.set(first.from_tier_id||first.from,first.from);
+  }
   for(const [routeIndex,route] of payload.routes.entries()){
     let previous=null;
     for(const [index,ref] of route.step_refs.entries()){
       const step=payload.steps[ref];
       if(index===0){
-        previous=step.from?`member:${step.from_tier_id||step.from}`:'public-application';
-        if(!nodes.has(previous))nodes.set(previous,{ref:previous,name:step.from||'公开申请入口',level:0,origin:true,step_refs:[]});
+        previous=step.from?'my-memberships':'public-application';
+        if(!nodes.has(previous))nodes.set(previous,{ref:previous,name:step.from?`${rootLabel}：${[...new Set(sources.values())].join(' ＋ ')}`:'公开申请入口',level:0,origin:true,step_refs:[]});
       }
       const group=Object.values(payload.nodes||{}).find(node=>node.step_refs.includes(ref));
       const target=group?.ref||`member:${step.to_tier_id||step.to}`;
@@ -18,6 +28,7 @@ export function graphStructure(payload){
       node.level=Math.max(node.level,index+1);if(!node.step_refs.includes(ref))node.step_refs.push(ref);nodes.set(target,node);
       const key=`${previous}>${target}`;
       const edge=edges.get(key)||{from:previous,to:target,step_ref:ref,routes:[]};
+      if(payload.steps[edge.step_ref]?.paid===true&&step.paid===false)edge.step_ref=ref;
       if(!edge.routes.includes(routeIndex))edge.routes.push(routeIndex);edges.set(key,edge);previous=target;
     }
   }
@@ -53,6 +64,8 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
   }
   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),markerId=`graph-arrow-${++graphId}`;svg.classList.add('graph-edges');svg.setAttribute('aria-hidden','true');
   canvas.append(svg,grid);section.append(canvas);
+  const details=el('details',undefined,'graph-path-details');
+  details.append(el('summary','查看实际起点与路径详情'));
   const descriptions=el('ol',undefined,'graph-routes');
   for(const [index,route] of payload.routes.entries()){
     const item=el('li');const path=[route.from||'公开申请',...route.step_refs.map(ref=>payload.steps[ref].to)].join(' → ');
@@ -66,7 +79,7 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
     if(!route.cost?.paid && route.cost?.paid!==false && (route.challenge==='UNKNOWN'||route.cost.state!=='KNOWN'))item.append(el('small',`${route.cost.state!=='KNOWN'?'费用尚未完整核实；':''}${route.challenge==='UNKNOWN'?'挑战要求尚未核实':''}`,'caveat'));
     descriptions.append(item);
   }
-  section.append(descriptions,el('small','仅表示下方列出的完整路径；共享节点不代表其他拼接顺序也可申请。','caveat'));
+  details.append(descriptions);section.append(details);
   function draw(){
     if(!canvas.isConnected)return;
     const bounds=canvas.getBoundingClientRect(),vertical=getComputedStyle(grid).display==='flex';

@@ -255,3 +255,16 @@ def test_large_prior_result_uses_explicit_index_without_mutating_current_or_hist
 def test_failed_tool_does_not_claim_complete_default_coverage():
     result=ToolResult(status='NOT_FOUND',error={'code':'CATALOG_GAP','message':'Source missing'})
     assert result.coverage=={'complete':False,'returned':0,'total':None,'omissions':['operation_not_completed']}
+
+
+def test_display_layout_is_programmatic_and_old_columns_are_harmless():
+    from journeyplus.agent.tools.contracts import BlockSelection
+    assert 'columns' not in BlockSelection.model_json_schema()['properties']
+    graph=BlockSelection(type='route_graph',object_refs=['actual-route'],columns=['cost','steps'])
+    assert graph.type=='route_graph' and graph.columns==[]
+    table=BlockSelection(type='comparison',object_refs=['actual-route'],columns=['unknown-legacy-column'])
+    assert table.columns==['cost','steps']
+    with pytest.raises(ValidationError):
+        BlockSelection(type='route_graph',object_refs=[],columns=['cost'])
+    with pytest.raises(ValidationError):
+        BlockSelection(type='route_graph',object_refs=['actual-route'],made_up='x')

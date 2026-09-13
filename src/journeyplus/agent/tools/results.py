@@ -103,6 +103,7 @@ class PageData(DTO):
 
 
 class PresentationData(DTO):
+    answer: str | None = None
     presentation_ref: str | None = None
     revision: int | None = None
     blocks: list[dict] | None = None

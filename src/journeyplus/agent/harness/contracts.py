@@ -145,6 +145,7 @@ class ToolDefinition:
     trim_projection: Callable[[ToolResult], int | None] | None = None
     model_projection: Callable[[ToolResult], ToolResult] | None = None
     availability: Callable[[], dict] | None = None
+    completes_turn: Callable[[DTO, ToolResult], bool] | None = None
 
     @property
     def input_schema(self):

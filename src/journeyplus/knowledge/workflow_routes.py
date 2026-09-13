@@ -82,6 +82,7 @@ class WorkflowRouteService:
                         'from_tier_id': str(identity_id('tier', source)), 'to_tier_id': str(identity_id('tier', target.id)),
                         'from': state.nodes[source].program+' '+state.nodes[source].tier,
                         'to': target.program+' '+target.tier, 'target_program_id': str(pid),
+                        'target_program_key': target.program_key, 'target_tier_key': target.tier_key,
                         'target_category': programs[pid].category, 'target_alliance': str(target.alliance) if target.alliance else None,
                         'certainty': str(claim.certainty), 'derived_from_rule': relation.derived_from_rule,
                         'fact_refs': [f'activity:{activity}@{version}'], 'availability': str(claim.availability),

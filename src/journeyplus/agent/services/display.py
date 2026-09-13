@@ -56,7 +56,7 @@ def present(args,ctx):
             blocks.append(block)
         for step in args.next_steps:
             for ref in step.subject_refs:store.validate_reference(ctx.workspace_id,ref)
-        return {'blocks':blocks,'next_steps':[n.model_dump() for n in args.next_steps],'omissions':[]}
+        return {'blocks':blocks,'answer':args.answer,'next_steps':[n.model_dump() for n in args.next_steps],'omissions':[]}
     try:
         ref, receipt = store.save_presentation(ctx.workspace_id, ctx.turn_id, ctx.call_id,
                                               args.replace_presentation_ref, build)

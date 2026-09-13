@@ -122,3 +122,15 @@ def test_old_parameters_are_not_exposed():
     for key,value in [('residency','Greece'),('max_amount','100'),('currency','EUR')]:
         with pytest.raises(ValidationError):
             RouteRequest(sources={'mode':'saved'},constraints={key:value})
+
+
+@pytest.mark.parametrize('roots', [('A','B'),('B','A')])
+def test_same_highest_destination_free_source_wins(roots):
+    r,_=run([('A','C',1),('B','C',0)],roots=roots,target='C')
+    assert paths(r)=={('B','C')}
+    assert next(iter(r['server_routes'].values()))['paid'] is False
+
+
+def test_free_tie_accounts_for_entire_path_not_only_last_edge():
+    r,_=run([('A','B',1),('A','C',0),('B','D',0),('C','D',0)],target='D')
+    assert paths(r)=={('A','C','D')}

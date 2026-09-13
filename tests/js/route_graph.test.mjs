@@ -30,3 +30,27 @@ test('same identity connection with different refs is drawn only once',()=>{
     one:{from:'A',to:'C',paid:true},two:{from:'A',to:'C',paid:true}}});
   assert.equal(graph.nodes.length,2);assert.equal(graph.edges.length,1);
 });
+
+test('one root includes every query source even when only one contributes highest routes',()=>{
+  const graph=graphStructure({routes:[{step_refs:['one'],query_sources:[
+    {tier_ref:'m',program_name:'Marriott Bonvoy',tier_name:'Platinum Elite'},
+    {tier_ref:'l',program_name:'Lufthansa Miles & More',tier_name:'Senator'}]}],steps:{
+      one:{from:'Lufthansa Miles & More Senator',to:'Asante Gold',paid:true}}});
+  assert.equal(graph.nodes.filter(n=>n.origin).length,1);
+  assert.match(graph.nodes[0].name,/Marriott Bonvoy Platinum Elite/);
+  assert.match(graph.nodes[0].name,/Lufthansa Miles & More Senator/);
+});
+
+test('merged root shares one connection and uses free supporting step',()=>{
+  const graph=graphStructure({routes:[{step_refs:['paid']},{step_refs:['free']}],steps:{
+    paid:{from:'Lufthansa Senator',to:'Gold',to_tier_id:'gold',paid:true},
+    free:{from:'Marriott Platinum',to:'Gold',to_tier_id:'gold',paid:false}}});
+  assert.equal(graph.edges.length,1);assert.equal(graph.nodes.filter(n=>n.origin).length,1);
+  assert.equal(graph.edges[0].step_ref,'free');
+});
+
+test('binary fee flags do not need any amount fields',async()=>{
+  const {money}=await import('../../src/journeyplus/product/static/knowledge_ui.js');
+  assert.equal(money({paid:true,state:'KNOWN'}),'付费');
+  assert.equal(money({paid:false,state:'KNOWN'}),'免费');
+});

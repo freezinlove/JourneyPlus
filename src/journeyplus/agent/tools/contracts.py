@@ -193,15 +193,25 @@ class BlockSelection(DTO):
     title: str | None = Field(default=None, max_length=100)
     reason: str | None = Field(default=None, max_length=500)
     roles: list[SelectionRole] = Field(default_factory=list,description='Optional; at most one primary, all others alternative.')
-    columns: list[Literal['cost', 'steps']] = Field(default_factory=list, max_length=7, description='Comparison only: cost is free/paid, steps is hop count. Activity details are read separately.')
     research_refs: list[str] = Field(default_factory=list, max_length=8)
+
+    @model_validator(mode='before')
+    @classmethod
+    def ignore_layout_options(cls, value):
+        # Columns are a renderer concern. Old model/history calls may still
+        # supply them; ignore only this harmless option, not invalid references.
+        if isinstance(value, dict):
+            return {key: item for key, item in value.items() if key != 'columns'}
+        return value
+
+    @property
+    def columns(self):
+        return ['cost', 'steps'] if self.type == 'comparison' else []
 
     @model_validator(mode='after')
     def check_selection(self):
         if any(r.ref not in self.object_refs for r in self.roles) or sum(r.role == 'primary' for r in self.roles) > 1:
             raise ValueError('roles must select displayed objects and at most one primary')
-        if self.columns and self.type != 'comparison':
-            raise ValueError('columns apply only to comparison')
         return self
 
 
@@ -212,6 +222,8 @@ class NextStep(DTO):
 
 
 class DisplayInput(DTO):
+    answer: str | None = Field(default=None, max_length=6000, description='Optional complete natural-language reply shown above the visuals. Put your final explanation here when this response contains only tool calls; do not duplicate text already spoken in the same response.')
+    complete: bool = Field(default=False, description='Set true when your accompanying natural-language answer and this display complete the request. Successful display-only batches then end without another model call. Leave false if you plan to continue; failures and mixed tool batches always return to you.')
     blocks: list[BlockSelection] = Field(max_length=6)
     next_steps: list[NextStep] = Field(default_factory=list, max_length=3)
     replace_presentation_ref: str | None = None

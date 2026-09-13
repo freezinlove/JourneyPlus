@@ -170,3 +170,63 @@ def test_context_capacity_stops_explicitly_and_preserves_evidence(session_factor
     assert status=='PARTIAL' and 'CONTEXT_CAPACITY' in str(events)
     assert not model.inputs
     assert store.load_context_index(workspace['id'])['messages'][0].content[0].text==original
+
+
+class Delivery(DTO):
+    complete: bool = False
+
+
+def test_final_delivery_ends_only_successful_exclusive_batches(session_factory):
+    # Continuation choice, error, partial result and mixed tool batches all
+    # retain a subsequent model call; two successful final displays do not.
+    for complete, status, mixed, count, expected in [
+        (True, 'OK', False, 1, 1), (False, 'OK', False, 1, 2),
+        (True, 'ERROR', False, 1, 2), (True, 'PARTIAL', False, 1, 2),
+        (True, 'OK', True, 1, 2), (True, 'OK', False, 2, 1),
+    ]:
+        async def deliver(args, context):
+            if status == 'ERROR':
+                return ToolResult.failure('INVALID_ARGUMENT', 'Wrong reference')
+            return ToolResult(status=status, data={'delivered': True})
+        batch=[{'type':'text_delta','text':'查询结论和图一起交付。'}]
+        batch += [{'type':'tool_call_ready','call_id':str(i),'name':'deliver','arguments':{'complete':complete}} for i in range(count)]
+        if mixed:
+            batch.append({'type':'tool_call_ready','call_id':'read','name':'echo','arguments':{'value':'more facts'}})
+        batch.append({'type':'turn_end','finish_reason':'tool_calls'})
+        model=FakeModel([batch,answer('继续处理结果')])
+        definition=ToolDefinition('deliver','Deliver',Delivery,deliver,effect='WORKSPACE_WRITE',
+            completes_turn=lambda args,result:args.complete)
+        store,w,r=execute(session_factory,model,[definition,ToolDefinition('echo','Read',Echo,echo)])
+        assert len(model.inputs)==expected, (complete,status,mixed,count)
+        assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+        results=[p for m in store.load_context_index(w['id'])['messages'] for p in m.content if p.type=='tool_result']
+        assert len(results)==count+int(mixed)
+        with session_factory() as s:
+            checkpoint=s.get(RunCheckpoint,UUID(r['run_id']))
+            assert bool(checkpoint.remaining_budget.get('delivery_complete')) == (expected==1)
+
+
+def test_cancellation_after_delivery_does_not_report_completed(session_factory):
+    async def deliver(args,ctx):
+        ctx.cancel_token.set()
+        return ToolResult(data={'delivered':True})
+    model=FakeModel([[{'type':'tool_call_ready','call_id':'delivery','name':'deliver','arguments':{'complete':True}},
+                      {'type':'turn_end','finish_reason':'tool_calls'}]])
+    store,w,r=execute(session_factory,model,[ToolDefinition('deliver','Deliver',Delivery,deliver,
+        effect='WORKSPACE_WRITE',completes_turn=lambda args,result:args.complete)])
+    assert store.events(w['id'],r['run_id'])[1]=='CANCELED'
+    assert len(model.inputs)==1
+
+
+def test_recovered_completed_delivery_does_not_call_model_again(session_factory):
+    async def deliver(args,ctx):return ToolResult(data={'delivered':True})
+    runtime,store=compose(session_factory,FakeModel([]),[ToolDefinition('deliver','Deliver',Delivery,deliver,
+        effect='WORKSPACE_WRITE',completes_turn=lambda args,result:args.complete)])
+    w=store.create();r=store.start(w['id'],'show result','recovered',0)
+    with session_factory.begin() as s:
+        checkpoint=s.get(RunCheckpoint,UUID(r['run_id']))
+        checkpoint.phase='READY_MODEL'
+        checkpoint.remaining_budget={'delivery_complete':True}
+    asyncio.run(runtime.run(r['run_id']))
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+    assert not runtime.ports.model.inputs

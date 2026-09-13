@@ -1,5 +1,6 @@
 """Small deterministic matching graph. Exploration state is never a result."""
-from collections import deque, defaultdict
+from collections import defaultdict
+from heapq import heappop, heappush
 from time import monotonic
 from journeyplus.membership.normalization import normalize_key, normalize_tier
 from journeyplus.knowledge.publication import signature
@@ -60,37 +61,42 @@ def shortest_graph(nodes, roots, outgoing, wanted, *, free_only=False, exact_tie
     """One shortest predecessor per identity, with deterministic free-first ties."""
     started = monotonic()
     roots = sorted(set(roots))
-    queue = deque(roots)
+    queue = [(0, False, root) for root in roots]
     parents = {root: None for root in roots}
-    depth = dict.fromkeys(roots, 0)
+    best = {root: (0, False) for root in roots}
+    settled = set()
     targets = []
     states = edges = 0
     stopped = None
     while queue:
+        hops, paid, source = heappop(queue)
+        if source in settled or best[source] != (hops, paid):
+            continue
         if states >= max_states or monotonic()-started >= deadline_seconds:
             stopped = 'STATE_BUDGET' if states >= max_states else 'TIME_BUDGET'
             break
-        source = queue.popleft()
+        settled.add(source)
         states += 1
+        if source not in roots and wanted(source):
+            targets.append(source)
+            if exact_tier:
+                break
         for target, step in sorted(outgoing(source), key=lambda item: (item[1]['paid'], item[0], item[1]['ref'])):
             edges += 1
             if edges > max_edges or monotonic()-started >= deadline_seconds:
                 stopped = 'EDGE_BUDGET' if edges > max_edges else 'TIME_BUDGET'
                 break
-            if free_only and step['paid'] or target in parents:
+            if (free_only and step['paid']) or target in settled:
                 continue
-            if len(parents) >= max_states:
+            score = (hops + 1, paid or step['paid'])
+            if target in best and best[target] <= score:
+                continue
+            if target not in parents and len(parents) >= max_states:
                 stopped = 'STATE_BUDGET'
                 break
             parents[target] = (source, step)
-            depth[target] = depth[source]+1
-            if wanted(target):
-                targets.append(target)
-                if exact_tier:
-                    # An explicit single tier is settled on first BFS arrival.
-                    queue.clear()
-                    break
-            queue.append(target)
+            best[target] = score
+            heappush(queue, (*score, target))
         if stopped or exact_tier and targets:
             break
     selected, unordered = (targets, []) if exact_tier else highest_targets(nodes, targets)

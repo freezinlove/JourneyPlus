@@ -165,10 +165,16 @@ function buildNearestMembershipTree(roots) {
     if (!record.edgeFromParent) return;
     records.get(record.edgeFromParent.source_node_id)?.children.push(record);
   });
-  return {
-    roots: rootNodeIds.map((nodeId) => records.get(nodeId)).filter(Boolean),
-    records,
-  };
+  const origins = rootNodeIds.map((nodeId) => records.get(nodeId)).filter(Boolean);
+  if (origins.length) {
+    const combined = {...origins[0], nodeId: 'my-memberships',
+      node: {...origins[0].node, program: '我的会籍',
+        tier: origins.map(root => `${root.node.program} ${root.node.tier}`).join(' ＋ '),
+        alliance: null, categories: []},
+      children: origins.flatMap(root => root.children)};
+    return {roots: [combined], records};
+  }
+  return {roots: [], records};
 }
 
 function layoutMembershipForest(roots) {
@@ -233,7 +239,7 @@ function graphNodeCard(node, rootIds) {
     >
       ${kindLine}
       <h3>${escapeHtml(node.node.program)}</h3>
-      <strong class="membership-tier">${escapeHtml(node.node.tier)}</strong>
+      <strong class="membership-tier" title="${escapeHtml(node.node.tier)}">${escapeHtml(node.node.tier)}</strong>
     </article>`;
 }
 
