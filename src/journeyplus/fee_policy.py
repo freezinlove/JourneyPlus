@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import re
 
 from journeyplus.contracts import RoutePrice
-from journeyplus.membership.normalization import normalize_tier
+from journeyplus.membership.normalization import program_tier_key
 from journeyplus.opportunity_shaping import parse_route_prices
 
 FREE = re.compile(r"^(?:(?:基础)?申请(?:费)?(?:为|是)?\s*)?(?:免费|无费用|无需付费|free(?: of charge)?)(?:$|[，。；,. ;])", re.I)
@@ -25,7 +25,7 @@ class RouteFees:
         return bool(self.states) and set(self.states) == {'FREE'}
 
 
-def route_fees(facts, route=None, *, target_tier=None):
+def route_fees(facts, route=None, *, target_tier=None, program_aliases=()):
     text = ((route.cost if route else None) or facts.cost.value or '').strip()
     prices = list(route.prices) if route else []
     if not prices and text:
@@ -34,7 +34,7 @@ def route_fees(facts, route=None, *, target_tier=None):
         prices = [p.model_copy(update={'availability':'CONDITIONAL'})
                   if OPTIONAL.search(p.raw_text) else p for p in parsed]
     selected = [(i,p) for i,p in enumerate(prices) if target_tier is None or not p.target_tier
-                or normalize_tier(p.target_tier) == normalize_tier(target_tier)]
+                or program_tier_key(p.target_tier, program_aliases) == program_tier_key(target_tier, program_aliases)]
     conditional = any(p.availability == 'CONDITIONAL' and p.amount is not None and p.amount > 0 for _,p in selected)
     conflict = bool(facts.cost.conflict or route and route.conflict)
     base = [p for _,p in selected if p.availability not in {'CONDITIONAL','UNAVAILABLE'}]

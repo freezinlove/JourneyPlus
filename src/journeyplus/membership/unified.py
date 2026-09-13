@@ -39,6 +39,7 @@ from journeyplus.membership.normalization import (
     normalize_tier,
     resolve_alias,
     stable_id,
+    strip_program_prefix,
 )
 from journeyplus.membership.traversal import (
     TraversalCounters,
@@ -392,15 +393,7 @@ def _ensure_node(
 
 
 def _target_tier(value: str, aliases: set[str]) -> str:
-    raw_tokens = display_text(value).split()
-    normalized_tokens = [normalize_key(item) for item in raw_tokens]
-    for alias in sorted(aliases, key=lambda item: -len(normalize_key(item).split())):
-        alias_tokens = normalize_key(alias).split()
-        if normalized_tokens[: len(alias_tokens)] == alias_tokens:
-            remainder = raw_tokens[len(alias_tokens) :]
-            if remainder:
-                return display_tier(" ".join(remainder))
-    return display_tier(value)
+    return display_tier(strip_program_prefix(value, aliases))
 
 
 def _outgoing(state: _State, node: UnifiedMembershipNode) -> list[_Outgoing]:

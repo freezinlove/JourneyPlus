@@ -25,7 +25,7 @@ from journeyplus.membership.contracts import (
     ReachableMembershipTreeNode,
     UnifiedTreeNodeState,
 )
-from journeyplus.membership.normalization import normalize_tier
+from journeyplus.membership.normalization import normalize_tier, program_tier_key, target_program_aliases
 from journeyplus.membership.unified import UnifiedMembershipTreeService
 from journeyplus.contracts import StatusMatchBrief, read_brief
 from journeyplus.models import (
@@ -126,7 +126,9 @@ class PersonalizedMatchService:
                         if cache_key not in fee_cache:
                             facts = self._facts_for_opportunity(opportunity_id)
                             fee_cache[cache_key] = (
-                                ['付费' if matching_paid(facts,target_tier_key) else '免费']
+                                ['付费' if matching_paid(facts,target_tier_key,
+                                    program_aliases=target_program_aliases(edge.child.node.program,
+                                        (m.target_tier for m in facts.status_mappings))) else '免费']
                                 if facts is not None
                                 else []
                             )
@@ -572,16 +574,16 @@ def _is_managed_event(session: Session, event_id: UUID) -> bool:
     ) is not None
 
 
-def _fee_labels_for_target(facts: FactSet, target_tier_key: str) -> list[str]:
+def _fee_labels_for_target(facts: FactSet, target_tier_key: str, *, program_aliases=()) -> list[str]:
     from journeyplus.fee_policy import route_fees
     labels: list[str] = []
     for route in facts.application_routes or [None]:
-        policy = route_fees(facts, route, target_tier=target_tier_key)
+        policy = route_fees(facts, route, target_tier=target_tier_key, program_aliases=program_aliases)
         if policy.conflict:
             label = "费用存在冲突"
         else:
             label = _route_fee_label([p for _,p in policy.prices],
-                target_tier_key=target_tier_key, raw_cost=policy.text)
+                target_tier_key=target_tier_key, raw_cost=policy.text, program_aliases=program_aliases)
             if policy.free and not label:
                 label = "免费"
             elif policy.free and policy.conditional and "免费" not in label:
@@ -596,12 +598,13 @@ def _route_fee_label(
     *,
     target_tier_key: str,
     raw_cost: str | None,
+    program_aliases=(),
 ) -> str | None:
     selected = [
         price
         for price in prices
         if price.target_tier is None
-        or normalize_tier(price.target_tier) == target_tier_key
+        or program_tier_key(price.target_tier, program_aliases) == program_tier_key(target_tier_key, program_aliases)
     ]
     general_available = _rendered_fees(
         selected,

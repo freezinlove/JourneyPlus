@@ -48,6 +48,45 @@ def normalize_tier(value: str) -> str:
     return normalized or "uncertain"
 
 
+def strip_program_prefix(value: str, aliases: Iterable[str] = ()) -> str:
+    """Remove only a known target-program prefix, preserving the tier label."""
+    raw_tokens = display_text(value).split()
+    normalized_tokens = [normalize_key(token) for token in raw_tokens]
+    for alias in sorted(aliases, key=lambda item: -len(normalize_key(item).split())):
+        alias_tokens = normalize_key(alias).split()
+        if alias_tokens and normalized_tokens[:len(alias_tokens)] == alias_tokens:
+            remaining = raw_tokens[len(alias_tokens):]
+            if remaining:
+                return ' '.join(remaining)
+    return display_text(value)
+
+
+def program_tier_key(value: str, aliases: Iterable[str] = ()) -> str:
+    return normalize_tier(strip_program_prefix(value, aliases))
+
+
+def common_target_prefix(values: Iterable[str]) -> str | None:
+    """Existing official-graph alias rule, shared by its fee projection."""
+    rows = [display_text(value).split() for value in sorted(set(values))]
+    if len(rows) < 2:
+        return None
+    normalized = [[normalize_key(token) for token in row] for row in rows]
+    length = 0
+    while length < min(map(len, normalized)) and len({row[length] for row in normalized}) == 1:
+        length += 1
+    if length == 0 or any(len(row) == length for row in rows):
+        return None
+    return ' '.join(rows[0][:length])
+
+
+def target_program_aliases(program: str, tiers: Iterable[str]) -> set[str]:
+    aliases = {display_text(program)}
+    common = common_target_prefix(tiers)
+    if common:
+        aliases.add(common)
+    return aliases
+
+
 def stable_id(prefix: str, *values: str) -> str:
     digest = sha256("\x1f".join(values).encode()).hexdigest()[:24]
     return f"{prefix}:{digest}"

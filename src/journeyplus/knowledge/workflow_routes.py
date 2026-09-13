@@ -20,10 +20,10 @@ def mapping_ref(claim, facts):
     raise ValueError('Graph contribution cannot be located in its FactSet version')
 
 
-def matching_paid(facts, target_tier):
+def matching_paid(facts, target_tier, *, program_aliases=()):
     """Binary mandatory payment only. Region and amount never become branches."""
     for option in facts.application_routes or [None]:
-        policy = route_fees(facts, option, target_tier=target_tier)
+        policy = route_fees(facts, option, target_tier=target_tier, program_aliases=program_aliases)
         if 'PAID' in policy.states or any(p.amount is not None and p.amount > 0
                 and p.availability not in {'CONDITIONAL', 'UNAVAILABLE'} for _, p in policy.prices):
             return True
@@ -65,7 +65,8 @@ class WorkflowRouteService:
                     else:
                         from journeyplus.models import ArticleOpportunityRecord
                         version = self.session.get(ArticleOpportunityRecord, identity).analysis_id
-                    paid = matching_paid(facts, target.tier_key)
+                    paid = matching_paid(facts, target.tier_key,
+                        program_aliases=state.registry.programs[target.program_key].aliases)
                     pid = identity_id('program', target.program_key)
                     mapping = mapping_ref(claim, facts)
                     sid = signature([POLICY, source, target.id, str(activity), str(version), mapping])[:24]

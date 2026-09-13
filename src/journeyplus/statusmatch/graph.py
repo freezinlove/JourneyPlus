@@ -32,6 +32,9 @@ from journeyplus.membership.normalization import (
     normalize_tier as _normalize_tier,
     resolve_alias,
     stable_id as _stable_id,
+    common_target_prefix as _common_target_prefix,
+    strip_program_prefix as _target_tier,
+    target_program_aliases,
 )
 from journeyplus.membership.traversal import (
     TraversalCounters,
@@ -112,10 +115,7 @@ class _ProgramRegistry:
             _ProgramRecord(key=key, label=_display_text(label)),
         )
         record.target_program = True
-        aliases = {_display_text(label)}
-        common = _common_target_prefix(target_tiers)
-        if common:
-            aliases.add(common)
+        aliases = target_program_aliases(label, target_tiers)
         for alias in aliases:
             record.aliases.add(alias)
             self.target_aliases[_normalize_key(alias)].add(key)
@@ -872,32 +872,6 @@ def _strongly_connected_components(
         if node.id not in indices:
             visit(node.id)
     return sorted(result, key=lambda component: (len(component), component))
-
-
-def _common_target_prefix(values: Iterable[str]) -> str | None:
-    token_rows = [_display_text(value).split() for value in sorted(set(values))]
-    if len(token_rows) < 2:
-        return None
-    normalized_rows = [[_normalize_key(token) for token in row] for row in token_rows]
-    limit = min(len(row) for row in normalized_rows)
-    length = 0
-    while length < limit and len({row[length] for row in normalized_rows}) == 1:
-        length += 1
-    if length == 0 or any(len(row) == length for row in token_rows):
-        return None
-    return " ".join(token_rows[0][:length])
-
-
-def _target_tier(value: str, aliases: Iterable[str]) -> str:
-    raw_tokens = _display_text(value).split()
-    normalized_tokens = [_normalize_key(token) for token in raw_tokens]
-    for alias in sorted(aliases, key=lambda item: -len(_normalize_key(item).split())):
-        alias_tokens = _normalize_key(alias).split()
-        if normalized_tokens[: len(alias_tokens)] == alias_tokens:
-            remaining = raw_tokens[len(alias_tokens) :]
-            if remaining:
-                return " ".join(remaining)
-    return _display_text(value)
 
 
 def _tier_kind(value: str) -> GraphCertainty:
