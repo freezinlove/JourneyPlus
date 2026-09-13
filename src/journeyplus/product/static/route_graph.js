@@ -9,14 +9,14 @@ export function graphStructure(payload){
     for(const [index,ref] of route.step_refs.entries()){
       const step=payload.steps[ref];
       if(index===0){
-        previous=step.from?`origin:${step.from_tier_id||step.from}`:'public-application';
-        if(!nodes.has(previous))nodes.set(previous,{ref:previous,name:step.from||'公开申请入口',level:0,origin:true});
+        previous=step.from?`member:${step.from_tier_id||step.from}`:'public-application';
+        if(!nodes.has(previous))nodes.set(previous,{ref:previous,name:step.from||'公开申请入口',level:0,origin:true,step_refs:[]});
       }
       const group=Object.values(payload.nodes||{}).find(node=>node.step_refs.includes(ref));
-      const target=group?.ref||`target:${step.to_tier_id||step.to}`;
+      const target=group?.ref||`member:${step.to_tier_id||step.to}`;
       const node=nodes.get(target)||{ref:target,browseRef:group?.ref||ref,name:step.to,level:index+1,step_refs:[]};
       node.level=Math.max(node.level,index+1);if(!node.step_refs.includes(ref))node.step_refs.push(ref);nodes.set(target,node);
-      const key=`${previous}>${target}@${ref}`;
+      const key=`${previous}>${target}`;
       const edge=edges.get(key)||{from:previous,to:target,step_ref:ref,routes:[]};
       if(!edge.routes.includes(routeIndex))edge.routes.push(routeIndex);edges.set(key,edge);previous=target;
     }
@@ -25,9 +25,8 @@ export function graphStructure(payload){
 }
 
 function stepCost(step){
-  if(!step.fees?.length)return '费用待核实';
-  if(!step.fee_unknown&&step.fees.every(fee=>Number(fee.amount)===0))return '免费';
-  return money({totals:step.fees}).replaceAll('申请费用 ','')+(step.fee_unknown?' · 另有待核实费用':'');
+  if(typeof step.paid==='boolean')return step.paid?'付费':'免费';
+  return step.fee_free?'免费':'付费';
 }
 
 export function routeGraph(block,messageId,onBrowse,disabled=false){
@@ -46,7 +45,7 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
       if(node.origin)box.append(el('small',node.ref==='public-application'?'不要求已有会籍':'本次查询起点'));
       else{
         box.disabled=disabled;box.append(el('small',node.step_refs.length>1?`${node.step_refs.length} 种已选申请方式`:'查看这一步的申请条件'));
-        if(node.step_refs.some(ref=>payload.steps[ref].eligibility!=='PASS'))box.append(el('small','资格仍需核对','caveat'));
+
         box.onclick=()=>onBrowse(node.browseRef,messageId);
       }
       positions.set(node.ref,box);column.append(box);
@@ -63,7 +62,7 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
     if(block.graph_mode==='RECOMMEND'&&route.recommendation_basis)item.append(el('small',route.recommendation_basis));
     const investigated=(payload.research||[]).filter(o=>route.step_refs.includes(o.step_ref));
     if(investigated.length)item.append(el('small',`已查 ${investigated.length}/${route.step_refs.length} 步经验，样本限制见节点详情`));
-    if(route.challenge==='UNKNOWN'||route.cost.state!=='KNOWN')item.append(el('small',`${route.cost.state!=='KNOWN'?'费用尚未完整核实；':''}${route.challenge==='UNKNOWN'?'挑战要求尚未核实':''}`,'caveat'));
+    if(!route.cost?.paid && route.cost?.paid!==false && (route.challenge==='UNKNOWN'||route.cost.state!=='KNOWN'))item.append(el('small',`${route.cost.state!=='KNOWN'?'费用尚未完整核实；':''}${route.challenge==='UNKNOWN'?'挑战要求尚未核实':''}`,'caveat'));
     descriptions.append(item);
   }
   section.append(descriptions,el('small','仅表示下方列出的完整路径；共享节点不代表其他拼接顺序也可申请。','caveat'));

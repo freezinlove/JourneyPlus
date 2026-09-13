@@ -6,8 +6,20 @@ from sqlalchemy import select
 from journeyplus.agent.tools.contracts import WaitingInput
 from journeyplus.models import AgentInteraction,AgentWaitGoal,now_utc
 from journeyplus.agent.adapters.models import OperationReceipt
-from tests.test_harness_tools import context
-from tests.test_knowledge_routes import edge
+from tests.test_agent_workflow_reads import context as workflow_context
+from tests.test_candidate_routes import _mapping_opportunity
+from journeyplus.knowledge.workflow_knowledge import identity_id
+
+
+def context(factory):
+    runtime,store,ctx=workflow_context(factory,factory)
+    return runtime,store,store.read(ctx.workspace_id),ctx
+
+
+def edge(session):
+    _mapping_opportunity(session,slug='waiting-fixture',source_program='Marriott Bonvoy',
+        source_tier='Platinum',target_program='Example Rewards',target_tier='Gold',amount=49,challenge=None)
+    return identity_id('tier','marriott bonvoy::platinum'),identity_id('tier','example rewards::gold')
 
 
 def test_waiting_is_explicit_durable_and_checks_without_model(session_factory):

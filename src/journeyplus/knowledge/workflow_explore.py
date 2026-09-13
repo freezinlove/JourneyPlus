@@ -26,10 +26,6 @@ def search_catalog(session, text, *, limit=20):
 
 
 def explore(session, query):
-    if query.max_amount is not None and not query.currency:
-        raise ValueError('预算上限需要币种')
-    if query.free_only and query.max_amount is not None:
-        raise ValueError('免费与金额上限不能同时指定')
     programs, tiers, _ = catalog(session)
     tier_ids = {t.id for t in tiers}
     if any(t not in tier_ids for t in query.starting_tier_ids):
@@ -61,12 +57,11 @@ def explore(session, query):
     if not roots:
         coverage['message'] = ('没有可用于计算的已保存会籍，请查找并选择本次起点。' if use_saved else
             '当前匹配图需要具体的起点会籍，暂不能完整查询无需会籍的公开申请机会。')
-    # Like Agent, show matching and uncertain candidates, never known violations
-    # as results satisfying the selected free/budget/challenge constraints.
+    # The same selected membership results as Agent, without exploration states.
     routes = [r for r in result['server_routes'].values() if r['classification'] in result['presentation_classes']]
     coverage['filtered_route_count'] = len(result['server_routes']) - len(routes)
     step_refs = {ref for r in routes for ref in r['step_refs']}
-    return {'data_model': 'aiworkflow',
+    return {'data_model': 'aiworkflow', 'matching_policy': result['matching_policy'],
         'routes': [{k: v for k, v in r.items() if k not in {'fact_refs', 'selection_reasons'}} for r in routes],
         'steps': {ref: result['server_steps'][ref] for ref in step_refs},
         'snapshot': result['snapshot'], 'coverage': coverage}

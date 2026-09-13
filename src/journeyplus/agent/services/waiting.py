@@ -2,8 +2,7 @@
 from journeyplus.agent.adapters.transactions import read_session
 from uuid import UUID,uuid4
 from sqlalchemy import select,text
-from journeyplus.models import AgentWaitGoal,StatusHolding,now_utc
-from journeyplus.knowledge.routes import RouteService,RouteQuery
+from journeyplus.models import AgentWaitGoal,now_utc
 from journeyplus.agent.adapters.models import OperationReceipt
 from journeyplus.agent.adapters.artifacts import digest
 from journeyplus.agent.harness.contracts import ToolResult
@@ -26,7 +25,7 @@ def project_goal(goal,ctx):
     goal=deepcopy(goal)
     result=goal.pop('pending_result',None)
     refs=[]
-    if result and goal.get('conditions_schema_version',3)!=3:
+    if result and goal.get('conditions_schema_version',3)!=4:
         ref=ctx.artifact_port.put_once(ctx.workspace_id,'LEGACY_IMPORT',{'pending_result':result},call_id=ctx.call_id,turn_id=ctx.turn_id)
         goal.update(legacy_result_ref=ref,result_scope='LEGACY_READ_ONLY')
         return goal,[ref]
@@ -35,9 +34,11 @@ def project_goal(goal,ctx):
         payload={**result,'query_ref':query_ref,'route_order':list(result['routes'])}
         used={sid for route in result['routes'].values() for sid in route['step_refs']}
         payload['steps']={sid:step for sid,step in result['steps'].items() if sid in used}
-        ref=ctx.artifact_port.put_once(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id,turn_id=ctx.turn_id)
+        from .route_storage import save_routes
+        ref,payload=save_routes(ctx,payload,once=True)
         goal.update(result_snapshot_ref=ref,route_refs=[ref+'#route:'+key for key in payload['route_order']],
-                    coverage=result.get('coverage'))
+                    route_query_ref=query_ref,route_next_cursor=(payload['next_result_ref']+'|0' if payload.get('next_result_ref') else None),
+                    coverage={**result.get('coverage',{}),'complete':not bool(payload.get('next_result_ref'))})
         refs.extend([query_ref,ref])
     return goal,refs
 
@@ -117,7 +118,7 @@ class WaitingService:
                     if active:return ToolResult(data={'existing':goal_view(active)},error={'code':'CONFLICT','message':'An active waiting goal already exists'},status='ERROR')
                     row=AgentWaitGoal(source_interaction_id=UUID(ctx.workspace_id),
                         status='ACTIVE' if prepared['readiness']['ready'] else 'NEEDS_RECONFIRMATION',
-                        readiness=prepared['readiness'],query=query.model_dump(mode='json'),conditions_schema_version=3)
+                        readiness=prepared['readiness'],query=query.model_dump(mode='json'),conditions_schema_version=4)
                     before=None;s.add(row)
                 else:
                     row=s.get(AgentWaitGoal,UUID(args.goal_ref.removeprefix('goal:')),with_for_update=True)
@@ -133,7 +134,7 @@ class WaitingService:
                         row.query=query.model_dump(mode='json')
                         row.readiness=prepared['readiness']
                         row.status='ACTIVE' if prepared['readiness']['ready'] else 'NEEDS_RECONFIRMATION'
-                        row.conditions_schema_version=3
+                        row.conditions_schema_version=4
                         row.ended_at=None
                     row.pending_result=None;row.result_id=None;row.last_candidate_signature=None;row.revision+=1
                 s.flush()
@@ -149,16 +150,27 @@ class WaitingService:
     def check(self):
         with read_session(self.factory) as session:
             row=session.scalar(select(AgentWaitGoal).where(
-                AgentWaitGoal.status=='ACTIVE',AgentWaitGoal.conditions_schema_version==3))
+                AgentWaitGoal.status=='ACTIVE',AgentWaitGoal.conditions_schema_version.in_([3,4])))
             if row is None:
-                pending=session.scalar(select(AgentWaitGoal).where(AgentWaitGoal.status=='NEEDS_RECONFIRMATION',AgentWaitGoal.conditions_schema_version==3))
+                pending=session.scalar(select(AgentWaitGoal).where(AgentWaitGoal.status=='NEEDS_RECONFIRMATION',AgentWaitGoal.conditions_schema_version.in_([3,4])))
                 if pending is not None:
                     return {'status':'NEEDS_RECONFIRMATION','model_calls':0,'readiness':pending.readiness,
                             'coverage':{'complete':False,'search_performed':False,
                                         'unresolved_holding_count':(pending.readiness or {}).get('unresolved_holding_count',0)}}
                 return {'status':'NO_ACTIVE_GOAL','model_calls':0}
             identity,revision,raw=row.id,row.revision,deepcopy(row.query)
-        query=RouteRequest.model_validate(raw)
+        try:
+            query=RouteRequest.model_validate(raw)
+        except ValueError:
+            from journeyplus.agent.adapters.transactions import transaction
+            with transaction(self.factory) as s:
+                current=s.get(AgentWaitGoal,identity,with_for_update=True)
+                if current and current.revision==revision and current.status=='ACTIVE':
+                    current.status='NEEDS_RECONFIRMATION';current.revision+=1
+                    current.readiness={'ready':False,'issues':[{'code':'MATCHING_POLICY_CHANGED',
+                        'message':'匹配现在只考虑免费/付费，请明确更新旧任务条件。'}]}
+            return {'status':'NEEDS_RECONFIRMATION','model_calls':0}
+
         evaluation=self.queries.evaluate(query)
         if evaluation.get('error') and evaluation['error'].error.code == 'KNOWLEDGE_NOT_READY':
             # Missing knowledge is temporary, not a change to the user's intent.
@@ -184,7 +196,14 @@ class WaitingService:
         result=evaluation['result']
         matches={key:r for key,r in result['server_routes'].items() if r['classification']=='MATCH'}
         if not matches:return {'status':'NO_HIT','model_calls':0,'coverage':result['coverage']}
-        signature=digest(matches)
+        # Price/region-only version changes do not create a different matching
+        # result. A new activity identity or changed connection/payment does.
+        signature=digest(sorted([
+            [(result['server_steps'][sid]['from_tier_id'],
+              result['server_steps'][sid]['to_tier_id'],
+              result['server_steps'][sid]['activity_ref'],
+              result['server_steps'][sid]['paid']) for sid in route['step_refs']]
+            for route in matches.values()]))
         from journeyplus.agent.adapters.transactions import transaction
         with transaction(self.factory) as session:
             session.info['user_business_journal']=getattr(self.memory,'business_journal',True)
@@ -197,7 +216,7 @@ class WaitingService:
             if signature==row.last_candidate_signature:return {'status':'DUPLICATE','model_calls':0}
             used={sid for route in matches.values() for sid in route['step_refs']}
             row.last_candidate_signature=signature
-            row.pending_result={'routes':matches,
+            row.pending_result={'matching_policy':result.get('matching_policy'),'routes':matches,
                 'steps':{sid:step for sid,step in result['server_steps'].items() if sid in used},
                 'coverage':result['coverage'],
                 'resolution':{'resolved_sources':evaluation['sources'],'resolved_target':evaluation['target'],

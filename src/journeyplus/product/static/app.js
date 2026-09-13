@@ -243,7 +243,7 @@ function graphFeeLabel(item, feeByEdge) {
   const label = labels.join(" / ");
   const left = item.target.centerX;
   const top = item.source.y + GRAPH_CARD_HEIGHT + (GRAPH_LEVEL_GAP - 26) / 2;
-  return `<span class="graph-fee-label" style="left:${left}px;top:${top}px" title="${escapeHtml(labels.length > 1 ? `不同申请路线或地区的明确费用：${label}` : `明确费用：${label}`)}">${escapeHtml(label)}</span>`;
+  return `<span class="graph-fee-label" style="left:${left}px;top:${top}px" title="${escapeHtml(labels.length > 1 ? `匹配是否付费：${label}` : `匹配是否付费：${label}`)}">${escapeHtml(label)}</span>`;
 }
 
 function renderMembershipGraph(roots, edgeFees = []) {

@@ -34,7 +34,7 @@ def overviews(record):
         if ordered:
             summary['path']=[ordered[0].get('from'),*[step.get('to') for step in ordered]]
             summary['steps']=[compact({**{key:deepcopy(step[key]) for key in
-                ('from','to','fees','cost_description','fee_unknown','fee_conflict','alternative_items',
+                ('paid','from','to','fees','cost_description','fee_unknown','fee_conflict','alternative_items',
                  'conditional_items','status_validity','challenge','eligibility','application_window',
                  'availability','application_scope','source_acquisition','constraint_checks','material_caveats',
                  'activity_ref','version_ref','brief_url','action_link','source_links') if key in step},

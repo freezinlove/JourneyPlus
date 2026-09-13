@@ -39,3 +39,11 @@ test('a selected tier does not inherit whole-activity mixed fee badges',()=>{
   assert.equal(free.options[0].fee.label,'免费');
   assert.equal(activity.fee.label,'部分免费／部分付费');
 });
+
+test('simple matching expands the activity without regional path coupling',()=>{
+  const selected=activityForStep(detail,{activity_ref:'event',version_ref:'facts-1',matching_policy:'simple-matching-v1'});
+  assert.equal(selected.options.length,2);
+  assert.equal(selected.options[0].prices.length,2);
+  assert.equal(selected.detail_scope,'ACTIVITY_DETAILS');
+  assert.throws(()=>activityForStep(detail,{activity_ref:'event',version_ref:'stale',matching_policy:'simple-matching-v1'}));
+});

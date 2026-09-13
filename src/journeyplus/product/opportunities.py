@@ -106,6 +106,7 @@ class PersonalizedMatchService:
     def _edge_fees(
         self, roots: list[ReachableMembershipTreeNode]
     ) -> list[MatchEdgeFee]:
+        from journeyplus.knowledge.workflow_routes import matching_paid
         result: list[MatchEdgeFee] = []
         seen_edges: set[tuple[str, str]] = set()
         fee_cache: dict[tuple[UUID, str], list[str]] = {}
@@ -125,7 +126,7 @@ class PersonalizedMatchService:
                         if cache_key not in fee_cache:
                             facts = self._facts_for_opportunity(opportunity_id)
                             fee_cache[cache_key] = (
-                                _fee_labels_for_target(facts, target_tier_key)
+                                ['付费' if matching_paid(facts,target_tier_key) else '免费']
                                 if facts is not None
                                 else []
                             )

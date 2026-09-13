@@ -70,7 +70,7 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
     classification=value.pop('classification',None)
     value.pop('classification_scope',None)
     value['constraint_match']={'NEARBY':'CONFLICT','EXCLUDED':'CONFLICT','MATCH':'SATISFIES','CONFLICT':'CONFLICT','UNKNOWN':'UNKNOWN'}.get(classification,classification)
-    value['assessment_scope']='constraint_match only evaluates query filters. eligibility is personal eligibility; challenge describes challenge requirements independently.'
+    value['assessment_scope']='Membership mappings and free/paid filter only; application conditions are available in activity details.'
     return value
 
 
@@ -96,7 +96,8 @@ def result_page(payload,root_ref,offset,limit):
         if selected and len(json.dumps([*selected,candidate],ensure_ascii=False).encode())>9000:break
         selected.append(candidate)
     end=offset+len(selected)
-    return selected, root_ref+'|'+str(end) if end<len(refs) else None
+    cursor=root_ref+'|'+str(end) if end<len(refs) else payload.get('next_result_ref')+'|0' if payload.get('next_result_ref') else None
+    return selected,cursor
 
 
 def coverage(raw,total,returned,offset=0):
@@ -114,7 +115,7 @@ def coverage(raw,total,returned,offset=0):
 
 
 def scope_coverage(payload,total,returned,offset=0):
-    value=coverage(payload['coverage'],total,returned,offset)
+    value=coverage(payload['coverage'],payload.get('result_total',total),returned,payload.get('result_offset',0)+offset)
     if payload.get('resolution',{}).get('unresolved_sources'):
         value['complete']=False
         value['omissions']=[*value['omissions'],'unresolved_query_sources']
@@ -169,10 +170,14 @@ def evaluate(args, ctx):
     else:
         previous=ctx.artifact_port.read(ctx.workspace_id,args.query_ref)
         if previous['kind']!='QUERY':raise ValueError('query_ref must identify QUERY artifact')
+        try: RouteRequest.model_validate(previous['payload'])
+        except ValueError: return ToolResult.failure('QUERY_EXPIRED','Matching rules changed; start a new query with identities and free_only.')
         if args.cursor:
             # Cursor belongs to the original immutable result, never a fresh search.
             result_ref, _, offset=args.cursor.rpartition('|')
             result=ctx.artifact_port.read(ctx.workspace_id,result_ref)['payload']
+            from journeyplus.knowledge.simple_matching import POLICY
+            if result.get('matching_policy') != POLICY: return ToolResult.failure('QUERY_EXPIRED','Matching rules changed; start a new query.')
             if result.get('query_ref')!=args.query_ref:raise ValueError('Cursor does not belong to query snapshot')
             if not offset.isdigit() or int(offset)<0:raise ValueError('Invalid route cursor offset')
             refs=result.get('route_order',sorted(result['routes']))
@@ -202,11 +207,11 @@ def evaluate(args, ctx):
     classifications=Counter(r['classification'] for r in result['server_routes'].values())
     presentation_classes=result.get('presentation_classes',['MATCH'])
     matching=[key for key,r in result['server_routes'].items() if r['classification'] in presentation_classes]
-    payload={'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
+    payload={'matching_policy':result.get('matching_policy'),'query_ref':query_ref,'routes':result['server_routes'],'steps':result['server_steps'],'snapshot':result['snapshot'],
              'route_order':matching,'coverage':result['coverage'],
              'search_metrics':{'matching_count':classifications.get('MATCH',0),'presented_count':len(matching),'candidate_counts':dict(classifications),
                                'scope':('MATCH and UNKNOWN candidates are paged separately by their constraint_match label; UNKNOWN requires inspection and is not a proven match.' if 'UNKNOWN' in presentation_classes else
-                                        'Only candidates satisfying explicit query filters are paged. All assessed alternatives remain in this result artifact; UNKNOWN is not a proven match.')},
+                                        'Only selected shortest membership paths are retained. Free/paid is the only fee filter; region and exact prices are activity details. No exploration history is stored.')},
              'resolution':{'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved},
              'effective_input':actual.model_dump(mode='json')}
     # The fields exposed by search must exist at the returned immutable member
@@ -219,7 +224,8 @@ def evaluate(args, ctx):
         if route.get('cost',{}).get('state')!='KNOWN':
             route['cost']['known_subtotal']=deepcopy(view['cost'].get('known_subtotal',[]))
             route['cost']['total']='UNKNOWN'
-    ref=ctx.artifact_port.put(ctx.workspace_id,'ROUTES',payload,call_id=ctx.call_id,turn_id=ctx.turn_id)
+    from journeyplus.agent.services.route_storage import save_routes
+    ref,payload=save_routes(ctx,payload)
     ids=payload['route_order']
     candidates,next_cursor=result_page(payload,ref,0,args.limit)
     return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in candidates) or unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',

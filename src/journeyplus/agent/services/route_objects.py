@@ -55,6 +55,9 @@ class RouteObject:
         if root['kind'] != 'ROUTES':
             raise ValueError('Expected an immutable computed ROUTES artifact')
         payload = root['payload']
+        from journeyplus.knowledge.simple_matching import POLICY
+        if payload.get('matching_policy') != POLICY:
+            raise LookupError('Matching result expired; query again using current simple matching rules')
         route = payload.get('routes', {}).get(fragment.removeprefix('route:'))
         if route is None:
             raise LookupError('Route does not exist in this snapshot')

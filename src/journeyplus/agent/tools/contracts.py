@@ -56,21 +56,7 @@ class Sources(DTO):
 
 
 class Constraints(DTO):
-    free_only: bool = False
-    max_amount: str | None = Field(default=None, pattern=r'^\d+(\.\d+)?$')
-    currency: str | None = Field(default=None, pattern=r'^[A-Z]{3}$')
-    allow_challenge: bool | None = None
-    source_acquisition: Literal['EARNED', 'MATCHED', 'UNKNOWN'] = Field(default='UNKNOWN',
-        description='Origin of the ALREADY HELD status, not the desired activity method. UNKNOWN unless stated by the user.')
-    residency: str | None = Field(default=None,description='Optional residence for regional price context only; never excludes routes from other regions.')
-    prior_participation: str | None = None
-    require_proven_eligibility: bool = False
-
-    @model_validator(mode='after')
-    def check_amount(self):
-        if self.max_amount is not None and (not self.currency or self.free_only):
-            raise ValueError('max_amount needs currency and cannot combine with free_only')
-        return self
+    free_only: bool = Field(default=False, description='True: free matching only. False: allow both free and paid. Region and exact price are activity details, not search filters.')
 
 
 class RouteRequest(DTO):
@@ -80,7 +66,6 @@ class RouteRequest(DTO):
         description='Only an explicit destination restriction; omit for all paths.')
     alliance: str | None = None
     constraints: Constraints = Field(default_factory=Constraints)
-    preferences: list[Literal['FEWER_STEPS', 'LOWER_KNOWN_FEE', 'LESS_UNCERTAINTY']] = Field(default_factory=list, max_length=3)
 
 
 class QueryPatch(DTO):
@@ -89,7 +74,6 @@ class QueryPatch(DTO):
     category: Literal['AIRLINE', 'HOTEL', 'CRUISE', 'OTHER'] | None = None
     alliance: str | None = None
     constraints: dict | None = None
-    preferences: list[Literal['FEWER_STEPS', 'LOWER_KNOWN_FEE', 'LESS_UNCERTAINTY']] | None = None
 
 
 class RoutesInput(DTO):
@@ -200,7 +184,7 @@ class BlockSelection(DTO):
     title: str | None = Field(default=None, max_length=100)
     reason: str | None = Field(default=None, max_length=500)
     roles: list[SelectionRole] = Field(default_factory=list,description='Optional; at most one primary, all others alternative.')
-    columns: list[Literal['cost', 'steps', 'challenge', 'eligibility', 'window', 'validity', 'conditions']] = Field(default_factory=list, max_length=7, description='Comparison only: conditions is verbatim rule text; eligibility is PASS/FAIL/UNKNOWN; window and validity are per-step facts.')
+    columns: list[Literal['cost', 'steps']] = Field(default_factory=list, max_length=7, description='Comparison only: cost is free/paid, steps is hop count. Activity details are read separately.')
     research_refs: list[str] = Field(default_factory=list, max_length=8)
 
     @model_validator(mode='after')

@@ -462,7 +462,7 @@ def test_official_and_article_edges_dedupe_and_form_mixed_multihop(db_session) -
     b_node = tree.root.children[0].child
     assert b_node.node.id == "b club::gold"
     assert b_node.children[0].child.node.id == "c club::platinum"
-    assert b_node.children[0].child.children[0].child.state == UnifiedTreeNodeState.CYCLE
+    assert not b_node.children[0].child.children  # Matching projections never draw cycles.
     a_to_b = next(
         edge
         for edge in audit.edges
@@ -663,11 +663,7 @@ def test_conditional_is_visible_while_conflict_and_unavailable_are_excluded(
     assert [edge.child.node.id for edge in tree.root.children] == [
         "conditional club::platinum"
     ]
-    assert tree.root.children[0].conditional is True
-    assert tree.root.children[0].conditions == [
-        "complete a 10-night challenge",
-        "resident of Exampleland",
-    ]
+    assert tree.root.children[0].conditions == []  # Auxiliary conditions remain in activity details.
     conditional_edge = next(
         edge
         for edge in audit.edges
@@ -817,17 +813,14 @@ def test_reachable_forest_expands_full_multiroot_graph_with_cycle_and_cross_refe
         "b club::gold",
     ]
     assert forest.truncated_count == 0
-    assert forest.cycle_count == 1
-    assert forest.cross_reference_count >= 2
-    assert forest.roots[1].state == UnifiedTreeNodeState.CROSS_REFERENCE
+    assert forest.cycle_count == 0
+    assert forest.cross_reference_count == 0
+    assert forest.roots[1].state == UnifiedTreeNodeState.EXPANDED
     a_children = forest.roots[0].children
-    assert [edge.target_node_id for edge in a_children] == [
-        "b club::gold",
-        "c club::gold",
-    ]
+    assert [edge.target_node_id for edge in a_children] == ['c club::gold']
     assert {item for edge in a_children for item in edge.opportunity_ids} <= set(created)
-    d_from_c = a_children[1].child.children[0].child
-    assert d_from_c.state == UnifiedTreeNodeState.CROSS_REFERENCE
+    assert not a_children[0].child.children
+    assert forest.roots[1].children[0].child.node.id == 'd club::platinum'
 
 
 def test_reachable_forest_uses_only_explicit_technical_node_budget(db_session) -> None:

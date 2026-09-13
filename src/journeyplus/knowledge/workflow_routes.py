@@ -1,188 +1,134 @@
-"""Adapt existing workflow graph contributions to the shared route result contract."""
-from collections import deque
+"""Read current workflow mappings into the shared simple matching graph."""
 from datetime import UTC, datetime
-from time import monotonic
-import re
-
-from journeyplus.knowledge.routes import RouteService
 from journeyplus.knowledge.publication import signature
-from journeyplus.knowledge.selection import order_candidates
 from journeyplus.membership.unified import _outgoing
 from journeyplus.membership.normalization import stable_id
 from journeyplus.product.opportunities import PersonalizedMatchService
-from journeyplus.product.candidate_routes import _NO_CHALLENGE, _CHALLENGE
 from journeyplus.fee_policy import route_fees
 from .workflow_knowledge import catalog, graph_state, identity_id, brief_url
-
-
-def regional_applicability(region, residency):
-    """Recognize explicit country lists only; prose and exclusions stay unknown."""
-    if not region:
-        return True
-    if not residency:
-        return None
-    from journeyplus.knowledge.countries import _ALIASES, key, country_in
-    countries = [part.strip() for part in re.split(r',|;|、|，|\s+and\s+|\s*&\s*',region,flags=re.I)]
-    if not countries or any(key(country) not in _ALIASES for country in countries):
-        return None
-    return country_in(residency,countries)
+from .simple_matching import shortest_graph, POLICY
 
 
 def mapping_ref(claim, facts):
-    """Resolve producer contribution IDs to the unchanged FactSet array index."""
-    for index,mapping in enumerate(facts.status_mappings):
-        for tier_index,_ in enumerate(mapping.source_tiers):
+    for index, mapping in enumerate(facts.status_mappings):
+        for tier_index, _ in enumerate(mapping.source_tiers):
             expected = (f'official:{claim.provenance.fact_set_id}:{index}:{tier_index}'
                 if claim.provenance.fact_set_id else stable_id('article-contribution',
-                    str(claim.provenance.opportunity_id),str(index),str(tier_index)))
-            if expected==claim.contribution_id:
+                    str(claim.provenance.opportunity_id), str(index), str(tier_index)))
+            if expected == claim.contribution_id:
                 return f'mapping-{index}'
     raise ValueError('Graph contribution cannot be located in its FactSet version')
 
 
+def matching_paid(facts, target_tier):
+    """Binary mandatory payment only. Region and amount never become branches."""
+    for option in facts.application_routes or [None]:
+        policy = route_fees(facts, option, target_tier=target_tier)
+        if 'PAID' in policy.states or any(p.amount is not None and p.amount > 0
+                and p.availability not in {'CONDITIONAL', 'UNAVAILABLE'} for _, p in policy.prices):
+            return True
+    return False
+
+
 class WorkflowRouteService:
-    def __init__(self, session, *, holding_snapshot=None):
+    def __init__(self, session, *, holding_snapshot=None, state=None):
         self.session = session
+        self.state = state
         self.holding_snapshot = holding_snapshot or []
 
     def query(self, query, *, shortlist=8, max_states=10000, max_edges=20000, deadline_seconds=2):
-        started = monotonic()
-        state = graph_state(self.session)
-        programs, tiers, _ = catalog(self.session)
-        programs = {p.id:p for p in programs}
-        tier_nodes = {identity_id('tier',n.id):n for n in state.nodes.values()}
+        state = self.state if self.state is not None else graph_state(self.session)
+        programs, _, _ = catalog(self.session, state=state)
+        programs = {p.id: p for p in programs}
+        tier_nodes = {identity_id('tier', n.id): n for n in state.nodes.values()}
         roots = [tier_nodes[t].id for t in query.starting_tier_ids if t in tier_nodes]
-        work = deque((n,[],frozenset({n})) for n in sorted(set(roots)))
-        details, steps, routes, versions = {}, {}, [], {}
-        states = edges = 0
-        stopped = None
-        unknown_metadata = set()
-        seen_paths = set()
-        summarizer = RouteService(self.session,holding_snapshot=self.holding_snapshot)
-        while work:
-            if states >= max_states or edges >= max_edges or monotonic()-started >= deadline_seconds:
-                stopped = 'STATE_BUDGET' if states>=max_states else 'EDGE_BUDGET' if edges>=max_edges else 'TIME_BUDGET'
-                break
-            node, path, visited = work.popleft()
-            states += 1
-            for outgoing in _outgoing(state,state.nodes[node]):
-                target = state.nodes[outgoing.target_node_id]
-                if target.id in visited:
-                    continue
-                for claim in outgoing.contributions:
-                    edges += 1
-                    if edges > max_edges or monotonic()-started >= deadline_seconds:
-                        stopped = 'EDGE_BUDGET' if edges>max_edges else 'TIME_BUDGET'
-                        break
-                    origin = claim.provenance
-                    opportunity_id = origin.fact_set_id or origin.opportunity_id
-                    if opportunity_id is None:
+        details = {}
+        def outgoing(source):
+            choices = {}
+            for relation in _outgoing(state, state.nodes[source]):
+                target = state.nodes[relation.target_node_id]
+                for claim in relation.contributions:
+                    if claim.availability == 'UNAVAILABLE':
                         continue
-                    if opportunity_id not in details:
-                        details[opportunity_id] = PersonalizedMatchService(self.session).detail(opportunity_id,include_current_path=False)
-                    detail = details[opportunity_id]
-                    if detail.lifecycle_status in {'CLOSED','EXPIRED','ARCHIVED','STALE'} or claim.availability=='UNAVAILABLE':
+                    origin = claim.provenance
+                    identity = origin.fact_set_id or origin.opportunity_id
+                    if identity is None:
+                        continue
+                    if identity not in details:
+                        details[identity] = PersonalizedMatchService(self.session)._facts_for_opportunity(identity)
+                    facts = details[identity]
+                    if facts is None:
                         continue
                     activity = origin.event_id or origin.opportunity_id
                     if origin.fact_set_id:
                         version = origin.fact_set_id
                     else:
                         from journeyplus.models import ArticleOpportunityRecord
-                        version = self.session.get(ArticleOpportunityRecord,opportunity_id).analysis_id
-                    versions[str(activity)] = str(version)
-                    facts = detail.facts
-                    from journeyplus.models import StatusEvent
-                    event = self.session.get(StatusEvent,activity) if origin.event_id else None
-                    from journeyplus.lifecycle.visibility import contributes
-                    if event and not contributes(event):
-                        continue
-                    # Each regional application route is a distinct variant. Never
-                    # minimize across regions or charge a different target tier's fee.
-                    for index, option in enumerate(facts.application_routes or [None]):
-                        applies = regional_applicability(option.region if option else None,query.residency)
-                        # Region annotates applicability and prices, never removes a path.
-                        policy = route_fees(facts, option, target_tier=target.tier_key)
-                        eligible_prices = policy.prices
-                        if eligible_prices and all(p.availability=='UNAVAILABLE' for _,p in eligible_prices):
-                            continue
-                        base_prices = [p for _,p in eligible_prices if p.availability not in {'CONDITIONAL','UNAVAILABLE'}]
-                        fees, conditional = [], []
-                        for price_index, price in eligible_prices:
-                            if price.availability=='UNAVAILABLE': continue
-                            value = {'ref':f'{version}/route-{index}/price-{price_index}',
-                                'amount':str(price.amount) if price.amount is not None else None,
-                                'currency':price.currency,'role':'APPLICATION','raw_text':price.raw_text,
-                                'conditions':[option.region] if option and option.region else []}
-                            if (applies is True and len(base_prices)==1 and price.availability=='AVAILABLE'
-                                    and price.amount is not None and not policy.conflict):
-                                fees.append(value)
-                            else:
-                                conditional.append({**value,'applicability':'UNKNOWN',
-                                    'reason':(option.region if option else None) or price.raw_text or '价格适用条件待确认'})
-                        texts = [facts.eligibility.value, facts.region.value, claim.conditions,
-                                 option.eligibility if option else None, option.region if option else None]
-                        checks = [{'topic':'ELIGIBILITY','result':'UNKNOWN','reason':v} for v in dict.fromkeys(texts) if v]
-                        checks.append({'topic':'ELIGIBILITY','result':'UNKNOWN',
-                            'reason':'原模型保留文字条件；匹配关系不等于个人申请资格已经核实。'})
-                        challenge_text = facts.challenge_requirements.value or ''
-                        negative = bool(_NO_CHALLENGE.search(challenge_text))
-                        positive = bool(_CHALLENGE.search(_NO_CHALLENGE.sub('',challenge_text)))
-                        challenge = ('UNKNOWN' if facts.challenge_requirements.conflict or negative and positive
-                            else 'NONE' if negative else 'REQUIRED' if positive else 'UNKNOWN')
-                        sid = signature([claim.contribution_id,node,target.id,index,path])[:24]
-                        pref = identity_id('program',target.program_key)
-                        category = programs[pref].category
-                        steps[sid] = {'ref':sid,'activity_ref':str(activity),'version_ref':str(version),
-                            'option_ref':'route-'+str(index) if option else None,'mapping_ref':mapping_ref(claim,facts),
-                            'claim_ref':claim.contribution_id,
-                            'from_tier_id':str(identity_id('tier',node)), 'to_tier_id':str(identity_id('tier',target.id)),
-                            'from':state.nodes[node].program+' '+state.nodes[node].tier,
-                            'to':target.program+' '+target.tier, 'target_category':category,
-                            'target_program_id':str(pref),
-                            'target_alliance':str(target.alliance) if target.alliance else None,
-                            'fees':fees,'conditional_items':conditional,'alternative_items':[],
-                            'fee_unknown':not bool(fees) and not policy.free,'fee_conflict':policy.conflict,
-                            'fee_free':policy.free,
-                            'challenge':challenge,'eligibility':'UNKNOWN','constraint_checks':checks,
-                            'source_acquisition':query.source_acquisition if not path else 'MATCHED',
-                            'material_caveats':[c['reason'] for c in checks]+[v for v in
-                                [facts.caveats.value,claim.conflict_note,option.conflict_note if option else None] if v],
-                            'fact_refs':[f'activity:{activity}@{version}'], 'availability':'UNKNOWN' if claim.conflict or outgoing.derived_from_rule else str(claim.availability),
-                            'application_window':{'start':facts.application_start.value,'end':facts.deadline.value},
-                            'status_validity':facts.status_validity.model_dump(mode='json'),
-                            'action_link':str(option.action_link) if option and option.action_link else facts.action_link.value,
-                            'source_links':detail.source_links, 'application_scope':option.scope if option else None,
-                            'cost_description':policy.text or ('免费（未提供费用信息）'
-                                if policy.free_basis=='NO_FEE_INFORMATION' else '免费' if policy.free else None),
-                            'brief_url':brief_url(activity,version)}
-                        next_path = [*path,sid]
-                        if tuple(next_path) in seen_paths: continue
-                        seen_paths.add(tuple(next_path))
-                        candidate = summarizer._summarize(next_path,steps,query)
-                        wanted = (query.target_program_id is None or pref==query.target_program_id) and (
-                            query.target_tier_id is None or identity_id('tier',target.id)==query.target_tier_id)
-                        if query.category and category=='OTHER' or query.alliance and not target.alliance:
-                            unknown_metadata.add(target.program_key)
-                        wanted = wanted and (query.category is None or category==query.category) and (
-                            query.alliance is None or str(target.alliance)==query.alliance)
-                        if wanted: routes.append(candidate)
-                        if candidate['classification']!='EXCLUDED':
-                            work.append((target.id,next_path,visited|{target.id}))
-                    if stopped: break
-                if stopped: break
-            if stopped: break
-        ordered, _ = order_candidates(routes,query.preferences)
-        unmapped = len(state.excluded)
-        complete = stopped is None and not unknown_metadata
-        # A query without a source cannot explore wildcard/public eligibility
-        # that the original schema does not encode as a named starting tier.
+                        version = self.session.get(ArticleOpportunityRecord, identity).analysis_id
+                    paid = matching_paid(facts, target.tier_key)
+                    pid = identity_id('program', target.program_key)
+                    mapping = mapping_ref(claim, facts)
+                    sid = signature([POLICY, source, target.id, str(activity), str(version), mapping])[:24]
+                    step = {'ref': sid, 'matching_policy': POLICY, 'paid': paid, 'fee_free': not paid,
+                        'activity_ref': str(activity), 'version_ref': str(version), 'mapping_ref': mapping,
+                        'from_tier_id': str(identity_id('tier', source)), 'to_tier_id': str(identity_id('tier', target.id)),
+                        'from': state.nodes[source].program+' '+state.nodes[source].tier,
+                        'to': target.program+' '+target.tier, 'target_program_id': str(pid),
+                        'target_category': programs[pid].category, 'target_alliance': str(target.alliance) if target.alliance else None,
+                        'certainty': str(claim.certainty), 'derived_from_rule': relation.derived_from_rule,
+                        'fact_refs': [f'activity:{activity}@{version}'], 'availability': str(claim.availability),
+                        'brief_url': brief_url(activity, version)}
+                    # One real supporting mapping per connection, free first.
+                    old = choices.get(target.id)
+                    if old is None or (paid, sid) < (old['paid'], old['ref']):
+                        choices[target.id] = step
+            return list(choices.items())
+        def wanted(node_id):
+            node = state.nodes[node_id]
+            pid = identity_id('program', node.program_key)
+            return ((query.target_program_id is None or query.target_program_id == pid)
+                and (query.target_tier_id is None or query.target_tier_id == identity_id('tier', node_id))
+                and (query.category is None or query.category == programs[pid].category)
+                and (query.alliance is None or query.alliance == str(node.alliance)))
+        result = shortest_graph(state.nodes, roots, outgoing, wanted, free_only=query.free_only,
+            exact_tier=query.target_tier_id is not None, max_states=max_states, max_edges=max_edges,
+            deadline_seconds=deadline_seconds)
+        result['coverage'].update(excluded_contribution_count=len(state.excluded), unresolved_alliance_program_count=0)
         if not roots:
-            complete = False
-            stopped = stopped or 'SOURCE_IDENTITY_REQUIRED'
-        return {'presentation_classes':['MATCH','UNKNOWN'],'server_routes':{r['ref']:r for r in ordered},'server_steps':steps,'snapshot':versions,
-            'coverage':{'search_complete':complete,'searched_published_graph_complete':complete,
-                'stopped_reason':stopped or ('CATALOG_METADATA_GAPS' if unknown_metadata else None),
-                'expanded_states':states,'checked_edges':edges,'excluded_contribution_count':unmapped,
-                'unresolved_alliance_program_count':len(unknown_metadata),
-                'scope_description':'当前 AIWorkflow 的官方与文章匹配关系；文字条件保留，个人资格未自动证明。',
-                'knowledge_complete':False,'knowledge_gap_reason':'Unrecorded mappings and textual eligibility are not proof of absence.'}}
+            result['coverage'].update(search_complete=False, searched_published_graph_complete=False,
+                stopped_reason='SOURCE_IDENTITY_REQUIRED')
+        return result
+
+
+def matching_forest(session, root_ids, *, technical_node_limit=5000, now=None, state=None):
+    """Adapt the same selected graph to existing personalized-page tree DTOs."""
+    from journeyplus.membership.contracts import ReachableMembershipForest, ReachableMembershipTreeNode, ReachableMembershipTreeEdge
+    from .simple_matching import MatchingQuery
+    from uuid import UUID
+    if state is None:
+        from journeyplus.membership.unified import UnifiedMembershipTreeService
+        state = UnifiedMembershipTreeService(session)._build_state(now=now)
+    missing = set(root_ids)-state.nodes.keys()
+    if missing:
+        raise LookupError('Unknown membership nodes: '+', '.join(sorted(missing)))
+    result = WorkflowRouteService(session, state=state).query(MatchingQuery(
+        starting_tier_ids=[identity_id('tier', node) for node in root_ids]), max_states=technical_node_limit)
+    node_ids = {str(identity_id('tier', node)): node for node in state.nodes}
+    children = {}
+    for step in result['server_steps'].values():
+        source, target = node_ids[step['from_tier_id']], node_ids[step['to_tier_id']]
+        children.setdefault(source, []).append((target, step))
+    def tree(node):
+        edges = []
+        for target, step in sorted(children.get(node, [])):
+            identity = UUID(step['version_ref']) if step['fact_refs'][0].startswith('activity:') else UUID(step['activity_ref'])
+            from journeyplus.models import FactSetRecord
+            if session.get(FactSetRecord, identity) is None:
+                identity = UUID(step['activity_ref'])
+            edges.append(ReachableMembershipTreeEdge(source_node_id=node, target_node_id=target,
+                opportunity_ids=[identity], contribution_ids=[], certainties=[step['certainty']], derived_from_rule=step['derived_from_rule'], child=tree(target)))
+        return ReachableMembershipTreeNode(node=state.nodes[node], state='EXPANDED' if edges else 'LEAF' if result['coverage']['search_complete'] else 'NODE_LIMIT', children=edges)
+    nodes = set(root_ids)|{node_ids[step['to_tier_id']] for step in result['server_steps'].values()}
+    return ReachableMembershipForest(roots=[tree(node) for node in sorted(set(root_ids))],
+        technical_node_limit=technical_node_limit, occurrence_count=len(nodes), expanded_node_count=len(nodes),
+        cycle_count=0, cross_reference_count=0, truncated_count=int(not result['coverage']['search_complete']))

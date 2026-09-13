@@ -101,6 +101,7 @@ def test_workspace_reads_persisted_tool_result_as_route_overview(session_factory
 def test_wrong_step_returns_only_same_snapshot_routes_and_never_presents(session_factory):
     _, store, workspace, ctx = context(session_factory)
     payload = snapshot()
+    payload['matching_policy']='simple-matching-v1'
     payload['steps']['t'] = {**payload['steps']['s'], 'from': 'Flying Blue Gold', 'to': 'Another Gold'}
     payload['steps']['u'] = {**payload['steps']['s'], 'from': 'Other Silver', 'to': 'Other Gold'}
     payload['routes'].update({'r2': {'step_refs': ['s', 't'], 'cost': {'state': 'UNKNOWN'}}, 'unrelated': {'step_refs': ['u']}})
@@ -139,3 +140,10 @@ def test_many_route_choices_are_bounded_and_explicitly_incomplete(session_factor
     assert failed.error.fields[0]['matching_route_count'] == 12
     assert failed.error.fields[0]['candidates_complete'] is False
     assert failed.error.fields[0]['snapshot_ref'] == root
+
+
+def test_old_route_snapshot_requires_recalculation(session_factory):
+    _,store,workspace,ctx=context(session_factory)
+    root=store.artifacts.put(workspace['id'],'ROUTES',snapshot())
+    with pytest.raises(LookupError,match='expired'):
+        RouteObject.read(store.artifacts,workspace['id'],root+'#route:r')

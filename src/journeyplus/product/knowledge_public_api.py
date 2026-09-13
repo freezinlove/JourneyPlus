@@ -3,7 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter,HTTPException,Query
 from journeyplus.knowledge.workflow_knowledge import WorkflowKnowledgePort, WorkflowActivityReader
 from journeyplus.knowledge.workflow_explore import search_catalog, explore as explore_query, opportunity_reference
-from journeyplus.knowledge.routes import RouteQuery
+from journeyplus.knowledge.simple_matching import MatchingQuery as RouteQuery
 
 
 def public_knowledge_router(factory=None,*,knowledge=None):

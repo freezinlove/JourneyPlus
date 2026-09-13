@@ -2,7 +2,8 @@
 from uuid import UUID
 from contextlib import nullcontext
 from datetime import date
-from journeyplus.knowledge.routes import RouteService, RouteQuery, HoldingSnapshot
+from journeyplus.knowledge.routes import RouteService, HoldingSnapshot
+from journeyplus.knowledge.simple_matching import MatchingQuery as RouteQuery
 from journeyplus.agent.harness.contracts import ToolResult
 from journeyplus.memberships_validity import is_active_membership
 
@@ -72,7 +73,7 @@ class RouteQueries:
         actual=RouteQuery(starting_tier_ids=sorted({UUID(r['tier_ref'][5:]) for r in sources},key=str),use_saved_holdings=False,
             target_program_id=UUID(target['program_ref'][8:]) if target else None,
             target_tier_id=UUID(target['tier_ref'][5:]) if target and target['tier_ref'] else None,
-            alliance=query.alliance,category=query.category,preferences=query.preferences,**query.constraints.model_dump())
+            alliance=query.alliance,category=query.category,**query.constraints.model_dump())
         snapshot=[HoldingSnapshot(UUID(h['holding_ref'][8:]),UUID(h['tier_ref'][5:]) if h['tier_ref'] else None,
                      h['revision'],date.fromisoformat(h['valid_until']) if h['valid_until'] else None) for h in holdings]
         service=getattr(self.knowledge,'route_service',RouteService)

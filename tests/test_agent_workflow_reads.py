@@ -78,9 +78,10 @@ def test_original_schema_catalog_routes_inspect_and_progressive_materials(origin
     routes = call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
     assert routes.data['candidates']
     inspected = call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':routes.data['route_refs'][:1]})
-    assert inspected.data['steps'][0]['fees'][0]['amount']=='49'
+    assert inspected.data['steps'][0]['paid'] is True
+    assert 'fees' not in inspected.data['steps'][0]
     assert inspected.data['steps'][0]['mapping_ref']=='mapping-0'
-    assert inspected.data['steps'][0]['action_link']=='https://example.com/apply'
+    assert inspected.data['steps'][0]['brief_url']
     assert inspected.data['candidates'][0]['eligibility']=='UNKNOWN'
     overview = call(runtime,ctx,'activity.read',{'selector':{'query':'Example Rewards'}})
     item = overview.data['activities'][0]
@@ -112,7 +113,8 @@ def test_unavailable_tier_price_never_becomes_payable(original_factory,session_f
     runtime,_,ctx=context(session_factory,original_factory)
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{
         'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}})
-    assert not result.data['candidates']
+    assert len(result.data['candidates'])==1  # Regional availability is auxiliary, mapping is retained.
+    assert 'totals' not in result.data['candidates'][0]['cost']
 
 
 def test_regional_prices_are_not_global_totals_and_filters_are_preserved(original_factory,session_factory):
@@ -125,13 +127,12 @@ def test_regional_prices_are_not_global_totals_and_filters_are_preserved(origina
     runtime,store,ctx=context(session_factory,original_factory)
     query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
-    assert result.data['candidates'][0]['cost']['state']=='UNKNOWN'
-    assert result.data['candidates'][0]['cost']['total']=='UNKNOWN'
+    assert result.data['candidates'][0]['paid'] is True
+    assert 'totals' not in result.data['candidates'][0]['cost']
     inspected=call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':result.data['route_refs']})
-    assert inspected.data['steps'][0]['conditional_items'][0]['conditions']==['Argentina and Chile']
+    assert 'conditional_items' not in inspected.data['steps'][0]
     filtered=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{**query,'constraints':{'free_only':True}}})
-    assert filtered.status=='PARTIAL'
-    assert all(c['constraint_match']=='UNKNOWN' for c in filtered.data['candidates'])
+    assert filtered.status=='EMPTY' and not filtered.data['candidates']
 
 
 def test_saved_original_holdings_and_snapshot_do_not_require_new_columns(original_factory,session_factory):
@@ -193,7 +194,7 @@ def test_multistep_endpoints_and_known_fees_use_existing_result_contract(origina
     assert len(result.data['candidates'])==1
     route=result.data['candidates'][0]
     assert route['step_count']==2 and route['to'].casefold()=='final rewards platinum'
-    assert route['cost']['totals'][0]['amount']=='50'
+    assert route['paid'] is True and 'totals' not in route['cost']
 
 
 def test_official_historical_factset_never_uses_current_brief(original_factory,session_factory):
@@ -263,11 +264,16 @@ def test_conditional_mapping_is_disclosed_instead_of_an_empty_result(original_fa
     runtime,_,ctx=context(session_factory,original_factory)
     query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
-    assert result.status=='PARTIAL' and len(result.data['route_refs'])==1
-    assert result.data['candidates'][0]['constraint_match']=='UNKNOWN'
+    assert result.status=='OK' and len(result.data['route_refs'])==1
+    assert result.data['candidates'][0]['constraint_match']=='SATISFIES'
     inspected=call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':result.data['route_refs']})
     assert inspected.data['steps'][0]['availability']=='CONDITIONAL'
-    assert any(c['reason']=='Restricted to eligible residents' for c in inspected.data['steps'][0]['constraint_checks'])
+    assert 'constraint_checks' not in inspected.data['steps'][0]
+    detail=call(runtime,ctx,'activity.read',{'selector':{'query':'Example Rewards'},'view':'detail'})
+    activity=detail.data['activities'][0]
+    section=activity['options'][-1]['mapping_index'][0]['section_ref']
+    expanded=call(runtime,ctx,'activity.read',{'selector':{'ref':activity['ref']},'section_refs':[section]})
+    assert 'Restricted to eligible residents' in json.dumps(expanded.data)
 
 
 def test_explicit_residency_retains_other_regions_without_mixing_prices(original_factory,session_factory):
@@ -282,15 +288,14 @@ def test_explicit_residency_retains_other_regions_without_mixing_prices(original
         facts['application_routes'].append(foreign);row.facts=facts
     runtime,_,ctx=context(session_factory,original_factory)
     query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]},
-           'constraints':{'residency':'希腊','max_amount':'50','currency':'USD'}}
+           'constraints':{'free_only':False}}
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
-    assert len(result.data['route_refs'])==2 and result.status=='PARTIAL'
+    assert len(result.data['route_refs'])==1 and result.status=='OK'
     inspected=call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':result.data['route_refs']})
-    steps={step['application_scope']:step for step in inspected.data['steps']}
-    assert steps['Greece']['fees'][0]['ref'].endswith('/price-1')
-    assert steps['Greece']['fees'][0]['amount']=='49'
-    assert not steps['South America']['fees']
-    assert steps['South America']['conditional_items'][0]['amount']=='199'
+    assert len(inspected.data['steps'])==1 and inspected.data['steps'][0]['paid']
+    assert 'application_scope' not in inspected.data['steps'][0]
+    detail=call(runtime,ctx,'activity.read',{'selector':{'query':'Example Rewards'},'view':'detail'})
+    assert 'Greece' in json.dumps(detail.data) and '199' in json.dumps(detail.data)
 
 
 def test_region_prose_and_mixed_challenge_are_not_assumed_proven(original_factory,session_factory):
@@ -303,10 +308,10 @@ def test_region_prose_and_mixed_challenge_are_not_assumed_proven(original_factor
     runtime,_,ctx=context(session_factory,original_factory)
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{
         'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]},
-        'constraints':{'residency':'Greece','allow_challenge':False}}})
-    assert result.status=='PARTIAL'
-    assert result.data['candidates'][0]['challenge']=='UNKNOWN'
-    assert result.data['candidates'][0]['cost']['state']=='UNKNOWN'
+        'constraints':{'free_only':False}}})
+    assert result.status=='OK'
+    assert result.data['candidates'][0]['eligibility']=='UNKNOWN'
+    assert result.data['candidates'][0]['paid'] is True
 
 
 def test_conflicting_explicit_version_cannot_override_a_pinned_reference(original_factory,session_factory):
@@ -352,3 +357,41 @@ def test_selected_brief_pointer_is_authoritative_within_same_factset(original_fa
         event_id=event.id
     with original_factory() as s:
         assert WorkflowActivityReader(s).detail(event_id)['name']=='Brief 1'
+
+
+def test_simple_waiting_uses_same_routes_and_rejects_old_constraints(original_factory,session_factory):
+    from journeyplus.agent.tools.contracts import WaitingInput
+    from journeyplus.models import AgentWaitGoal
+    from uuid import UUID
+    identity=seed(original_factory)
+    runtime,store,ctx=context(session_factory,original_factory)
+    store.start(ctx.workspace_id,'创建本次测试等待任务','simple-wait',0)
+    ctx.turn_id=store.load_context_index(ctx.workspace_id)['messages'][-1].metadata['turn_id']
+    query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}
+    direct=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
+    service=runtime.services['waiting']
+    created=service.manage(WaitingInput(operation='create',query=query),ctx)
+    assert created.error is None
+    assert service.check()['status']=='RESULT_PENDING'
+    listed=service.manage(WaitingInput(operation='list'),ctx)
+    goal=listed.data['goals'][0]
+    payload=store.artifacts.read(ctx.workspace_id,goal['result_snapshot_ref'])['payload']
+    assert payload['matching_policy']=='simple-matching-v1'
+    assert {(r['from'],r['to'],r['paid']) for r in payload['routes'].values()}=={(r['from'],r['to'],r['paid']) for r in direct.data['candidates']}
+    assert set(payload['steps'])=={sid for r in payload['routes'].values() for sid in r['step_refs']}
+    with session_factory.begin() as s:
+        row=s.get(AgentWaitGoal,UUID(goal['ref'].removeprefix('goal:')))
+        row.status='ACTIVE'
+    with original_factory.begin() as s:
+        row=s.get(ArticleOpportunityRecord,identity);facts=json.loads(json.dumps(row.facts))
+        facts['application_routes'][0]['prices'][0]['amount']='99'
+        row.facts=facts
+    assert service.check()['status']=='DUPLICATE'
+    with session_factory.begin() as s:
+        row=s.get(AgentWaitGoal,UUID(goal['ref'].removeprefix('goal:')))
+        row.query={**query,'constraints':{'max_amount':'100','currency':'USD'}}
+        row.conditions_schema_version=3
+    assert service.check()['status']=='NEEDS_RECONFIRMATION'
+    with session_factory() as s:
+        row=s.get(AgentWaitGoal,UUID(goal['ref'].removeprefix('goal:')))
+        assert row.query['constraints']['max_amount']=='100'

@@ -144,74 +144,24 @@ class UnifiedMembershipTreeService:
     ) -> UnifiedMembershipTree:
         state = self._build_state(now=now)
         root = self._query_node(state, program, tier)
-        resolved_limits = limits or UnifiedTraversalLimits()
-        counters = TraversalCounters()
-
-        def make_node(
-            node_id: str,
-            node_state: str,
-            children: list[UnifiedMembershipTreeEdge],
-            omitted_count: int,
-        ) -> UnifiedMembershipTreeNode:
-            return UnifiedMembershipTreeNode(
-                node=state.nodes[node_id],
-                state=UnifiedTreeNodeState(node_state),
-                children=children,
-                omitted_count=omitted_count,
-            )
-
-        def make_edge(
-            source_id: str,
-            target_id: str,
-            relation: _Outgoing,
-            child: UnifiedMembershipTreeNode,
-        ) -> UnifiedMembershipTreeEdge:
-            contributions = relation.contributions
-            return UnifiedMembershipTreeEdge(
-                source_node_id=source_id,
-                target_node_id=target_id,
-                certainties=sorted(
-                    {item.certainty for item in contributions},
-                    key=certainty_rank,
-                ),
-                conditions=sorted(
-                    {
-                        item.conditions
-                        for item in contributions
-                        if item.conditions is not None
-                    },
-                    key=str.casefold,
-                ),
-                derived_from_rule=relation.derived_from_rule,
-                conditional=any(
-                    item.availability == MappingAvailability.CONDITIONAL
-                    for item in contributions
-                ),
-                conflict=any(item.conflict for item in contributions),
-                child=child,
-            )
-
-        root_tree = expand_bounded_tree(
-            root.id,
-            depth=0,
-            ancestors={root.id},
-            expanded=set(),
-            counters=counters,
-            limits=resolved_limits,
-            outgoing=lambda node_id: _outgoing(state, state.nodes[node_id]),
-            target_id=lambda relation: relation.target_node_id,
-            make_node=make_node,
-            make_edge=make_edge,
-        )
-        return UnifiedMembershipTree(
-            root=root_tree,
-            limits=resolved_limits,
-            occurrence_count=counters.occurrences,
-            expanded_node_count=counters.expanded,
-            cycle_count=counters.cycles,
-            cross_reference_count=counters.cross_references,
-            truncated_count=counters.truncated,
-        )
+        limits = limits or UnifiedTraversalLimits()
+        from journeyplus.knowledge.workflow_routes import matching_forest
+        forest = matching_forest(self._session,[root.id], technical_node_limit=limits.max_nodes, now=now,state=state)
+        omitted = 0
+        def convert(node, depth):
+            nonlocal omitted
+            chosen = node.children[:limits.max_branches] if depth < limits.max_depth else []
+            missing = len(node.children)-len(chosen)
+            omitted += missing
+            children = [UnifiedMembershipTreeEdge(source_node_id=e.source_node_id,
+                target_node_id=e.target_node_id, certainties=e.certainties, derived_from_rule=e.derived_from_rule, child=convert(e.child,depth+1)) for e in chosen]
+            return UnifiedMembershipTreeNode(node=node.node, state='DEPTH_LIMIT' if missing else node.state,
+                children=children, omitted_count=missing)
+        tree = convert(forest.roots[0],0)
+        def count(node): return 1+sum(count(e.child) for e in node.children)
+        return UnifiedMembershipTree(root=tree, limits=limits, occurrence_count=count(tree),
+            expanded_node_count=count(tree), cycle_count=0, cross_reference_count=0,
+            truncated_count=forest.truncated_count+omitted)
 
     def catalog(
         self,
@@ -244,126 +194,9 @@ class UnifiedMembershipTreeService:
         now: datetime | None = None,
     ) -> ReachableMembershipForest:
         if technical_node_limit < 1:
-            raise ValueError("technical_node_limit must be positive")
-        state = self._build_state(now=now)
-        root_ids = sorted(set(root_node_ids))
-        missing = [node_id for node_id in root_ids if node_id not in state.nodes]
-        if missing:
-            raise LookupError(f"Unknown membership nodes: {', '.join(missing)}")
-
-        expanded: set[str] = set()
-        occurrences = 0
-        expanded_count = 0
-        cycle_count = 0
-        cross_reference_count = 0
-        truncated_count = 0
-
-        def make_reference(node_id: str, node_state: UnifiedTreeNodeState) -> ReachableMembershipTreeNode:
-            return ReachableMembershipTreeNode(
-                node=state.nodes[node_id],
-                state=node_state,
-                children=[],
-            )
-
-        def make_edge(
-            relation: _Outgoing,
-            child: ReachableMembershipTreeNode,
-        ) -> ReachableMembershipTreeEdge:
-            contributions = relation.contributions
-            return ReachableMembershipTreeEdge(
-                source_node_id=relation.source_node_id,
-                target_node_id=relation.target_node_id,
-                contribution_ids=[item.contribution_id for item in contributions],
-                opportunity_ids=sorted(
-                    {item.provenance.subject_id for item in contributions},
-                    key=str,
-                ),
-                certainties=sorted(
-                    {item.certainty for item in contributions},
-                    key=certainty_rank,
-                ),
-                conditions=sorted(
-                    {
-                        item.conditions
-                        for item in contributions
-                        if item.conditions is not None
-                    },
-                    key=str.casefold,
-                ),
-                derived_from_rule=relation.derived_from_rule,
-                conditional=any(
-                    item.availability == MappingAvailability.CONDITIONAL
-                    for item in contributions
-                ),
-                conflict=any(item.conflict for item in contributions),
-                child=child,
-            )
-
-        def expand(node_id: str, ancestors: frozenset[str]) -> ReachableMembershipTreeNode:
-            nonlocal occurrences, expanded_count, cycle_count
-            nonlocal cross_reference_count, truncated_count
-            occurrences += 1
-            expanded.add(node_id)
-            expanded_count += 1
-            relations = _outgoing(state, state.nodes[node_id])
-            if not relations:
-                return make_reference(node_id, UnifiedTreeNodeState.LEAF)
-            children: list[ReachableMembershipTreeEdge] = []
-            omitted = 0
-            for index, relation in enumerate(relations):
-                child_id = relation.target_node_id
-                if occurrences >= technical_node_limit:
-                    omitted = len(relations) - index
-                    truncated_count += omitted
-                    break
-                if child_id in ancestors:
-                    occurrences += 1
-                    cycle_count += 1
-                    child = make_reference(child_id, UnifiedTreeNodeState.CYCLE)
-                elif child_id in expanded:
-                    occurrences += 1
-                    cross_reference_count += 1
-                    child = make_reference(
-                        child_id, UnifiedTreeNodeState.CROSS_REFERENCE
-                    )
-                else:
-                    child = expand(child_id, ancestors | {child_id})
-                children.append(make_edge(relation, child))
-            return ReachableMembershipTreeNode(
-                node=state.nodes[node_id],
-                state=(
-                    UnifiedTreeNodeState.NODE_LIMIT
-                    if omitted
-                    else UnifiedTreeNodeState.EXPANDED
-                ),
-                children=children,
-                omitted_count=omitted,
-            )
-
-        roots: list[ReachableMembershipTreeNode] = []
-        for root_id in root_ids:
-            if occurrences >= technical_node_limit:
-                truncated_count += 1
-                roots.append(
-                    make_reference(root_id, UnifiedTreeNodeState.NODE_LIMIT)
-                )
-            elif root_id in expanded:
-                occurrences += 1
-                cross_reference_count += 1
-                roots.append(
-                    make_reference(root_id, UnifiedTreeNodeState.CROSS_REFERENCE)
-                )
-            else:
-                roots.append(expand(root_id, frozenset({root_id})))
-        return ReachableMembershipForest(
-            roots=roots,
-            technical_node_limit=technical_node_limit,
-            occurrence_count=occurrences,
-            expanded_node_count=expanded_count,
-            cycle_count=cycle_count,
-            cross_reference_count=cross_reference_count,
-            truncated_count=truncated_count,
-        )
+            raise ValueError('technical_node_limit must be positive')
+        from journeyplus.knowledge.workflow_routes import matching_forest
+        return matching_forest(self._session, root_node_ids, technical_node_limit=technical_node_limit, now=now)
 
     def audit(self, *, now: datetime | None = None) -> UnifiedMembershipAudit:
         state = self._build_state(now=now)

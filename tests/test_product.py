@@ -321,7 +321,7 @@ def test_product_api_pages_holdings_matches_briefs_and_prices(session_factory) -
         {
             "source_node_id": "source club::gold",
             "target_node_id": "target club::gold",
-            "labels": ["USD 149"],
+            "labels": ["付费"],
         }
     ]
 

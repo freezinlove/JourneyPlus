@@ -33,8 +33,8 @@ def graph_state(session):
     return session.info['workflow_graph'][1]
 
 
-def catalog(session):
-    state = graph_state(session)
+def catalog(session, *, state=None):
+    state = state if state is not None else graph_state(session)
     programs, tiers, aliases = {}, [], []
     for node in sorted(state.nodes.values(), key=lambda n: n.id):
         pid = identity_id('program', node.program_key)

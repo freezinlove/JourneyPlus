@@ -2,6 +2,7 @@
 export function activityForStep(detail, step) {
   if (detail.ref !== step.activity_ref || detail.version_ref !== step.version_ref) throw Error('版本与路径不一致');
   const activity=structuredClone(detail);
+  if(step.matching_policy==='simple-matching-v1'){activity.detail_scope='ACTIVITY_DETAILS';return activity;}
   const mappingOnly=detail.data_model==='aiworkflow'&&step.option_ref==null;
   if(mappingOnly&&detail.options.some(option=>option.ref!=='mappings'))throw Error('版本与申请方式不一致');
   activity.options=activity.options.filter(option=>option.ref===(mappingOnly?'mappings':step.option_ref));

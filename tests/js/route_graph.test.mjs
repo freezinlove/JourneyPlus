@@ -24,3 +24,9 @@ test('public application is an entry, never an invented held membership',()=>{
   assert.equal(origin.ref,'public-application');assert.equal(origin.name,'公开申请入口');
   assert.equal(origin.browseRef,undefined);
 });
+
+test('same identity connection with different refs is drawn only once',()=>{
+  const graph=graphStructure({routes:[{step_refs:['one']},{step_refs:['two']}],steps:{
+    one:{from:'A',to:'C',paid:true},two:{from:'A',to:'C',paid:true}}});
+  assert.equal(graph.nodes.length,2);assert.equal(graph.edges.length,1);
+});
