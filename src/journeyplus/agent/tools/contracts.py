@@ -33,7 +33,7 @@ class ActivityQuery(DTO):
 
 class ActivityInput(DTO):
     selector: IdentityRef | ActivityQuery
-    view: Literal['overview', 'detail', 'evidence', 'original', 'changes'] = 'overview'
+    view: Literal['overview', 'detail', 'evidence', 'original', 'changes', 'mappings'] = 'overview'
     aspects: list[Literal['price', 'eligibility', 'challenge', 'window', 'validity', 'application']] = Field(default_factory=list)
     version_ref: str | None = None
     section_refs: list[str] = Field(default_factory=list)
@@ -188,7 +188,7 @@ class SelectionRole(DTO):
 
 
 class BlockSelection(DTO):
-    type: Literal['activity_card', 'route_graph', 'comparison', 'evidence', 'experience']
+    type: Literal['activity_card', 'route_graph', 'comparison', 'evidence', 'experience', 'mapping_table']
     object_refs: list[str] = Field(min_length=1, max_length=20)
     title: str | None = Field(default=None, max_length=100)
     reason: str | None = Field(default=None, max_length=500)
@@ -222,7 +222,7 @@ class NextStep(DTO):
 
 
 class DisplayInput(DTO):
-    answer: str | None = Field(default=None, max_length=6000, description='Optional complete natural-language reply shown above the visuals. Put your final explanation here when this response contains only tool calls; do not duplicate text already spoken in the same response.')
+    answer: str | None = Field(default=None, description='Optional complete natural-language reply shown above the visuals. Put your final explanation here when this response contains only tool calls; do not duplicate text already spoken in the same response.')
     complete: bool = Field(default=False, description='Set true when your accompanying natural-language answer and this display complete the request. Successful display-only batches then end without another model call. Leave false if you plan to continue; failures and mixed tool batches always return to you.')
     blocks: list[BlockSelection] = Field(max_length=6)
     next_steps: list[NextStep] = Field(default_factory=list, max_length=3)

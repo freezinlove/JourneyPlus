@@ -17,13 +17,6 @@ class Registry:
             raise ValueError('Duplicate tool name')
         if definition.complete_result_operations and (definition.effect!='READ' or definition.operation_effects):
             raise ValueError('Complete observations are only supported for read-only tools')
-        if any(not 1000 <= value <= 24000 for value in
-               [definition.result_max_bytes, *definition.operation_result_max_bytes.values()]):
-            raise ValueError('Tool result projection must be between 1000 and 24000 bytes')
-        from .budget import estimate
-        proposed=[*self.definitions(),definition]
-        if estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in proposed])>=8000:
-            raise ValueError('Tool definitions exceed startup schema budget')
         self._definitions[definition.name] = definition
 
     def definitions(self):

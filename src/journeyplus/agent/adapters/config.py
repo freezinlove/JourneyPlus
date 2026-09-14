@@ -14,8 +14,7 @@ class AgentConfig:
     temperature: float = .2
     thinking: bool = False
     network_enabled: bool = False
-    input_token_soft: int = 450000
-    input_token_limit: int = 500000
+    model_output_limit: int = 0
     explicit_cache: bool = False
     context_token_budget: int = 500000
 
@@ -24,8 +23,8 @@ class AgentConfig:
             raise ValueError('JOURNEYPLUS_AGENT_CONTEXT_WINDOW must explicitly specify the model context window')
         if self.protocol not in {'auto', 'native', 'json'}:
             raise ValueError('Invalid Agent protocol')
-        if not 0<self.input_token_soft<self.input_token_limit:
-            raise ValueError('Agent input budget requires 0 < soft < hard')
+        if self.model_output_limit < 0:
+            raise ValueError('Model output capability must be nonnegative')
         if self.context_token_budget <= 0:
             raise ValueError('Agent context token budget must be positive')
 
@@ -40,7 +39,6 @@ class AgentConfig:
                    temperature=float(os.getenv('JOURNEYPLUS_AGENT_TEMPERATURE', '.2')),
                    thinking=os.getenv('JOURNEYPLUS_AGENT_THINKING', 'false').lower() == 'true',
                    network_enabled=os.getenv('JOURNEYPLUS_AGENT_NETWORK_ENABLED', 'false').lower() == 'true',
-                   input_token_soft=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_SOFT','450000')),
-                   input_token_limit=int(os.getenv('JOURNEYPLUS_AGENT_INPUT_TOKEN_LIMIT','500000')),
+                   model_output_limit=int(os.getenv('JOURNEYPLUS_AGENT_MODEL_OUTPUT_LIMIT','0')),
                    explicit_cache=os.getenv('JOURNEYPLUS_AGENT_EXPLICIT_CACHE','false').lower() == 'true',
                    context_token_budget=int(os.getenv('JOURNEYPLUS_AGENT_CONTEXT_TOKEN_BUDGET','500000')))

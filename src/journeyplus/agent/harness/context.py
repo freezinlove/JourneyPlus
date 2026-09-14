@@ -3,7 +3,7 @@ import json
 from .budget import estimate
 from .contracts import ModelMessage, Part
 
-CONTEXT_POLICY_VERSION = 'budgeted-history-v6-operation-views'
+CONTEXT_POLICY_VERSION = 'context-capacity-v7-whole-results'
 
 
 class ContextCapacityError(ValueError):
@@ -17,7 +17,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
     limit = capabilities.context_window-reserved_output-1024
     target = min(context_token_budget, limit)
     schema_tokens = estimate([{'name': d.name, 'description': d.description, 'parameters': d.input_schema} for d in definitions])
-    if schema_tokens >= min(8000, limit):
+    if schema_tokens >= target:
         raise ContextCapacityError('Tool definitions exceed context budget')
     system = [m for m in messages if m.role == 'system']
     conversation = [m.model_copy(deep=True) for m in messages if m.role != 'system']
@@ -115,7 +115,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
     used=cost(selected)
     if additions:
         system.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(additions, ensure_ascii=False))]))
-    if used > limit:
+    if used > target:
         raise ContextCapacityError('Current tool-call group exceeds context window; full results remain retrievable')
     return system + selected
 

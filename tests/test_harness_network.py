@@ -85,13 +85,10 @@ def test_web_tool_paginates_original_text_and_links_without_refetch(session_fact
         runtime,store,w,ctx=context(session_factory)
         await runtime.services['research'].close()
         reader=Reader();ctx.services['research']=reader
-        args=WebReadInput(url='https://example.org/',max_chars=30000)
+        args=WebReadInput(url='https://example.org/',max_chars=10000)
         first=await read(args,ctx);current=first;text_parts=[];all_links=[]
         assert first.status=='PARTIAL' and first.data['text'] and first.next_cursor
         while True:
-            projected=bounded_result(current,'artifact:full-result')
-            assert projected.data['text']==current.data['text']
-            assert projected.data['links']==current.data['links']
             text_parts.append(current.data['text']);all_links+=current.data['links']
             if not current.next_cursor:break
             current=await read(args.model_copy(update={'cursor':current.next_cursor}),ctx)

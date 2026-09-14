@@ -77,6 +77,12 @@ def bound_version(*versions):
 def activity(args, ctx):
     explicit_version=bound_version(args.version_ref, args.selector.ref.partition('@')[2] if hasattr(args.selector,'ref') else None)
     query_hash=digest(args.model_dump(mode='json',exclude={'cursor','limit'}))
+    if args.cursor and '|matrix|' in args.cursor:
+        ref,_,offset=args.cursor.rpartition('|matrix|')
+        data=ctx.artifact_port.read(ctx.workspace_id,ref)['payload']
+        if args.view!='mappings' or data.get('activity_query_hash')!=query_hash or not offset.isdigit():
+            raise ValueError('STALE_REFERENCE: mapping table cursor does not match query/version')
+        return mapping_page(data,ref,int(offset),args.limit if 'limit' in args.model_fields_set else 50)
     if args.cursor:
         ref,_,offset=args.cursor.rpartition('|')
         data=ctx.artifact_port.read(ctx.workspace_id,ref)['payload']
@@ -166,6 +172,17 @@ def material_page(selectors,collection,offset,args,ctx):
         return ToolResult(data={'documents':material['data']['documents']},
             coverage={'complete':True,'returned':1,'total':1,'scope':'selected_original_document',
                       'omissions':[]})
+    if args.view=='mappings':
+        if len(selectors)!=1:raise ValueError('Select one activity for its complete mapping table')
+        from journeyplus.agent.services.mapping_table import mapping_table
+        selector=selectors[0]
+        with ctx.services['knowledge'].read() as session:
+            detail=ctx.services['knowledge'].activity_reader(session).detail(UUID(selector['activity_ref']),UUID(selector['version_ref']) if selector['version_ref'] else None)
+        data={'ref':f"activity:{detail['ref']}@{detail['version_ref']}", 'title':detail['name'],
+              'version_ref':detail['version_ref'], 'mapping_table':mapping_table([m for o in detail.get('options',[]) for m in o.get('mappings',[])]),
+              'activity_query_hash':digest(args.model_dump(mode='json',exclude={'cursor','limit'}))}
+        ref=ctx.artifact_port.put(ctx.workspace_id,'MATERIAL',data,call_id=ctx.call_id,turn_id=ctx.turn_id)
+        return mapping_page(data,ref,0,args.limit if 'limit' in args.model_fields_set else 50)
     details=[]
     with ctx.services['knowledge'].read() as s:
         reader=ctx.services['knowledge'].activity_reader(s)
@@ -200,3 +217,13 @@ def activity_page(summaries,ref,offset,limit):
         provenance=[{'kind':'workflow','version_ref':item['version_ref']} for item in selected],
         next_cursor=ref+'|'+str(offset+limit) if len(summaries)>offset+limit else None,
         coverage={'complete':len(summaries)<=offset+limit,'returned':len(selected),'total':len(summaries),'omissions':[]})
+
+
+def mapping_page(data,ref,offset,limit):
+    table=data['mapping_table'];rows=table['rows']
+    if not 0<=offset<=len(rows):raise ValueError('Invalid mapping cursor offset')
+    end=min(offset+limit,len(rows))
+    return ToolResult(data={'activities':[{k:v for k,v in data.items() if k not in {'activity_query_hash','mapping_table'}} |
+        {'mapping_table':{**table,'rows':rows[offset:end]},'material_ref':ref}]},artifact_refs=[ref],
+        next_cursor=f'{ref}|matrix|{end}' if end<len(rows) else None,
+        coverage={'complete':end==len(rows),'returned':end-offset,'total':len(rows),'offset':offset,'unit':'source_program_rows','omissions':[]})

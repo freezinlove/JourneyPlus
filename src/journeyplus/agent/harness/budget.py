@@ -12,8 +12,8 @@ class Budget:
     input_tokens: int = 0
     output_tokens: int = 0
     estimated: bool = False
-    soft: dict = field(default_factory=lambda: dict(seconds=120, requests=10, tools=20, input_tokens=450000, output_tokens=8000))
-    hard: dict = field(default_factory=lambda: dict(seconds=180, requests=14, tools=28, input_tokens=500000, output_tokens=12000))
+    soft: dict = field(default_factory=lambda: dict(seconds=120))
+    hard: dict = field(default_factory=lambda: dict(seconds=180))
     notified: bool = False
     finalizing: bool = False
     model_configuration_id: str | None = None
@@ -24,7 +24,7 @@ class Budget:
                     input_tokens=self.input_tokens, output_tokens=self.output_tokens)
 
     def reached(self, level):
-        return any(self.values()[key] >= value for key, value in getattr(self, level).items())
+        return self.values()['seconds'] >= getattr(self, level)['seconds']
 
     def usage(self, usage, input_estimate, output_estimate):
         usage = usage or {}
@@ -35,8 +35,7 @@ class Budget:
         self.output_tokens += outgoing if outgoing is not None else output_estimate
 
     def limits(self, capabilities):
-        return {'max_output': max(0, min(4096, capabilities.max_output,
-                                         self.hard['output_tokens']-self.output_tokens)),
+        return {'max_output': capabilities.max_output,
                 'tools_allowed': not self.finalizing,
                 'timeout': max(0, min(45, self.hard['seconds']-(monotonic()-self.started)))}
 

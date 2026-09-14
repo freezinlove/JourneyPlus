@@ -149,24 +149,12 @@ class Runtime:
                                 input_estimator=getattr(self.ports.model,'estimate_input',None))
             estimator=getattr(self.ports.model,'estimate_input',None)
             projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
-            final_estimator=getattr(self.ports.model,'estimate_final_input',None)
-            # The next final request also carries this model response and its
-            # observations. Reserving only the pre-call history can strand a
-            # large tool result without enough input budget to explain it.
-            growth_bytes=6000+3*budget.limits(capabilities)['max_output']
-            future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*growth_bytes)])]
-            final_tokens=final_estimator(future,definitions) if final_estimator else projected_tokens+estimate('x'*growth_bytes)
-            if not budget.finalizing and (budget.input_tokens + projected_tokens + final_tokens >= budget.hard['input_tokens']
-                    or budget.requests+2>budget.hard['requests'] or budget.tools>=budget.hard['tools']
-                    or budget.output_tokens+1024>=budget.hard['output_tokens']):
+            # Reserve time to answer; token usage and call counts are telemetry only.
+            if not budget.finalizing and budget.values()['seconds'] >= budget.hard['seconds'] - 45:
                 budget.finalizing = True
-                notice = 'Resource reserve: provide a final response from available evidence; no more tool calls.'
-                projected.append(ModelMessage(role='system',content=[Part(type='text',text=notice)]))
-                await self._publish(run_id, owner,'resource.notice',{'message':'正在根据已取得的资料整理回答。'})
-            if budget.finalizing and final_estimator:
-                projected_tokens=final_estimator(projected,definitions)
-            if budget.input_tokens + projected_tokens > budget.hard['input_tokens']:
-                return 'PARTIAL'
+                projected.append(ModelMessage(role='system',content=[Part(type='text',text=
+                    'Time reserve: finish your answer using available results; no more tool calls.')]))
+                await self._publish(run_id,owner,'resource.notice',{'message':'接近耗时上限，正在整理已有结果。'})
             budget.requests += 1
             reserved = budget.snapshot()
             reserved['input_tokens'] += projected_tokens
@@ -251,15 +239,11 @@ class Runtime:
                 if previous != fingerprint:
                     repeated['result_refs'] = []
                 repeated['fingerprint'] = fingerprint
-                if repeated['count'] >= 3:
-                    call['runtime_error'] = 'REPEATED_CALL'
-                    call['prior_result_refs'] = list(repeated.get('result_refs', []))
-                if repeated['count'] > 3:
-                    repeated['stop'] = True
+                if (repeated['count'] >= 2 and validated and validated[2]=='READ' and snapshot is not None
+                        and not arguments.get('refresh') and repeated.get('result_refs')):
+                    call['reuse_result_ref'] = repeated['result_refs'][-1]
             if await self._calls(run_id, owner, context, budget, calls, messages):
                 return 'CANCELED' if context.cancel_token.is_set() else 'COMPLETED'
-            if repeated.get('stop'):
-                return 'PARTIAL'
         return 'CANCELED' if context.cancel_token.is_set() else 'PARTIAL'
 
     async def _calls(self, run_id, owner, context, budget, calls, messages):
@@ -267,36 +251,6 @@ class Runtime:
         semaphore = asyncio.Semaphore(3)
         results = [None]*len(calls)
         reads = []
-        # Once calls are known, admit their declared maximum observations before
-        # executing effects. Reserve an error response instead of silently losing
-        # an executed result when a large batch cannot fit the final request.
-        capacities=[]
-        for call in calls:
-            validated,_=self.ports.registry.validate(call['name'],call['arguments'])
-            if validated:
-                definition,arguments,_=validated
-                capacity=definition.operation_result_max_bytes.get(getattr(arguments,definition.result_budget_field,None),definition.result_max_bytes)
-            else:capacity=2000
-            capacities.append(min(capacity,32000//max(1,len(calls))))
-        if not budget.finalizing:
-            definitions=self.ports.registry.definitions()
-            workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
-            note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
-            visible, focus = messages, workspace_state.get('focus')
-            if self.ports.views:
-                visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
-            projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
-                              reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
-                              context_token_budget=self.budget_limits.get('context_tokens',500000),
-                              input_estimator=getattr(self.ports.model,'estimate_input',None))
-            future=projected+[ModelMessage(role='system',content=[Part(type='text',text='x'*sum(capacities))])]
-            estimator=getattr(self.ports.model,'estimate_final_input',None)
-            final_size=estimator(future,definitions) if estimator else estimate([m.model_dump(mode='json') for m in future])
-            if budget.input_tokens+final_size>budget.hard['input_tokens']:
-                budget.finalizing=True
-                await self._publish(run_id,owner,'resource.notice',{'code':'OBSERVATION_RESERVE',
-                    'message':'剩余预算不足以容纳本批工具结果及收尾，已保留完成的操作，本批新动作未执行。'})
-
         async def execute(index, call, validated):
             effect = validated[2] if validated else 'READ'
             if validated:call['tool_version']=validated[0].version
@@ -308,12 +262,10 @@ class Runtime:
             else:
                 if context.cancel_token.is_set() or budget.reached('hard') or budget.finalizing:
                     result = ToolResult.failure('BUDGET_LIMIT', 'No new calls may start after cancellation or budget exhaustion')
-                elif len(calls) > 8:
-                    result = ToolResult.failure('INVALID_ARGUMENT', 'At most eight calls per batch')
-                elif call.get('runtime_error'):
-                    result = ToolResult.failure(call['runtime_error'], 'Repeated call without progress; use prior results or change approach')
-                    result.data['prior_result_refs'] = call.get('prior_result_refs', [])
-                    result.artifact_refs = call.get('prior_result_refs', [])
+                elif call.get('reuse_result_ref'):
+                    stored = await blocking_call(self.ports.artifacts.read, context.workspace_id, call['reuse_result_ref'])
+                    result = ToolResult.model_validate(stored['payload']).model_copy(deep=True)
+                    result.cache = {**result.cache, 'reused': True}
                 elif validated is None:
                     _, result = self.ports.registry.validate(call['name'], call['arguments'])
                 else:
@@ -326,24 +278,12 @@ class Runtime:
             if self.ports.views:
                 result = await blocking_call(self.ports.views.result, context.workspace_id, result)
             fingerprint = call.get('progress_fingerprint')
-            if not call.get('runtime_error') and budget.repeat_state.get('fingerprint') == fingerprint:
+            if not result.error and result.status=='OK' and budget.repeat_state.get('fingerprint') == fingerprint:
                 budget.repeat_state['result_refs'] = [*budget.repeat_state.get('result_refs', []),full_ref][-2:]
-            from .context import bounded_result
-            capacity=12000
-            if validated:
-                definition,arguments,_=validated
-                capacity=definition.operation_result_max_bytes.get(getattr(arguments,definition.result_budget_field,None),definition.result_max_bytes)
-                if definition.model_projection:
-                    result=definition.model_projection(result)
-            complete = validated and getattr(validated[1],validated[0].result_budget_field,None) in validated[0].complete_result_operations
-            if complete and not result.error:
-                # Explicit complete reads are admitted by the actual context
-                # budget below, not the small default tool-observation budget.
-                result.coverage['full_result_ref']=full_ref
-                result.artifact_refs=list(dict.fromkeys([*result.artifact_refs,full_ref]))
-            else:
-                result = bounded_result(result, full_ref, max_bytes=min(capacity, 32000//max(1,len(calls))),
-                                        trim=validated[0].trim_projection if validated else None)
+            if validated and validated[0].model_projection:
+                result=validated[0].model_projection(result)
+            result.coverage['full_result_ref']=full_ref
+            result.artifact_refs=list(dict.fromkeys([*result.artifact_refs,full_ref]))
             await self._publish(run_id, owner, 'tool.completed', {'call_id': call['call_id'], 'status': result.status,
                 'summary': result.error.message if result.error else result.data.get('summary', ''), 'artifact_refs': result.artifact_refs})
             return result
@@ -362,11 +302,7 @@ class Runtime:
                 results[index] = await execute(index, call, validated)
         for index, task in reads:
             results[index] = await task
-        complete_indices=[]
-        for index,call in enumerate(calls):
-            validated,_=self.ports.registry.validate(call['name'],call['arguments'])
-            if validated and not results[index].error and getattr(validated[1],validated[0].result_budget_field,None) in validated[0].complete_result_operations:
-                complete_indices.append(index)
+        complete_indices=[index for index,result in enumerate(results) if not result.error]
         if complete_indices:
             from .context import ContextCapacityError
             # Check the whole batch together, including paired call/result
@@ -386,14 +322,14 @@ class Runtime:
                     input_estimator=getattr(self.ports.model,'estimate_input',None))
                 estimator=getattr(self.ports.model,'estimate_input',None)
                 tokens=estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
-                fits=tokens<=min(self.budget_limits.get('context_tokens',500000),budget.hard['input_tokens']-budget.input_tokens)
+                fits=tokens<=self.budget_limits.get('context_tokens',500000)
             except ContextCapacityError:
                 fits=False
             if not fits:
                 for index in complete_indices:
                     original=results[index]
                     results[index]=ToolResult.failure('CONTEXT_CAPACITY',
-                        '所选完整资料超出本轮可用上下文或输入预算，正文未交付给模型；没有用摘要或片段代替。可在新对话中读取。')
+                        '本批资料超出可用上下文，完整结果已保存。请使用 full_result_ref 选择相关业务章节或较小分页；本批内容尚未完整读取。')
                     results[index].call_id=calls[index]['call_id']
                     results[index].artifact_refs=original.artifact_refs
                     results[index].coverage={'complete':False,'omissions':['complete_body_not_delivered'],

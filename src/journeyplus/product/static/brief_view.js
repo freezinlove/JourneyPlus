@@ -122,4 +122,4 @@ function renderBrief(detail) {
   </article>`;
 }
 
-export {renderBrief, briefDisplayTitle, lifecycleBadge, briefFee, briefUpdatedAt, publicLinks};
+export {mappingTable, renderBrief, briefDisplayTitle, lifecycleBadge, briefFee, briefUpdatedAt, publicLinks};

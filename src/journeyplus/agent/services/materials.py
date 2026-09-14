@@ -34,6 +34,9 @@ def sectioned(detail):
             sections['mapping-'+mapping['ref']]={'activity_ref':value['ref'],'version_ref':value['version_ref'],
                 'option_ref':option['ref'],'option_label':option['label'],'mapping':mapping}
             searchable.append('mapping-'+mapping['ref'])
+    from .mapping_table import mapping_table
+    sections['mapping_table']={**scope,'mapping_table':mapping_table([m for o in value.get('options',[]) for m in o.get('mappings',[])])}
+    searchable=[key for key in searchable if not key.startswith('mapping-')]+['mapping_table']
     value['sections']=sections
     value['search_section_keys']=searchable
     return value
@@ -43,6 +46,7 @@ def summary(detail,ref,view):
     value={'ref':f"activity:{detail['ref']}@{detail['version_ref']}",'material_ref':ref,'title':detail['name'],
            'version_ref':detail['version_ref'],'brief_url':detail['brief_url'],'summary':detail.get('card'),
            'is_current':detail.get('is_current'),'current_version_ref':detail.get('current_version_ref')}
+    value['mapping_table_ref']=ref+'#section:mapping_table'
     if detail.get('briefs'):
         value['brief_section_ref']=ref+'#section:brief'
     if view=='detail':

@@ -29,6 +29,11 @@ def present(args,ctx):
                     from .research_pages import resolve_report
                     if selection.type=='experience':obj=resolve_report(obj,ctx)
                     data=obj['payload']
+                if selection.type=='mapping_table':
+                    if not data.get('version_ref') or 'options' not in data:
+                        raise ValueError('Mapping table requires a published activity:UUID@VERSION reference')
+                    data={key:data[key] for key in ('ref','version_ref','name','options','brief_url') if key in data}
+                    data['options']=[{'mappings':o.get('mappings',[])} for o in data['options'] if o.get('mappings')]
                 objects.append(data)
             research=[]
             for ref in selection.research_refs:

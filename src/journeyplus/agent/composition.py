@@ -19,9 +19,7 @@ def compose(factory, model, definitions=(), services=None):
     from .adapters.workspace_access import WorkspaceAccess
     ports = RuntimePorts(model, store, store.artifacts, registry, store, monotonic, WorkspaceAccess(store))
     config=getattr(model,'config',None)
-    budget_limits={'soft':{'input_tokens':getattr(config,'input_token_soft',450000)},
-                   'hard':{'input_tokens':getattr(config,'input_token_limit',500000)},
-                   'context_tokens':getattr(config,'context_token_budget',500000)}
+    budget_limits={'context_tokens':getattr(config,'context_token_budget',500000)}
     return Runtime(ports, instructions, services,budget_limits), store
 
 

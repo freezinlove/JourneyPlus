@@ -31,17 +31,10 @@ def page_excerpt(page,ref,args,text_start=0,link_start=0,*,report=None):
     report_body=report is not None and not args.sections and not args.include_controls
     if report_body:body=report['text']
     if text_start>len(body) or link_start>len(links):raise ValueError('Invalid page cursor offset')
-    excerpt=body[text_start:text_start+args.max_chars].encode()[:6000].decode(errors='ignore')
+    excerpt=body[text_start:text_start+args.max_chars]
     text_end=text_start+len(excerpt)
-    returned=[];link_end=link_start;size=0;oversized=[]
-    for index,link in enumerate(links[link_start:],start=link_start):
-        length=len(json.dumps(link,ensure_ascii=False).encode())
-        if length>2000:
-            oversized.append(index);link_end=index+1
-            if len(oversized)>=10:break
-            continue
-        if size+length>2000:break
-        returned.append(link);size+=length;link_end=index+1
+    # Text pagination follows the requested size. Links are complete and delivered once.
+    returned=links[link_start:];link_end=len(links);oversized=[]
     next_cursor=(f'{ref}|{text_end}|{link_end}|{binding(args)}'
                  if text_end<len(body) or link_end<len(links) else None)
     missing=selected['missing_sections'] if selected else []

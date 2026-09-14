@@ -197,7 +197,8 @@ class AgentModel:
 
     def capabilities(self):
         return Capabilities(native_tools=self.protocol != 'json', streaming=self.protocol != 'json',
-                            context_window=self.config.context_window, max_output=4096)
+                            context_window=self.config.context_window, max_output=(self.config.model_output_limit or
+                                (131072 if self.config.model == 'qwen3.8-flash' else self.config.context_window//2)))
 
     async def close(self):
         await self.client.aclose()
@@ -246,7 +247,11 @@ class AgentModel:
                    'parameters': inline_schema(d.input_schema)}} for d in definitions]
         if not limits.get('tools_allowed',True):schema=[]
         payload = dict(model=self.config.model, temperature=self.config.temperature,
-                       enable_thinking=self.config.thinking, max_tokens=limits.get('max_output', 2048))
+                       enable_thinking=self.config.thinking)
+        if self.config.model_output_limit or self.config.model == 'qwen3.8-flash':
+            payload['max_tokens'] = limits.get('max_output', self.capabilities().max_output)
+        elif limits.get('max_output') is not None and limits['max_output'] < self.capabilities().max_output:
+            payload['max_tokens'] = limits['max_output']
         message_id = str(uuid4())
         usage = None
         protocol_error = None

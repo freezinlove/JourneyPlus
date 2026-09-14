@@ -64,7 +64,7 @@ def test_more_than_three_model_calls_and_tool_pairing(session_factory):
     assert [p.call_id for m in final for p in m.content if p.type=='tool_result']==[str(i) for i in range(4)]
 
 
-def test_reserve_uses_final_request_without_schemas_before_hard_admission(session_factory):
+def test_accumulated_tokens_do_not_force_finalization(session_factory):
     batches=[call(value=str(i),id=str(i)) for i in range(2)]+[answer()]
     for index,batch in enumerate(batches):
         batch.insert(-1,{'type':'usage','usage':{'input':900 if index<2 else 200,'output':20}})
@@ -84,7 +84,7 @@ def test_reserve_uses_final_request_without_schemas_before_hard_admission(sessio
     w=store.create();r=store.start(w['id'],'read two values then answer','one',0)
     asyncio.run(runtime.run(r['run_id']))
     assert seen==['0','1'] and len(model.inputs)==3
-    assert model.limits[-1]['tools_allowed'] is False
+    assert model.limits[-1]['tools_allowed'] is True
     assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
     with session_factory() as session:
         assert session.get(RunCheckpoint,UUID(r['run_id'])).remaining_budget['input_tokens']==2000
@@ -131,27 +131,28 @@ def test_provider_failure_preserves_partial_text_without_format_retry(session_fa
     assert store.read(workspace['id'])['messages'][-1]['metadata']['interrupted'] is True
 
 
-def test_repeated_calls_stop_before_third_execution_with_prior_receipts(session_factory):
+def test_repeated_read_reuses_same_snapshot_without_stopping(session_factory):
     seen=[]
     async def handler(args,ctx):
         seen.append(args.value)
         return ToolResult(data={'value':args.value})
-    model=FakeModel([call(id=str(i)) for i in range(4)])
-    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,handler)])
-    assert seen==['hi','hi']
-    results=[p.result for m in model.inputs[-1] for p in m.content if p.type=='tool_result']
-    assert results[-1]['error']['code']=='REPEATED_CALL'
-    assert len(results[-1]['data']['prior_result_refs'])==2
-    assert store.events(w['id'],r['run_id'])[1]=='PARTIAL'
+    model=FakeModel([call(id=str(i)) for i in range(5)]+[answer()])
+    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,handler,snapshot=lambda a,c:'v1')])
+    assert seen==['hi']
+    assert len(model.inputs)==6
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
 
 
 def test_changed_snapshot_allows_same_arguments_to_make_progress(session_factory):
     state={'version':1,'calls':0}
     async def handler(args,ctx):
         state['calls']+=1
-        if state['calls']==2:state['version']=2
         return ToolResult(data={'version':state['version']})
-    model=FakeModel([call(id=str(i)) for i in range(3)]+[answer()])
+    class Model(FakeModel):
+        async def stream(self,*args):
+            state['version']+=1
+            async for event in super().stream(*args):yield event
+    model=Model([call(id=str(i)) for i in range(3)]+[answer()])
     definition=ToolDefinition('echo','Echo',Echo,handler,snapshot=lambda args,ctx:str(state['version']))
     store,w,r=execute(session_factory,model,[definition])
     assert state['calls']==3
