@@ -81,6 +81,33 @@ def test_brief_list_matches_current_facts_and_detail(
     historical = client.get(f'/v2/activities/{event_id}', params={'version_ref': str(old_fact_id)})
     assert historical.status_code == 200, historical.text
     assert historical.json()['briefs'][0]['content']['title'] == 'Old brief'
+    brief_view = client.get(f'/v2/activities/{event_id}/brief', params={'version_ref': str(fact_id)})
+    assert brief_view.status_code == 200, brief_view.text
+    assert brief_view.json()['opportunity_id'] == str(fact_id)
+    assert (brief_view.json()['brief'] or {}).get('title') == expected_title
+    old_view = client.get(f'/v2/activities/{event_id}/brief', params={'version_ref': str(old_fact_id)})
+    assert old_view.status_code == 200, old_view.text
+    assert old_view.json()['brief']['title'] == 'Old brief'
+    assert old_view.json()['opportunity_id'] == str(old_fact_id)
+    assert old_view.json()['relationship'] is not None
+    assert client.get(f'/v2/activities/{event_id}/brief', params={'version_ref': str(uuid4())}).status_code == 409
+    article_detail = client.get(f'/v2/activities/{article_id}').json()
+    article_view = client.get(f'/v2/activities/{article_id}/brief', params={'version_ref': article_detail['version_ref']})
+    assert article_view.status_code == 200, article_view.text
+    assert article_view.json()['opportunity_id'] == str(article_id)
     with original_factory() as session:
         event = session.get(StatusEvent, event_id)
         assert (event.current_fact_set_id, event.current_brief_id) == (fact_id, brief_pointer)
+
+
+def test_independent_brief_reader_is_read_only(original_factory):
+    from journeyplus.product.knowledge_server import create_knowledge_app
+    article_id = seed(original_factory)
+    client = TestClient(create_knowledge_app(original_factory))
+    original_factory.statements.clear()
+    response = client.get(f'/v2/activities/{article_id}/brief')
+    assert response.status_code == 200, response.text
+    assert response.json()['opportunity_id'] == str(article_id)
+    assert response.json()['relationship'] is not None
+    assert not any(sql.lstrip().lower().startswith(('insert ', 'update ', 'delete ', 'create ', 'alter '))
+                   for sql in original_factory.statements)

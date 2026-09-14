@@ -214,6 +214,6 @@ def _page(page: str, title: str, *, page_data: str = "") -> str:
     <div class="loading-card"><span class="spinner"></span>正在读取当前数据…</div>
   </main>
   <footer>默认地区：中国 · 地区仅作提醒，不限制机会</footer>
-  <script src="/assets/app.js?v=20260904-agent-v1" defer></script>
+  <script src="/assets/app.js?v=20260914-brief-view" type="module"></script>
 </body>
 </html>"""

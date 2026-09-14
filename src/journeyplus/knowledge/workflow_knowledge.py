@@ -256,6 +256,14 @@ class WorkflowActivityReader:
             'has_more':len(rows)>limit,
             'next_before_version':selected[-1].version if len(rows)>limit else None}
 
+    def brief_detail(self, identity, version=None):
+        # Validate the activity/version pair before reusing the product brief view.
+        # Official opportunities use FactSet IDs; article opportunities use their own IDs.
+        selected = self.detail(identity, version)
+        event = self.session.get(StatusEvent, identity)
+        opportunity_id = UUID(selected['version_ref']) if event else identity
+        return PersonalizedMatchService(self.session).detail(opportunity_id)
+
     def materials(self, *, selector, version_ref, section_refs=(), aspects=(), **unused):
         detail = self.detail(UUID(selector['ref']),UUID(version_ref))
         sources = {s['document_version_ref']:s for s in detail['sources']}

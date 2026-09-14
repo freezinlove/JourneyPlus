@@ -1,8 +1,10 @@
+import {renderBrief} from './brief_view.js?v=20260914-brief-view';
 import {$,el,api,activityCard,activityDetail,showDetail} from './knowledge_ui.js';
 let offset=0,loading=false;
-async function openActivity(activity){
+async function openActivity(activity,briefOnly=false){
+  document.querySelector("#detail h2").textContent=briefOnly?"活动简报":"活动详情";
   $('#detail-content').replaceChildren(el('p','正在读取活动…'));showDetail($('#detail'));
-  try{const detail=await api(`/v2/activities/${activity.ref}?version_ref=${activity.version_ref}`);const pane=$('#detail-content');pane.replaceChildren();activityDetail(detail,pane);}
+  try{const detail=await api(`/v2/activities/${activity.ref}${briefOnly?"/brief":""}?version_ref=${activity.version_ref}`);const pane=$('#detail-content');pane.replaceChildren();if(briefOnly)pane.innerHTML=renderBrief(detail);else activityDetail(detail,pane);}
   catch(error){$('#detail-content').replaceChildren(el('p',error.message));}
 }
 async function load(){
@@ -16,18 +18,14 @@ async function load(){
   finally{loading=false;$('#more').disabled=false;}
 }
 async function start(){
-  await load();
   const params=new URLSearchParams(location.search);
   const activityId=params.get('activity_id'),version=params.get('version_ref');
   if(activityId&&version){
-    await openActivity({ref:activityId,version_ref:version});
-    if(params.get('section')==='brief'){
-      const sections=[...document.querySelectorAll('#detail-content details')];
-      const brief=sections.find(d=>d.querySelector('summary')?.textContent.trim()==='活动简报');
-      if(brief){brief.open=true;brief.scrollIntoView({block:'nearest'});}else{$('#detail-content').prepend(el('p','此版本尚无已生成简报，以下为同版本资料详情。'));}
-    }
+    await openActivity({ref:activityId,version_ref:version},params.get('section')==='brief');
+    void load();
     return;
   }
+  await load();
   const legacy=params.get('legacy_opportunity');
   if(!legacy)return;
   try{

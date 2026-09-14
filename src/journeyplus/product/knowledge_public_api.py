@@ -40,6 +40,12 @@ def public_knowledge_router(factory=None,*,knowledge=None):
     def history(identity:UUID,before_version:int|None=Query(None,ge=1),limit:int=Query(10,ge=1,le=20)):
         with port.read() as s:return WorkflowActivityReader(s).history(identity,before_version=before_version,limit=limit)
 
+    @router.get('/activities/{identity}/brief')
+    def brief(identity:UUID,version_ref:UUID|None=None):
+        try:
+            with port.read() as s:return WorkflowActivityReader(s).brief_detail(identity,version_ref)
+        except (LookupError,ValueError) as error:raise HTTPException(409,str(error)) from error
+
     @router.post('/explore/query')
     def explore(query:RouteQuery):
         try:
