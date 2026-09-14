@@ -84,3 +84,70 @@ def test_registered_mapping_read_and_direct_display(session_factory,original_fac
 
 
 from tests.test_agent_workflow_reads import original_factory
+
+
+def test_route_default_page_has_no_count_or_byte_cap():
+    from journeyplus.agent.tools.contracts import RoutesInput
+    from journeyplus.agent.tools.routes import result_page,capacity_page
+    args=RoutesInput(operation='search',query={'sources':{'mode':'saved'}})
+    assert args.limit is None
+    routes={str(i):{'ref':str(i),'step_refs':[],'description':'详细路径'*1000} for i in range(25)}
+    payload={'routes':routes,'route_order':list(routes)}
+    rows,cursor=result_page(payload,'artifact:routes',0,args.limit)
+    assert len(rows)==25 and cursor is None
+    result=ToolResult(data={'query_ref':'artifact:query','candidates':rows,'route_refs':[r['ref'] for r in rows]},coverage={'total':25,'offset':0,'page_offset':0,'complete':True})
+    small=capacity_page(result)
+    assert len(small.data['candidates'])==12 and small.next_cursor=='artifact:routes|12'
+    assert small.coverage['unread_candidate_count']==13
+    assert small.data['candidates']==rows[:12]
+    remaining,following=result_page(payload,'artifact:routes',12,None)
+    assert remaining==rows[12:] and following is None
+    assert len(result.data['candidates'])==25
+
+
+def test_context_pressure_drops_whole_old_turn_without_clipping_results():
+    from journeyplus.agent.harness.context import project
+    from journeyplus.agent.harness.contracts import ModelMessage,Part
+    old={'data':{'body':'older'*5000},'artifact_refs':['artifact:old']}
+    current={'data':{'body':'current'*2000},'artifact_refs':['artifact:current']}
+    messages=[ModelMessage(role='user',content=[Part(type='text',text='old')]),
+        ModelMessage(role='assistant',content=[Part(type='tool_call',name='echo',call_id='old',arguments={})]),
+        ModelMessage(role='tool',content=[Part(type='tool_result',call_id='old',result=old)]),
+        ModelMessage(role='user',content=[Part(type='text',text='new')]),
+        ModelMessage(role='assistant',content=[Part(type='tool_call',name='echo',call_id='new',arguments={})]),
+        ModelMessage(role='tool',content=[Part(type='tool_result',call_id='new',result=current)])]
+    out=project(messages,[],Capabilities(native_tools=True,streaming=True,context_window=100000,max_output=1000),context_token_budget=8000)
+    results=[p for m in out for p in m.content if p.type=='tool_result']
+    assert len(results)==1 and results[0].result==current
+    assert messages[2].content[0].result==old
+    assert any('history_available_before' in (p.text or '') for m in out for p in m.content)
+
+
+def test_actual_context_pressure_pages_whole_candidates(session_factory):
+    from journeyplus.agent.tools.routes import capacity_page
+    class Model(FakeModel):
+        def capabilities(self):return Capabilities(native_tools=True,streaming=True,context_window=12000,max_output=1024)
+    rows=[{'ref':f'artifact:routes#route:{i}','path':['A',str(i)],'description':'完整内容'*700} for i in range(20)]
+    async def handler(args,ctx):
+        return ToolResult(data={'query_ref':'artifact:query','candidates':rows,'route_refs':[r['ref'] for r in rows]},coverage={'total':20,'offset':0,'page_offset':0,'complete':True})
+    model=Model([call(value='routes'),answer()])
+    store,w,r=execute(session_factory,model,[ToolDefinition('echo','Echo',Echo,handler,capacity_page=capacity_page)])
+    result=next(p.result for m in model.inputs[-1] for p in m.content if p.type=='tool_result')
+    count=len(result['data']['candidates'])
+    assert 0<count<20 and result['data']['candidates']==rows[:count]
+    assert result['next_cursor']==f'artifact:routes|{count}'
+    assert result['coverage']['pagination_reason']=='context_capacity'
+    assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
+
+
+def test_storage_chunks_do_not_force_model_pages():
+    from journeyplus.agent.tools.routes import result_page,capacity_page
+    first={'routes':{'a':{'ref':'a','step_refs':[]}},'route_order':['a'],'next_result_ref':'artifact:second'}
+    second={'routes':{str(i):{'ref':str(i),'step_refs':[]} for i in range(5)},'route_order':[str(i) for i in range(5)]}
+    rows,cursor=result_page(first,'artifact:first',0,None,lambda ref:second)
+    assert len(rows)==6 and cursor is None
+    r=ToolResult(data={'query_ref':'artifact:q','candidates':rows},coverage={'total':6,'offset':0,'page_offset':0})
+    small=capacity_page(r)
+    assert small.next_cursor=='artifact:second|2'
+    rest,cursor=result_page(second,'artifact:second',2,None)
+    assert small.data['candidates']+rest==rows and cursor is None

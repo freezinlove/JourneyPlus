@@ -307,24 +307,38 @@ class Runtime:
             from .context import ContextCapacityError
             # Check the whole batch together, including paired call/result
             # overhead and any remaining history. Never silently send an excerpt.
-            additions=[ModelMessage(role='tool',content=[Part(type='tool_result',call_id=c['call_id'],result=r.model_dump(mode='json'))])
-                       for c,r in zip(calls,results)]
-            try:
-                definitions=self.ports.registry.definitions()
-                workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
-                note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
-                visible,focus=messages+additions,workspace_state.get('focus')
-                if self.ports.views:
-                    visible,note,focus=await blocking_call(self.ports.views.context,context.workspace_id,visible,note,focus)
-                projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
-                    reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
-                    context_token_budget=self.budget_limits.get('context_tokens',500000),
-                    input_estimator=getattr(self.ports.model,'estimate_input',None))
-                estimator=getattr(self.ports.model,'estimate_input',None)
-                tokens=estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
-                fits=tokens<=self.budget_limits.get('context_tokens',500000)
-            except ContextCapacityError:
-                fits=False
+            while True:
+                additions=[ModelMessage(role='tool',content=[Part(type='tool_result',call_id=c['call_id'],result=r.model_dump(mode='json'))])
+                           for c,r in zip(calls,results)]
+                try:
+                    definitions=self.ports.registry.definitions()
+                    workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
+                    note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
+                    visible,focus=messages+additions,workspace_state.get('focus')
+                    if self.ports.views:
+                        visible,note,focus=await blocking_call(self.ports.views.context,context.workspace_id,visible,note,focus)
+                    projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
+                        reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
+                        context_token_budget=self.budget_limits.get('context_tokens',500000),
+                        input_estimator=getattr(self.ports.model,'estimate_input',None))
+                    estimator=getattr(self.ports.model,'estimate_input',None)
+                    tokens=estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
+                    fits=tokens<=self.budget_limits.get('context_tokens',500000)
+                except ContextCapacityError:
+                    fits=False
+                if fits:
+                    break
+                changed=False
+                for index in sorted(complete_indices,key=lambda i:len(results[i].model_dump_json()),reverse=True):
+                    validated,_=self.ports.registry.validate(calls[index]['name'],calls[index]['arguments'])
+                    paginator=validated[0].capacity_page if validated else None
+                    smaller=paginator(results[index]) if paginator else None
+                    if smaller is not None:
+                        results[index]=smaller
+                        changed=True
+                        break
+                if not changed:
+                    break
             if not fits:
                 for index in complete_indices:
                     original=results[index]

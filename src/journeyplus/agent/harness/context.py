@@ -3,7 +3,7 @@ import json
 from .budget import estimate
 from .contracts import ModelMessage, Part
 
-CONTEXT_POLICY_VERSION = 'context-capacity-v7-whole-results'
+CONTEXT_POLICY_VERSION = 'context-capacity-v8-whole-history'
 
 
 class ContextCapacityError(ValueError):
@@ -73,30 +73,6 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
                                              'full_result_ref':full_ref},
                         'coverage':{**raw.get('coverage',{}),'complete':False,'omissions':['duplicate_body_available_by_reference']}}
                 else:seen[signature]=message.id
-    current_pressure=cost(conversation)>target
-    for index,group in enumerate(groups):
-        call_names={part.call_id:part.name for message in group for part in message.content if part.type=='tool_call'}
-        latest_calls=next(({p.call_id for p in m.content if p.type=='tool_call'} for m in reversed(group)
-                           if any(p.type=='tool_call' for p in m.content)),set())
-        for message in group:
-            for part in message.content:
-                if part.type!='tool_result' or not part.result:continue
-                raw=part.result
-                full_ref=raw.get('coverage',{}).get('full_result_ref') or next(
-                    (ref for ref in reversed(raw.get('artifact_refs',[])) if ref.startswith('artifact:')),None)
-                # Latest observation stays fully available. Earlier observations
-                # in this turn can use the tool's atomic expandable projection.
-                current=index==len(groups)-1
-                if not current_pressure or current and part.call_id in latest_calls:continue
-                capacity=6000 if current else 3000
-                if full_ref and not raw.get('error') and len(json.dumps(raw,ensure_ascii=False).encode())>capacity:
-                    from .contracts import ToolResult
-                    definition=definitions_by_name.get(call_names.get(part.call_id))
-                    view=bounded_result(ToolResult.model_validate(raw),full_ref,capacity,
-                                        trim=definition.trim_projection if definition else None)
-                    view.data['context_projection']='expand full_result_ref before relying on omitted facts; persisted original is unchanged'
-                    part.result=view.model_dump(mode='json')
-                    current_pressure=cost(conversation)>target
     selected = []
     omitted = False
     for group in reversed(groups):

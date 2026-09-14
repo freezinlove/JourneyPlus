@@ -80,7 +80,7 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
     return value
 
 
-def result_page(payload,root_ref,offset,limit):
+def result_page(payload,root_ref,offset,limit,read_payload=None):
     # PostgreSQL JSONB reorders object keys. A cursor must index an explicit
     # immutable list, never Python dict insertion order before/after storage.
     refs=payload.get('route_order',sorted(payload['routes']));selected=[]
@@ -92,18 +92,20 @@ def result_page(payload,root_ref,offset,limit):
             path=tuple([ordered[0]['from'],*[step['to'] for step in ordered]]) if ordered else ()
             paths.setdefault(path,[]).append(key)
             route_paths[key]=path
-    for key in refs[offset:offset+limit]:
+    for key in refs[offset:offset+limit if limit is not None else None]:
         candidate=route_summary(payload['routes'][key],root_ref,payload.get('steps'))
         if 'path' in candidate:
             variants=paths[route_paths[key]]
             if len(variants)>1:
                 candidate['same_path_variants']={'index':variants.index(key)+1,'total':len(variants)}
-        # Leave room for the query/coverage envelope within the 12 KB result
-        # budget; small pages repeatedly resend the same evidence and schemas.
-        if selected and len(json.dumps([*selected,candidate],ensure_ascii=False).encode())>9000:break
         selected.append(candidate)
     end=offset+len(selected)
     cursor=root_ref+'|'+str(end) if end<len(refs) else payload.get('next_result_ref')+'|0' if payload.get('next_result_ref') else None
+    if end==len(refs) and payload.get('next_result_ref') and read_payload and (limit is None or len(selected)<limit):
+        following=payload['next_result_ref']
+        extra,cursor=result_page(read_payload(following),following,0,
+            None if limit is None else limit-len(selected),read_payload)
+        selected.extend(extra)
     return selected,cursor
 
 
@@ -123,6 +125,7 @@ def coverage(raw,total,returned,offset=0):
 
 def scope_coverage(payload,total,returned,offset=0):
     value=coverage(payload['coverage'],payload.get('result_total',total),returned,payload.get('result_offset',0)+offset)
+    value['page_offset']=offset
     if payload.get('resolution',{}).get('unresolved_sources'):
         value['complete']=False
         value['omissions']=[*value['omissions'],'unresolved_query_sources']
@@ -189,7 +192,7 @@ def evaluate(args, ctx):
             if not offset.isdigit() or int(offset)<0:raise ValueError('Invalid route cursor offset')
             refs=result.get('route_order',sorted(result['routes']))
             if int(offset)>len(refs):raise ValueError('Invalid route cursor offset')
-            selected,next_cursor=result_page(result,result_ref,int(offset),args.limit)
+            selected,next_cursor=result_page(result,result_ref,int(offset),args.limit,lambda ref:ctx.artifact_port.read(ctx.workspace_id,ref)['payload'])
             return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in selected) or result.get('resolution',{}).get('unresolved_sources') or not result['coverage'].get('searched_published_graph_complete',result['coverage'].get('search_complete')) else 'OK',
                 data={'query_ref':args.query_ref,'search_metrics':result.get('search_metrics'),
                 'route_refs':[r['ref'] for r in selected], 'candidates':selected,**result.get('resolution',{})},
@@ -240,7 +243,7 @@ def evaluate(args, ctx):
     from journeyplus.agent.services.route_storage import save_routes
     ref,payload=save_routes(ctx,payload)
     ids=payload['route_order']
-    candidates,next_cursor=result_page(payload,ref,0,args.limit)
+    candidates,next_cursor=result_page(payload,ref,0,args.limit,lambda ref:ctx.artifact_port.read(ctx.workspace_id,ref)['payload'])
     return ToolResult(status='PARTIAL' if any(c.get('constraint_match')=='UNKNOWN' for c in candidates) or unresolved or not result['coverage'].get('searched_published_graph_complete',result['coverage']['search_complete']) else 'OK' if candidates else 'EMPTY',
         data={'query_ref':query_ref,'query_context':lineage,'effective_query':query.model_dump(mode='json'),'resolved_sources':sources,'resolved_target':target,
               'source_selection':evaluation['source_selection'],
@@ -249,3 +252,26 @@ def evaluate(args, ctx):
               },
         artifact_refs=[query_ref,ref],coverage=scope_coverage(payload,len(ids),len(candidates)),effective_input=actual.model_dump(mode='json'),
         next_cursor=next_cursor)
+
+
+def capacity_page(result):
+    """Shorten only whole candidates after actual context admission fails."""
+    rows=result.data.get('candidates',[])
+    if result.error or not result.data.get('query_ref') or len(rows)<=1:
+        return None
+    value=result.model_copy(deep=True)
+    count=max(1,len(rows)//2)
+    selected=rows[:count]
+    value.data['candidates']=selected
+    value.data['route_refs']=[row['ref'] for row in selected]
+    total=value.coverage['total'];offset=value.coverage.get('offset',0)
+    root=selected[-1]['ref'].split('#')[0]
+    first_root=selected[0]['ref'].split('#')[0]
+    local_count=sum(row['ref'].split('#')[0]==root for row in selected)
+    local_offset=value.coverage.get('page_offset',0) if root==first_root else 0
+    value.next_cursor=root+'|'+str(local_offset+local_count)
+    value.coverage.update(complete=False,returned=count,returned_count=count,
+        presentation_has_more=True,unread_candidate_count=max(0,total-offset-count),
+        retrieval_complete=False,pagination_reason='context_capacity')
+    value.coverage['omissions']=list(dict.fromkeys([*value.coverage.get('omissions',[]),'additional_candidates']))
+    return value

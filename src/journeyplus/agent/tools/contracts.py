@@ -92,7 +92,7 @@ class RoutesInput(DTO):
     patch: QueryPatch | None = Field(default=None,description='RFC7396 RouteRequest patch with query_ref. sources/target replace whole objects. Null clears, omission inherits.')
     route_refs: list[str] = Field(default_factory=list, max_length=12)
     cursor: str | None = Field(default=None,description='Continue returned next_cursor with operation="search" and the same query_ref; omit query and patch. There is no next_page operation.')
-    limit: int = Field(default=8, ge=1, le=20)
+    limit: int | None = Field(default=None, ge=1, description='Omit to return all selected paths. Set only when requesting an explicit smaller page.')
 
     @model_validator(mode='after')
     def check_operation(self):

@@ -143,6 +143,7 @@ class ToolDefinition:
     result_budget_field: str = 'operation'
     complete_result_operations: tuple[str, ...] = ()
     trim_projection: Callable[[ToolResult], int | None] | None = None
+    capacity_page: Callable[[ToolResult], ToolResult | None] | None = None
     model_projection: Callable[[ToolResult], ToolResult] | None = None
     availability: Callable[[], dict] | None = None
     completes_turn: Callable[[DTO, ToolResult], bool] | None = None
