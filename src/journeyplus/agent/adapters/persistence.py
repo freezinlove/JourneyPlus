@@ -4,7 +4,7 @@ from .workspace_writes import WorkspaceWrites
 from .transactions import transaction
 from datetime import timedelta
 from uuid import UUID, uuid4
-from sqlalchemy import select, func, delete, text
+from sqlalchemy import select, func, delete, text, update
 from journeyplus.models import AgentInteraction, now_utc
 from journeyplus.workspace_models import WorkspaceMessage, WorkspaceTurn
 from journeyplus.agent.harness.contracts import ModelMessage
@@ -48,17 +48,43 @@ class SessionStore(WorkspaceWrites):
 
     def create(self):
         with transaction(self.factory) as s:
-            row = AgentInteraction(status='ACTIVE', provider='agent', model=self.model_name,
-                prompt_version='harness-'+self.instruction_hash[:16], schema_version='harness-2',
-                expires_at=now_utc()+timedelta(hours=24), state={'schema_version': 2, 'note_revision': 0,
-                    'note_ref': None, 'focus': None, 'presentation_refs': [], 'recent_artifact_refs': [],
-                    'import_source': None, 'model_configuration_id': self.model_name})
-            s.add(row)
-            s.flush()
-            return {'id': str(row.id), 'revision': row.revision, 'expires_at': row.expires_at.isoformat(), 'runtime_version': 'harness-2'}
+            return self._create(s)
+
+    def _create(self,s):
+        row = AgentInteraction(status='ACTIVE', provider='agent', model=self.model_name,
+            prompt_version='harness-'+self.instruction_hash[:16], schema_version='harness-2',
+            expires_at=now_utc()+timedelta(hours=24), state={'schema_version': 2, 'note_revision': 0,
+                'note_ref': None, 'focus': None, 'presentation_refs': [], 'recent_artifact_refs': [],
+                'import_source': None, 'model_configuration_id': self.model_name})
+        s.add(row)
+        s.flush()
+        return {'id': str(row.id), 'revision': row.revision, 'expires_at': row.expires_at.isoformat(), 'runtime_version': 'harness-2'}
+
+    def current(self, *, fresh=False):
+        from journeyplus.accounts import UserAccount
+        from journeyplus.user_scope import user_id
+        with transaction(self.factory) as s:
+            account=s.get(UserAccount,user_id(),with_for_update=True)
+            if account is None:raise StoreError('LOGIN_REQUIRED',401)
+            old=s.get(AgentInteraction,account.current_workspace_id,with_for_update=True) if account.current_workspace_id else None
+            if old is not None and aware(old.expires_at)>now_utc() and not fresh:
+                return {'id':str(old.id),'revision':old.revision,'expires_at':aware(old.expires_at).isoformat(),'replaced_runs':[]}
+            runs=[]
+            if old is not None:
+                runs=[str(r) for r in s.scalars(select(DeliveryRun.id).where(DeliveryRun.workspace_id==old.id,DeliveryRun.status.not_in(TERMINAL)))]
+                old.status='REPLACED';old.expires_at=now_utc()
+            created=self._create(s)
+            account.current_workspace_id=UUID(created['id'])
+            return {**created,'replaced_runs':runs}
+
+    def run_user(self,run_id):
+        from journeyplus.user_scope import acting_as
+        with acting_as(None),read_session(self.factory) as s:
+            return s.scalar(select(AgentInteraction.user_id).join(DeliveryRun,DeliveryRun.workspace_id==AgentInteraction.id).where(DeliveryRun.id==UUID(str(run_id))))
 
     def pending_run_ids(self):
-        with read_session(self.factory) as s:
+        from journeyplus.user_scope import acting_as
+        with acting_as(None), read_session(self.factory) as s:
             return [str(identity) for identity in s.scalars(
                 select(RunCheckpoint.run_id).join(AgentInteraction,
                     AgentInteraction.id == RunCheckpoint.workspace_id).where(
@@ -83,6 +109,9 @@ class SessionStore(WorkspaceWrites):
             for ref in request['subject_refs'] + ([focus_ref] if focus_ref else []):
                 try:self.validate_reference(workspace_id, ref)
                 except (ValueError,LookupError):raise StoreError('INVALID_REFERENCE',422) from None
+            workspace.last_message_at=now_utc()
+            workspace.expires_at=workspace.last_message_at+timedelta(hours=24)
+            s.execute(update(Artifact).where(Artifact.workspace_id==workspace.id).values(expires_at=workspace.expires_at))
             turn = WorkspaceTurn(workspace_id=workspace.id, client_message_id=client_message_id,
                 request_hash=digest(request), status='RUNNING', input_revision=expected_revision, started_at=now_utc())
             s.add(turn)
@@ -112,6 +141,7 @@ class SessionStore(WorkspaceWrites):
         cp = s.get(RunCheckpoint, UUID(str(run_id)), with_for_update=True)
         if cp is None or cp.lease_owner != UUID(owner) or cp.phase in TERMINAL:
             raise StoreError('LEASE_LOST')
+        self.workspace(s,cp.workspace_id)
         if cp.heartbeat_at is None or aware(cp.heartbeat_at) < now_utc()-timedelta(seconds=45):
             raise StoreError('LEASE_EXPIRED')
         return cp
@@ -463,9 +493,11 @@ class SessionStore(WorkspaceWrites):
         return created
 
     def cleanup(self):
-        with transaction(self.factory) as s:
+        from journeyplus.user_scope import acting_as
+        with acting_as(None), transaction(self.factory) as s:
             ids=list(s.scalars(select(AgentInteraction.id).where(AgentInteraction.schema_version=='harness-2',AgentInteraction.expires_at<=now_utc())))
             if not ids:return 0
+            s.execute(delete(OperationReceipt).where(OperationReceipt.authorization_snapshot['workspace_id'].as_string().in_([str(i) for i in ids])))
             runs=select(DeliveryRun.id).where(DeliveryRun.workspace_id.in_(ids))
             s.execute(delete(ToolCall).where(ToolCall.workspace_id.in_(ids)))
             s.execute(delete(Artifact).where(Artifact.workspace_id.in_(ids)))

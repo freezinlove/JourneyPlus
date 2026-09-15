@@ -56,9 +56,13 @@ class Source(Base, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
+from journeyplus.user_scope import user_id
+
+
 class UserBusinessOperation(Base):
     """Rollback journal for explicit holdings and independent waiting state only."""
     __tablename__='user_business_operations'
+    user_id: Mapped[UUID] = mapped_column(Uuid, default=user_id, nullable=False, index=True)
     __table_args__=(CheckConstraint("entity_kind IN ('HOLDING','WAIT_GOAL')",name='ck_user_operation_kind'),)
     sequence:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)
     operation_id:Mapped[UUID]=mapped_column(Uuid,default=uuid4,unique=True,nullable=False)
@@ -72,8 +76,9 @@ class UserBusinessOperation(Base):
 
 class StatusHolding(Base, TimestampMixin):
     __tablename__ = "status_holdings"
+    user_id: Mapped[UUID] = mapped_column(Uuid, default=user_id, nullable=False, index=True)
     __table_args__ = (
-        UniqueConstraint("program_key"),
+        UniqueConstraint("user_id", "program_key"),
         ForeignKeyConstraint(["tier_id", "program_id"], ["membership_tiers.id", "membership_tiers.program_id"], name="fk_holding_tier_program"),
     )
 
@@ -94,9 +99,11 @@ class StatusHolding(Base, TimestampMixin):
 
 class AgentInteraction(Base, TimestampMixin):
     __tablename__ = "agent_interactions"
+    user_id: Mapped[UUID] = mapped_column(Uuid, default=user_id, nullable=False, index=True)
     __table_args__ = (Index("ix_agent_interactions_status_expires", "status", "expires_at"),)
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(60), nullable=False)
     state: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict, nullable=False)
     last_response: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

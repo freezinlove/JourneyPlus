@@ -34,6 +34,14 @@ class Runtime:
         await blocking_call(self.ports.sessions.request_cancel, run_id)
 
     async def run(self, run_id):
+        # Recovery runs have no HTTP request; restore identity from trusted storage.
+        from journeyplus.user_scope import acting_as
+        identity=await blocking_call(self.ports.sessions.run_user,run_id)
+        if identity is None:return
+        with acting_as(identity):
+            await self._run_scoped(run_id)
+
+    async def _run_scoped(self, run_id):
         owner = str(uuid4())
         token = self.cancellations.setdefault(run_id, asyncio.Event())
         self.running_tasks[run_id] = asyncio.current_task()
@@ -70,7 +78,8 @@ class Runtime:
                         for item in self.ports.registry.definitions()]]
         budget.model_configuration_id=hashlib.sha256(json.dumps(configuration,sort_keys=True).encode()).hexdigest()
         workspace_id = state['workspace_id']
-        context = ExecutionContext(workspace_id, state['turn_id'], '', 'local-user',
+        from journeyplus.user_scope import user_id
+        context = ExecutionContext(workspace_id, state['turn_id'], '', str(user_id()),
             budget.started+budget.hard['seconds'], token, self.ports.artifacts, self.ports.workspace, self.services, run_id, owner)
         heartbeat = asyncio.create_task(self._heartbeat(run_id, owner, token))
         status = 'FAILED'

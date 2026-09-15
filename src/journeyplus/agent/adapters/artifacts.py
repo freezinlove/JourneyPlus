@@ -66,6 +66,8 @@ class ArtifactStore:
     def read(self, workspace_id, ref):
         identity, fragment = parse_ref(ref)
         with read_session(self.factory) as s:
+            workspace=s.get(AgentInteraction,UUID(str(workspace_id)))
+            if workspace is None or aware(workspace.expires_at)<=now_utc():raise LookupError('Workspace expired or outside user scope')
             row = s.get(Artifact, identity)
             if row is None or row.workspace_id != UUID(str(workspace_id)) or aware(row.expires_at) <= now_utc():
                 raise LookupError('Artifact missing, expired or outside workspace')
@@ -80,6 +82,8 @@ class ArtifactStore:
 
     def search(self, workspace_id, *, kind=None, limit=10, cursor=None, query=None):
         with read_session(self.factory) as s:
+            workspace=s.get(AgentInteraction,UUID(str(workspace_id)))
+            if workspace is None or aware(workspace.expires_at)<=now_utc():raise LookupError('Workspace expired or outside user scope')
             stmt = select(Artifact).where(Artifact.workspace_id == UUID(str(workspace_id)), Artifact.expires_at > now_utc())
             if kind:
                 stmt = stmt.where(Artifact.kind == kind)

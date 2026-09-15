@@ -4,7 +4,7 @@ import asyncio
 import json
 from pathlib import Path
 from uuid import UUID
-from fastapi import APIRouter, FastAPI, HTTPException, Query
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import Field
@@ -52,6 +52,8 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
         recovery_interval=recovery_interval, maintenance_interval=maintenance_interval)
     router = APIRouter(lifespan=lifecycle.lifespan)
     app.state.agent = lifecycle
+    from .auth import install_auth
+    install_auth(app,store.factory)
     from journeyplus.product.knowledge_api import knowledge_router
     app.include_router(knowledge_router(store.factory))
     @app.api_route('/v1/agent/{path:path}',methods=['POST','PUT','PATCH','DELETE'])
@@ -89,14 +91,21 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
     @app.get('/knowledge',response_class=HTMLResponse)
     def knowledge_page():return (static/'knowledge.html').read_text()
 
+    @router.get('/v3/agent/workspaces/current')
+    async def current():
+        result=await blocking_call(store.current)
+        for run in result.pop('replaced_runs',[]):await runtime.cancel(run)
+        return result
+
     @router.post('/v3/agent/workspaces')
-    def create(request:CreateRequest):
-        if request.import_workspace_id:
-            return store.import_workspace(str(request.import_workspace_id))
-        storage=lifecycle.refresh_storage()
-        if storage['status']!='AVAILABLE':
-            raise StoreError(storage['code'],503)
-        return store.create()
+    async def create(request:CreateRequest):
+        if request.import_workspace_id:raise StoreError('IMPORT_DISABLED',410)
+        storage=await blocking_call(lifecycle.refresh_storage)
+        if storage['status']!='AVAILABLE':raise StoreError(storage['code'],503)
+        result=await blocking_call(store.current,fresh=True)
+        for run in result.pop('replaced_runs',[]):await runtime.cancel(run)
+        await blocking_call(store.cleanup)
+        return result
 
     @router.get('/v3/agent/workspaces/{workspace_id}')
     def read(workspace_id:UUID,cursor:str|None=None,limit:int=Query(50,ge=1,le=100)):
@@ -112,11 +121,20 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
         return result
 
     @router.get('/v3/agent/workspaces/{workspace_id}/runs/{run_id}/events')
-    def events(workspace_id:UUID,run_id:UUID,after:int=0):
+    def events(request:Request,workspace_id:UUID,run_id:UUID,after:int=0):
         store.events(str(workspace_id),str(run_id),after)
         async def stream():
             sequence=after
             while True:
+                from journeyplus.accounts import LoginSession,token_hash
+                from .auth import COOKIE
+                from journeyplus.agent.adapters.artifacts import aware
+                from journeyplus.models import now_utc
+                def still_logged_in():
+                    with store.factory() as session:
+                        login=session.get(LoginSession,token_hash(request.cookies.get(COOKIE,'')))
+                        return login is not None and login.user_id==request.state.user_id and aware(login.expires_at)>now_utc()
+                if not await blocking_call(still_logged_in):return
                 items,status=await blocking_call(store.events,str(workspace_id),str(run_id),sequence)
                 for item in items:
                     sequence=item['seq']
@@ -139,6 +157,7 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
 
     @router.get('/v3/agent/workspaces/{workspace_id}/artifacts/{artifact_id}')
     def artifact(workspace_id:UUID,artifact_id:UUID):
+        store.read(str(workspace_id),limit=1)
         try:return store.artifacts.read(str(workspace_id),'artifact:'+str(artifact_id))
         except LookupError as exc:raise HTTPException(404,str(exc)) from exc
 

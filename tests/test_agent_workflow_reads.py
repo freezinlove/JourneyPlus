@@ -31,6 +31,7 @@ def original_factory(tmp_path):
     with engine.begin() as c:
         c.execute(text("ALTER TABLE source_items ADD COLUMN document_role varchar(30) DEFAULT 'OTHER'"))
         c.execute(text('ALTER TABLE document_versions ADD COLUMN section_parser_version varchar(100)'))
+        c.execute(text("ALTER TABLE status_holdings ADD COLUMN user_id CHAR(32) NOT NULL DEFAULT '00000000000000000000000000000001'"))
     statements = []
     event.listen(engine,'before_cursor_execute',lambda conn,cursor,statement,params,context,many:statements.append(statement))
     factory = sessionmaker(engine,expire_on_commit=False)
@@ -328,7 +329,12 @@ def test_original_opportunity_page_data_does_not_require_unified_holding_fields(
     identity=seed(original_factory)
     # Do not enter lifespan: this is an isolated read endpoint test, not a
     # maintenance/Agent-storage migration test.
+    from journeyplus.accounts import UserAccount,LoginSession,create_account
+    from journeyplus.user_scope import OWNER_ID
+    UserAccount.metadata.create_all(original_factory.kw['bind'],tables=[UserAccount.__table__,LoginSession.__table__])
+    create_account(original_factory,'owner','Test-product-login-2026',identity=OWNER_ID)
     client=TestClient(create_product_app(original_factory))
+    assert client.post('/auth/login',json={'username':'owner','password':'Test-product-login-2026'}).status_code==200
     assert client.get('/opportunities/'+str(identity)).status_code==200
     response=client.get('/v1/match-opportunities/'+str(identity))
     assert response.status_code==200

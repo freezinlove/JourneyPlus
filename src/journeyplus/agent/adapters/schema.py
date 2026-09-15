@@ -10,11 +10,13 @@ from .workflow_holdings import WorkflowHolding
 
 
 def production_metadata():
+    from journeyplus.accounts import UserAccount,LoginSession
     metadata = MetaData()
     selected = {value.__table__.name: value.__table__ for value in vars(models).values()
                 if isinstance(value, type) and value.__module__ == models.__name__
                 and hasattr(value, '__table__') and value not in {models.StatusHolding, models.UserBusinessOperation}}
     selected.update({model.__table__.name: model.__table__ for model in RUNTIME_MODELS})
+    selected.update({m.__table__.name:m.__table__ for m in (UserAccount,LoginSession)})
     selected['status_holdings'] = WorkflowHolding.__table__
     for table in selected.values():
         table.to_metadata(metadata)

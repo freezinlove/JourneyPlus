@@ -38,6 +38,12 @@ def _transaction(factory):
                     or checkpoint.cancel_requested or checkpoint.phase in {'COMPLETED','PARTIAL','CANCELED','FAILED'}
                     or checkpoint.heartbeat_at is None or aware(checkpoint.heartbeat_at)<now_utc()-timedelta(seconds=45)):
                     raise TimeoutError('Execution ownership no longer valid')
+        if context:
+            from journeyplus.models import AgentInteraction
+            from .artifacts import aware
+            workspace=session.get(AgentInteraction,UUID(context.workspace_id),with_for_update=True)
+            if workspace is None or aware(workspace.expires_at)<=now_utc():
+                raise TimeoutError('Workspace expired or replaced')
         check(context)
         yield session
         check(context)

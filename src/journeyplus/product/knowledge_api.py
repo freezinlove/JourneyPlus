@@ -54,10 +54,6 @@ def knowledge_router(factory):
                     'pending_action':row.state.get('pending_action'),'focus':row.state.get('focus')}
 
     @router.get('/wait-goal')
-    def read_wait():
-        with factory() as session:
-            rows=session.scalars(select(AgentWaitGoal).order_by(AgentWaitGoal.created_at))
-            return {'read_only':True,'goals':[{'id':str(row.id),'status':row.status,'revision':row.revision,
-                    'query':row.query,'conditions_schema_version':row.conditions_schema_version} for row in rows]}
+    def read_wait():return {'read_only':True,'goals':[],'enabled':False}
 
     return router

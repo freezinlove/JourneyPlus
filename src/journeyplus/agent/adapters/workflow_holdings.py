@@ -11,10 +11,14 @@ class HoldingBase(DeclarativeBase):
     pass
 
 
+from journeyplus.user_scope import user_id
+
+
 class WorkflowHolding(HoldingBase):
     __tablename__ = 'status_holdings'
-    __table_args__ = (UniqueConstraint('program_key'),)
+    __table_args__ = (UniqueConstraint('user_id','program_key'),)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(Uuid, default=user_id, nullable=False, index=True)
     program_key: Mapped[str] = mapped_column(String(300))
     tier_key: Mapped[str] = mapped_column(String(300))
     program_display_name: Mapped[str] = mapped_column(String(300))

@@ -24,6 +24,7 @@ def compose(factory, model, definitions=(), services=None):
 
 
 def compose_business(factory, model, *, network_enabled=False, read_factory=None, knowledge_port=None, waiting_enabled=None):
+    import journeyplus.user_isolation
     from .services.identities import IdentityService
     from .services.user_memory import UserMemory
     from .services.waiting import WaitingService

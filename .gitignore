@@ -17,3 +17,6 @@ htmlcov/
 # Local Agent audit output (requests, conversations, metrics).
 /.local/agent-audits/
 /.local/identity-unification-*/
+
+# Local multi-user credentials, migration snapshots and acceptance traces.
+/.local/multiuser/

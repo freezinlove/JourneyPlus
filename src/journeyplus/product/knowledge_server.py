@@ -11,7 +11,10 @@ from .knowledge_public_api import public_knowledge_router
 
 
 def create_knowledge_app(factory,*,agent_url=None):
-    app=FastAPI(title='JourneyPlus Knowledge');static=Path(__file__).with_name('static')
+    app=FastAPI(title='JourneyPlus Knowledge')
+    from .auth import install_auth
+    install_auth(app,factory,landing='/knowledge')
+    static=Path(__file__).with_name('static')
     app.mount('/assets',StaticFiles(directory=static),name='assets')
     app.include_router(public_knowledge_router(factory))
     def page(name):
