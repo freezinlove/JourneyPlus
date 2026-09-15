@@ -121,8 +121,7 @@ def shortest_graph(nodes, roots, outgoing, wanted, *, free_only=False, exact_tie
         paid = any(step['paid'] for step in path)
         routes[ref] = {'ref': ref, 'from': path[0]['from'], 'to': path[-1]['to'],
             'step_refs': ids, 'step_count': len(ids), 'paid': paid,
-            'cost': {'state': 'KNOWN', 'paid': paid, 'is_proven_free': not paid},
-            'classification': 'MATCH', 'eligibility': 'UNKNOWN', 'challenge': 'UNKNOWN',
+            'classification': 'MATCH',
             'fact_refs': list(dict.fromkeys(ref for step in path for ref in step['fact_refs']))}
     return {'matching_policy': POLICY, 'presentation_classes': ['MATCH'],
         'server_routes': routes, 'server_steps': steps,

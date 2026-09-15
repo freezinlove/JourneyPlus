@@ -9,7 +9,7 @@ def compact_graph_selection(selection, objects):
     pairs = list(dict(zip(selection.object_refs, objects)).items())
     nodes, best, sources = {}, {}, {}
     for ref, obj in pairs:
-        if not obj.get('step_refs') or not obj.get('steps') or 'cost' not in obj:
+        if not obj.get('step_refs') or not obj.get('steps') or not isinstance(obj.get('paid'),bool):
             raise ValueError('Selected object is not a computed route with ordered steps')
         for source in obj.get('query_sources', []):
             sources[source.get('tier_ref') or (source.get('program_name'), source.get('tier_name'))] = source
@@ -17,7 +17,7 @@ def compact_graph_selection(selection, objects):
         target = last['to_tier_id']
         nodes[target] = SimpleNamespace(program_key=last.get('target_program_key', last.get('target_program_id', target)),
             tier_key=last.get('target_tier_key', target))
-        score = (len(obj['step_refs']), bool(obj['cost'].get('paid')), ref)
+        score = (len(obj['step_refs']), obj['paid'], ref)
         if target not in best or score < best[target][0]:
             best[target] = (score, ref)
     targets, _ = highest_targets(nodes, list(nodes))
@@ -48,15 +48,12 @@ def build_block(selection, objects):
     for ref,obj in zip(selection.object_refs,objects):
         value=deepcopy(obj)
         if selection.type in {'route_graph','comparison'}:
-            if not value.get('step_refs') or 'cost' not in value:
+            if not value.get('step_refs') or not isinstance(value.get('paid'),bool):
                 raise ValueError('Selected object is not a computed route')
         if selection.type=='activity_card' and not value.get('version_ref'):
             raise ValueError('Activity card requires a published version')
         if value.get('brief_url'):
             links.append({'object_ref':ref,'url':value['brief_url'],'version_ref':value['version_ref']})
-        for brief in value.get('brief_links',[]):
-            link={'object_ref':ref,'url':brief['url'],'version_ref':brief['version_ref']}
-            if link not in links:links.append(link)
         if selection.type=='comparison':
             value['comparison_values']={column:[{'step_ref':ref,'version_ref':step['version_ref'],
                 'label':str(index+1)+' · '+str(step.get('to') or ''),

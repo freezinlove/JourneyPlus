@@ -83,7 +83,7 @@ def test_original_schema_catalog_routes_inspect_and_progressive_materials(origin
     assert 'fees' not in inspected.data['steps'][0]
     assert inspected.data['steps'][0]['mapping_ref']=='mapping-0'
     assert inspected.data['steps'][0]['brief_url']
-    assert inspected.data['candidates'][0]['eligibility']=='UNKNOWN'
+    assert 'eligibility' not in inspected.data['candidates'][0]
     overview = call(runtime,ctx,'activity.read',{'selector':{'query':'Example Rewards'}})
     item = overview.data['activities'][0]
     assert item['ref'].startswith('activity:'+str(identity)+'@')
@@ -116,7 +116,7 @@ def test_unavailable_tier_price_never_becomes_payable(original_factory,session_f
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{
         'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}})
     assert len(result.data['candidates'])==1  # Regional availability is auxiliary, mapping is retained.
-    assert 'totals' not in result.data['candidates'][0]['cost']
+    assert 'cost' not in result.data['candidates'][0]
 
 
 def test_regional_prices_are_not_global_totals_and_filters_are_preserved(original_factory,session_factory):
@@ -130,7 +130,7 @@ def test_regional_prices_are_not_global_totals_and_filters_are_preserved(origina
     query={'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]}}
     result=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':query})
     assert result.data['candidates'][0]['paid'] is True
-    assert 'totals' not in result.data['candidates'][0]['cost']
+    assert 'cost' not in result.data['candidates'][0]
     inspected=call(runtime,ctx,'routes.evaluate',{'operation':'inspect','route_refs':result.data['route_refs']})
     assert 'conditional_items' not in inspected.data['steps'][0]
     filtered=call(runtime,ctx,'routes.evaluate',{'operation':'search','query':{**query,'constraints':{'free_only':True}}})
@@ -196,7 +196,7 @@ def test_multistep_endpoints_and_known_fees_use_existing_result_contract(origina
     assert len(result.data['candidates'])==1
     route=result.data['candidates'][0]
     assert route['step_count']==2 and route['to'].casefold()=='final rewards platinum'
-    assert route['paid'] is True and 'totals' not in route['cost']
+    assert route['paid'] is True and 'cost' not in route
 
 
 def test_official_historical_factset_never_uses_current_brief(original_factory,session_factory):
@@ -309,7 +309,7 @@ def test_region_prose_and_mixed_challenge_are_not_assumed_proven(original_factor
         'sources':{'mode':'explicit','identities':[{'program_name':'Marriott Bonvoy','tier_name':'Platinum'}]},
         'constraints':{'free_only':False}}})
     assert result.status=='OK'
-    assert result.data['candidates'][0]['eligibility']=='UNKNOWN'
+    assert 'eligibility' not in result.data['candidates'][0]
     assert result.data['candidates'][0]['paid'] is True
 
 

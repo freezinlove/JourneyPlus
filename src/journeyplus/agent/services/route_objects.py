@@ -71,9 +71,13 @@ class RouteObject:
     def display_data(self):
         steps = {self.root_ref+'#step:'+key: {**deepcopy(step), 'ref':self.root_ref+'#step:'+key}
                  for key, step in self.steps.items()}
-        return {**deepcopy(self.route), 'ref':self.ref, 'steps':steps,
+        route=deepcopy(self.route)
+        if isinstance(route.get('paid'),bool):
+            route.pop('cost',None)
+            for key in ('eligibility','challenge'):
+                if route.get(key)=='UNKNOWN':route.pop(key,None)
+        route.pop('brief_links',None)
+        route.pop('assessment_scope',None)
+        return {**route, 'ref':self.ref, 'steps':steps,
                 'step_refs':list(steps),
-                'query_sources':deepcopy(self.resolution.get('resolved_sources', [])),
-                'brief_links':[{'url':step.get('brief_url') or f"/knowledge?activity_id={step['activity_ref']}&version_ref={step['version_ref']}&section=brief",
-                                'version_ref':step['version_ref'], 'title':step.get('to')}
-                               for step in steps.values()]}
+                'query_sources':deepcopy(self.resolution.get('resolved_sources', []))}

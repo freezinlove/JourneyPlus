@@ -52,31 +52,21 @@ def route_summary(route,root_ref,steps=None,*,detail=False):
         value['from'] = route['source_group']['label']
         if value.get('path'):
             value['path'][0] = value['from']
-    if 'cost' in value:
-        if value['cost'].get('state')!='KNOWN':
-            # A partial sum is not a total, especially when the only known
-            # component is zero. Make that distinction explicit in the data.
-            value['cost']['known_subtotal']=value['cost'].pop('totals',[])
-            value['cost']['total']='UNKNOWN'
-        for key in ('alternative_items','conditional_items'):
-            if not value['cost'].get(key):value['cost'].pop(key,None)
-            elif not detail:
-                # Search returns the cost assessment, not repeated full fee
-                # conditions for every path sharing the same step. The immutable
-                # route and inspect retain every fee, condition and association.
-                value['cost'][key+'_count']=len(value['cost'].pop(key))
-                value['cost']['details_omitted']=True
-                value['needs_inspection']=True
+    # Older snapshots may carry duplicate fee/placeholder fields.
+    if isinstance(value.get('paid'),bool):
+        value.pop('cost',None)
+        for key in ('eligibility','challenge'):
+            if value.get(key)=='UNKNOWN':value.pop(key,None)
     caveats=value.get('material_caveats',[])
-    value['material_caveats']=caveats if detail else []
-    value['material_caveat_count']=len(caveats)
-    value['caveats_truncated']=not detail and bool(caveats)
-    if value['caveats_truncated']:
-        value['needs_inspection']=True
+    for key in ('material_caveats','material_caveat_count','caveats_truncated','assessment_scope'):
+        value.pop(key,None)
+    if caveats:
+        if detail:value['material_caveats']=caveats
+        else:
+            value.update(material_caveat_count=len(caveats),caveats_truncated=True,needs_inspection=True)
     classification=value.pop('classification',None)
     value.pop('classification_scope',None)
     value['constraint_match']={'NEARBY':'CONFLICT','EXCLUDED':'CONFLICT','MATCH':'SATISFIES','CONFLICT':'CONFLICT','UNKNOWN':'UNKNOWN'}.get(classification,classification)
-    value['assessment_scope']='Membership mappings and free/paid filter only; application conditions are available in activity details.'
     return value
 
 
@@ -227,19 +217,14 @@ def evaluate(args, ctx):
                            'source_selection':evaluation['source_selection']},
              'effective_input':actual.model_dump(mode='json')}
     # The fields exposed by search must exist at the returned immutable member
-    # reference too. Keep legacy calculation fields for renderers, and persist
-    # the explicit subtotal/path view instead of returning uncitable aliases.
+    # reference too. Keep actual paths and version bindings for inspection.
     for route in payload['routes'].values():
         route['source_mode']=query.sources.mode
         if len(sources) > 1:
-            route['source_group']={'label':'所选会籍组合', 'count':len(sources),
-                'scope':'任一所选起点可达；不能据此判断其他起点不支持，实际来源见 inspect。'}
+            route['source_group']={'label':'所选会籍组合', 'count':len(sources)}
         view=route_summary(route,'',payload['steps'],detail=True)
-        for key in ('path','source_versions','constraint_match','assessment_scope'):
+        for key in ('path','source_versions','constraint_match'):
             route[key]=deepcopy(view[key])
-        if route.get('cost',{}).get('state')!='KNOWN':
-            route['cost']['known_subtotal']=deepcopy(view['cost'].get('known_subtotal',[]))
-            route['cost']['total']='UNKNOWN'
     from journeyplus.agent.services.route_storage import save_routes
     ref,payload=save_routes(ctx,payload)
     ids=payload['route_order']
