@@ -236,6 +236,8 @@ class WorkflowActivityReader:
             'briefs':[{'content':brief_content}] if brief_content else [],
             'card':{'summary':brief_content.get('summary',detail.summary) if brief_content else detail.summary,
                     'lifecycle_status':detail.lifecycle_status,'source_links':detail.source_links},
+            'action_links':detail.action_links,
+            'updated_at':(detail.brief_updated_at or record.created_at).isoformat(),
             'brief_url':brief_url(identity,selected)}
 
     def history(self, identity, *, before_version=None, limit=10):
