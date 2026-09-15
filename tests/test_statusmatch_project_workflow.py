@@ -509,7 +509,7 @@ def test_semantically_identical_page_update_reuses_fact_and_brief(
         ) == 2
 
 
-def test_same_page_snapshot_can_record_a_new_prompt_fact_revision(
+def test_same_page_snapshot_skips_model_config_upgrade(
     session_factory,
 ) -> None:
     with session_factory.begin() as session:
@@ -529,15 +529,12 @@ def test_same_page_snapshot_can_record_a_new_prompt_fact_revision(
 
     summary = process_pending_statusmatch_projects(session_factory, upgraded)
 
-    assert summary.succeeded == 1
-    assert summary.projects[0].change_kind == "FACTS_CHANGED"
+    assert summary.selected == summary.model_calls == 0
+    assert upgraded.calls == []
     with session_factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(FactSetRecord)
-        ) == 2
-        assert session.scalar(
-            select(func.count()).select_from(StatusMatchChangeSet)
-        ) == 2
+        assert session.scalar(select(func.count()).select_from(FactSetRecord)) == 1
+        assert session.scalar(select(func.count()).select_from(BriefRecord)) == 1
+        assert session.scalar(select(func.count()).select_from(StatusMatchChangeSet)) == 1
         assert backfill_current_statusmatch_change_sets(session) == ()
 
 
@@ -971,3 +968,67 @@ def test_table_supplements_publish_in_place_with_existing_model_stages(
         assert "route_updates" not in record.facts
         assert session.scalar(select(func.count()).select_from(FactSetRecord)) == 1
     assert process_pending_statusmatch_projects(session_factory, provider).model_calls == 0
+
+
+def test_old_job_key_and_code_versions_do_not_repeat_source_snapshot(session_factory, monkeypatch):
+    from journeyplus.statusmatch import project_workflow as workflow
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()]))
+    with session_factory.begin() as session:
+        job = session.scalar(select(JobRun).where(JobRun.job_type == 'statusmatch_project_workflow'))
+        job.idempotency_key = job.idempotency_key.rsplit(':', 1)[0] + ':old-key-format'
+        before = session.scalar(select(BriefRecord)).created_at
+    monkeypatch.setattr(workflow, 'PROJECT_PROMPT_VERSION', 'future-prompt')
+    monkeypatch.setattr(workflow, 'PROJECT_SCHEMA_VERSION', 'future-schema')
+    monkeypatch.setattr(workflow, 'FACT_SCHEMA_VERSION', 'future-facts')
+    provider = ProjectProvider([])
+    result = process_pending_statusmatch_projects(session_factory, provider)
+    assert result.selected == result.model_calls == 0
+    assert provider.calls == []
+    with session_factory() as session:
+        assert session.scalar(select(func.count()).select_from(BriefRecord)) == 1
+        assert session.scalar(select(BriefRecord)).created_at == before
+
+
+@pytest.mark.parametrize('kind', ['activity', 'faq', 'terms'])
+def test_each_source_page_change_processes_once_then_skips(session_factory, kind):
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()]))
+    responses = _responses()
+    url = 'https://example.statusmatch.com' + ('/' if kind == 'activity' else '/' + kind)
+    responses[url] = responses[url].replace('<body>', '<body><p>New project condition.</p>')
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    provider = ProjectProvider([_extraction()])
+    result = process_pending_statusmatch_projects(session_factory, provider)
+    assert result.succeeded == result.model_calls == 1
+    repeated = process_pending_statusmatch_projects(session_factory, provider)
+    assert repeated.selected == repeated.model_calls == 0
+
+
+def test_return_to_previous_content_uses_latest_success_not_any_old_success(session_factory):
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    first = process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()]))
+    responses = _responses()
+    responses['https://example.statusmatch.com/faq'] = ACTIVE_FAQ.replace('</body>', '<p>Changed condition.</p></body>')
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, PageFetcher(responses))
+    assert process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()])).succeeded == 1
+    with session_factory.begin() as session:
+        monitor_statusmatch_watches(session, PageFetcher(_responses()))
+    returned = process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()]))
+    assert returned.succeeded == returned.model_calls == 1
+    assert returned.projects[0].faq_document_version_id == first.projects[0].faq_document_version_id
+    assert process_pending_statusmatch_projects(session_factory, ProjectProvider([])).selected == 0
+
+
+def test_failed_processing_remains_retryable(session_factory):
+    with session_factory.begin() as session:
+        _seed_active_watch(session)
+    assert process_pending_statusmatch_projects(session_factory, ProjectProvider([])).failed == 1
+    result = process_pending_statusmatch_projects(session_factory, ProjectProvider([_extraction()]))
+    assert result.succeeded == result.model_calls == 1
+    assert process_pending_statusmatch_projects(session_factory, ProjectProvider([])).selected == 0

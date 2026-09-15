@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from journeyplus.ai.provider import AIProvider
-from journeyplus.statusmatch.briefs import OFFICIAL_BRIEF_SCHEMA_VERSION, save_official_brief
+from journeyplus.statusmatch.briefs import save_official_brief
 from journeyplus.contracts import (
     AnalysisStage,
     ApplicationRoute,
@@ -179,10 +179,6 @@ def statusmatch_project_job_key(
         "terms": str(pages["terms"].current_document_version_id),
         "page_changes": {key: page.last_changed_at.isoformat() if page.last_changed_at else None
                          for key, page in pages.items()},
-        "provider": provider.metadata.config_version,
-        "project": [PROJECT_PROMPT_VERSION, PROJECT_SCHEMA_VERSION],
-        "facts": FACT_SCHEMA_VERSION,
-        "brief": OFFICIAL_BRIEF_SCHEMA_VERSION,
     }
     if event is not None and event.created_from_key != f"statusmatch-watch:{watch.id}":
         payload['event'] = str(event.id)
@@ -277,6 +273,31 @@ def pending_statusmatch_project_count(
     )
 
 
+def _already_processed_pages(
+    session: Session,
+    watch: StatusMatchWatch,
+    pages: dict[str, StatusMatchWatchPage],
+    event: StatusEvent | None,
+) -> bool:
+    """Daily eligibility follows the last published source snapshot, not code versions.
+
+    Read the successful job's explicit source references so older key formats remain
+    usable. Only the latest success counts: A -> B -> A must process the return to A.
+    """
+    if event is None or not event.current_fact_set_id or not event.current_brief_id:
+        return False
+    completed = session.scalar(select(JobRun).where(
+        JobRun.job_type == "statusmatch_project_workflow",
+        JobRun.idempotency_key.like(f"statusmatch-project:{watch.id}:%"),
+        JobRun.status == RunStatus.SUCCEEDED,
+    ).order_by(JobRun.finished_at.desc(), JobRun.created_at.desc(), JobRun.id.desc()).limit(1))
+    result = completed.result if completed is not None else None
+    return bool(result and result.get("event_id") == str(event.id) and all(
+        result.get(f"{kind}_document_version_id") == str(page.current_document_version_id)
+        for kind, page in pages.items()
+    ))
+
+
 def _pending_project_rows(
     session: Session,
     provider: AIProvider,
@@ -303,13 +324,7 @@ def _pending_project_rows(
                 continue  # FAQ edits or prompt changes alone cannot reopen a period.
             rows.append((watch.id, key))
             continue
-        completed = session.scalar(
-            select(JobRun.id).where(
-                JobRun.idempotency_key == key,
-                JobRun.status == RunStatus.SUCCEEDED,
-            )
-        )
-        if completed is None:
+        if not _already_processed_pages(session, watch, pages, event):
             rows.append((watch.id, key))
     return rows
 
