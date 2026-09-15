@@ -20,7 +20,7 @@ def compose(factory, model, definitions=(), services=None):
     ports = RuntimePorts(model, store, store.artifacts, registry, store, monotonic, WorkspaceAccess(store))
     config=getattr(model,'config',None)
     budget_limits={'context_tokens':getattr(config,'context_token_budget',500000)}
-    return Runtime(ports, instructions, services,budget_limits), store
+    return Runtime(ports, instructions, services,budget_limits,model_timing_enabled=getattr(config,'model_timing_enabled',True)), store
 
 
 def compose_business(factory, model, *, network_enabled=False, read_factory=None, knowledge_port=None, waiting_enabled=None):

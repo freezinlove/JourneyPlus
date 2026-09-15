@@ -16,6 +16,7 @@ class AgentConfig:
     network_enabled: bool = False
     model_output_limit: int = 0
     explicit_cache: bool = False
+    model_timing_enabled: bool = True
     context_token_budget: int = 500000
 
     def __post_init__(self):
@@ -41,4 +42,5 @@ class AgentConfig:
                    network_enabled=os.getenv('JOURNEYPLUS_AGENT_NETWORK_ENABLED', 'false').lower() == 'true',
                    model_output_limit=int(os.getenv('JOURNEYPLUS_AGENT_MODEL_OUTPUT_LIMIT','0')),
                    explicit_cache=os.getenv('JOURNEYPLUS_AGENT_EXPLICIT_CACHE','false').lower() == 'true',
+                   model_timing_enabled=os.getenv('JOURNEYPLUS_AGENT_MODEL_TIMING_ENABLED','true').lower() == 'true',
                    context_token_budget=int(os.getenv('JOURNEYPLUS_AGENT_CONTEXT_TOKEN_BUDGET','500000')))

@@ -231,3 +231,27 @@ def test_recovered_completed_delivery_does_not_call_model_again(session_factory)
     asyncio.run(runtime.run(r['run_id']))
     assert store.events(w['id'],r['run_id'])[1]=='COMPLETED'
     assert not runtime.ports.model.inputs
+
+
+def test_model_timing_persisted_outside_model_context(session_factory):
+    model=FakeModel([answer('Hello')])
+    store,w,r=execute(session_factory,model)
+    events,status=store.events(w['id'],r['run_id'])
+    timings=[e['payload'] for e in events if e['type']=='model.timing']
+    assert status=='COMPLETED' and len(timings)==1
+    assert timings[0]['attempt']==1 and timings[0]['harness_elapsed_ms']>=0
+    assert 'model.timing' not in str(model.inputs)
+    from journeyplus.agent.adapters.persistence import SessionStore
+    reloaded=SessionStore(session_factory)
+    assert any(e['type']=='model.timing' for e in reloaded.events(w['id'],r['run_id'])[0])
+
+
+def test_disabled_timing_keeps_normal_answer_without_diagnostic_events(session_factory):
+    from types import SimpleNamespace
+    model=FakeModel([answer('Hello')])
+    model.config=SimpleNamespace(model_timing_enabled=False)
+    store,w,r=execute(session_factory,model)
+    events,status=store.events(w['id'],r['run_id'])
+    assert status=='COMPLETED'
+    assert not any(e['type']=='model.timing' for e in events)
+    assert store.read(w['id'])['messages'][-1]['content'][0]['text']=='Hello'

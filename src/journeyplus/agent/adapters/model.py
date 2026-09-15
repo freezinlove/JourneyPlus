@@ -241,6 +241,15 @@ class AgentModel:
         if self.protocol is None:
             raise RuntimeError('Agent model must pass startup probe')
         started = monotonic()
+        from journeyplus.agent.harness.telemetry import model_timing
+        timing = model_timing.get()
+        marks = {}
+        transport = []
+        def mark(name):
+            marks.setdefault(name, round((monotonic()-started)*1000))
+        async def trace(name, info):
+            # Never persist transport info: it may contain headers or credentials.
+            transport.append({'event': name, 'at_ms': round((monotonic()-started)*1000)})
         names=native_names(definitions) if self.protocol!='json' else {}
         canonical_names={wire:original for original,wire in names.items()}
         schema = [{'type': 'function', 'function': {'name': names.get(d.name,d.name), 'description': d.description,
@@ -285,7 +294,10 @@ class AgentModel:
                     payload['messages'][0]['content'] += ' Resources exhausted: provide final message without calls.'
                 if self.config.explicit_cache:
                     payload['messages'] = cache_messages(payload['messages'])
-                response = await self.client.post('chat/completions', json=payload, timeout=limits.get('timeout', 45))
+                mark('request_ready_ms')
+                response = await self.client.post('chat/completions', json=payload, timeout=limits.get('timeout', 45), extensions={'trace':trace})
+                mark('response_complete_ms')
+                http_status=response.status_code
                 response.raise_for_status()
                 body = response.json()
                 usage = body.get('usage')
@@ -300,6 +312,7 @@ class AgentModel:
                     first_text_ms=round((monotonic()-started)*1000)
                     yield ModelEvent(type='text_delta', message_id=message_id, text=action.message)
                 previous_ids = {p.call_id for m in messages for p in m.content if p.type == 'tool_call'}
+                if action.calls:mark('tools_ready_ms')
                 for call in action.calls:
                     if call.id in previous_ids:
                         call.id = message_id+':'+call.id
@@ -321,7 +334,10 @@ class AgentModel:
                 payload['tool_choice']='none'
             calls = {}
             finish = None
-            async with self.client.stream('POST', 'chat/completions', json=payload, timeout=limits.get('timeout', 45)) as response:
+            mark('request_ready_ms')
+            async with self.client.stream('POST', 'chat/completions', json=payload, timeout=limits.get('timeout', 45), extensions={'trace':trace}) as response:
+                mark('response_headers_ms')
+                http_status=response.status_code
                 if response.is_error:await response.aread()
                 response.raise_for_status()
                 async for line in response.aiter_lines():
@@ -329,15 +345,19 @@ class AgentModel:
                         return
                     if not line.startswith('data:') or line[5:].strip() == '[DONE]':
                         continue
+                    mark('first_data_ms')
                     data = json.loads(line[5:])
                     if data.get('usage') is not None:
                         usage = data['usage']
                     for choice in data.get('choices', []):
                         delta = choice.get('delta', {})
+                        if delta.get('reasoning_content'):mark('first_reasoning_ms')
                         if delta.get('content'):
+                            mark('first_text_ms')
                             if first_text_ms is None:first_text_ms=round((monotonic()-started)*1000)
                             yield ModelEvent(type='text_delta', message_id=message_id, text=delta['content'])
                         for part in delta.get('tool_calls', []):
+                            mark('first_tool_delta_ms')
                             record = calls.setdefault(part['index'], {'id': '', 'name': '', 'arguments': ''})
                             if part.get('id'):
                                 record['id'] = part['id']
@@ -347,6 +367,7 @@ class AgentModel:
                             yield ModelEvent(type='tool_call_delta', call_id=record['id'], name=canonical_names.get(record['name'],record['name']), arguments_fragment=function.get('arguments') or '')
                         finish = choice.get('finish_reason') or finish
                         finish_reason = finish
+            mark('response_complete_ms')
             # Validate the entire batch before any ready event, including interrupted streams.
             if calls and finish != 'tool_calls':
                 raise ValueError('Incomplete tool call stream')
@@ -363,6 +384,7 @@ class AgentModel:
                 arguments,paths=decode_wire_containers(arguments,definition.input_schema) if definition else (arguments,[])
                 if paths:wire_decodings.append({'call_id':call['id'],'name':name,'paths':paths})
                 ready.append(ModelEvent(type='tool_call_ready', message_id=message_id, call_id=call['id'], name=name, arguments=arguments))
+            if ready:mark('tools_ready_ms')
             for event in ready:
                 yield event
             yield ModelEvent(type='usage', usage=usage)
@@ -380,6 +402,9 @@ class AgentModel:
         except ValueError as exc:
             protocol_error = ([{'type':e['type'],'loc':list(e['loc'])} for e in exc.errors(include_input=False)] if hasattr(exc,'errors') else type(exc).__name__)
             raise
+        except asyncio.CancelledError:
+            protocol_error = 'CancelledError'
+            raise
         finally:
             self.metrics.append({'protocol': self.protocol, 'model': self.config.model, 'thinking': self.config.thinking,
                                  'explicit_cache':self.config.explicit_cache,
@@ -389,3 +414,8 @@ class AgentModel:
                                  'input_bytes':len(json.dumps({k:v for k,v in payload.items() if k in {'messages','tools'}},ensure_ascii=False,separators=(',',':')).encode()),
                                  'schema_bytes':len(json.dumps(schema,ensure_ascii=False,separators=(',',':')).encode()),
                                  'tool_result_bytes':sum(len((m['content'] if isinstance(m.get('content'),str) else json.dumps(m.get('content'),ensure_ascii=False,separators=(',',':'))).encode()) for m in payload.get('messages',[]) if m.get('role')=='tool')})
+
+            if timing is not None:
+                metric=self.metrics[-1]
+                timing.update({key:metric[key] for key in ('protocol','model','thinking','explicit_cache','elapsed_ms','usage','protocol_error','first_text_ms','http_status','provider_code','finish_reason','input_bytes','schema_bytes','tool_result_bytes')})
+                timing.update(marks=marks,transport=transport,canceled=cancel_token.is_set())

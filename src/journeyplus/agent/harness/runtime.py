@@ -1,8 +1,10 @@
 """Single model/tool loop. Lifecycle policy never branches on business meaning."""
 import asyncio
 from dataclasses import replace
+from contextlib import aclosing
 import json
 import hashlib
+from time import monotonic
 from uuid import uuid4
 
 from .budget import Budget, estimate
@@ -12,7 +14,8 @@ from .contracts import ExecutionContext, ModelMessage, Part, ToolResult, ModelUn
 
 
 class Runtime:
-    def __init__(self, ports, instructions, services=None, budget_limits=None):
+    def __init__(self, ports, instructions, services=None, budget_limits=None, *, model_timing_enabled=True):
+        self.model_timing_enabled = model_timing_enabled
         self.ports = ports
         self.instructions = instructions
         self.services = services or {}
@@ -143,6 +146,7 @@ class Runtime:
                 await self._publish(run_id, owner, 'resource.notice', notice)
                 messages.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(notice))]))
             (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='MODEL_RUNNING', remaining_budget=budget.snapshot()))
+            preparation_started=monotonic()
             definitions = self.ports.registry.definitions()
             capabilities = self.ports.model.capabilities()
             workspace_state = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id)).get('state', {})
@@ -175,21 +179,26 @@ class Runtime:
             model_failure = None
             message_id = str(uuid4())
             await self._publish(run_id, owner, 'assistant.started', {'message_id': message_id})
+            from .telemetry import model_timing
+            timing={'attempt':budget.requests,'context_prepare_ms':round((monotonic()-preparation_started)*1000)}
+            timing_token=model_timing.set(timing if self.model_timing_enabled else None)
+            request_started=monotonic()
             try:
                 async with asyncio.timeout(budget.limits(capabilities)['timeout']):
                     limits = budget.limits(capabilities)
-                    async for event in self.ports.model.stream(projected, definitions, limits, context.cancel_token):
-                        if context.cancel_token.is_set():
-                            break
-                        if event.type == 'text_delta':
-                            text += event.text or ''
-                            await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
-                        elif event.type == 'tool_call_ready':
-                            calls.append({'call_id': event.call_id, 'name': event.name, 'arguments': event.arguments})
-                        elif event.type == 'usage':
-                            usage = event.usage
-                        elif event.type == 'turn_end':
-                            finish = event.finish_reason
+                    async with aclosing(self.ports.model.stream(projected, definitions, limits, context.cancel_token)) as stream:
+                        async for event in stream:
+                            if context.cancel_token.is_set():
+                                break
+                            if event.type == 'text_delta':
+                                text += event.text or ''
+                                await self._publish(run_id, owner, 'text_delta', {'message_id': message_id, 'text': event.text})
+                            elif event.type == 'tool_call_ready':
+                                calls.append({'call_id': event.call_id, 'name': event.name, 'arguments': event.arguments})
+                            elif event.type == 'usage':
+                                usage = event.usage
+                            elif event.type == 'turn_end':
+                                finish = event.finish_reason
             except asyncio.CancelledError:
                 context.cancel_token.set()
                 finish = 'error'
@@ -201,6 +210,11 @@ class Runtime:
                 if hasattr(exc,'errors'):
                     protocol_feedback = json.dumps([{'field':'.'.join(map(str,e['loc'])),'error':e['type']} for e in exc.errors(include_input=False)],ensure_ascii=False)
                 elif isinstance(exc,ValueError):protocol_feedback = str(exc)[:500]
+            finally:
+                model_timing.reset(timing_token)
+                if self.model_timing_enabled:
+                    timing['harness_elapsed_ms']=round((monotonic()-request_started)*1000)
+                    await self._publish(run_id, owner, 'model.timing', timing)
             budget.usage(usage, projected_tokens, estimate({'text':text,'calls':calls}))
             (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, remaining_budget=budget.snapshot()))
             if text:

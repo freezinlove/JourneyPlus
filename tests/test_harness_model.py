@@ -246,3 +246,52 @@ def test_inline_schema_keeps_business_properties_named_title():
     block=schema['properties']['blocks']['items']
     assert 'title' in block['properties']
     assert 'title' not in block and 'title' not in block['properties']['title']
+
+
+def test_request_timing_isolated_and_no_payload_or_credentials():
+    from journeyplus.agent.harness.telemetry import model_timing
+    async def scenario():
+        async def respond(request):
+            trace=request.extensions['trace']
+            await trace('connection.connect_tcp.started', {'host':'secret-host'})
+            await trace('connection.connect_tcp.complete', {'stream':'private'})
+            return native_response([{'choices':[{'delta':{'tool_calls':[{'index':0,'id':'c','function':{'name':'echo','arguments':'{}'}}]},'finish_reason':'tool_calls'}]}, {'usage':{'prompt_tokens':10,'prompt_tokens_details':{'cached_tokens':8}},'choices':[]}])
+        client=httpx.AsyncClient(base_url='https://test/',transport=httpx.MockTransport(respond))
+        model=AgentModel(AgentConfig('test','https://test/','',32768),client);model.protocol='native'
+        async def call():
+            timing={};token=model_timing.set(timing)
+            try:
+                events=[e async for e in model.stream([],[],{},asyncio.Event())]
+                assert any(e.type=='tool_call_ready' for e in events)
+                return timing
+            finally:model_timing.reset(token)
+        a,b=await asyncio.gather(call(),call())
+        assert a is not b and model_timing.get() is None
+        for result in (a,b):
+            assert result['http_status']==200
+            assert result['first_text_ms'] is None
+            assert result['marks']['first_tool_delta_ms']>=result['marks']['request_ready_ms']
+            assert result['marks']['tools_ready_ms']>=result['marks']['response_complete_ms']
+            assert result['usage']['prompt_tokens_details']['cached_tokens']==8
+            assert 'secret-host' not in json.dumps(result) and 'private' not in json.dumps(result)
+        await client.aclose()
+    asyncio.run(scenario())
+
+
+def test_timeout_keeps_partial_timing():
+    from journeyplus.agent.harness.telemetry import model_timing
+    from journeyplus.agent.harness.contracts import ModelUnavailable
+    async def scenario():
+        def respond(request):raise httpx.ReadTimeout('private URL must not be recorded',request=request)
+        client=httpx.AsyncClient(base_url='https://test/',transport=httpx.MockTransport(respond))
+        model=AgentModel(AgentConfig('test','https://test/','',32768),client);model.protocol='native'
+        timing={};token=model_timing.set(timing)
+        try:
+            with pytest.raises(ModelUnavailable):
+                async for event in model.stream([],[],{},asyncio.Event()):pass
+            assert timing['protocol_error']=='ReadTimeout'
+            assert 'response_headers_ms' not in timing['marks']
+            assert 'private URL' not in json.dumps(timing)
+        finally:model_timing.reset(token)
+        await client.aclose()
+    asyncio.run(scenario())
