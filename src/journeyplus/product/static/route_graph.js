@@ -55,7 +55,7 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
       box.append(el('strong',node.name));
       if(node.origin)box.append(el('small',node.ref==='public-application'?'不要求已有会籍':'本次查询起点'));
       else{
-        box.disabled=disabled;box.append(el('small',node.step_refs.length>1?`${node.step_refs.length} 种已选申请方式`:'查看这一步的申请条件'));
+        box.disabled=disabled;box.append(el('small',node.step_refs.length>1?`${node.step_refs.length} 种已选申请方式`:'查看匹配详情'));
 
         box.onclick=()=>onBrowse(node.browseRef,messageId);
       }
@@ -64,22 +64,6 @@ export function routeGraph(block,messageId,onBrowse,disabled=false){
   }
   const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg'),markerId=`graph-arrow-${++graphId}`;svg.classList.add('graph-edges');svg.setAttribute('aria-hidden','true');
   canvas.append(svg,grid);section.append(canvas);
-  const details=el('details',undefined,'graph-path-details');
-  details.append(el('summary','查看实际起点与路径详情'));
-  const descriptions=el('ol',undefined,'graph-routes');
-  for(const [index,route] of payload.routes.entries()){
-    const item=el('li');const path=[route.from||'公开申请',...route.step_refs.map(ref=>payload.steps[ref].to)].join(' → ');
-    const role=route.classification==='MATCH'?(block.graph_mode==='RECOMMEND'?(route.presentation_role==='PRIMARY'?'首选':route.presentation_role==='ALTERNATIVE'?'备选':block.model_owned_roles?'符合查询条件':'备选'):'符合查询条件'):(labels[route.classification]||'待核实');
-    const fee=money(route.cost);
-    item.append(el('strong',`方案 ${route.presentation_index||index+1} · ${role}`),el('div',path),el('div',route.cost.state==='PARTIAL'?`已知部分：${fee}；总费用未知`:fee));
-    if(route.source_mode)item.append(el('small',route.source_mode==='saved'?'按查询时有效的已保存会籍计算':route.source_mode==='explicit'?'按提供或假设的身份计算，不代表已核实持有':'未提供会籍起点'));
-    if(block.graph_mode==='RECOMMEND'&&route.recommendation_basis)item.append(el('small',route.recommendation_basis));
-    const investigated=(payload.research||[]).filter(o=>route.step_refs.includes(o.step_ref));
-    if(investigated.length)item.append(el('small',`已查 ${investigated.length}/${route.step_refs.length} 步经验，样本限制见节点详情`));
-    if(!route.cost?.paid && route.cost?.paid!==false && (route.challenge==='UNKNOWN'||route.cost.state!=='KNOWN'))item.append(el('small',`${route.cost.state!=='KNOWN'?'费用尚未完整核实；':''}${route.challenge==='UNKNOWN'?'挑战要求尚未核实':''}`,'caveat'));
-    descriptions.append(item);
-  }
-  details.append(descriptions);section.append(details);
   function draw(){
     if(!canvas.isConnected)return;
     const bounds=canvas.getBoundingClientRect(),vertical=getComputedStyle(grid).display==='flex';

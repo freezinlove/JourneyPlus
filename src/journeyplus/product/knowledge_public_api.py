@@ -30,9 +30,13 @@ def public_knowledge_router(factory=None,*,knowledge=None):
             return {'activities':details,'has_more':len(rows)>limit}
 
     @router.get('/activities/{identity}')
-    def activity(identity:UUID,version_ref:UUID|None=None):
+    def activity(identity:UUID,version_ref:UUID|None=None,view:str=Query('detail',pattern='^(detail|path_detail)$')):
         try:
-            with port.read() as s:return WorkflowActivityReader(s).detail(identity,version_ref)
+            with port.read() as s:
+                detail=WorkflowActivityReader(s).detail(identity,version_ref)
+                if view=='path_detail':
+                    return {key:detail.get(key) for key in ('ref','version_ref','action_links','brief_url','updated_at','fee')}
+                return detail
         except LookupError as error:raise HTTPException(409,str(error)) from error
         except ValueError as error:raise HTTPException(409,str(error)) from error
 
