@@ -1,5 +1,5 @@
 import {renderBrief} from './brief_view.js?v=20260914-brief-view';
-import {$,el,api,activityCard,activityDetail} from './knowledge_ui.js';
+import {$,el,api,activityCard,activityDetail} from './knowledge_ui.js?v=20260915-summary-cards-3';
 import {createKnowledgeNavigation} from './knowledge_navigation.js?v=20260914-navigation-2';
 let offset=0,loading=false;
 const dialog=$('#detail'),pane=$('#detail-content');
@@ -22,11 +22,10 @@ async function load(){
     const result=await api(`/v2/activities?view=cards&limit=8&offset=${offset}`);
     for(const activity of result.activities){
       const card=activityCard(activity,()=>navigation.open(activity));
-      card.lastElementChild.textContent='查看简报 →';
       $('#activities').append(card);
     }
     offset+=result.activities.length;$('#more').hidden=!result.has_more;
-    $('#notice').textContent=offset?'只展示已发布资料；未完成核实的活动可能尚未列入。':'暂时没有已发布活动。';
+    $('#notice').textContent=offset?'':'暂时没有已发布活动。';
   }catch(error){$('#notice').textContent=error.message;$('#more').hidden=false;$('#more').textContent='重试读取';}
   finally{loading=false;$('#more').disabled=false;}
 }

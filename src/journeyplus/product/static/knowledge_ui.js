@@ -153,15 +153,14 @@ function researchDetail(observations,parent){
 function activityCard(activity,onOpen){
   const button=el('button',undefined,'card'),card=activity.card||{};
   button.append(el('strong',activity.name||'活动资料'));
-  const state=({OPEN:'开放申请',UPCOMING:'尚未开放',CLOSED:'已关闭',UNKNOWN:'状态待核实'})[card.lifecycle]||'活动资料';
-  button.append(el('small',`${activity.is_current===false?'历史版本 · ':''}${state} · ${labels[activity.freshness]||activity.freshness||'资料待核对'}`));
-  for(const fee of card.fees||[]){const line=el('small',`${fee.label} · ${fee.role}：${fee.value}`);if(fee.caveats?.length)line.append(el('span',' · '+fee.caveats.join('、'),'caveat'));button.append(line);}
-  if(card.additional_fee_count)button.append(el('small',`另有 ${card.additional_fee_count} 项适用费用，详见活动资料`));
-  if(card.fee_note)button.append(el('small',card.fee_note,'caveat'));
-  if(card.challenge==='UNKNOWN')button.append(el('small','挑战要求尚未完整核实','caveat'));
-  else if(card.challenge==='REQUIRED')button.append(el('small','包含挑战要求，按申请方式核对','caveat'));
-  if(card.eligibility_note)button.append(el('small',card.eligibility_note,'caveat'));
-  button.append(el('small','查看活动资料 →'));button.onclick=onOpen;return button;
+  if(activity.is_current===false)button.append(el('small','历史版本'));
+  if(['EXPIRED','ARCHIVED','CLOSED'].includes(card.lifecycle_status))button.append(el('small','已结束'));
+  button.append(el('p',card.summary||'暂无摘要'));
+  const date=activity.updated_at?new Date(activity.updated_at):null;
+  const time=el('small',date&&!Number.isNaN(date.getTime())
+    ?`更新于 ${date.toLocaleDateString('zh-CN',{timeZone:'Asia/Shanghai'})}`:'更新时间未提供');
+  button.append(time);
+  button.onclick=onOpen;return button;
 }
 
 export {$,labels,el,api,money,readable,fact,activityDetail,activityCard,showDetail};

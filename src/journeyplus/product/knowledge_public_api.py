@@ -26,7 +26,7 @@ def public_knowledge_router(factory=None,*,knowledge=None):
             reader=WorkflowActivityReader(s)
             rows=reader.locate(limit=limit,offset=offset)
             details=[reader.detail(row.id) for row in rows[:limit]]
-            if view=='cards':details=[{k:d.get(k) for k in ('ref','version_ref','name','kind','is_current','freshness','published_at','card')} for d in details]
+            if view=='cards':details=[{k:d.get(k) for k in ('ref','version_ref','name','kind','is_current','updated_at','card')} for d in details]
             return {'activities':details,'has_more':len(rows)>limit}
 
     @router.get('/activities/{identity}')
