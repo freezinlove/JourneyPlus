@@ -54,3 +54,13 @@ test('binary fee flags do not need any amount fields',async()=>{
   assert.equal(money({paid:true,state:'KNOWN'}),'付费');
   assert.equal(money({paid:false,state:'KNOWN'}),'免费');
 });
+
+test('explore and workspace use the same graph module version',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const paths=['explore.js','workspace_v3.js'];
+  const versions=await Promise.all(paths.map(async path=>{
+    const text=await readFile(new URL('../../src/journeyplus/product/static/'+path,import.meta.url),'utf8');
+    return text.match(/from ['"](.\/route_graph\.js[^'"]*)['"]/)[1];
+  }));
+  assert.equal(versions[0],versions[1]);
+});

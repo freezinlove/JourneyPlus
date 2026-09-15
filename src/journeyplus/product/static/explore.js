@@ -1,6 +1,6 @@
 import {activityForStep} from './route_step.js?v=20260913-simple-matching';
 import {$,el,api,activityDetail,showDetail} from './knowledge_ui.js';
-import {routeGraph,disposeGraphs} from './route_graph.js?v=20260913-source-validity';
+import {routeGraph,disposeGraphs} from './route_graph.js?v=20260915-clean-graph';
 let snapshot=null,offset=0,page=null,busy=false,filters={alliances:[]};
 const categoryLabels={AIRLINE:'航司',HOTEL:'酒店',CRUISE:'邮轮',OTHER:'其他或未分类项目',UNKNOWN:'未分类项目'};
 function lock(value){busy=value;$('#query').disabled=value;$('#more').disabled=value;$('#search').disabled=value;document.querySelectorAll('.node-button').forEach(button=>button.disabled=value);}

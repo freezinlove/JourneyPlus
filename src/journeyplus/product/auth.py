@@ -31,7 +31,11 @@ def install_auth(app,factory,*,landing='/workspace'):
             origin=request.headers.get('origin')
             if request.headers.get('sec-fetch-site')=='cross-site' or (origin and urlsplit(origin).netloc!=request.headers.get('host')):
                 return JSONResponse({'code':'ORIGIN_DENIED'},status_code=403)
-        if public:return await call_next(request)
+        if public:
+            response=await call_next(request)
+            if path.startswith('/assets/'):
+                response.headers['Cache-Control']='no-cache'
+            return response
         token=request.cookies.get(COOKIE,'')
         def identify():
             with factory() as s:
