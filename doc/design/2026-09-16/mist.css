@@ -1,0 +1,21 @@
+/* Study 03: background only. Components and typography come from study 01. */
+.app{
+ background:
+  radial-gradient(ellipse at 12% 0%,rgba(221,204,180,.48),transparent 57%),
+  radial-gradient(ellipse at 83% 9%,rgba(178,199,224,.52),transparent 60%),
+  radial-gradient(ellipse at 100% 66%,rgba(204,197,222,.36),transparent 58%),
+  radial-gradient(ellipse at 44% 110%,rgba(181,211,207,.38),transparent 58%),
+  #f5f6f8;
+}
+.app[data-theme=dark]{
+ background:
+  radial-gradient(ellipse at 12% 0%,rgba(111,99,80,.27),transparent 57%),
+  radial-gradient(ellipse at 83% 9%,rgba(70,97,129,.33),transparent 60%),
+  radial-gradient(ellipse at 100% 66%,rgba(96,82,121,.2),transparent 58%),
+  radial-gradient(ellipse at 44% 110%,rgba(46,89,85,.23),transparent 58%),
+  #14171c;
+}
+/* The input retains its original solid surface; its surrounding area reveals the background. */
+.composer-wrap{background:transparent}
+/* Reading uses a quiet continuous surface so tables and long text remain stable. */
+.reader{background:var(--canvas)}
