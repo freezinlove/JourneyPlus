@@ -226,6 +226,15 @@
 .appearance-switch{display:flex;gap:4px;padding:4px;background:var(--soft);border-radius:24px}
 .appearance-switch button{min-width:64px;min-height:36px;padding:8px 15px;border-radius:20px;font-size:13px;color:var(--muted)}
 .appearance-switch button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px #182d4510}
+
+.mobile-map{display:none;border:1px solid var(--line);border-radius:22px;padding:16px 0 10px;background:var(--canvas);overflow:hidden}.map-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 14px 12px;font-size:10px;color:var(--muted)}
+.android .graph>.graph-body{display:none}.android .mobile-map{display:block}
+.map-viewport{overflow:auto;overscroll-behavior-x:contain;overscroll-behavior-y:auto;touch-action:pan-x pan-y;scrollbar-width:none;cursor:grab}.map-viewport::-webkit-scrollbar{display:none}.mobile-map .map-viewport{overflow-x:auto;overflow-y:hidden}.map-swipe-hint{display:inline-flex;align-items:center;gap:7px;font-size:12px}.map-swipe-hint svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}.map-viewport:active{cursor:grabbing}.map-size{width:728px;height:290px;padding:0 14px}.map-scene{width:700px;height:290px;position:relative;transform-origin:0 0}.map-scene svg{position:absolute;inset:0;width:700px;height:290px;fill:none;stroke:var(--accent);stroke-width:1.3}.map-scene circle{fill:var(--canvas)}
+.map-origin{position:absolute;left:0;top:108px;width:126px;height:74px;display:flex;flex-direction:column;justify-content:center;gap:7px;padding:13px;border:1px solid var(--line);border-radius:16px;background:var(--surface);font-size:13px}.map-origin strong{font-weight:500}.map-origin span{color:var(--accent)}
+.map-node{position:absolute;width:168px;height:74px;border-radius:16px;border:1px solid var(--line);background:var(--surface);padding:13px;text-align:left;display:flex;flex-direction:column;gap:7px;color:var(--ink);cursor:pointer}.map-node strong{font-size:13px;font-weight:500}.map-node span{font-size:12px;color:var(--muted)}.map-node i{position:absolute;right:12px;bottom:13px;font-style:normal;color:var(--accent)}.map-node:hover{background:var(--accent-soft);border-color:var(--accent)}.node-a{left:210px;top:36px}.node-b{left:210px;top:192px}.node-c{left:485px;top:36px}.map-cost{position:absolute;font-size:10px;color:var(--muted);background:var(--canvas);padding:0 3px}.cost-a{left:158px;top:52px}.cost-b{left:158px;top:208px}.cost-c{left:394px;top:52px}
+@media(max-width:600px){.graph>.graph-body{display:none}.mobile-map{display:block}}
+
+.stage:not(.android) .origin{padding:15px 18px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}.stage:not(.android) .origin strong{margin-top:0}
 </style>
 </head>
 <body>
@@ -262,14 +271,14 @@
      <p>这份演示展示两条会籍路径。先看清楚你能走到哪里，再打开对应简报了解条件。</p>
      <section class="graph" aria-label="演示会籍关系：Aster Gold 可连接 Meridian Platinum 或 Harbor Gold">
       <div class="graph-body">
-       <div class="origin"><small>持有会籍</small><strong>Aster Club</strong><span class="tier">Gold</span></div>
+       <div class="origin"><strong>Aster Club</strong><span class="tier">Gold</span></div>
        <svg class="connectors" viewBox="0 0 110 184" aria-hidden="true"><path d="M0 92 H18 Q30 92 30 78 V54 Q30 42 42 42 H110 M18 92 Q30 92 30 106 V130 Q30 142 42 142 H110"/><circle cx="3" cy="92" r="3"/></svg>
        <div class="targets">
         <div class="target-branch"><span class="step-fee">免费申请</span><button type="button" class="route-target" data-route="meridian" aria-label="Meridian Club Platinum，查看申请详情"><span><strong>Meridian Club</strong><small>Platinum</small></span><span class="go" aria-hidden="true">↗</span></button></div>
         <div class="target-branch"><span class="step-fee">付费申请</span><button type="button" class="route-target" data-route="harbor" aria-label="Harbor Hotels Gold，查看申请详情"><span><strong>Harbor Hotels</strong><small>Gold</small></span><span class="go" aria-hidden="true">↗</span></button></div>
        </div>
       </div>
-     </section>
+<div class="mobile-map"><div class="map-toolbar"><span class="map-swipe-hint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16M8 8l-4 4 4 4m8-8 4 4-4 4"/></svg>左右滑动查看路径</span></div><div class="map-viewport" tabindex="0" aria-label="可横向滚动的会籍匹配图"><div class="map-size"><div class="map-scene"><svg viewBox="0 0 700 290" aria-hidden="true"><path d="M126 145H146Q158 145 158 133V83Q158 73 172 73H210 M146 145Q158 145 158 159V219Q158 229 172 229H210 M378 73H485"/><circle cx="126" cy="145" r="3"/><path d="M203 69L210 73L203 77 M203 225L210 229L203 233 M478 69L485 73L478 77"/></svg><div class="map-origin"><strong>Aster Club</strong><span>Gold</span></div><small class="map-cost cost-a">免费申请</small><small class="map-cost cost-b">付费申请</small><small class="map-cost cost-c">中转 · 示例</small><button class="map-node node-a" data-map-detail="meridian"><strong>Meridian Club</strong><span>Platinum</span><i>↗</i></button><button class="map-node node-b" data-map-detail="harbor"><strong>Harbor Hotels</strong><span>Gold</span><i>↗</i></button><button class="map-node node-c" data-map-detail="summit"><strong>Summit Rewards</strong><span>Gold · 虚构节点</span><i>↗</i></button></div></div></div></div>     </section>
      <p class="response-note">所有项目及关系均为设计示例，不代表真实机会。正式界面将展示服务端返回的范围、版本和申请条件。</p>
      <div class="followup"><button type="button" class="suggestion-pill" id="experience">查看申请经验</button></div>
     </article>
@@ -391,6 +400,11 @@ new ResizeObserver(entries=>{const width=entries[0].contentRect.width;if(width!=
 resizeComposer();
 document.getElementById('holdings-back').onclick=()=>view(active==='reader'?readerReturn:holdingsReturn);
 document.getElementById('desktop-reader-back').onclick=()=>view(active==='holdings'?holdingsReturn:readerReturn);
+
+function mapDetail(key){const content={meridian:['Meridian Club · Platinum','Aster Club Gold → Meridian Club Platinum','免费申请 · 虚构示例'],harbor:['Harbor Hotels · Gold','Aster Club Gold → Harbor Hotels Gold','付费申请 · 虚构示例'],summit:['Summit Rewards · Gold','Meridian Club Platinum → Summit Rewards Gold','新增中转关系仅供设计演示，非真实活动。']}[key];return content;}
+document.querySelectorAll('[data-map-detail]').forEach(button=>button.onclick=()=>{const content=mapDetail(button.dataset.mapDetail);sheet(content[0],body=>{body.append(textEl('p',content[1]),textEl('p',content[2]));});});
+document.querySelectorAll('.map-viewport').forEach(viewport=>{let drag=null;viewport.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse'||e.target.closest('button'))return;drag={x:e.clientX,y:e.clientY,left:viewport.scrollLeft,top:viewport.scrollTop};viewport.setPointerCapture(e.pointerId);});viewport.addEventListener('pointermove',e=>{if(!drag)return;viewport.scrollLeft=drag.left+drag.x-e.clientX;viewport.scrollTop=drag.top+drag.y-e.clientY;});const stop=()=>drag=null;viewport.addEventListener('pointerup',stop);viewport.addEventListener('pointercancel',stop);});
+
 </script>
 </body>
 </html>
