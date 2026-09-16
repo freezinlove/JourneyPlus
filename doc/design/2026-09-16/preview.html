@@ -182,6 +182,50 @@
  .stage:not(.android) .is-reader .desktop-reader-back,
  .stage:not(.android) .is-holdings .desktop-reader-back{background:var(--surface)}
 }
+
+/* Inline relationship diagram: only actionable destinations have a surface. */
+.graph,.android .graph{padding:0;border:0;border-radius:0;background:transparent;margin:30px 0 26px;box-shadow:none}
+.graph-body{grid-template-columns:minmax(110px,1fr) 110px minmax(170px,1.3fr);padding:12px 0;max-width:650px}
+.origin{padding:0}.origin strong{display:block;margin-top:7px;font-size:16px;font-weight:500}.origin small{margin:0;font-size:11px;color:var(--muted)}.origin .tier{font-family:inherit;font-size:14px;margin-top:5px;letter-spacing:0}
+.connectors{width:110px;height:184px}.connectors path{stroke:var(--line);stroke-width:1.5}.connectors circle{fill:var(--canvas);stroke:var(--accent)}
+.targets{gap:16px}.target-branch{position:relative;min-width:0}
+.route-target{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%;height:84px;min-height:84px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:16px 18px;box-shadow:0 2px 5px #13243704;text-align:left}
+.route-target strong{font-size:15px}.route-target small{margin-top:6px;font-size:13px}.route-target .go{position:static;font-size:17px;flex:none;color:var(--accent)}
+.route-target:hover{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 4px 12px #1324370a}
+.step-fee{position:absolute;right:calc(100% + 8px);top:18px;white-space:nowrap;font-size:10px;line-height:18px;color:var(--muted);background:var(--canvas);padding:0 4px}
+.android .graph-body{grid-template-columns:1fr;padding:0}.android .origin{border:0;margin:0;padding:0 0 22px 0}.android .origin .tier{font-size:14px}.android .targets{margin:0 0 0 4px;padding-left:23px;border-left:1px solid var(--line);gap:20px}.android .target-branch{padding-top:24px}.android .step-fee{left:0;right:auto;top:0;padding:0;background:transparent}.android .route-target:before{left:-28px;top:63px;background:var(--canvas);border:1.5px solid var(--accent);width:7px;height:7px}.android .route-target{position:static}.android .target-branch:after{content:"";position:absolute;left:-23px;top:67px;width:23px;height:1px;background:var(--line)}
+@media(max-width:1000px) and (min-width:601px){.graph-body{grid-template-columns:minmax(85px,1fr) 110px minmax(140px,1.3fr)}.route-target{padding:13px;gap:8px}}
+@media(max-width:600px){.graph-body{grid-template-columns:1fr;padding:0}.origin{padding-bottom:22px}.targets{margin-left:4px;padding-left:23px;border-color:var(--line);gap:20px}.target-branch{padding-top:24px}.step-fee{left:0;right:auto;top:0;padding:0;background:transparent}}
+
+
+@media(min-width:601px){
+ .stage:not(.android) .graph-body{grid-template-columns:max-content 110px minmax(170px,304px);max-width:100%;justify-content:start}
+ .stage:not(.android) .origin{padding-right:18px;max-width:180px}
+}
+
+/* Shared Web content column: identical outer width and inner gutters. */
+@media(min-width:601px){
+ .stage:not(.android) .workspace,
+ .stage:not(.android) .journal,
+ .stage:not(.android) .holdings,
+ .stage:not(.android) .reader{width:100%;max-width:850px;padding-left:48px;padding-right:48px;margin-left:auto;margin-right:auto}
+ .stage:not(.android) .composer-wrap{left:153px;right:153px}
+ .stage:not(.android) .composer{width:100%;max-width:754px}
+}
+
+/* Theme-aware edge fades for every Web page; controls remain above the masks. */
+@media(min-width:601px){
+ .stage:not(.android) .main::before,.stage:not(.android) .main::after{content:"";position:absolute;left:104px;right:104px;pointer-events:none;z-index:1;background:var(--canvas)}
+ .stage:not(.android) .main::before{top:0;height:86px;mask-image:linear-gradient(to bottom,#000,rgba(0,0,0,.75) 35%,transparent);-webkit-mask-image:linear-gradient(to bottom,#000,rgba(0,0,0,.75) 35%,transparent)}
+ .stage:not(.android) .main::after{bottom:0;height:70px;mask-image:linear-gradient(to top,#000,rgba(0,0,0,.75) 30%,transparent);-webkit-mask-image:linear-gradient(to top,#000,rgba(0,0,0,.75) 30%,transparent)}
+}
+.journal,.holdings,.reader{padding-bottom:90px}
+.android .journal,.android .holdings,.android .reader{padding-bottom:90px}
+
+.appearance-row{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-top:30px;font-size:14px}
+.appearance-switch{display:flex;gap:4px;padding:4px;background:var(--soft);border-radius:24px}
+.appearance-switch button{min-width:64px;min-height:36px;padding:8px 15px;border-radius:20px;font-size:13px;color:var(--muted)}
+.appearance-switch button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px #182d4510}
 </style>
 </head>
 <body>
@@ -217,13 +261,14 @@
      <h2>你的下一程，有两种可能。</h2>
      <p>这份演示展示两条会籍路径。先看清楚你能走到哪里，再打开对应简报了解条件。</p>
      <section class="graph" aria-label="演示会籍关系：Aster Gold 可连接 Meridian Platinum 或 Harbor Gold">
-      <div class="graph-head"><strong>从我的会籍出发</strong><small>2 条示例路径</small></div>
       <div class="graph-body">
-       <div class="origin"><small>持有会籍 · 示例</small><strong>Aster Club</strong><span class="tier">Gold</span></div>
-       <svg class="connectors" viewBox="0 0 65 166" aria-hidden="true"><path d="M0 83 H16 Q30 83 30 69 V44 Q30 39 37 39 H65 M16 83 Q30 83 30 98 V122 Q30 128 37 128 H65"/><circle cx="2" cy="83" r="3"/></svg>
-       <div class="targets"><button type="button" class="route-target" data-route="meridian"><strong>Meridian Club</strong><small>Platinum · 免费</small><span class="go" aria-hidden="true">↗</span></button><button type="button" class="route-target" data-route="harbor"><strong>Harbor Hotels</strong><small>Gold · 付费</small><span class="go" aria-hidden="true">↗</span></button></div>
+       <div class="origin"><small>持有会籍</small><strong>Aster Club</strong><span class="tier">Gold</span></div>
+       <svg class="connectors" viewBox="0 0 110 184" aria-hidden="true"><path d="M0 92 H18 Q30 92 30 78 V54 Q30 42 42 42 H110 M18 92 Q30 92 30 106 V130 Q30 142 42 142 H110"/><circle cx="3" cy="92" r="3"/></svg>
+       <div class="targets">
+        <div class="target-branch"><span class="step-fee">免费申请</span><button type="button" class="route-target" data-route="meridian" aria-label="Meridian Club Platinum，查看申请详情"><span><strong>Meridian Club</strong><small>Platinum</small></span><span class="go" aria-hidden="true">↗</span></button></div>
+        <div class="target-branch"><span class="step-fee">付费申请</span><button type="button" class="route-target" data-route="harbor" aria-label="Harbor Hotels Gold，查看申请详情"><span><strong>Harbor Hotels</strong><small>Gold</small></span><span class="go" aria-hidden="true">↗</span></button></div>
+       </div>
       </div>
-
      </section>
      <p class="response-note">所有项目及关系均为设计示例，不代表真实机会。正式界面将展示服务端返回的范围、版本和申请条件。</p>
      <div class="followup"><button type="button" class="suggestion-pill" id="experience">查看申请经验</button></div>
@@ -254,6 +299,7 @@
    <section class="view holdings" id="holdings" hidden aria-label="会籍管理预览">
     <div class="holdings-heading"><h1>我的会籍</h1><button type="button" class="primary-button" id="add-holding">＋ 添加会籍</button></div>
     <ul class="membership-list" id="membership-list" aria-label="已添加的会籍"></ul>
+    <div class="appearance-row"><span>外观</span><div class="appearance-switch" role="group" aria-label="界面主题"><button type="button" data-theme="light" aria-pressed="true">浅色</button><button type="button" data-theme="dark" aria-pressed="false">深色</button></div></div>
     <div class="account-actions"><button type="button" class="logout-button" id="logout-demo">退出登录</button></div>
    </section>
   </div>
@@ -282,7 +328,7 @@ document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>view(b.dataset
 document.querySelectorAll('[data-open-brief]').forEach(b=>b.onclick=()=>brief(b.dataset.openBrief));
 document.querySelectorAll('[data-route]').forEach(b=>b.onclick=()=>{const s=samples[b.dataset.route];sheet(s.name+' '+s.tier,body=>{body.append(textEl('p','Aster Club Gold → '+s.name+' '+s.tier),textEl('p',s.fee+' · 虚构示例路径'));const btn=textEl('button','阅读对应简报 ↗');btn.type='button';btn.className='primary-button';btn.onclick=()=>{closeSheet();brief(b.dataset.route);};body.append(btn,textEl('small','正式产品在此读取对应版本资料，保持当前对话中的路径上下文。'));});});
 document.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{stage.classList.toggle('android',b.dataset.device==='android');document.querySelectorAll('[data-device]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
-document.querySelectorAll('button[data-theme]').forEach(b=>b.onclick=()=>{app.dataset.theme=b.dataset.theme;document.querySelectorAll('button[data-theme]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+document.querySelectorAll('button[data-theme]').forEach(b=>b.onclick=()=>{app.dataset.theme=b.dataset.theme;document.querySelectorAll('button[data-theme]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.theme===b.dataset.theme)));});
 document.getElementById('reader-back').onclick=()=>view(readerReturn==='reader'?'journal':readerReturn);
 document.getElementById('close-sheet').onclick=closeSheet;
 document.getElementById('sheet-overlay').onclick=e=>{if(e.target===e.currentTarget)closeSheet();};
