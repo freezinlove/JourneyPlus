@@ -49,15 +49,8 @@ export function News({
       {query.error && (
         <Notice error={query.error} retry={() => query.refetch()} />
       )}
-      {entries.length > 0 && (
-        <div className={s.indexLabel}>
-          <span>活动简报</span>
-          <span>{String(entries.length).padStart(2, "0")} ENTRIES</span>
-        </div>
-      )}
-      {entries.map((a, i) => (
+      {entries.map((a) => (
         <button key={a.ref} className={s.newsRow} onClick={() => open(a.ref)}>
-          <span className={s.number}>{String(i + 1).padStart(2, "0")}</span>
           <div>
             <h2>{a.name || "活动资料"}</h2>
             <p>{a.card?.summary || "暂无摘要"}</p>
@@ -74,8 +67,6 @@ export function News({
             )}
           </div>
           <time dateTime={a.updated_at}>
-            更新于
-            <br />
             {dateText(a.updated_at)}　↗
           </time>
         </button>

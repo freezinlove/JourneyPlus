@@ -1,6 +1,11 @@
 import s from "./App.module.css";
 export function BrandMark() {
-  return <span className={s.brandSymbol} aria-hidden="true" />;
+  return (
+    <svg className={s.brandSymbol} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="m16.8 7.2-2.7 6.9-6.9 2.7 2.7-6.9Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
 }
 export function NavIcon({
   name,

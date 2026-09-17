@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Compass } from "lucide-react";
 import { BrandMark, NavIcon } from "./Icons";
 import { api, ApiError } from "./api";
 import type { Identity } from "./contracts";
@@ -191,7 +190,7 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
     [pending, setPending] = useState(false);
   return (
     <main className={s.login}>
-      <Compass size={36} />
+      <BrandMark />
       <h1>欢迎来到 JourneyPlus</h1>
       <p>从已有会籍，找到你的下一程。</p>
       <form

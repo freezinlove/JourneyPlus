@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { StreamText } from "./StreamText";
 import { ArrowUp, Square } from "lucide-react";
 import { api, ApiError } from "./api";
 import { terminal, type Workspace, type Message } from "./contracts";
@@ -49,6 +48,7 @@ export function Chat({
       stream.current?.close();
       run.current = rid;
       setBusy(true);
+      setProgress("正在思考…");
       const token = generation.current;
       const source = new EventSource(
         `/v3/agent/workspaces/${id}/runs/${rid}/events?after=${seq}`,
@@ -58,6 +58,7 @@ export function Chat({
         if (token !== generation.current) return;
         const event = JSON.parse(e.data),
           p = event.payload;
+        if (event.type === "text_delta") setProgress("");
         if (event.type === "text_delta")
           setMessages((old) => {
             const found = old.find((m) => m.id === p.message_id);
@@ -184,9 +185,19 @@ export function Chat({
     };
   }, [start]);
   useEffect(() => {
-    if (bottom.current && scroll.current)
-      scroll.current.scrollTop = scroll.current.scrollHeight;
-  }, [messages, progress]);
+    const area = scroll.current;
+    const content = area?.firstElementChild;
+    if (!area || !content) return;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (bottom.current) area.scrollTop = area.scrollHeight;
+      });
+    });
+    observer.observe(content);
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, []);
   useEffect(() => {
     const el = input.current;
     if (!el) return;
@@ -218,6 +229,8 @@ export function Chat({
     const w = current.current;
     const token = generation.current;
     setBusy(true);
+    setProgress("正在思考…");
+    bottom.current = true;
     setError(null);
     const retrying = pending.current?.text === text;
     const body = retrying
@@ -245,11 +258,12 @@ export function Chat({
       const snapshot = await hydrate(w.id);
       if (token !== generation.current) return;
       const active = snapshot.runs.find((r) => r.run_id === result.run_id);
-      if (terminal(active?.status || result.status)) setBusy(false);
+      if (terminal(active?.status || result.status)) { setBusy(false); setProgress(""); }
       else subscribe(w.id, result.run_id, active?.last_seq || 0);
     } catch (e) {
       if (token !== generation.current) return;
       setBusy(false);
+      setProgress("");
       setError(e);
       if (e instanceof ApiError && e.status === 409) {
         pending.current = undefined;
@@ -258,6 +272,7 @@ export function Chat({
       if (e instanceof ApiError && e.status === 410) await start();
     }
   }
+  const empty = !messages.some((message) => message.role !== "tool") && !busy;
   return (
     <>
       <div
@@ -270,14 +285,6 @@ export function Chat({
         }}
       >
         <div className={s.conversation}>
-          <div className={s.workspaceHeading}>
-            <h1>从已有会籍出发</h1>
-          </div>
-          {!messages.length && (
-            <div className={s.welcome}>
-              <p>告诉我你已有的会籍，或想去的下一程。</p>
-            </div>
-          )}
           {ws?.next_cursor && (
             <button
               className={s.pill}
@@ -314,9 +321,7 @@ export function Chat({
                 {m.content
                   .filter((p) => p.type === "text")
                   .map((p, i) => (
-                    <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
-                      {p.text || ""}
-                    </ReactMarkdown>
+                    <StreamText key={i} text={p.text || ""} live={busy && m.role === "assistant" && m === messages[messages.length - 1]} />
                   ))}
                 {m.attachments?.operations?.map((o, i) => (
                   <p key={i}>{o.summary}</p>
@@ -335,7 +340,12 @@ export function Chat({
                 )}
               </article>
             ))}
-          {progress && <p role="status">{progress}</p>}
+          {progress && (
+            <p className={s.processing} role="status" aria-live="polite" data-active={busy}>
+              {busy && <span className={s.processingDot} aria-hidden="true" />}
+              {progress}
+            </p>
+          )}
           {!!error && (
             <Notice
               error={error}
@@ -345,12 +355,15 @@ export function Chat({
         </div>
       </div>
       <form
-        className={s.composer}
+        className={`${s.composer} ${empty ? s.composerEmpty : ""}`}
         onSubmit={(e) => {
           e.preventDefault();
           void send(draft);
         }}
       >
+        {empty && (
+          <h1 className={s.emptyPrompt}>想用你的会籍，开启怎样的下一程？</h1>
+        )}
         <textarea
           ref={input}
           disabled={!ws}
@@ -358,7 +371,7 @@ export function Chat({
           aria-label="消息"
           value={draft}
           maxLength={16000}
-          placeholder="继续聊聊你想获得的会籍…"
+          placeholder="说说你持有的会籍，或想了解的匹配机会…"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (

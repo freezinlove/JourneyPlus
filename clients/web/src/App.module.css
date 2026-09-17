@@ -20,33 +20,15 @@
   z-index: 3;
 }
 .brandSymbol {
-  width: 23px;
-  height: 23px;
-  border: 1.7px solid var(--accent);
-  border-radius: 50%;
-  position: relative;
-  display: inline-block;
+  width: 25px;
+  height: 25px;
+  display: block;
   flex: none;
+  color: var(--accent);
 }
-.brandSymbol:before {
-  content: "";
-  position: absolute;
-  width: 17px;
-  height: 1.7px;
-  background: var(--accent);
-  transform: rotate(-42deg);
-  left: 2px;
-  top: 10px;
-}
-.brandSymbol:after {
-  content: "";
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-  top: 3px;
-  right: 3px;
+.login > .brandSymbol {
+  width: 42px;
+  height: 42px;
 }
 .rail {
   position: absolute;
@@ -270,7 +252,7 @@
 }
 .newsRow {
   display: grid;
-  grid-template-columns: 52px 1fr 90px;
+  grid-template-columns: minmax(0, 1fr) 90px;
   gap: 18px;
   padding: 25px 0;
   border-bottom: 1px solid var(--line);
@@ -300,6 +282,7 @@
   margin: 0;
 }
 .newsRow time {
+  align-self: center;
   font-size: 11px;
   color: var(--muted);
   text-align: right;
@@ -592,6 +575,7 @@
   color: var(--muted);
 }
 .userMessage {
+  width: fit-content;
   margin: 0 0 32px auto;
   background: var(--soft);
   padding: 15px 20px;
@@ -638,18 +622,8 @@
   color: var(--ink);
 }
 .speaker .brandSymbol {
-  width: 17px;
-  height: 17px;
-}
-.speaker .brandSymbol:before {
-  width: 11px;
-  top: 7px;
-}
-.speaker .brandSymbol:after {
-  width: 3px;
-  height: 3px;
-  top: 2px;
-  right: 2px;
+  width: 19px;
+  height: 19px;
 }
 .composer {
   position: absolute;
@@ -954,7 +928,8 @@
   .userMessage {
     font-size: 14px;
     padding: 13px 17px;
-    margin-left: 28px;
+    margin-left: auto;
+    max-width: calc(100% - 28px);
     margin-bottom: 28px;
   }
   .answer h1,
@@ -980,7 +955,7 @@
     height: 80px;
   }
   .newsRow {
-    grid-template-columns: 27px 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     padding: 24px 0;
   }
@@ -1110,7 +1085,7 @@
     padding-right: 21px;
   }
   .newsRow {
-    grid-template-columns: 28px 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 25px 0;
   }
   .number {
@@ -1170,4 +1145,67 @@
     padding: 0 3px;
     line-height: normal;
   }
+}
+
+/* Keep the same composer mounted when the first message starts a conversation. */
+.composer.composerEmpty,
+.composer.composerEmpty:active {
+  top: 50%;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+}
+.emptyPrompt {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: 100%;
+  margin: 0 0 28px;
+  font-size: clamp(22px, 2.3vw, 28px);
+  line-height: 1.5;
+  font-weight: 500;
+  text-align: center;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+
+/* Motion from preview.html: enter .22s, sheet-in .25s, theme .2s. */
+.app {
+  transition: background 0.2s, color 0.2s;
+}
+.page,
+.conversation {
+  animation: viewEnter 0.22s ease-out;
+}
+.modal[data-state="open"] {
+  animation: sheetEnter 0.25s ease-out;
+}
+@keyframes viewEnter {
+  from { opacity: 0.6; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheetEnter {
+  from { opacity: 0.5; transform: translate(-50%, calc(-50% + 20px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.processing {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 26px;
+  margin: 0 0 28px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.processingDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+  animation: processingPulse 1.4s ease-in-out infinite;
+}
+@keyframes processingPulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
 }
