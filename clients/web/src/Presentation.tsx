@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api, readable } from "./api";
 import type { Presentation as Payload, Step } from "./contracts";
+import { StreamText } from "./StreamText";
 import { Graph } from "./Graph";
 import { Modal, Notice } from "./UI";
 import { Links } from "./News";
@@ -9,11 +10,13 @@ import s from "./App.module.css";
 export function Presentation({
   wid,
   reference,
+  live = false,
   send,
   openActivity,
 }: {
   wid: string;
   reference: string;
+  live?: boolean;
   send: (t: string, refs?: string[]) => void;
   openActivity: (id: string, v?: string) => void;
 }) {
@@ -52,7 +55,7 @@ export function Presentation({
   const p = query.data!.payload;
   return (
     <>
-      {p.answer && <p>{p.answer}</p>}
+      {p.answer && <StreamText text={p.answer} live={live} />}
       {p.blocks.map((b, i) => (
         <section key={i}>
           {b.title && <h3>{b.title}</h3>}

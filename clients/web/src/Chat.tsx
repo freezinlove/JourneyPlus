@@ -18,6 +18,7 @@ export function Chat({
     [progress, setProgress] = useState(""),
     [error, setError] = useState<unknown>(),
     [draft, setDraft] = useState("");
+  const livePresentations = useRef(new Set<string>());
   const current = useRef<Workspace | undefined>(undefined),
     stream = useRef<EventSource | undefined>(undefined),
     run = useRef(""),
@@ -85,8 +86,10 @@ export function Chat({
                   },
                 ];
           });
-        if (event.type === "presentation.created")
-          setMessages((old) => [
+        if (event.type === "presentation.created") {
+          livePresentations.current.add(p.presentation_ref);
+          setProgress("");
+          setMessages((old) => old.some((m) => m.attachments?.presentation_refs?.includes(p.presentation_ref)) ? old : [
             ...old,
             {
               id: p.presentation_ref,
@@ -95,6 +98,7 @@ export function Chat({
               attachments: { presentation_refs: [p.presentation_ref] },
             },
           ]);
+        }
         if (event.type === "tool.started") setProgress(p.label);
         if (event.type === "resource.notice") setProgress(p.message);
         if (event.type === "operation.applied")
@@ -151,6 +155,7 @@ export function Chat({
       current.current = undefined;
       setWs(undefined);
       setMessages([]);
+      livePresentations.current.clear();
       setError(null);
       setProgress("");
       setBusy(true);
@@ -306,10 +311,15 @@ export function Chat({
             </button>
           )}
           {messages
-            .filter((m) => m.role !== "tool")
+            .filter((m) => m.role !== "tool" && (
+              m.content.some((p) => p.type === "text" && p.text?.trim()) ||
+              m.attachments?.presentation_refs?.length ||
+              m.attachments?.operations?.some((o) => o.summary?.trim()) ||
+              m.metadata?.interrupted
+            ))
             .map((m) => (
               <article
-                key={m.id}
+                key={m.attachments?.presentation_refs?.length === 1 && !m.content.some((p) => p.type === "text" && p.text?.trim()) ? m.attachments.presentation_refs[0] : m.id}
                 className={m.role === "user" ? s.userMessage : s.answer}
               >
                 {m.role === "assistant" && (
@@ -331,6 +341,7 @@ export function Chat({
                     key={ref}
                     wid={ws!.id}
                     reference={ref}
+                    live={livePresentations.current.has(ref)}
                     send={send}
                     openActivity={openActivity}
                   />
