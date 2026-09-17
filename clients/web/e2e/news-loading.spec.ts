@@ -33,7 +33,7 @@ test('brief content renders while relationship is still pending', async ({ page 
     const path = url.pathname;
     if (path.endsWith('/relationship')) {
       await pending;
-      return route.fulfill({ json: { text: '关系计算完成' } });
+      return route.fulfill({ json: { status: 'DIRECT', text: '关系计算完成', path: ['source', 'target'], path_labels: ['Miles & More · Senator', 'Mabuhay Miles · Premier Elite'] } });
     }
     if (path.endsWith('/brief')) expect(url.searchParams.get('include_relationship')).toBe('false');
     const data = path === '/auth/me' ? { id: 'test', username: 'test' }
@@ -47,6 +47,9 @@ test('brief content renders while relationship is still pending', async ({ page 
     await expect(page.getByRole('heading', { name: '会籍匹配表' })).toBeVisible();
     await expect(page.getByText('正在查看与你的会籍的关系…')).toBeVisible();
     release();
-    await expect(page.getByText('关系计算完成')).toBeVisible();
+    await expect(page.getByLabel('我的会籍匹配路径')).toBeVisible();
+    await expect(page.getByText('Senator', { exact: true })).toBeVisible();
+    await expect(page.getByText('Premier Elite', { exact: true })).toBeVisible();
+    await expect(page.getByText('关系计算完成')).toHaveCount(0);
   } finally { release(); }
 });

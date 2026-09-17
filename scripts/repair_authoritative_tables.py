@@ -16,11 +16,11 @@ from journeyplus.statusmatch.project_workflow import StatusMatchProjectWorkflow,
 
 HOSTS = ("flyingblue.statusmatch.com", "philippineairlines.statusmatch.com")
 
-def repair(apply=False):
+def repair(apply=False, hosts=HOSTS):
     engine = create_engine(Settings.from_env().database_url)
     with Session(engine) as session:
         reports = []
-        for host in HOSTS:
+        for host in hosts:
             watch = session.scalar(select(StatusMatchWatch).where(StatusMatchWatch.host == host).with_for_update())
             event = session.get(StatusEvent, watch.current_event_id)
             previous = session.get(FactSetRecord, event.current_fact_set_id)
@@ -61,4 +61,6 @@ def repair(apply=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--apply", action="store_true")
-    repair(parser.parse_args().apply)
+    parser.add_argument("--host", choices=(*HOSTS, "enrich.statusmatch.com"), action="append")
+    args = parser.parse_args()
+    repair(args.apply, args.host or HOSTS)

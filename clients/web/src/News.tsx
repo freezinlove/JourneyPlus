@@ -128,7 +128,7 @@ export function Reader({ id, version }: { id: string; version?: string }) {
       ) : query.error ? (
         <Notice error={query.error} retry={() => query.refetch()} />
       ) : (
-        <Brief data={query.data} pinned={!!version} relationship={<BriefRelationship id={id} version={query.data.activity.version_ref} />} />
+        <Brief key={`${id}:${version || "current"}`} data={query.data} relationship={<BriefRelationship id={id} version={query.data.activity.version_ref} />} />
       )}
     </main>
   );
@@ -136,13 +136,37 @@ export function Reader({ id, version }: { id: string; version?: string }) {
 function BriefRelationship({ id, version }: { id: string; version?: string }) {
   const query = useQuery({
     queryKey: ["brief-relationship", id, version],
-    queryFn: ({ signal }) => api<{ text: string }>(
+    queryFn: ({ signal }) => api<Relationship>(
       `/v2/activities/${encodeURIComponent(id)}/relationship${version ? `?version_ref=${encodeURIComponent(version)}` : ""}`,
       undefined, "GET", signal,
     ),
   });
   if (query.error) return <Notice error={query.error} retry={() => query.refetch()} />;
-  return <p aria-live="polite">{query.data?.text || "正在查看与你的会籍的关系…"}</p>;
+  return query.data ? <RelationshipCards data={query.data} /> : <div className={s.relationshipState} role="status">正在查看与你的会籍的关系…</div>;
+}
+type Relationship = { status: string; text: string; path?: string[]; path_labels?: string[] };
+function RelationshipCards({ data }: { data?: Relationship }) {
+  const labels = data?.path_labels || [];
+  if (!data?.path?.length || labels.length !== data.path.length || labels.length < 2)
+    return <div className={s.relationshipState}>{data?.text || "暂未计算"}</div>;
+  return <>
+    <div className={s.relationshipPath} aria-label="我的会籍匹配路径">
+      {labels.map((label, index) => {
+        const split = label.lastIndexOf(" · ");
+        const program = split < 0 ? label : label.slice(0, split);
+        const tier = split < 0 ? "" : label.slice(split + 3);
+        return <div className={s.relationshipStep} key={`${index}:${label}`}>
+          {index > 0 && <span className={s.relationshipArrow} aria-hidden="true">→</span>}
+          <div className={s.relationshipNode}>
+            <span className={s.relationshipLabel}>{index === 0 ? "我的会籍" : index === labels.length - 1 ? "目标会籍" : "中间会籍"}</span>
+            <strong>{program}</strong>
+            {tier && <small>{tier}</small>}
+          </div>
+        </div>;
+      })}
+    </div>
+    <p className={s.relationshipNote}>仍需满足对应方案的地区和其他申请条件。</p>
+  </>;
 }
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
 function compactTier(value: string, target: string) {
@@ -319,23 +343,23 @@ export function PriceTable({ data: d }: { data: any }) {
 }
 export function Brief({
   data: d,
-  pinned = false,
   relationship,
 }: {
   data: any;
-  pinned?: boolean;
   relationship?: import("react").ReactNode;
 }) {
   const activity = d.activity;
+  const baseSummary = d.brief?.summary || activity?.card?.summary || d.summary || "";
+  const applicationLinks = unique((d.action_links || []).map((url: string) => {
+    try { return new URL(url).href; } catch { return url; }
+  })).filter(url => safeUrl(url));
   return (
     <>
       <div className={s.readerMeta}>
         {d.program || activity?.name} / {d.brief ? "会籍简报" : "活动资料"}
       </div>
       <h1>{d.brief?.title || activity?.name || `${d.program} 会籍匹配活动`}</h1>
-      <p className={s.lede}>
-        {d.brief?.summary || activity?.card?.summary || d.summary}
-      </p>
+      <p className={s.lede}>{baseSummary}</p>
       {lifecycle(d.lifecycle_status) && (
         <p role="status">{lifecycle(d.lifecycle_status)}</p>
       )}
@@ -348,21 +372,16 @@ export function Brief({
           <span>简报更新于（北京时间）</span>
           {d.brief_updated_at ? dateText(d.brief_updated_at, true) : "尚未生成"}
         </div>
-        <div>
-          <span>读取版本</span>
-          {pinned ? "指定版本" : "当前版本"}
-        </div>
       </div>
       <section>
         <h2>和我的关系</h2>
-        {relationship || <p>{d.relationship?.text || "暂未计算"}</p>}
+        {relationship || <RelationshipCards data={d.relationship} />}
       </section>
       <section>
         <h2>申请入口</h2>
-        {d.action_links?.length ? (
+        {applicationLinks.length ? (
           <div>
-            {unique(d.action_links)
-              .filter((url) => safeUrl(url))
+            {applicationLinks
               .map((url, i) => (
                 <a
                   key={url}
@@ -371,7 +390,7 @@ export function Brief({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  前往申请页面{d.action_links.length > 1 ? ` ${i + 1}` : ""}
+                  前往申请页面{applicationLinks.length > 1 ? ` ${i + 1}` : ""}
                   <span>↗</span>
                 </a>
               ))}
@@ -380,41 +399,17 @@ export function Brief({
           <p>暂无申请入口。</p>
         )}
       </section>
-      {activity &&
-        [
-          "eligibility",
-          "challenge_requirements",
-          "application_start",
-          "deadline",
-          "status_validity",
-          "caveats",
-        ].some((key) => activity.facts?.[key]) && (
-          <section>
-            <h2>申请前了解</h2>
-            {[
-              ["eligibility", "申请资格"],
-              ["challenge_requirements", "挑战要求"],
-              ["application_start", "申请开始"],
-              ["deadline", "申请截止"],
-              ["status_validity", "会籍有效期"],
-              ["caveats", "注意事项"],
-            ]
-              .filter(([key]) => activity.facts?.[key])
-              .map(([key, label]) => (
-                <div key={key}>
-                  <h3 className={s.factLabel}>{label}</h3>
-                  <p>{readable(activity.facts[key])}</p>
-                </div>
-              ))}
-          </section>
-        )}
       <section>
-        <h2>会籍匹配表</h2>
-        <MappingTable data={d} />
+        <details className={s.tableDisclosure}>
+          <summary><h2>会籍匹配表</h2></summary>
+          <MappingTable data={d} />
+        </details>
       </section>
       <section>
-        <h2>价格表</h2>
-        <PriceTable data={d} />
+        <details className={s.tableDisclosure}>
+          <summary><h2>价格表</h2></summary>
+          <PriceTable data={d} />
+        </details>
       </section>
       <section>
         <h2>原文链接</h2>

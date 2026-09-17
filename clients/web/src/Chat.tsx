@@ -170,7 +170,11 @@ export function Chat({
       activeTools.current.clear();
       setError(null);
       setProgress("");
-      setBusy(true);
+      // Workspace initialization is not an active model run. `ws` gates input
+      // until hydration finishes; only subscribe/send should enter busy state.
+      setBusy(false);
+      run.current = "";
+      if (fresh) setDraft("");
       pending.current = undefined;
       try {
         const data = await api<Workspace>(
@@ -185,6 +189,7 @@ export function Chat({
         if (active) subscribe(w.id, active.run_id, active.last_seq);
         else setBusy(false);
       } catch (e) {
+        if (token !== generation.current) return;
         setError(e);
         setBusy(false);
       }

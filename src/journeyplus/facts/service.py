@@ -5,7 +5,7 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -1173,7 +1173,10 @@ def _normalize_statusmatch_action_links(
             (parsed.hostname or "").casefold() == host
             and (parsed.path.rstrip("/") or "/") == "/"
         )
-        return value if same_root else root_url
+        if same_root:
+            # Root spelling is equivalent; query and fragment may select a channel.
+            return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), "/", parsed.query, parsed.fragment))
+        return root_url
 
     payload = fact_set.model_dump(mode="json")
     payload["action_link"]["value"] = preferred(fact_set.action_link.value)

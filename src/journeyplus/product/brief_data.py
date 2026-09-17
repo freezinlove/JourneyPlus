@@ -41,7 +41,11 @@ def fee_view(facts: FactSet) -> BriefFee:
 
 
 def action_links(facts: FactSet) -> list[str]:
-    return list(dict.fromkeys(str(link) for link in [
+    from urllib.parse import urlsplit, urlunsplit
+    def canonical(link):
+        value = urlsplit(str(link))
+        return urlunsplit((value.scheme.lower(), value.netloc.lower(), value.path or '/', value.query, value.fragment))
+    return list(dict.fromkeys(canonical(link) for link in [
         facts.action_link.value, *(route.action_link for route in facts.application_routes),
     ] if link))
 

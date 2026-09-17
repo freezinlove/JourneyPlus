@@ -347,6 +347,17 @@
   font-size: 14px;
   color: var(--muted);
 }
+.tableDisclosure > summary {
+  cursor: pointer;
+  padding: 6px 0;
+}
+.reader .tableDisclosure > summary h2 {
+  display: inline;
+  margin: 0 0 0 6px;
+}
+.tableDisclosure[open] > summary {
+  margin-bottom: 14px;
+}
 .table {
   overflow-x: auto;
 }
@@ -1217,4 +1228,39 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .presentationReveal { animation: none; }
+}
+
+.relationshipPath {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+}
+.relationshipStep {
+  display: flex;
+  align-items: center;
+  flex: 1 0 230px;
+  min-width: 0;
+}
+.relationshipNode {
+  flex: 1;
+  min-width: 170px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  padding: 16px 18px;
+  box-shadow: 0 2px 5px #13243704;
+}
+.relationshipNode strong { display: block; font-size: 15px; font-weight: 500; }
+.relationshipNode small { display: block; margin-top: 6px; font-size: 14px; color: var(--accent); }
+.relationshipLabel { display: block; margin-bottom: 10px; font-size: 11px; color: var(--muted); }
+.relationshipArrow { flex: none; padding: 0 18px; color: var(--accent); font-size: 22px; }
+.relationshipState { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--muted); font-size: 14px; }
+.reader section .relationshipNote { margin-top: 0; font-size: 12px; }
+@media (max-width: 600px) {
+  .relationshipStep { flex: 0 0 auto; }
+  .relationshipNode { width: 170px; }
+  .relationshipArrow { padding: 0 12px; }
 }

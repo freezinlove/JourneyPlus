@@ -75,7 +75,7 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v19-table-authority"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v20-informative-summary"
 PROJECT_SCHEMA_VERSION = "4"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
@@ -84,7 +84,7 @@ SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系
 
 输出 identity（目标忠诚度项目 program、活动标题 title、简洁活动摘要 summary、目标会籍）以及完整当前事实。
 identity.title 只说明哪个项目的会籍匹配活动，例如“Flying Blue 会籍匹配活动”。
-identity.summary 根据正文用一两句话概述活动核心内容，不列出具体等级对应、地区价格，
+identity.summary 根据正文用三至五句话概述活动核心内容，材料充分时约150至250字。优先包含适用对象、目标会籍、费用概况、关键地区限制及会籍有效期；缺失的信息省略，不为凑字数重复或虚构。不逐行复述等级映射和地区价格表，
 不判断用户是否能申请。标题、摘要将直接作为简报文案，详细表格、个人关系、链接和版本信息由程序提供。字段包括发生事项、
 适用对象、可获得会籍、成本、挑战要求、地域、申请开始时间、截止时间、会籍有效期、行动链接、
 限制和 application_routes。当前材料没有明确支持的值必须为 null；不得从旧 fact set 保留已
