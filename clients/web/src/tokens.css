@@ -1,0 +1,117 @@
+/* Values taken from the final light/dark .app in preview.html. */
+:root {
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
+  color: var(--ink);
+  background: var(--canvas);
+  font-synthesis: none;
+  --canvas: #f5f6f8;
+  --surface: #fff;
+  --soft: #eceff3;
+  --ink: #202832;
+  --muted: #5a6573;
+  --accent: #294f73;
+  --accent-soft: #e6eef5;
+  --line: #dae0e7;
+  --shadow: 0 14px 40px #1a2d4510;
+  --warn: #86501c;
+  --column: 754px;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --canvas: #14171c;
+  --surface: #1d2229;
+  --soft: #262d36;
+  --ink: #edf1f5;
+  --muted: #b2bdc9;
+  --accent: #a2c8eb;
+  --accent-soft: #263749;
+  --line: #39434f;
+  --shadow: 0 14px 40px #0003;
+  --warn: #e9bb86;
+  color-scheme: dark;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  transition:
+    background 0.16s,
+    transform 0.12s,
+    color 0.16s;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #77a8d4;
+  outline-offset: 4px;
+}
+a {
+  color: inherit;
+}
+button:active {
+  transform: scale(0.98);
+}
+p {
+  line-height: 1.8;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+[hidden] {
+  display: none !important;
+}
+small {
+  color: var(--muted);
+}
+svg {
+  flex-shrink: 0;
+}
+pre {
+  overflow: auto;
+}
+textarea:focus,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

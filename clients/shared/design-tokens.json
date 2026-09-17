@@ -1,0 +1,6 @@
+{
+  "columnWidth": 754,
+  "radius": {"surface": 22, "node": 17, "composer": 27},
+  "light": {"canvas":"#f5f6f8","surface":"#ffffff","ink":"#202832","muted":"#5a6573","accent":"#294f73","line":"#d8e0e9"},
+  "dark": {"canvas":"#14171c","surface":"#1d2229","ink":"#edf1f5","muted":"#b2bdc9","accent":"#a2c8eb","line":"#39434f"}
+}

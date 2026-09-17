@@ -20,3 +20,14 @@ htmlcov/
 
 # Local multi-user credentials, migration snapshots and acceptance traces.
 /.local/multiuser/
+
+# Independent clients
+clients/web/node_modules/
+clients/web/dist/
+clients/android/.gradle/
+clients/android/.kotlin/
+clients/android/**/build/
+clients/android/local.properties
+clients/web/test-results/
+clients/web/playwright-report/
+clients/web/*.tsbuildinfo

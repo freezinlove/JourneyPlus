@@ -139,3 +139,9 @@ uv run python scripts/smoke_public_sources.py
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
 - 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
 - 会籍策略 Agent 使用 v3 工作区、持久运行、独立工具及确定性等待检查。模型未配置时会明确报告不可用，知识、简报和完整图可独立浏览。真实模型验收应记录所用模型、工具输入输出及实际完成的场景。
+
+## 新版独立 Web 与 Android 客户端
+
+新版客户端位于 [`clients/`](clients/README.md)：React + TypeScript + Vite Web，以及 Kotlin + Jetpack Compose Android。它们通过 HTTP 连接现有 FastAPI，前后端独立构建；原静态页面暂留作逐步迁移与回退入口。启动、APK 构建、代理部署和隔离验收见该目录说明。
+
+当前代码已包含 `/auth/login`、`/auth/me`、`/auth/logout` 和用户数据隔离；上文“无账号体系”的旧描述不再适用于当前运行代码。新客户端使用已有账号，不新增注册服务。
