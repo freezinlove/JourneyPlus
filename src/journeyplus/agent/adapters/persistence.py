@@ -181,6 +181,11 @@ class SessionStore(WorkspaceWrites):
                 cp.pending_calls=calls
                 cp.phase='TOOLS_PENDING'
 
+    def load_workspace_state(self, workspace_id):
+        """State-only read: no message hydration or feedback scan."""
+        with read_session(self.factory) as s:
+            return dict(self.workspace(s, workspace_id).state)
+
     def load_context_index(self, workspace_id):
         with read_session(self.factory) as s:
             workspace = self.workspace(s, workspace_id)

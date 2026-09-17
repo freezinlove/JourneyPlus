@@ -11,7 +11,7 @@ class ContextCapacityError(ValueError):
 
 
 def project(messages, definitions, capabilities, *, note=None, focus=None, reserved_output=2048,
-            context_token_budget=500000, input_estimator=None):
+            context_token_budget=500000, input_estimator=None, availability_snapshot=None):
     if context_token_budget <= 0:
         raise ValueError('Context token budget must be positive')
     limit = capabilities.context_window-reserved_output-1024
@@ -24,11 +24,11 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
     # Original messages and full results remain immutable in persistence.
     # Only older-turn model views may become explicitly expandable indexes.
     additions = {}
-    availability = {}
+    availability = dict(availability_snapshot or {})
     observed = {}
     for definition in definitions:
         provider = definition.availability
-        if provider:
+        if provider and availability_snapshot is None:
             if provider not in observed:
                 observed[provider] = provider()
             availability[definition.name] = observed[provider]

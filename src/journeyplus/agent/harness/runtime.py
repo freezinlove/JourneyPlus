@@ -19,6 +19,7 @@ class Runtime:
         self.ports = ports
         self.instructions = instructions
         self.services = services or {}
+        self.prepared_contexts = {}
         self.budget_limits=budget_limits or {}
         self.cancellations = {}
         self.running_tasks = {}
@@ -106,6 +107,44 @@ class Runtime:
             (await blocking_call(self.ports.sessions.finish_run, run_id, owner, status))
             self.cancellations.pop(run_id, None)
             self.running_tasks.pop(run_id, None)
+            self.prepared_contexts.pop(run_id, None)
+
+    async def _prepare_context(self, run_id, context, budget, messages):
+        # Fresh state and access checks remain mandatory even on a cache hit.
+        definitions = self.ports.registry.definitions()
+        capabilities = self.ports.model.capabilities()
+        state = await blocking_call(self.ports.sessions.load_workspace_state, context.workspace_id)
+        note = (await blocking_call(self.ports.artifacts.read, context.workspace_id, state['note_ref']))['payload'] if state.get('note_ref') else None
+        visible, focus = messages, state.get('focus')
+        def availability():
+            observed, values = {}, {}
+            for d in definitions:
+                if d.availability:
+                    if d.availability not in observed:
+                        observed[d.availability] = d.availability()
+                    values[d.name] = observed[d.availability]
+            return values
+        if self.ports.views:
+            (visible, note, focus), available = await asyncio.gather(
+                blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus),
+                blocking_call(availability))
+        else:
+            available = await blocking_call(availability)
+        signature = json.dumps([context.workspace_id, [m.model_dump(mode='json') for m in visible], state, note, focus,
+            available, capabilities.model_dump(mode='json'), budget.model_configuration_id,
+            [(d.name,d.version,d.description,d.input_schema,d.output_schema) for d in definitions]], sort_keys=True, default=str)
+        key = hashlib.sha256(signature.encode()).hexdigest()
+        cached = self.prepared_contexts.get(run_id)
+        if cached and cached[0] == key:
+            return [m.model_copy(deep=True) for m in cached[1]], cached[2], True
+        estimator = getattr(self.ports.model, 'estimate_input', None)
+        projected = await blocking_call(project, visible, definitions, capabilities, note=note, focus=focus,
+            reserved_output=budget.limits(capabilities)['max_output'],
+            context_token_budget=self.budget_limits.get('context_tokens',500000), input_estimator=estimator,
+            availability_snapshot=available)
+        tokens = estimator(projected, definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
+        self.prepared_contexts[run_id] = (key, [m.model_copy(deep=True) for m in projected], tokens)
+        return projected, tokens, False
 
     async def _heartbeat(self, run_id, owner, token):
         while True:
@@ -149,19 +188,7 @@ class Runtime:
             preparation_started=monotonic()
             definitions = self.ports.registry.definitions()
             capabilities = self.ports.model.capabilities()
-            workspace_state = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id)).get('state', {})
-            note = None
-            if workspace_state.get('note_ref'):
-                note = (await blocking_call(self.ports.artifacts.read, context.workspace_id, workspace_state['note_ref']))['payload']
-            visible, focus = messages, workspace_state.get('focus')
-            if self.ports.views:
-                visible, note, focus = await blocking_call(self.ports.views.context, context.workspace_id, messages, note, focus)
-            projected = await blocking_call(project, visible, definitions, capabilities, note=note, focus=focus,
-                                reserved_output=budget.limits(capabilities)['max_output'],
-                                context_token_budget=self.budget_limits.get('context_tokens',500000),
-                                input_estimator=getattr(self.ports.model,'estimate_input',None))
-            estimator=getattr(self.ports.model,'estimate_input',None)
-            projected_tokens = estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected]) + estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
+            projected, projected_tokens, reused_context = await self._prepare_context(run_id, context, budget, messages)
             # Reserve time to answer; token usage and call counts are telemetry only.
             if not budget.finalizing and budget.values()['seconds'] >= budget.hard['seconds'] - 45:
                 budget.finalizing = True
@@ -180,7 +207,7 @@ class Runtime:
             message_id = str(uuid4())
             await self._publish(run_id, owner, 'assistant.started', {'message_id': message_id})
             from .telemetry import model_timing
-            timing={'attempt':budget.requests,'context_prepare_ms':round((monotonic()-preparation_started)*1000)}
+            timing={'attempt':budget.requests,'context_prepare_ms':round((monotonic()-preparation_started)*1000), 'context_reused':reused_context}
             timing_token=model_timing.set(timing if self.model_timing_enabled else None)
             request_started=monotonic()
             try:
@@ -341,27 +368,18 @@ class Runtime:
                 results[index] = await execute(index, call, validated)
         for index, task in reads:
             results[index] = await task
+        additions = []
+        fits = False
         complete_indices=[index for index,result in enumerate(results) if not result.error]
         if complete_indices:
             from .context import ContextCapacityError
             # Check the whole batch together, including paired call/result
             # overhead and any remaining history. Never silently send an excerpt.
             while True:
-                additions=[ModelMessage(role='tool',content=[Part(type='tool_result',call_id=c['call_id'],result=r.model_dump(mode='json'))])
+                additions=[ModelMessage(role='tool',metadata={'turn_id':str(context.turn_id)},content=[Part(type='tool_result',call_id=c['call_id'],result=r.model_dump(mode='json'))])
                            for c,r in zip(calls,results)]
                 try:
-                    definitions=self.ports.registry.definitions()
-                    workspace_state=(await blocking_call(self.ports.sessions.load_context_index,context.workspace_id)).get('state',{})
-                    note=(await blocking_call(self.ports.artifacts.read,context.workspace_id,workspace_state['note_ref']))['payload'] if workspace_state.get('note_ref') else None
-                    visible,focus=messages+additions,workspace_state.get('focus')
-                    if self.ports.views:
-                        visible,note,focus=await blocking_call(self.ports.views.context,context.workspace_id,visible,note,focus)
-                    projected=await blocking_call(project,visible,definitions,self.ports.model.capabilities(),note=note,focus=focus,
-                        reserved_output=budget.limits(self.ports.model.capabilities())['max_output'],
-                        context_token_budget=self.budget_limits.get('context_tokens',500000),
-                        input_estimator=getattr(self.ports.model,'estimate_input',None))
-                    estimator=getattr(self.ports.model,'estimate_input',None)
-                    tokens=estimator(projected,definitions) if estimator else estimate([m.model_dump(mode='json') for m in projected])+estimate([{'name':d.name,'description':d.description,'parameters':d.input_schema} for d in definitions])
+                    projected, tokens, _ = await self._prepare_context(run_id, context, budget, messages+additions)
                     fits=tokens<=self.budget_limits.get('context_tokens',500000)
                 except ContextCapacityError:
                     fits=False
@@ -390,10 +408,10 @@ class Runtime:
                     await self._publish(run_id,owner,'resource.notice',{'code':'CONTEXT_CAPACITY',
                         'call_id':calls[index]['call_id'],'message':results[index].error.message})
         paired = {p.call_id for m in messages if m.metadata.get('turn_id')==context.turn_id for p in m.content if p.type == 'tool_result'}
-        for call, result in zip(calls, results):
+        for index, (call, result) in enumerate(zip(calls, results)):
             if call['call_id'] in paired:
                 continue
-            message = ModelMessage(role='tool', content=[Part(type='tool_result', call_id=call['call_id'], result=result.model_dump(mode='json'))])
+            message = additions[index] if fits else ModelMessage(role='tool', content=[Part(type='tool_result', call_id=call['call_id'], result=result.model_dump(mode='json'))])
             (await blocking_call(self.ports.sessions.append_message, run_id, owner, message))
             messages.append(message)
         from .progress import observe

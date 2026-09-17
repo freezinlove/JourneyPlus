@@ -51,11 +51,14 @@ class ActivityInput(DTO):
 
 class Sources(DTO):
     mode: Literal['explicit', 'saved', 'none']
+    saved_program: str | None = Field(default=None, min_length=1, description='Only for mode=saved: select effective saved memberships of this programme by name/alias, resolve the tier and search in one call. Omit to use all saved memberships.')
     identities: list[IdentityInput] = Field(default_factory=list, max_length=20)
     holding_refs: list[str] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode='after')
     def check_sources(self):
+        if self.saved_program is not None and (self.mode != 'saved' or not self.saved_program.strip()):
+            raise ValueError('saved_program requires saved mode and a nonblank programme name')
         count = len(self.identities) + len(self.holding_refs)
         if self.mode == 'explicit' and not 1 <= count <= 20:
             raise ValueError('explicit sources require 1..20 identities or holding_refs')

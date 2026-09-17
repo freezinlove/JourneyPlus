@@ -1,5 +1,7 @@
 """Native tools and JSON actions normalize into the same model event stream."""
 import asyncio
+from functools import lru_cache
+from copy import deepcopy
 import json
 import hashlib
 import re
@@ -31,6 +33,13 @@ class JsonActions(DTO):
 
 
 def inline_schema(schema):
+    # Structural key invalidates automatically when a tool contract changes.
+    return deepcopy(_inline_schema_cached(json.dumps(schema, sort_keys=True)))
+
+
+@lru_cache(maxsize=128)
+def _inline_schema_cached(serialized):
+    schema = json.loads(serialized)
     """Resolve local JSON-schema refs for providers that ignore $defs in tools."""
     definitions = schema.get('$defs', {})
     def expand(node):

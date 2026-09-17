@@ -49,6 +49,15 @@ def summary(detail,ref,view):
     value['mapping_table_ref']=ref+'#section:mapping_table'
     if detail.get('briefs'):
         value['brief_section_ref']=ref+'#section:brief'
+    if view=='overview':
+        value['detail_scope']='Summary only; full structured facts/options, mapping matrix and archived bodies have not been read.'
+        value['available_views']=['detail','mappings','evidence','original']
+        value['field_sections']={key.removeprefix('fact-'):ref+'#section:'+key
+            for key in detail.get('sections',{}) if key.startswith('fact-')}
+        value['field_states']={key:item['known_state'] for key,item in detail.get('facts',{}).items()
+            if isinstance(item,dict) and 'known_state' in item}
+        value['known_caveats']={key:compact(item) for key,item in detail.get('facts',{}).items()
+            if key in {'caveats','conflicts','limitations'} and item}
     if view=='detail':
         value['facts']=compact(detail['facts'])
         value['options']=[]

@@ -20,6 +20,25 @@ class RouteQueries:
         today=membership_date()
         holdings=self.user_data.route_sources(query.sources.mode,query.sources.holding_refs)
         with (nullcontext(_session) if _session is not None else self.knowledge.read()) as s:
+            if query.sources.saved_program:
+                selected = self.identities.resolve(s, {'program_name':query.sources.saved_program}, context=context)
+                if selected['status'] != 'OK':
+                    unresolved.append(selected)
+                    holdings = []
+                else:
+                    filtered = []
+                    for holding in holdings:
+                        identity = {'ref':holding['tier_ref']} if holding.get('tier_ref') else {'program_name':holding['program_name']}
+                        bound = self.identities.resolve(s, identity, context=context)
+                        if bound.get('program_ref') == selected['program_ref']:
+                            filtered.append(holding)
+                    holdings = filtered
+                    active = [h for h in holdings if not h['valid_until'] or is_active_membership(date.fromisoformat(h['valid_until']), today=today)]
+                    tiers = {h.get('tier_ref') or h.get('tier_name') for h in active}
+                    if len(tiers) > 1:
+                        unresolved.append({'status':'AMBIGUOUS','code':'SAVED_SOURCE_AMBIGUOUS',
+                            'resolution_state':'AMBIGUOUS','program_name':selected['program_name'],
+                            'candidates':active,'message':'Multiple effective saved tiers match this programme; select the intended holding rather than choosing a rank.'})
             inputs=[(identity,None) for identity in query.sources.identities]
             for holding in holdings:
                 if holding.get('resolution_state')=='INVALID_REFERENCE':
@@ -44,11 +63,11 @@ class RouteQueries:
         if target and target['status']=='OK':bound['target']={'ref':target['tier_ref'] or target['program_ref']}
         problems=[*({'field':'sources','resolution':r} for r in unresolved),
                   *([{'field':'target','resolution':target}] if target and target['status']!='OK' else [])]
-        selection={'mode':query.sources.mode,'as_of_date':today.isoformat(),
+        selection={'mode':query.sources.mode,'saved_program':query.sources.saved_program,'as_of_date':today.isoformat(),
             'excluded_holdings':[{k:r[k] for k in ('holding_ref','program_name','tier_name','valid_until','code')} for r in excluded]}
         if query.sources.mode=='saved':
             selection.update(active_count=len(sources),expired_count=len(excluded),
-                message=('没有有效的已保存会籍；过期记录不参与匹配。请向用户说明，不要自行改成假设持有。'
+                message=(('指定项目没有有效的已保存会籍；其他项目未参与本次选择。' if query.sources.saved_program else '没有有效的已保存会籍；过期记录不参与匹配。请向用户说明，不要自行改成假设持有。')
                          if not sources else '仅使用当前有效且可识别的已保存会籍；过期记录已排除。'))
         elif query.sources.mode=='explicit':selection['message']='按本次明确提供的身份查询；不代表已核实用户持有这些有效会籍。'
         else:selection['message']='本次未提供会籍起点，不代表用户持有任何会籍。'
@@ -69,7 +88,7 @@ class RouteQueries:
         sources,target,unresolved,holdings=(prepared[k] for k in ('sources','target','unresolved','holding_snapshot'))
         count=len({item['holding_ref'] for item in unresolved if item.get('holding_ref')})
         invalid_target=target and target['status']!='OK'
-        if invalid_target or unresolved and (query.sources.mode=='explicit' or not sources):
+        if invalid_target or unresolved and (query.sources.mode=='explicit' or query.sources.saved_program or not sources):
             problem=target if invalid_target else next((r for r in unresolved if r.get('status')=='AMBIGUOUS'),unresolved[0])
             return {**prepared,'error':ToolResult(status='AMBIGUOUS' if problem.get('status')=='AMBIGUOUS' else 'NOT_FOUND',
                 data={'resolved_sources':sources,'resolved_target':target,'unresolved_sources':unresolved,
