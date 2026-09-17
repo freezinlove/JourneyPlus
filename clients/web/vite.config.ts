@@ -22,6 +22,7 @@ export default defineConfig({
   preview: { proxy },
   build: {
     sourcemap: true,
+    assetsDir: "assets/web",
     rollupOptions: {
       output: {
         manualChunks: {

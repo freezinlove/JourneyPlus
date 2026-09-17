@@ -71,3 +71,19 @@ npx playwright test
 - Android：assembleDebug 与 lintDebug 通过；Lint 仍有依赖更新、目标 SDK 和 KTX 建议等非阻断提示。已在 Pixel 6 模拟器安装，验证 Cookie 恢复、发送消息及流式回复、新闻详情、系统返回、会籍编辑保存。
 - 尚未做真实模型与生产数据的验收、真机多尺寸验证和签名发布。隔离服务仅用于前端联调；正式使用按上方配置连接现有产品 API。
 - 本次只新增独立客户端、共享契约与部署示例；保留旧 HTML 入口，没有修改真实数据库、AIWorkflow 或 Harness。
+
+## 正式 Web 入口
+
+在仓库根目录运行：
+
+```sh
+npm --prefix clients/web ci
+npm --prefix clients/web run build
+uv run journeyplus product-api --host 127.0.0.1 --port 8000
+```
+
+访问 `http://127.0.0.1:8000/`。使用现有账号登录；正式服务读取根目录 `.env` 中的数据库和 Agent 配置，不使用 `clients/test_server.py`、测试账号或示例数据。Web 独立构建，FastAPI 只提供构建文件与既有 API，同源 Cookie 和 SSE 无需开发代理。部署也可继续使用 `deploy/nginx.conf` 分开托管。
+
+默认从 `clients/web/dist` 读取构建，可用 `JOURNEYPLUS_WEB_DIST` 指定部署目录。资源放在 `/assets/web/`，与旧资源分开。更新前端后重新构建；首次构建后需重启服务。API-only 安装没有构建时仍使用旧页面。
+
+旧页面保留在 `/legacy/workspace`、`/legacy/holdings`、`/legacy/knowledge` 和 `/legacy/briefs`，旧页面导航链接可能进入新入口。完整回退可设置 `JOURNEYPLUS_WEB_FRONTEND=legacy` 并重启服务。切换不更改数据库或 Agent 核心。

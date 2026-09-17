@@ -182,6 +182,8 @@ def create_product_app(
             page_data=f'data-opportunity-id="{opportunity_id}"',
         )
 
+    from journeyplus.product.web_frontend import install_web_frontend
+    install_web_frontend(app)
     return app
 
 
