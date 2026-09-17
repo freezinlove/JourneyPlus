@@ -36,11 +36,11 @@ def test_fee_identity_is_bidirectional_and_shared_by_labels(program, price_tier,
 
 @pytest.mark.parametrize('tier,amount,availability,paid', [
     ('Example Rewards Gold', 99, 'AVAILABLE', True),
-    ('Example Rewards Silver', 99, 'AVAILABLE', False),
-    ('Another Rewards Gold', 99, 'AVAILABLE', False),
-    ('Example Rewards Gold Plus', 99, 'AVAILABLE', False),
-    ('Example Rewards Gold', 99, 'CONDITIONAL', False),
-    ('Example Rewards Gold', None, 'UNAVAILABLE', False),
+    ('Example Rewards Silver', 99, 'AVAILABLE', None),
+    ('Another Rewards Gold', 99, 'AVAILABLE', None),
+    ('Example Rewards Gold Plus', 99, 'AVAILABLE', None),
+    ('Example Rewards Gold', 99, 'CONDITIONAL', None),
+    ('Example Rewards Gold', None, 'UNAVAILABLE', None),
     ('Example Rewards Gold', 0, 'AVAILABLE', False),
     (None, 99, 'AVAILABLE', True),
 ])

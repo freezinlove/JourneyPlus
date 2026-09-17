@@ -209,7 +209,7 @@ export function Graph({
             const b = positions.find((n) => n.id === e.to)!;
             const paid = e.step.paid ?? e.step.cost?.paid;
             return (
-              typeof paid === "boolean" && (
+              (
                 <span
                   className={s.edgeFee}
                   key={i}
@@ -218,7 +218,7 @@ export function Graph({
                     top: b.y + (mobile ? 16 : 18),
                   }}
                 >
-                  {paid ? "付费申请" : "免费申请"}
+                  {paid === true ? "付费申请" : paid === false ? "免费申请" : "费用待核实"}
                 </span>
               )
             );

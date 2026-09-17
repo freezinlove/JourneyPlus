@@ -123,73 +123,62 @@ def _group_updates(updates, prefix: str, size: int) -> dict[int, list]:
     return grouped
 
 
-def _changes(update, *, exclude: set[str] | None = None) -> dict:
-    # Providers and cached Pydantic dumps often materialize omitted optionals as
-    # null. Neither may erase a base value. Clearing is explicit and uncommon.
-    values = update.model_dump(mode="json", exclude_none=True,
-                               exclude={"ref", "clear_fields"} | (exclude or set()))
-    for name in update.clear_fields:
-        values[name] = "" if name == "raw_text" else None
-    return values
-
-
 def apply_table_updates(
     mappings: list[StatusMapping], routes: list[ApplicationRoute],
     extraction: StatusMatchProjectExtraction,
 ) -> tuple[list[StatusMapping], list[ApplicationRoute]]:
-    """Apply patches by ref; untouched facts survive without being re-generated."""
-    mapping_updates = _group_updates(extraction.mapping_updates, "m", len(mappings))
-    updated_mappings = []
-    for i, mapping in enumerate(mappings):
-        if i not in mapping_updates:
-            updated_mappings.append(mapping)
-            continue
-        for update in mapping_updates[i]:
-            changes = _changes(update)
-            if changes.get("availability") == "UNAVAILABLE":
-                changes.update(source_tiers=[], conditions=None)
-            elif changes.get("availability") == "AVAILABLE":
-                changes["conditions"] = None
-            if changes.get("conflict") is False:
-                changes["conflict_note"] = None
-            data = mapping.model_dump(mode="json") | changes
-            if changes:
-                data["evidence"] = []
-            updated_mappings.append(StatusMapping.model_validate(data))
-
+    """Parsed rows are authoritative. Prose can fill empty annotations only."""
+    _group_updates(extraction.mapping_updates, "m", len(mappings))
     route_updates = _group_updates(extraction.route_updates, "r", len(routes))
+    updated_mappings = list(mappings)
     updated_routes = []
     for i, route in enumerate(routes):
-        if i not in route_updates:
-            updated_routes.append(route)
-            continue
-        # Two updates referencing one base explicitly split it into two routes.
-        for update in route_updates[i]:
-            changes = _changes(update, exclude={"price_updates", "additional_prices"})
-            price_updates = _group_updates(update.price_updates, "p", len(route.prices))
-            prices = []
-            for j, price in enumerate(route.prices):
-                patches = price_updates.get(j, [])
-                if len(patches) > 1:
-                    raise ValueError(f"Repeated price reference p{j + 1} in {update.ref}")
-                if not patches:
-                    prices.append(price)
-                    continue
-                values = _changes(patches[0])
-                if values.get("availability") == "UNAVAILABLE":
-                    values.update(amount=None, currency=None)
-                data = price.model_dump(mode="json") | values
-                if values:
-                    data["evidence"] = []
-                    data["raw_text"] = values.get("raw_text") or ""
-                prices.append(RoutePrice.model_validate(data))
-            prices.extend(RoutePrice.model_validate(p.model_dump(mode="json", exclude={"evidence"}))
-                          for p in update.additional_prices)
-            if changes.get("conflict") is False:
-                changes["conflict_note"] = None
-            data = route.model_dump(mode="json") | changes
-            data["prices"] = [price.model_dump(mode="json") for price in prices]
-            if changes or update.price_updates or update.additional_prices:
-                data["evidence"] = []
-            updated_routes.append(ApplicationRoute.model_validate(data))
+        data = route.model_dump(mode="json")
+        prices = list(route.prices)
+        for update in route_updates.get(i, []):
+            # Validate references even though overwrites of table cells are ignored.
+            _group_updates(update.price_updates, "p", len(route.prices))
+            for field in ("eligibility", "action_link"):
+                if not data.get(field) and getattr(update, field):
+                    data[field] = getattr(update, field)
+            existing = {_price_tier(price.target_tier, extraction.identity.program) for price in prices}
+            for price in update.additional_prices:
+                if _price_tier(price.target_tier, extraction.identity.program) not in existing:
+                    prices.append(RoutePrice.model_validate(price.model_dump(mode="json", exclude={"evidence"})))
+                    existing.add(_price_tier(price.target_tier, extraction.identity.program))
+        data["prices"] = [price.model_dump(mode="json") for price in prices]
+        updated_routes.append(ApplicationRoute.model_validate(data))
     return updated_mappings, updated_routes
+
+
+def _price_tier(tier, program):
+    from journeyplus.membership.identity import canonical_tier
+    from journeyplus.membership.normalization import program_tier_key
+    return program_tier_key(canonical_tier(program, tier), {program}) if tier else None
+
+
+def supplement_routes(table_routes, narrative_routes, *, program=""):
+    """Never merge conflicting prose into a parsed region/target price."""
+    def regions(route):
+        import re
+        return {part.strip().casefold() for part in re.split(r"[,，;；、]", route.region or route.scope) if part.strip()}
+    from journeyplus.knowledge.countries import country_equal
+    result = list(table_routes)
+    for route in narrative_routes:
+        overlaps = [base for base in table_routes if any(country_equal(a, b) is True for a in regions(base) for b in regions(route))]
+        if not overlaps:
+            result.append(route)
+            continue
+        # Preserve genuinely new regions from a partially overlapping supplement.
+        new_regions = {name for name in regions(route) if not any(
+            country_equal(name, old) is True for base in table_routes for old in regions(base))}
+        if new_regions and route.region:
+            scope = ", ".join(sorted(new_regions))
+            result.append(route.model_copy(update={"region": scope, "scope": scope}))
+            covered_scope = ", ".join(sorted(regions(route) - new_regions))
+            route = route.model_copy(update={"region": covered_scope, "scope": covered_scope})
+        covered = {_price_tier(p.target_tier, program) for base in overlaps for p in base.prices}
+        prices = [p for p in route.prices if _price_tier(p.target_tier, program) not in covered]
+        if prices:
+            result.append(route.model_copy(update={"prices": prices, "cost": None}))
+    return result

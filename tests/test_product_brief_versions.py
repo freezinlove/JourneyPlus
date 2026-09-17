@@ -11,6 +11,16 @@ from journeyplus.product.api import create_product_app
 from tests.test_agent_workflow_reads import original_factory, seed
 
 
+def authenticated_client(app, factory):
+    from journeyplus.accounts import UserAccount, LoginSession, create_account
+    from journeyplus.user_scope import OWNER_ID
+    UserAccount.metadata.create_all(factory.kw['bind'], tables=[UserAccount.__table__, LoginSession.__table__])
+    create_account(factory, 'owner', 'Test-product-login-2026', identity=OWNER_ID)
+    client = TestClient(app)
+    assert client.post('/auth/login', json={'username': 'owner', 'password': 'Test-product-login-2026'}).status_code == 200
+    return client
+
+
 @pytest.mark.parametrize(
     'pointer, current_briefs, expected_title',
     [
@@ -62,7 +72,7 @@ def test_brief_list_matches_current_facts_and_detail(
         old_fact_id = records[0].id
 
     # Exercise the real read endpoints without running product maintenance.
-    client = TestClient(create_product_app(original_factory))
+    client = authenticated_client(create_product_app(original_factory), original_factory)
     response = client.get('/v1/briefs')
     assert response.status_code == 200, response.text
     items = response.json()['items']
@@ -103,7 +113,7 @@ def test_brief_list_matches_current_facts_and_detail(
 def test_independent_brief_reader_is_read_only(original_factory):
     from journeyplus.product.knowledge_server import create_knowledge_app
     article_id = seed(original_factory)
-    client = TestClient(create_knowledge_app(original_factory))
+    client = authenticated_client(create_knowledge_app(original_factory), original_factory)
     original_factory.statements.clear()
     response = client.get(f'/v2/activities/{article_id}/brief')
     assert response.status_code == 200, response.text
@@ -111,3 +121,28 @@ def test_independent_brief_reader_is_read_only(original_factory):
     assert response.json()['relationship'] is not None
     assert not any(sql.lstrip().lower().startswith(('insert ', 'update ', 'delete ', 'create ', 'alter '))
                    for sql in original_factory.statements)
+
+
+def test_brief_content_skips_relationship_and_duplicate_detail(original_factory, monkeypatch):
+    from journeyplus.knowledge.workflow_knowledge import WorkflowActivityReader
+    from journeyplus.product import brief_data
+    from journeyplus.product.contracts import BriefRelationship
+    identity = seed(original_factory)
+    def unexpected(*args, **kwargs):
+        raise AssertionError('Content request must not build full activity or relationship')
+    monkeypatch.setattr(WorkflowActivityReader, 'detail', unexpected)
+    monkeypatch.setattr(brief_data, 'relation_context', unexpected)
+    client = authenticated_client(create_product_app(original_factory), original_factory)
+    response = client.get(f'/v2/activities/{identity}/brief?include_relationship=false')
+    assert response.status_code == 200, response.text
+    class Context:
+        def for_opportunity(self, value):
+            assert value == identity
+            return BriefRelationship(status='NO_HOLDINGS', text='No holdings')
+    monkeypatch.setattr(brief_data, 'relation_context', lambda session: Context())
+    relation = client.get(f'/v2/activities/{identity}/relationship')
+    assert relation.status_code == 200
+    assert relation.json()['status'] == 'NO_HOLDINGS'
+    for suffix in ('brief?include_relationship=false&', 'relationship?'):
+        bad = client.get(f'/v2/activities/{identity}/{suffix}version_ref={uuid4()}')
+        assert bad.status_code == 409

@@ -45,9 +45,15 @@ def public_knowledge_router(factory=None,*,knowledge=None):
         with port.read() as s:return WorkflowActivityReader(s).history(identity,before_version=before_version,limit=limit)
 
     @router.get('/activities/{identity}/brief')
-    def brief(identity:UUID,version_ref:UUID|None=None):
+    def brief(identity:UUID,version_ref:UUID|None=None,include_relationship:bool=True):
         try:
-            with port.read() as s:return WorkflowActivityReader(s).brief_detail(identity,version_ref)
+            with port.read() as s:return WorkflowActivityReader(s).brief_detail(identity,version_ref,include_relationship=include_relationship)
+        except (LookupError,ValueError) as error:raise HTTPException(409,str(error)) from error
+
+    @router.get('/activities/{identity}/relationship')
+    def relationship(identity:UUID,version_ref:UUID|None=None):
+        try:
+            with port.read() as s:return WorkflowActivityReader(s).brief_relationship(identity,version_ref)
         except (LookupError,ValueError) as error:raise HTTPException(409,str(error)) from error
 
     @router.post('/explore/query')

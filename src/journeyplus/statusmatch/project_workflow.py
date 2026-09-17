@@ -60,7 +60,7 @@ from journeyplus.models import (
 from journeyplus.statusmatch.table_drafts import (
     apply_table_updates,
     model_document_body,
-    read_table_drafts,
+    read_table_drafts, supplement_routes,
     table_drafts,
 )
 from journeyplus.statusmatch.contracts import (
@@ -75,7 +75,7 @@ from journeyplus.statusmatch.contracts import (
 )
 
 
-PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v18"
+PROJECT_PROMPT_VERSION = "statusmatch-project-extraction-v19-table-authority"
 PROJECT_SCHEMA_VERSION = "4"
 
 SYSTEM_PROMPT = """你只处理输入中的一个受管 StatusMatch 项目。系统已经通过项目专属
@@ -103,23 +103,18 @@ route_updates，正文新增方案用 application_routes。
 columns 指定 rows 各列含义，价格子行按 price_columns 读取。已完整解析的行已从正文移除；
 标题、脚注、正文和未覆盖的表格内容仍保留。底稿和正文共同构成当前事实材料。
 
-不要重写完整底稿。根据正文/脚注在 mapping_updates、route_updates 中补充或修正已有项：
-ref 使用本次底稿的 m1/r1 等编号，只输出需要修改的字段，省略的字段和未提及的行由程序原样保留；
-更新字段省略或填 null 都表示保留底稿；确需清空可选字段时在 clear_fields 中列出字段名。
-没有变更时不输出该项更新，不需要修改时输出空数组，不需要原文引文或证据。
-修改文字或等级列表时，保留其中仍然适用的原有条件或等级。
-route_updates.price_updates 用该路线内的 p1 等编号修改已有价格；additional_prices 只新增价格。
-同一路线中不同地区适用不同条件时，输出多个具有同一 ref 的 route_updates，分别填写各自的
-scope/region 和变更，每个方案继承底稿中未修改的字段及价格，替换原来的组合方案。
-修改已有项时即使翻译名称也必须使用 ref，不要把改名后的同一项当成新增。
-
+程序已解析的表格是权威事实，与正文冲突时以表格为准。不得修改、清空、替换底稿已有的
+地区、等级、金额、币种、映射关系、可用性和条件，不得通过新增重复行变相覆盖。
+已解析映射的额外说明放入全局 caveats，不输出 mapping_updates。route_updates 仅可补充空缺的 eligibility、
+action_link 或 additional_prices 中底稿没有的目标等级。不要输出 price_updates 或 clear_fields。
+未解析的表格行仍在正文中，必须依据原文补齐；没有表格时也应从正文提取，不能把程序未解析
+等同于没有映射或价格。没有原文依据则不创建，不得猜测。
 application_routes 和 narrative_status_mappings 仅输出底稿之外的新申请方案和新映射，
 没有表格时仍正常从正文提取。未解析表格若与底稿有重叠，同样先按 ref 补充已有项，只新增缺少的项。
 原文新增的条件可补充到路线资格、cost、映射 conditions 或全局 caveats，按实际适用范围填写。
 基础申请费使用 AVAILABLE；可选、另付或升级的价格使用 CONDITIONAL，不能与基础价相加猜测总价。
-将价格改成 UNAVAILABLE 时，程序会清空该项金额；将映射改成 UNAVAILABLE 时会清空原等级和条件。
-正文明确说明当前适用范围已变化时修改对应项；同一当前范围内无法解释的互斥信息保留 conflict
-和 conflict_note，不能仅因正文更详细就标冲突。底稿遗漏的信息不得由常识补猜。
+新增的价格或映射如果明确不可用，创建为 UNAVAILABLE；不能以此修改已有表格行。
+表格与正文冲突时以表格为准；正文中的额外信息仅作补充，不得削弱或覆盖表格事实。底稿遗漏的信息不得由常识补猜。
 
 `Recently ended offers` 标题下的地区、费用和申请路径属于历史活动，不得写入当前 region、
 cost 或 application_routes。只有同一当前作用域内互相排斥的事实才标记冲突。不要执行页面
@@ -415,6 +410,8 @@ class StatusMatchProjectWorkflow:
             deterministic_routes=deterministic_routes,
             evidence=evidence,
         )
+        if not fact_set.status_mappings and re.search(r"\|[^\n]*(?:Airlines?|Programme?)[^\n]*\|", faq.normalized_body, re.I):
+            raise ValueError("Mapping table exists but no mappings were extracted; publication blocked")
         from journeyplus.membership.identity import normalize_facts
         fact_set = normalize_facts(fact_set, event.program)
         run.result = {
@@ -652,6 +649,8 @@ class StatusMatchProjectWorkflow:
                 # Validate references and resulting business shapes within the
                 # existing retry boundary, before publishing any facts.
                 apply_table_updates(*read_table_drafts(request), extraction)
+                if not request["deterministic_status_mappings"]["count"] and not extraction.narrative_status_mappings and re.search(r"\|[^\n]*(?:Airlines?|Programme?)[^\n]*\|", faq_body, re.I):
+                    raise ValueError("Unparsed mapping table requires narrative_status_mappings; empty output is incomplete")
                 return extraction, attempt
             except Exception as exc:
                 last_error = exc
@@ -685,14 +684,12 @@ class StatusMatchProjectWorkflow:
             _resolved_mapping(item, documents)
             for item in extraction.narrative_status_mappings
         ]
-        mappings = _merge_mapping_channels(deterministic_mappings, narrative)
+        mappings = _merge_mapping_channels(deterministic_mappings, narrative, program=event.program)
         narrative_routes = [
             _resolved_route(item, documents)
             for item in extraction.application_routes
         ]
-        routes = merge_statusmatch_application_routes(
-            deterministic_routes, narrative_routes
-        )
+        routes = supplement_routes(deterministic_routes, narrative_routes, program=event.program)
         # Keep stored route labels unique without combining regional prices.
         scope_counts = Counter(" ".join(route.scope.casefold().split()) for route in routes)
         routes = [
@@ -729,6 +726,10 @@ class StatusMatchProjectWorkflow:
         fact_set = apply_statusmatch_fee_policy(
             fact_set, [activity, faq, terms]
         )
+        if deterministic_routes:
+            # A prose cost summary must not contradict the authoritative cells.
+            fact_set = fact_set.model_copy(update={"cost": FactField(
+                value="申请费用及适用范围以地区价格表为准。")})
         allowed_ids = {activity.id, faq.id, terms.id}
         allowed_urls = {
             activity.canonical_url,
@@ -1060,45 +1061,26 @@ def _resolved_mapping(
 def _merge_mapping_channels(
     deterministic: list[StatusMapping],
     narrative: list[StatusMapping],
+    *, program: str = "",
 ) -> list[StatusMapping]:
-    merged: dict[tuple[str, str], StatusMapping] = {}
-    for mapping in [*deterministic, *narrative]:
-        key = FactConsolidator._status_mapping_key(mapping)
-        existing = merged.get(key)
-        if existing is None:
-            merged[key] = mapping
+    from journeyplus.membership.identity import canonical_program, canonical_tier
+    from journeyplus.statusmatch.table_drafts import _price_tier
+    merged = list(deterministic)
+    for mapping in narrative:
+        bases = [base for base in deterministic
+                 if canonical_program(base.source_program).casefold() == canonical_program(mapping.source_program).casefold()
+                 and _price_tier(base.target_tier, program) == _price_tier(mapping.target_tier, program)]
+        if not bases:
+            merged.append(mapping)
             continue
-        evidence = FactConsolidator._merge_evidence(
-            existing.evidence, mapping.evidence
-        )
-        if FactConsolidator._status_mapping_signature(
-            existing
-        ) == FactConsolidator._status_mapping_signature(mapping):
-            merged[key] = existing.model_copy(update={"evidence": evidence})
+        # A new source tier is additive; existing cells always retain table values.
+        if any(base.availability == "UNAVAILABLE" for base in bases):
             continue
-        source_tiers = list(
-            dict.fromkeys([*existing.source_tiers, *mapping.source_tiers])
-        )
-        availability = existing.availability
-        conditions = existing.conditions
-        if availability != mapping.availability or conditions != mapping.conditions:
-            availability = "CONDITIONAL" if source_tiers else "UNAVAILABLE"
-            conditions = (
-                "表格与正文对该映射的可用性或条件不一致，需要人工复核。"
-                if source_tiers
-                else None
-            )
-        merged[key] = existing.model_copy(
-            update={
-                "source_tiers": source_tiers,
-                "availability": availability,
-                "conditions": conditions,
-                "evidence": evidence,
-                "conflict": True,
-                "conflict_note": "确定性表格与正文映射不一致，需要人工复核。",
-            }
-        )
-    return list(merged.values())
+        covered = {canonical_tier(base.source_program, tier).casefold() for base in bases for tier in base.source_tiers}
+        new_tiers = [tier for tier in mapping.source_tiers if canonical_tier(mapping.source_program, tier).casefold() not in covered]
+        if new_tiers:
+            merged.append(mapping.model_copy(update={"source_tiers": new_tiers}))
+    return merged
 
 
 def _fact_changes(before: FactSet, after: FactSet) -> list[StatusMatchFactChange]:

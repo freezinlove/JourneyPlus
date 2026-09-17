@@ -12,7 +12,7 @@ def run(edges, *, roots=('A',), free=False, target=None, nodes=None, **limits):
     def outgoing(source):
         visits[source]+=1
         return [(b, {'ref':a+'-'+b, 'from':a, 'to':b, 'from_tier_id':a, 'to_tier_id':b,
-                'paid':bool(paid), 'activity_ref':a+b, 'version_ref':'v1','fact_refs':[a+b]})
+                'paid': None if paid is None else bool(paid), 'activity_ref':a+b, 'version_ref':'v1','fact_refs':[a+b]})
                 for a,b,paid in edges if a==source]
     result=shortest_graph(nodes, roots, outgoing, lambda n:target is None or n==target,
         free_only=free, exact_tier=target is not None, **limits)
@@ -134,3 +134,22 @@ def test_same_highest_destination_free_source_wins(roots):
 def test_free_tie_accounts_for_entire_path_not_only_last_edge():
     r,_=run([('A','B',1),('A','C',0),('B','D',0),('C','D',0)],target='D')
     assert paths(r)=={('A','C','D')}
+
+
+def test_unknown_fee_is_not_free_and_survives_route_output():
+    result, _ = run([("A", "B", None)])
+    route = next(iter(result["server_routes"].values()))
+    assert route["paid"] is None
+    assert route["fee_status"] == "UNKNOWN"
+    filtered, _ = run([("A", "B", None)], free=True)
+    assert not filtered["server_routes"]
+
+
+def test_optional_fee_alone_does_not_prove_base_application_is_free():
+    from journeyplus.contracts import FactSet, FactField, ApplicationRoute, RoutePrice
+    from journeyplus.knowledge.workflow_routes import matching_paid
+    from uuid import uuid4
+    facts = FactSet(event_id=uuid4(), what_happened=FactField(value="match"),
+        application_routes=[ApplicationRoute(scope="application", cost="Optional upgrade USD 50",
+            prices=[RoutePrice(target_tier="Gold", amount=50, currency="USD", availability="CONDITIONAL")])])
+    assert matching_paid(facts, "gold") is None

@@ -105,3 +105,16 @@ def test_mapping_parser_structures_flat_existing_program_tier_table() -> None:
         "Enrich Silver",
         "Enrich Gold",
     ]
+
+
+def test_plural_airlines_and_allowed_column_are_not_target_tiers():
+    from uuid import uuid4
+    html = """<table><tr><th>Airlines</th><th>Matching Allowed &amp; Selected</th><th>Elite</th><th>Premier Elite</th></tr>
+    <tr><td>Lufthansa</td><td>Yes</td><td>Frequent Traveller</td><td>Senator<br>HON Circle</td></tr>
+    <tr><td>Excluded Air</td><td>No</td><td>Gold</td><td>Platinum</td></tr></table>"""
+    rows = extract_statusmatch_status_mappings(raw_html=html,
+        canonical_url="https://philippineairlines.statusmatch.com/faq/", document_version_id=uuid4())
+    assert len(rows) == 2
+    assert rows[1].target_tier == "Premier Elite"
+    assert rows[1].source_tiers == ["Senator", "HON Circle"]
+    assert all(row.source_program == "Lufthansa" for row in rows)

@@ -80,7 +80,7 @@ function priceText(price) {
     const amount = String(price.amount).replace(/\.0+$/, "");
     return `<strong>${escapeHtml(`${price.currency || ""} ${amount}`.trim())}</strong>${price.availability === "CONDITIONAL" ? `<small>有条件／可选费用${price.raw_text ? `：${escapeHtml(price.raw_text)}` : ""}</small>` : price.availability === "UNKNOWN" ? "<small>可用性待确认</small>" : ""}`;
   }
-  return escapeHtml({ UNAVAILABLE: "不可用", CONDITIONAL: "有条件", UNKNOWN: "未公布" }[price.availability] || price.raw_text || "未公布");
+  return escapeHtml({ UNAVAILABLE: "不可用", CONDITIONAL: "有条件", UNKNOWN: "费用待核实" }[price.availability] || price.raw_text || "费用待核实");
 }
 
 function priceTable(detail) {
@@ -116,7 +116,7 @@ function renderBrief(detail) {
     <div class="brief-detail__header"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(detail.brief.summary)}</p>${lifecycleBadge(detail)} ${briefFee(detail)}<time>简报更新于 ${escapeHtml(briefUpdatedAt(detail.brief_updated_at))}（北京时间）</time></div>
     <section class="detail-section"><h2>和我的关系</h2><p>${escapeHtml(detail.relationship?.text || "暂未计算")}</p></section>
     <section class="detail-section official-entry"><h2>申请入口</h2>${publicLinks(detail.action_links, "前往申请页面") || '<p class="muted">暂无申请入口。</p>'}</section>
-    <section class="detail-section"><h2>完整映射表</h2>${mappingTable(detail)}</section>
+    <section class="detail-section"><h2>会籍匹配表</h2>${mappingTable(detail)}</section>
     <section class="detail-section"><h2>价格表</h2>${priceTable(detail)}</section>
     <section class="detail-section"><h2>原文链接</h2>${sourceLinks.length ? `<div class="detail-sources">${sourceLinks.map((link) => publicLinks([link])).join("")}</div>` : '<p class="muted">暂无来源链接。</p>'}</section>
   </article>`;

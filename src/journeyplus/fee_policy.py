@@ -51,10 +51,10 @@ def route_fees(facts, route=None, *, target_tier=None, program_aliases=()):
     elif PAID.search(text):
         states = ['PAID']
     elif not text and not selected:
-        # Product rule: no recorded fee information defaults to free.
-        states, free_basis = ['FREE'], 'NO_FEE_INFORMATION'
+        # Missing information is not evidence of a free application.
+        states = ['UNKNOWN']
     elif OPTIONAL.match(text) and conditional:
-        states, free_basis = ['FREE'], 'OPTIONAL_FEES_ONLY'
+        states = ['UNKNOWN']
     else:
         states = ['UNKNOWN']
     return RouteFees(text, selected, states, conditional, conflict, free_basis)

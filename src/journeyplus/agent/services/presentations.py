@@ -9,7 +9,7 @@ def compact_graph_selection(selection, objects):
     pairs = list(dict(zip(selection.object_refs, objects)).items())
     nodes, best, sources = {}, {}, {}
     for ref, obj in pairs:
-        if not obj.get('step_refs') or not obj.get('steps') or not isinstance(obj.get('paid'),bool):
+        if not obj.get('step_refs') or not obj.get('steps') or ('paid' not in obj or obj['paid'] not in (True, False, None)):
             raise ValueError('Selected object is not a computed route with ordered steps')
         for source in obj.get('query_sources', []):
             sources[source.get('tier_ref') or (source.get('program_name'), source.get('tier_name'))] = source
@@ -17,7 +17,7 @@ def compact_graph_selection(selection, objects):
         target = last['to_tier_id']
         nodes[target] = SimpleNamespace(program_key=last.get('target_program_key', last.get('target_program_id', target)),
             tier_key=last.get('target_tier_key', target))
-        score = (len(obj['step_refs']), obj['paid'], ref)
+        score = (len(obj['step_refs']), obj['paid'] is not False, ref)
         if target not in best or score < best[target][0]:
             best[target] = (score, ref)
     targets, _ = highest_targets(nodes, list(nodes))
@@ -48,7 +48,7 @@ def build_block(selection, objects):
     for ref,obj in zip(selection.object_refs,objects):
         value=deepcopy(obj)
         if selection.type in {'route_graph','comparison'}:
-            if not value.get('step_refs') or not isinstance(value.get('paid'),bool):
+            if not value.get('step_refs') or ('paid' not in value or value['paid'] not in (True, False, None)):
                 raise ValueError('Selected object is not a computed route')
         if selection.type=='activity_card' and not value.get('version_ref'):
             raise ValueError('Activity card requires a published version')

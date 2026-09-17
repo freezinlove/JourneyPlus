@@ -9,6 +9,18 @@ import { Holdings } from "./Holdings";
 import { News, Reader } from "./News";
 import { Chat } from "./Chat";
 import s from "./App.module.css";
+// Initialize conversation data only after visiting chat; retain it across navigation.
+function VisitedChat({ active, openActivity }: {
+  active: boolean;
+  openActivity: (id: string, version?: string) => void;
+}) {
+  const [visited, setVisited] = useState(active);
+  useEffect(() => {
+    if (active) setVisited(true);
+  }, [active]);
+  return active || visited ? <Chat openActivity={openActivity} /> : null;
+}
+
 export default function App() {
   const client = useQueryClient(),
     nav = useNavigate(),
@@ -160,7 +172,7 @@ export default function App() {
       <div className={s.topFade} />
       <div className={s.bottomFade} />
       <div hidden={page !== "chat"} className={s.chatHost}>
-        <Chat openActivity={open} />
+        <VisitedChat active={page === "chat"} openActivity={open} />
       </div>
       {page === "news" && <News open={open} />}
       {page === "reader" && activity && (

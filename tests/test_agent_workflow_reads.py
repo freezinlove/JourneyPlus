@@ -380,7 +380,7 @@ def test_simple_waiting_uses_same_routes_and_rejects_old_constraints(original_fa
     listed=service.manage(WaitingInput(operation='list'),ctx)
     goal=listed.data['goals'][0]
     payload=store.artifacts.read(ctx.workspace_id,goal['result_snapshot_ref'])['payload']
-    assert payload['matching_policy']=='simple-matching-v1'
+    assert payload['matching_policy']=='simple-matching-v2-fee-state'
     assert {(r['from'],r['to'],r['paid']) for r in payload['routes'].values()}=={(r['from'],r['to'],r['paid']) for r in direct.data['candidates']}
     assert set(payload['steps'])=={sid for r in payload['routes'].values() for sid in r['step_refs']}
     with session_factory.begin() as s:

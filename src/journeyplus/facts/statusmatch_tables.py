@@ -12,7 +12,7 @@ from journeyplus.sources.statusmatch_links import is_project_statusmatch_host
 
 
 _SOURCE_HEADER_RE = re.compile(
-    r"^(?:airline|hotel|hotels|cruise line|card type(?:/region)?|"
+    r"^(?:airlines?|hotel|hotels|cruise line|card type(?:/region)?|"
     r"your country of residence)$",
     re.IGNORECASE,
 )
@@ -55,7 +55,7 @@ def extract_statusmatch_status_mappings(
     document_version_id: UUID,
     parsed_table_rows: dict[int, set[int]] | None = None,
 ) -> list[StatusMapping]:
-    if raw_html is None or not canonical_url.casefold().endswith("/faq"):
+    if raw_html is None or not canonical_url.casefold().rstrip("/").endswith("/faq"):
         return []
     host = canonical_url.split("/", 3)[2].casefold()
     if not is_project_statusmatch_host(host):
@@ -107,7 +107,7 @@ def extract_statusmatch_mapping_source_metadata(
     canonical_url: str,
 ) -> list[MappingSourceMetadata]:
     """Return deterministic source categories without changing FactSet mappings."""
-    if raw_html is None or not canonical_url.casefold().endswith("/faq"):
+    if raw_html is None or not canonical_url.casefold().rstrip("/").endswith("/faq"):
         return []
     host = canonical_url.split("/", 3)[2].casefold()
     if not is_project_statusmatch_host(host):
@@ -161,7 +161,7 @@ def extract_statusmatch_mapping_source_metadata(
 
 def _mapping_source_category(value: str) -> MappingSourceCategory:
     folded = _normalize(value).casefold()
-    if folded == "airline":
+    if folded in {"airline", "airlines"}:
         return MappingSourceCategory.AIRLINE
     if folded in {"hotel", "hotels"}:
         return MappingSourceCategory.HOTEL
@@ -244,10 +244,10 @@ def _matrix_mapping_table(
         return None
 
     target_program = _target_program(rows, header_index)
-    targets = [
-        _target_details(cell, target_program, footnotes)
-        for cell in header[1:]
-    ]
+    target_columns = [(column, _target_details(cell, target_program, footnotes))
+                      for column, cell in enumerate(header[1:], 1)
+                      if _cell_text(cell).casefold() not in {"matching allowed & selected", "matching allowed", "eligible"}]
+    targets = [target for _, target in target_columns]
     if not all(target for target in targets):
         return None
 
@@ -260,7 +260,10 @@ def _matrix_mapping_table(
         source_markers = _markers(source_text)
         if not source_program:
             continue
-        for column, target in enumerate(targets, start=1):
+        allowed_columns = [i for i, cell in enumerate(header) if _cell_text(cell).casefold() in {"matching allowed & selected", "matching allowed", "eligible"}]
+        if any(i < len(row) and _cell_text(row[i]).casefold() in {"no", "not allowed", "unavailable"} for i in allowed_columns):
+            continue
+        for column, target in target_columns:
             if column >= len(row):
                 tier_lines: list[str] = []
                 raw_cell_text = ""

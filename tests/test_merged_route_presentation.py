@@ -83,3 +83,14 @@ def test_display_route_keeps_version_entry_without_duplicate_brief_lists():
     assert 'brief_links' not in value
     assert value['steps']['artifact:x#step:s']['version_ref']=='version-id'
     assert value['steps']['artifact:x#step:s']['brief_url']
+
+
+def test_unknown_fee_can_be_presented_without_becoming_free():
+    from journeyplus.agent.tools.routes import route_summary
+    obj = route("unknown", "A", "G", "gold", None)
+    obj.update(fee_status="UNKNOWN")
+    block = build_block(BlockSelection(type="route_graph", object_refs=["unknown"]), [obj])
+    assert block["payload"]["objects"][0]["data"]["paid"] is None
+    summary = route_summary(obj, "artifact:test", obj["steps"])
+    assert summary["paid"] is None
+    assert summary["fee_status"] == "UNKNOWN"

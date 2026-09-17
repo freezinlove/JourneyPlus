@@ -258,13 +258,30 @@ class WorkflowActivityReader:
             'has_more':len(rows)>limit,
             'next_before_version':selected[-1].version if len(rows)>limit else None}
 
-    def brief_detail(self, identity, version=None):
-        # Validate the activity/version pair before reusing the product brief view.
-        # Official opportunities use FactSet IDs; article opportunities use their own IDs.
-        selected = self.detail(identity, version)
+    def _brief_opportunity_id(self, identity, version=None):
         event = self.session.get(StatusEvent, identity)
-        opportunity_id = UUID(selected['version_ref']) if event else identity
-        return PersonalizedMatchService(self.session).detail(opportunity_id)
+        if event:
+            selected = version or event.current_fact_set_id
+            record = self.session.get(FactSetRecord, selected) if selected else None
+            if record is None or record.event_id != identity:
+                raise ValueError('Activity FactSet version does not belong to this event')
+            return record.id
+        record = self.session.get(ArticleOpportunityRecord, identity)
+        if record is None:
+            raise LookupError('Workflow activity not found')
+        if version and version != record.analysis_id:
+            raise ValueError('Article analysis version mismatch')
+        return record.id
+
+    def brief_detail(self, identity, version=None, *, include_relationship=True):
+        opportunity_id = self._brief_opportunity_id(identity, version)
+        return PersonalizedMatchService(self.session).detail(
+            opportunity_id, include_current_path=include_relationship)
+
+    def brief_relationship(self, identity, version=None):
+        from journeyplus.product.brief_data import relation_context
+        opportunity_id = self._brief_opportunity_id(identity, version)
+        return relation_context(self.session).for_opportunity(opportunity_id)
 
     def materials(self, *, selector, version_ref, section_refs=(), aspects=(), **unused):
         detail = self.detail(UUID(selector['ref']),UUID(version_ref))

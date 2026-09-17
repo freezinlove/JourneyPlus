@@ -952,16 +952,15 @@ def test_table_supplements_publish_in_place_with_existing_model_stages(
     with session_factory() as session:
         record = session.scalar(select(FactSetRecord))
         facts = FactSet.model_validate(record.facts)
-        assert len(facts.application_routes) == 3
-        assert facts.application_routes[0].scope == "地区甲"
+        assert len(facts.application_routes) == 2
+        assert facts.application_routes[0].scope == "Region A, Region B"
         assert facts.application_routes[0].prices[0].amount == 99
-        assert facts.application_routes[0].prices[1].availability == "UNAVAILABLE"
-        assert facts.application_routes[0].prices[1].amount is None
-        assert facts.application_routes[1].prices[1].amount == 399
-        assert facts.application_routes[2].eligibility == "联名卡持有人"
-        assert facts.application_routes[2].prices[0].amount == 99
+        assert facts.application_routes[0].prices[1].availability == "AVAILABLE"
+        assert facts.application_routes[0].prices[1].amount == 399
+        assert facts.application_routes[1].eligibility == "联名卡持有人"
+        assert facts.application_routes[1].prices[0].amount == 99
         assert len(facts.status_mappings) == 2
-        assert facts.status_mappings[0].conditions == "本地居民限定"
+        assert facts.status_mappings[0].conditions is None
         assert not facts.status_mappings[0].conflict
         assert facts.status_mappings[1].source_tiers == ["Platinum"]
         assert session.scalar(select(BriefRecord)).fact_set_id == record.id

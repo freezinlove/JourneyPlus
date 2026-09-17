@@ -27,14 +27,14 @@ def overviews(record):
               for sid in route.get('step_refs',[])]
         ordered=[steps[ref] for ref in refs if ref in steps]
         summary={key:deepcopy(route[key]) for key in
-                 ('ref','path','from','to','paid','cost','challenge','eligibility','constraint_match','source_versions')
+                 ('ref','path','from','to','paid','fee_status','cost','challenge','eligibility','constraint_match','source_versions')
                  if key in route}
         summary['object_type']='route'
         summary['step_details_available']=bool(refs) and len(ordered)==len(refs)
         if ordered:
             summary['path']=[ordered[0].get('from'),*[step.get('to') for step in ordered]]
             summary['steps']=[compact({**{key:deepcopy(step[key]) for key in
-                ('paid','from','to','fees','cost_description','fee_unknown','fee_conflict','alternative_items',
+                ('paid','fee_status','from','to','fees','cost_description','fee_unknown','fee_conflict','alternative_items',
                  'conditional_items','status_validity','challenge','eligibility','application_window',
                  'availability','application_scope','source_acquisition','constraint_checks','material_caveats',
                  'activity_ref','version_ref','brief_url','action_link','source_links') if key in step},

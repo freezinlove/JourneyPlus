@@ -33,15 +33,15 @@ export interface Step {
   to_tier_id?: string;
   activity_ref: string;
   version_ref: string;
-  paid?: boolean;
-  cost?: { paid?: boolean };
+  paid?: boolean | null;
+  cost?: { paid?: boolean | null };
 }
 export interface Route {
   from: string;
   to: string;
   step_refs: string[];
   steps: Record<string, Step>;
-  paid?: boolean;
+  paid?: boolean | null;
   step_count: number;
 }
 export interface DisplayObject {

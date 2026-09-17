@@ -21,13 +21,14 @@ def mapping_ref(claim, facts):
 
 
 def matching_paid(facts, target_tier, *, program_aliases=()):
-    """Binary mandatory payment only. Region and amount never become branches."""
-    for option in facts.application_routes or [None]:
-        policy = route_fees(facts, option, target_tier=target_tier, program_aliases=program_aliases)
-        if 'PAID' in policy.states or any(p.amount is not None and p.amount > 0
-                and p.availability not in {'CONDITIONAL', 'UNAVAILABLE'} for _, p in policy.prices):
-            return True
-    return False
+    """True = paid, False = proven free, None = unverified."""
+    policies = [route_fees(facts, option, target_tier=target_tier, program_aliases=program_aliases)
+                for option in facts.application_routes or [None]]
+    if any('PAID' in policy.states for policy in policies):
+        return True
+    if policies and all(policy.free for policy in policies):
+        return False
+    return None
 
 
 class WorkflowRouteService:
@@ -77,7 +78,7 @@ class WorkflowRouteService:
                     pid = identity_id('program', target.program_key)
                     mapping = mapping_ref(claim, facts)
                     sid = signature([POLICY, source, target.id, str(activity), str(version), mapping])[:24]
-                    step = {'ref': sid, 'matching_policy': POLICY, 'paid': paid, 'fee_free': not paid,
+                    step = {'ref': sid, 'matching_policy': POLICY, 'paid': paid, 'fee_status': 'UNKNOWN' if paid is None else 'PAID' if paid else 'FREE', 'fee_free': paid is False,
                         'activity_ref': str(activity), 'version_ref': str(version), 'mapping_ref': mapping,
                         'from_tier_id': str(identity_id('tier', source)), 'to_tier_id': str(identity_id('tier', target.id)),
                         'from': state.nodes[source].program+' '+state.nodes[source].tier,
@@ -89,7 +90,7 @@ class WorkflowRouteService:
                         'brief_url': brief_url(activity, version)}
                     # One real supporting mapping per connection, free first.
                     old = choices.get(target.id)
-                    if old is None or (paid, sid) < (old['paid'], old['ref']):
+                    if old is None or (paid is not False, sid) < (old['paid'] is not False, old['ref']):
                         choices[target.id] = step
             return list(choices.items())
         def wanted(node_id):

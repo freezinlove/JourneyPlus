@@ -54,9 +54,13 @@ export function Presentation({
     }
   }
   const p = query.data!.payload;
+  const outdatedFees = p.blocks.some(b => b.payload.objects.some(o =>
+    o.data?.steps && Object.values(o.data.steps).some((step: any) =>
+      step.matching_policy === "simple-matching-v1")));
   const showBlocks = !live || !p.answer?.trim() || completedAnswer === p.answer;
   return (
     <>
+      {outdatedFees && <p role="status">这条历史匹配结果使用旧版费用规则，免费标注可能不准确，请重新查询。当前活动详情已更新。</p>}
       {p.answer && <StreamText text={p.answer} live={live} onComplete={setCompletedAnswer} />}
       {showBlocks && <div className={live ? s.presentationReveal : undefined}>
       {p.blocks.map((b, i) => (
@@ -130,9 +134,9 @@ export function Presentation({
                       {b.columns?.map((c) => (
                         <td key={c}>
                           {c === "cost"
-                            ? o.data.paid
+                            ? o.data.paid === true
                               ? "付费"
-                              : "免费"
+                              : o.data.paid === false ? "免费" : "费用待核实"
                             : c === "steps"
                               ? o.data.step_count
                               : readable(

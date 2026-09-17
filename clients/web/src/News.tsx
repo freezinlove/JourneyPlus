@@ -115,7 +115,7 @@ export function Reader({ id, version }: { id: string; version?: string }) {
         ? `?version_ref=${encodeURIComponent(version)}`
         : "";
       const [brief, activity] = await Promise.all([
-        api<any>(`/v2/activities/${encodeURIComponent(id)}/brief${suffix}`),
+        api<any>(`/v2/activities/${encodeURIComponent(id)}/brief${suffix}${suffix ? "&" : "?"}include_relationship=false`),
         api<any>(`/v2/activities/${encodeURIComponent(id)}${suffix}`),
       ]);
       return { ...brief, activity };
@@ -128,10 +128,21 @@ export function Reader({ id, version }: { id: string; version?: string }) {
       ) : query.error ? (
         <Notice error={query.error} retry={() => query.refetch()} />
       ) : (
-        <Brief data={query.data} pinned={!!version} />
+        <Brief data={query.data} pinned={!!version} relationship={<BriefRelationship id={id} version={query.data.activity.version_ref} />} />
       )}
     </main>
   );
+}
+function BriefRelationship({ id, version }: { id: string; version?: string }) {
+  const query = useQuery({
+    queryKey: ["brief-relationship", id, version],
+    queryFn: ({ signal }) => api<{ text: string }>(
+      `/v2/activities/${encodeURIComponent(id)}/relationship${version ? `?version_ref=${encodeURIComponent(version)}` : ""}`,
+      undefined, "GET", signal,
+    ),
+  });
+  if (query.error) return <Notice error={query.error} retry={() => query.refetch()} />;
+  return <p aria-live="polite">{query.data?.text || "正在查看与你的会籍的关系…"}</p>;
 }
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
 function compactTier(value: string, target: string) {
@@ -288,11 +299,11 @@ export function PriceTable({ data: d }: { data: any }) {
                                 {
                                   UNAVAILABLE: "不可用",
                                   CONDITIONAL: "有条件",
-                                  UNKNOWN: "未公布",
+                                  UNKNOWN: "费用待核实",
                                 } as Record<string, string>
                               )[p.availability] ||
                               p.raw_text ||
-                              "未公布"
+                              "费用待核实"
                             )}
                           </div>
                         ))}
@@ -309,9 +320,11 @@ export function PriceTable({ data: d }: { data: any }) {
 export function Brief({
   data: d,
   pinned = false,
+  relationship,
 }: {
   data: any;
   pinned?: boolean;
+  relationship?: import("react").ReactNode;
 }) {
   const activity = d.activity;
   return (
@@ -342,7 +355,7 @@ export function Brief({
       </div>
       <section>
         <h2>和我的关系</h2>
-        <p>{d.relationship?.text || "暂未计算"}</p>
+        {relationship || <p>{d.relationship?.text || "暂未计算"}</p>}
       </section>
       <section>
         <h2>申请入口</h2>
@@ -396,7 +409,7 @@ export function Brief({
           </section>
         )}
       <section>
-        <h2>完整映射表</h2>
+        <h2>会籍匹配表</h2>
         <MappingTable data={d} />
       </section>
       <section>

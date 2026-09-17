@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
-POLICY = 'simple-matching-v1'
+POLICY = 'simple-matching-v2-fee-state'
 
 
 class MatchingQuery(BaseModel):
@@ -31,6 +31,7 @@ TIER_ORDERS = {
     'malaysia airlines enrich': ('SILVER', 'GOLD', 'PLATINUM'),
     'garuda indonesia garudamiles': ('SILVER', 'GOLD', 'PLATINUM'),
     'club avolta': ('GOLD',),
+    'mabuhay miles': ('ELITE', 'PREMIER ELITE'),
     'british airways club': ('BRONZE', 'SILVER', 'GOLD', 'GOLD GUEST LIST', 'PREMIER'),
     'marriott bonvoy': ('SILVER ELITE', 'GOLD ELITE', 'PLATINUM ELITE', 'TITANIUM ELITE', 'AMBASSADOR ELITE'),
 }
@@ -81,14 +82,14 @@ def shortest_graph(nodes, roots, outgoing, wanted, *, free_only=False, exact_tie
             targets.append(source)
             if exact_tier:
                 break
-        for target, step in sorted(outgoing(source), key=lambda item: (item[1]['paid'], item[0], item[1]['ref'])):
+        for target, step in sorted(outgoing(source), key=lambda item: (item[1]['paid'] is not False, item[0], item[1]['ref'])):
             edges += 1
             if edges > max_edges or monotonic()-started >= deadline_seconds:
                 stopped = 'EDGE_BUDGET' if edges > max_edges else 'TIME_BUDGET'
                 break
-            if (free_only and step['paid']) or target in settled:
+            if (free_only and step['paid'] is not False) or target in settled:
                 continue
-            score = (hops + 1, paid or step['paid'])
+            score = (hops + 1, paid or step['paid'] is not False)
             if target in best and best[target] <= score:
                 continue
             if target not in parents and len(parents) >= max_states:
@@ -118,9 +119,10 @@ def shortest_graph(nodes, roots, outgoing, wanted, *, free_only=False, exact_tie
             steps[step['ref']] = step
         ids = [step['ref'] for step in path]
         ref = signature([POLICY, ids])[:16]
-        paid = any(step['paid'] for step in path)
+        paid = True if any(step['paid'] is True for step in path) else None if any(step['paid'] is None for step in path) else False
         routes[ref] = {'ref': ref, 'from': path[0]['from'], 'to': path[-1]['to'],
             'step_refs': ids, 'step_count': len(ids), 'paid': paid,
+            'fee_status': 'UNKNOWN' if paid is None else 'PAID' if paid else 'FREE',
             'classification': 'MATCH',
             'fact_refs': list(dict.fromkeys(ref for step in path for ref in step['fact_refs']))}
     return {'matching_policy': POLICY, 'presentation_classes': ['MATCH'],
