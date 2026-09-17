@@ -24,7 +24,14 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
     # Original messages and full results remain immutable in persistence.
     # Only older-turn model views may become explicitly expandable indexes.
     additions = {}
-    availability={d.name:d.availability() for d in definitions if d.availability}
+    availability = {}
+    observed = {}
+    for definition in definitions:
+        provider = definition.availability
+        if provider:
+            if provider not in observed:
+                observed[provider] = provider()
+            availability[definition.name] = observed[provider]
     if availability:additions['capability_availability']=availability
     if note:
         additions['model_authored_note'] = note
@@ -38,7 +45,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
         groups[-1].append(message)
     definitions_by_name={definition.name:definition for definition in definitions}
     def cost(items):
-        extra=[ModelMessage(role='system',content=[Part(type='text',text=json.dumps(additions,ensure_ascii=False))])] if additions else []
+        extra=[ModelMessage(role='system',content=[Part(type='text',text='Internal runtime context, not an answer or user request. Do not reproduce this object in your reply.\n'+json.dumps(additions,ensure_ascii=False))])] if additions else []
         visible=system+items+extra
         return (input_estimator(visible,definitions) if input_estimator else
                 schema_tokens+estimate([m.model_dump(mode='json') for m in visible]))
@@ -90,7 +97,7 @@ def project(messages, definitions, capabilities, *, note=None, focus=None, reser
             additions['history_available_before']=selected[0].id
     used=cost(selected)
     if additions:
-        system.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(additions, ensure_ascii=False))]))
+        system.append(ModelMessage(role='system', content=[Part(type='text', text='Internal runtime context, not an answer or user request. Do not reproduce this object in your reply.\n'+json.dumps(additions, ensure_ascii=False))]))
     if used > target:
         raise ContextCapacityError('Current tool-call group exceeds context window; full results remain retrievable')
     return system + selected

@@ -69,7 +69,7 @@ class Constraints(DTO):
 
 
 class RouteRequest(DTO):
-    sources: Sources
+    sources: Sources = Field(description="Required source selection. Use identities grounded in the user conversation or saved holdings when requested. A destination or catalogue candidate does not establish the user source; do not invent tiers to satisfy this parameter.")
     target: IdentityInput | None = Field(default=None,description='Requested destination; omit for all destinations.')
     category: Literal['AIRLINE', 'HOTEL', 'CRUISE', 'OTHER'] | None = Field(default=None,
         description='Only an explicit destination restriction; omit for all paths.')

@@ -5,7 +5,7 @@ import type { Presentation as Payload, Step } from "./contracts";
 import { StreamText } from "./StreamText";
 import { Graph } from "./Graph";
 import { Modal, Notice } from "./UI";
-import { Links } from "./News";
+import { Links, MappingTable } from "./News";
 import s from "./App.module.css";
 export function Presentation({
   wid,
@@ -260,52 +260,5 @@ function StepDetail({
         查看对应版本简报 ↗
       </button>
     </section>
-  );
-}
-
-function MappingTable({ data }: { data: any }) {
-  const rows = (data.options || []).flatMap((o: any) => o.mappings || []);
-  return (
-    <div className={s.table}>
-      <table>
-        <caption>{data.name}</caption>
-        <thead>
-          <tr>
-            <th>来源项目</th>
-            <th>持有等级</th>
-            <th>目标等级</th>
-            <th>条件</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((m: any, i: number) => (
-            <tr key={i}>
-              <td>{m.from_program || m.source_program}</td>
-              <td>{(m.from_tiers || m.source_tiers || []).join("、")}</td>
-              <td>{m.to_tier || m.target_tier}</td>
-              <td>
-                {readable(
-                  Object.fromEntries(
-                    Object.entries(m).filter(
-                      ([k]) =>
-                        ![
-                          "ref",
-                          "from_program",
-                          "source_program",
-                          "from_tiers",
-                          "source_tiers",
-                          "to_program",
-                          "to_tier",
-                          "target_tier",
-                        ].includes(k),
-                    ),
-                  ),
-                ) || "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }

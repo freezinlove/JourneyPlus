@@ -87,6 +87,13 @@ class RouteQueries:
                       'source_selection':prepared['source_selection']},
                 coverage={'complete':True,'returned':0,'total':0,'search_performed':False,
                           'stopped_reason':'NO_ACTIVE_SAVED_HOLDINGS','omissions':[]})}
+        if not sources:
+            return {**prepared,'error':ToolResult(status='PARTIAL',
+                data={'candidates':[],'route_refs':[],'resolved_sources':[], 'resolved_target':target,
+                      'source_selection':prepared['source_selection'],
+                      'readiness':{'ready':False,'issues':[{'field':'sources','code':'SOURCE_IDENTITY_REQUIRED'}]}},
+                coverage={'complete':False,'returned':0,'total':None,'search_performed':False,
+                          'search_complete':False,'stopped_reason':'SOURCE_IDENTITY_REQUIRED'})}
         actual=RouteQuery(starting_tier_ids=sorted({UUID(r['tier_ref'][5:]) for r in sources},key=str),use_saved_holdings=False,
             target_program_id=UUID(target['program_ref'][8:]) if target else None,
             target_tier_id=UUID(target['tier_ref'][5:]) if target and target['tier_ref'] else None,

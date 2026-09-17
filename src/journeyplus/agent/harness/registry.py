@@ -29,8 +29,15 @@ class Registry:
         try:
             parsed = definition.input_model.model_validate(arguments)
         except ValidationError as exc:
-            return None, ToolResult.failure('INVALID_ARGUMENT', 'Tool arguments failed validation',
-                fields=[{'path': list(e['loc']), 'message': e['msg']} for e in exc.errors()])
+            errors = exc.errors()
+            missing = ['.'.join(map(str, e['loc'])) for e in errors if e['type'] == 'missing']
+            message = '工具参数未通过校验，本次工具没有执行；这不是业务查询无结果。'
+            if missing:
+                message += ' 缺少必需参数：' + '、'.join(missing) + '。'
+            else:
+                message += ' 具体字段问题见 fields。'
+            return None, ToolResult.failure('INVALID_ARGUMENT', message,
+                fields=[{'path': list(e['loc']), 'message': e['msg']} for e in errors])
         if definition.operation_effects:
             effect = definition.operation_effects.get(getattr(parsed, 'operation', None))
             if effect is None:

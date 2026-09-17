@@ -8,7 +8,7 @@ def explain_routes(result):
     readiness = data.get('readiness') or {}
     if reason == 'SOURCE_IDENTITY_REQUIRED':
         state = 'MISSING_CONDITIONS'
-        message = '缺少来源会籍，路径查询未完成；空列表不能说明没有匹配路径。search_performed 仅表示进入查询服务，不表示完成了有效路径搜索。'
+        message = '缺少来源会籍，未完成有效路径搜索。需要从已有对话确定来源项目及等级；对话没有这些条件时应向用户询问。活动检索不能补齐用户意图，空列表不表示没有路径。'
     elif reason == 'NO_ACTIVE_SAVED_HOLDINGS':
         state = 'NO_ACTIVE_SOURCES'
         message = '本次没有可用的有效已保存会籍，未执行路径搜索；不能据此判断该项目是否存在匹配机会。排除原因见 source_selection。'
@@ -37,4 +37,7 @@ def explain_routes(result):
         state = 'OBSERVATION'
         message = '本次返回所选对象的资料；不能据此推断执行了新的全范围路径搜索。结果限制见 coverage。'
     data['result_interpretation'] = {'state': state, 'message': message}
+    if state == 'MISSING_CONDITIONS':
+        data['result_interpretation']['missing_fields'] = ['sources']
+        data['result_interpretation']['search_executed'] = False
     return result

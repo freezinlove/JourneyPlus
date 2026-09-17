@@ -129,7 +129,7 @@ class Runtime:
             return 'PARTIAL'
         messages = (await blocking_call(self.ports.sessions.load_context_index, context.workspace_id))['messages']
         messages = [m for m in messages if m.metadata.get('turn_id') == context.turn_id
-                    or not (m.metadata.get('completion_rejected') or m.metadata.get('completion_feedback'))]
+                    or not (m.metadata.get('completion_rejected') or m.metadata.get('completion_feedback') or m.metadata.get('progress_feedback'))]
         messages = [ModelMessage(role='system', content=[Part(type='text', text=self.instructions)])] + messages
         if state.get('interrupted'):
             notice = ModelMessage(role='system', content=[Part(type='text', text='runtime_interruption: Previous execution was interrupted. Reuse completed receipts. Incomplete text is marked interrupted.')])
@@ -142,7 +142,7 @@ class Runtime:
         while not context.cancel_token.is_set() and not budget.reached('hard'):
             if budget.reached('soft') and not budget.notified:
                 budget.notified = True
-                notice = {'remaining': {k: v-budget.values()[k] for k, v in budget.hard.items()}, 'message': 'Soft resource warning. Tools remain available while final-response reserve fits. Prioritize missing deliverables, avoid redundant reads, and report any unfinished work.'}
+                notice = {'remaining': {k: v-budget.values()[k] for k, v in budget.hard.items()}, 'message': 'Soft resource warning. Tools remain available while final-response reserve fits. Reassess whether information is missing from the user. A clarification or honest limitation is a valid final response; do not seek substitute deliverables.'}
                 await self._publish(run_id, owner, 'resource.notice', notice)
                 messages.append(ModelMessage(role='system', content=[Part(type='text', text=json.dumps(notice))]))
             (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='MODEL_RUNNING', remaining_budget=budget.snapshot()))
@@ -166,7 +166,7 @@ class Runtime:
             if not budget.finalizing and budget.values()['seconds'] >= budget.hard['seconds'] - 45:
                 budget.finalizing = True
                 projected.append(ModelMessage(role='system',content=[Part(type='text',text=
-                    'Time reserve: finish your answer using available results; no more tool calls.')]))
+                    'Time reserve: no more tool calls. Ask for missing user information or report available findings and limitations honestly; do not invent a replacement result.')]))
                 await self._publish(run_id,owner,'resource.notice',{'message':'接近耗时上限，正在整理已有结果。'})
             budget.requests += 1
             reserved = budget.snapshot()
@@ -262,6 +262,11 @@ class Runtime:
                 if previous != fingerprint:
                     repeated['result_refs'] = []
                 repeated['fingerprint'] = fingerprint
+                if validated and validated[2] != 'READ':
+                    repeated.pop('read_cache', None)
+                cached_ref = repeated.get('read_cache', {}).get(fingerprint)
+                if validated and validated[2] == 'READ' and not arguments.get('refresh') and cached_ref:
+                    call['reuse_result_ref'] = cached_ref
                 if (repeated['count'] >= 2 and validated and validated[2]=='READ' and snapshot is not None
                         and not arguments.get('refresh') and repeated.get('result_refs')):
                     call['reuse_result_ref'] = repeated['result_refs'][-1]
@@ -271,12 +276,21 @@ class Runtime:
 
     async def _calls(self, run_id, owner, context, budget, calls, messages):
         (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='TOOLS_PENDING', pending_calls=calls, remaining_budget=budget.snapshot()))
+        batch_started = monotonic()
         semaphore = asyncio.Semaphore(3)
         results = [None]*len(calls)
         reads = []
         async def execute(index, call, validated):
             effect = validated[2] if validated else 'READ'
             if validated:call['tool_version']=validated[0].version
+            if effect != 'READ':
+                budget.repeat_state.pop('read_cache', None)
+            elif validated and not validated[1].model_dump().get('refresh'):
+                # Resolve reuse at execution time, after preceding writes invalidate it.
+                call.pop('reuse_result_ref', None)
+                reuse = budget.repeat_state.get('read_cache', {}).get(call.get('progress_fingerprint'))
+                if reuse:
+                    call['reuse_result_ref'] = reuse
             local = replace(context, call_id=call['call_id'])
             cached = (await blocking_call(self.ports.sessions.tool_intent, run_id, owner, call, effect))
             if cached is not None:
@@ -301,6 +315,8 @@ class Runtime:
             if self.ports.views:
                 result = await blocking_call(self.ports.views.result, context.workspace_id, result)
             fingerprint = call.get('progress_fingerprint')
+            if validated and validated[2] == 'READ' and not result.error and fingerprint:
+                budget.repeat_state.setdefault('read_cache', {})[fingerprint] = full_ref
             if not result.error and result.status=='OK' and budget.repeat_state.get('fingerprint') == fingerprint:
                 budget.repeat_state['result_refs'] = [*budget.repeat_state.get('result_refs', []),full_ref][-2:]
             if validated and validated[0].model_projection:
@@ -380,6 +396,16 @@ class Runtime:
             message = ModelMessage(role='tool', content=[Part(type='tool_result', call_id=call['call_id'], result=result.model_dump(mode='json'))])
             (await blocking_call(self.ports.sessions.append_message, run_id, owner, message))
             messages.append(message)
+        from .progress import observe
+        feedback = None
+        for call, result in zip(calls, results):
+            validated, _ = self.ports.registry.validate(call['name'], call['arguments'])
+            if validated and validated[2] == 'READ':
+                feedback = observe(budget.repeat_state, call['name'], result) or feedback
+        if feedback:
+            message = ModelMessage(role='system', content=[Part(type='text', text=feedback)], metadata={'progress_feedback': True})
+            await blocking_call(self.ports.sessions.append_message, run_id, owner, message)
+            messages.append(message)
         # Only an explicitly final, wholly successful delivery batch may end a
         # turn. Mixed reads/writes and failures must return observations to the
         # model. Keep this generic: the registry owns each capability's policy.
@@ -391,4 +417,7 @@ class Runtime:
                 and validated[0].completes_turn(validated[1], result))
         (await blocking_call(self.ports.sessions.save_checkpoint, run_id, owner, phase='READY_MODEL', pending_calls=[],
             remaining_budget={**budget.snapshot(), 'delivery_complete': terminal}))
+        if self.model_timing_enabled:
+            await self._publish(run_id, owner, 'tools.timing', {'elapsed_ms': round((monotonic()-batch_started)*1000),
+                'count': len(calls), 'reused': sum(bool(c.get('reuse_result_ref')) for c in calls)})
         return terminal

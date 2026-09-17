@@ -140,7 +140,7 @@ export function Graph({
     const y = mobile
       ? n.steps.length
         ? 36 + row * 156
-        : (height - 74) / 2
+        : (height - ((counts.get(n.level) || 1) - 1) * 156 - 74) / 2 + row * 156
       : row * 100 + (maxRows - (counts.get(n.level) || 1)) * 50;
     return { ...n, x, y: !mobile && !n.steps.length ? y + 6.5 : y };
   });
@@ -181,14 +181,16 @@ export function Graph({
                 y = a.y + (mobile ? 37 : a.steps.length ? 42 : 35.5),
                 tx = b.x,
                 ty = b.y + (mobile ? 37 : 42),
-                bend = x + 30;
+                siblings = positions.filter((n) => n.level === a.level),
+                lane = siblings.findIndex((n) => n.id === a.id),
+                bend = x + 26 + (siblings.length > 1 ? lane * Math.min(18, 48 / (siblings.length - 1)) : 4);
               return (
                 <g key={i}>
                   <path
                     d={
                       y === ty
                         ? `M${x} ${y} H${tx}`
-                        : `M${x} ${y} H${x + 18} Q${bend} ${y} ${bend} ${y + (ty < y ? -14 : 14)} V${ty + (ty < y ? 12 : -12)} Q${bend} ${ty} ${bend + 12} ${ty} H${tx}`
+                        : `M${x} ${y} H${bend - 12} Q${bend} ${y} ${bend} ${y + (ty < y ? -14 : 14)} V${ty + (ty < y ? 12 : -12)} Q${bend} ${ty} ${bend + 12} ${ty} H${tx}`
                     }
                   />
                   {!a.steps.length && (

@@ -147,7 +147,12 @@ function compactTier(value: string, target: string) {
 }
 /** Same fields and row/column semantics as product/static/brief_view.js. */
 export function MappingTable({ data: d }: { data: any }) {
-  const mappings = d.facts?.status_mappings || [];
+  const mappings = d.facts?.status_mappings || (d.options || []).flatMap((o: any) =>
+    (o.mappings || []).map((m: any) => ({ ...m,
+      source_program: m.source_program || m.from_program,
+      source_tiers: m.source_tiers || m.from_tiers || [],
+      target_tier: m.target_tier || m.to_tier,
+    })));
   const targets = unique(
     mappings.map((m: any) => compactTier(m.target_tier, d.target_status)),
   );

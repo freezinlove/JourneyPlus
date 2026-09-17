@@ -36,7 +36,28 @@ def _index():
 
 def program_candidates(name):
     programs, aliases, _ = _index()
-    return [programs[k] for k in sorted(aliases.get(normalize_key(name), ()))]
+    label = normalize_key(name)
+    matches = aliases.get(label, set())
+    if not matches:
+        # Accept bilingual/repeated aliases only when the entire label is made
+        # of registered names for the same programme. Never bind a substring.
+        matches = set()
+        for key in programs:
+            labels = [a for a, owners in aliases.items() if key in owners and a]
+            reachable = {0}
+            for pos in range(len(label)):
+                if pos not in reachable:
+                    continue
+                for alias in labels:
+                    if label.startswith(alias, pos):
+                        end = pos + len(alias)
+                        if end == len(label):
+                            reachable.add(end)
+                        elif label[end] == ' ':
+                            reachable.add(end + 1)
+            if len(label) in reachable:
+                matches.add(key)
+    return [programs[k] for k in sorted(matches)]
 
 
 def program_record(name):

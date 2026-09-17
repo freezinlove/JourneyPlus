@@ -18,6 +18,7 @@ export function Chat({
     [progress, setProgress] = useState(""),
     [error, setError] = useState<unknown>(),
     [draft, setDraft] = useState("");
+  const activeTools = useRef(new Map<string, string>());
   const livePresentations = useRef(new Set<string>());
   const current = useRef<Workspace | undefined>(undefined),
     stream = useRef<EventSource | undefined>(undefined),
@@ -99,7 +100,16 @@ export function Chat({
             },
           ]);
         }
-        if (event.type === "tool.started") setProgress(p.label);
+        if (event.type === "tool.started") {
+          activeTools.current.set(p.call_id, p.label);
+          setProgress(p.label);
+        }
+        if (event.type === "tool.completed") {
+          activeTools.current.delete(p.call_id);
+          setProgress([...activeTools.current.values()].at(-1) || "正在思考…");
+        }
+        if (event.type === "assistant.started")
+          setProgress([...activeTools.current.values()].at(-1) || "正在思考…");
         if (event.type === "resource.notice") setProgress(p.message);
         if (event.type === "operation.applied")
           setMessages((old) => [
@@ -114,6 +124,7 @@ export function Chat({
           ["completed", "partial", "canceled", "failed"].includes(event.type)
         ) {
           source.close();
+          activeTools.current.clear();
           setBusy(false);
           setProgress(
             event.type === "failed"
@@ -156,6 +167,7 @@ export function Chat({
       setWs(undefined);
       setMessages([]);
       livePresentations.current.clear();
+      activeTools.current.clear();
       setError(null);
       setProgress("");
       setBusy(true);
