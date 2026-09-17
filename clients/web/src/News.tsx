@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api, readable, safeUrl } from "./api";
 import type { Activity } from "./contracts";
@@ -147,10 +148,23 @@ function BriefRelationship({ id, version }: { id: string; version?: string }) {
 type Relationship = { status: string; text: string; path?: string[]; path_labels?: string[] };
 function RelationshipCards({ data }: { data?: Relationship }) {
   const labels = data?.path_labels || [];
+  const viewport = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = viewport.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [data]);
+  const naturalWidth = labels.length * 170 + Math.max(0, labels.length - 1) * 46;
+  const scale = width ? Math.min(1, width / naturalWidth) : 1;
   if (!data?.path?.length || labels.length !== data.path.length || labels.length < 2)
     return <div className={s.relationshipState}>{data?.text || "暂未计算"}</div>;
   return <>
-    <div className={s.relationshipPath} aria-label="我的会籍匹配路径">
+    <div ref={viewport} className={s.relationshipViewport}>
+    <div className={s.relationshipPath} aria-label="我的会籍匹配路径"
+      style={{ width: Math.max(width, naturalWidth), zoom: scale }}>
       {labels.map((label, index) => {
         const split = label.lastIndexOf(" · ");
         const program = split < 0 ? label : label.slice(0, split);
@@ -164,6 +178,7 @@ function RelationshipCards({ data }: { data?: Relationship }) {
           </div>
         </div>;
       })}
+    </div>
     </div>
     <p className={s.relationshipNote}>仍需满足对应方案的地区和其他申请条件。</p>
   </>;

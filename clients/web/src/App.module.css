@@ -1235,37 +1235,23 @@
   .presentationReveal { animation: none; }
 }
 
+.relationshipViewport { width: 100%; min-width: 0; }
 .relationshipPath {
   display: flex;
   align-items: stretch;
-  overflow-x: auto;
   padding: 4px 0 12px;
-  touch-action: pan-x pan-y;
-  overscroll-behavior-x: contain;
 }
-.relationshipStep {
-  display: flex;
-  align-items: center;
-  flex: 1 0 230px;
-  min-width: 0;
-}
+.relationshipStep { display: flex; align-items: center; flex: 1 0 170px; min-width: 0; }
+.relationshipStep + .relationshipStep { flex-basis: 216px; }
 .relationshipNode {
-  flex: 1;
-  min-width: 170px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface);
-  padding: 16px 18px;
+  flex: 1; min-width: 0; width: 170px; box-sizing: border-box;
+  border: 1px solid var(--line); border-radius: 18px;
+  background: var(--surface); padding: 16px 18px;
   box-shadow: 0 2px 5px #13243704;
 }
-.relationshipNode strong { display: block; font-size: 15px; font-weight: 500; }
+.relationshipNode strong { display: block; font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
 .relationshipNode small { display: block; margin-top: 6px; font-size: 14px; color: var(--accent); }
 .relationshipLabel { display: block; margin-bottom: 10px; font-size: 11px; color: var(--muted); }
-.relationshipArrow { flex: none; padding: 0 18px; color: var(--accent); font-size: 22px; }
+.relationshipArrow { flex: 0 0 46px; text-align: center; color: var(--accent); font-size: 22px; }
 .relationshipState { padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--muted); font-size: 14px; }
 .reader section .relationshipNote { margin-top: 0; font-size: 12px; }
-@media (max-width: 600px) {
-  .relationshipStep { flex: 0 0 auto; }
-  .relationshipNode { width: 170px; }
-  .relationshipArrow { padding: 0 12px; }
-}

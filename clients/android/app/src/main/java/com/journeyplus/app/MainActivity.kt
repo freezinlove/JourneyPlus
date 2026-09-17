@@ -14,13 +14,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
@@ -54,27 +56,39 @@ fun JourneyTheme(dark: Boolean, content: @Composable () -> Unit) {
             }
         }
     }
-    val scheme =
+    val targetScheme =
         if (dark)
             darkColorScheme(
-                primary = Color(0xffa2c8eb),
-                background = Color(0xff14171c),
-                surface = Color(0xff1d2229),
+                primary = Color(0xffa2c8eb), onPrimary=Color(0xff15191e),
+                onSurfaceVariant = Color(0xffb2bdc9), surfaceVariant = Color(0xff262d36),
+                background = Color(0xff15191e),
+                surface = Color(0xff1e242c),
                 onSurface = Color(0xffedf1f5),
                 onBackground = Color(0xffedf1f5),
-                outlineVariant = Color(0xff39434f),
+                outlineVariant = Color(0xff333d48),
             )
         else
             lightColorScheme(
-                primary = Color(0xff294f73),
-                background = Color(0xfff5f6f8),
+                primary = Color(0xff294f73), onPrimary=Color.White,
+                onSurfaceVariant = Color(0xff5a6573), surfaceVariant = Color(0xffeceeec),
+                background = Color(0xfff7f7f4),
                 surface = Color.White,
                 onSurface = Color(0xff202832),
                 onBackground = Color(0xff202832),
-                outlineVariant = Color(0xffd8e0e9),
+                outlineVariant = Color(0xffdde2e3),
             )
+    @Composable fun tint(color:Color):Color = androidx.compose.animation.animateColorAsState(color,
+        androidx.compose.animation.core.tween(200),label="theme").value
+    val scheme=targetScheme.copy(primary=tint(targetScheme.primary),background=tint(targetScheme.background),
+        surface=tint(targetScheme.surface),onSurface=tint(targetScheme.onSurface),onSurfaceVariant=tint(targetScheme.onSurfaceVariant),
+        surfaceVariant=tint(targetScheme.surfaceVariant),outlineVariant=tint(targetScheme.outlineVariant))
     MaterialTheme(
         colorScheme = scheme,
+        typography = Typography(
+            bodyLarge = androidx.compose.ui.text.TextStyle(fontSize=15.sp,lineHeight=27.sp,letterSpacing=0.sp),
+            bodyMedium = androidx.compose.ui.text.TextStyle(fontSize=14.sp,lineHeight=25.sp,letterSpacing=0.sp),
+            labelLarge = androidx.compose.ui.text.TextStyle(fontSize=13.sp,fontWeight=FontWeight.Medium,letterSpacing=0.sp),
+        ),
         shapes =
             Shapes(
                 extraSmall = RoundedCornerShape(12.dp),
@@ -83,28 +97,39 @@ fun JourneyTheme(dark: Boolean, content: @Composable () -> Unit) {
                 large = RoundedCornerShape(26.dp),
                 extraLarge = RoundedCornerShape(28.dp),
             ),
-        content = content,
+        content = { CompositionLocalProvider(
+            LocalContentColor provides scheme.onSurface,
+            LocalTextStyle provides androidx.compose.ui.text.TextStyle(fontSize=14.sp,letterSpacing=0.sp,
+                platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false))
+        ) { content() } },
     )
 }
 
 @Composable
 fun JourneyApp(m: JourneyModel) {
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Box(Modifier.fillMaxSize()) {
+        AmbientBackground(m.dark)
         if (m.identity == null) {
             Login(m)
-            return@Surface
+            return@Box
         }
         BackHandler(m.page != "chat") { if (m.page == "news") m.page = "chat" else m.back() }
         Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
-            when (m.page) {
-                "chat" -> ChatScreen(m)
-                "news" -> NewsScreen(m)
-                "holdings" -> HoldingsScreen(m)
-                "reader" -> BriefScreen(m)
+            key(m.page) {
+                Box(Modifier.fillMaxSize().pageEntrance()) {
+                    when (m.page) {
+                        "chat" -> ChatScreen(m)
+                        "news" -> NewsScreen(m)
+                        "holdings" -> HoldingsScreen(m)
+                        "reader" -> BriefScreen(m)
+                    }
+                }
             }
+            val statusHeight=WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Box(
                 Modifier.fillMaxWidth()
-                    .height(86.dp)
+                    .offset(y=-statusHeight)
+                    .height(86.dp+statusHeight)
                     .align(Alignment.TopCenter)
                     .background(
                         Brush.verticalGradient(
@@ -129,61 +154,18 @@ fun JourneyApp(m: JourneyModel) {
                             )
                         )
                 )
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val secondary = m.page in listOf("reader", "holdings")
-                IconButton(onClick = { if (secondary) m.back() else m.go("holdings") }) {
-                    Icon(
-                        if (secondary) Icons.Outlined.ArrowBack else Icons.Outlined.PersonOutline,
-                        if (secondary) "返回" else "我的会籍",
-                    )
+            val secondary = m.page in listOf("reader", "holdings")
+            Box(Modifier.fillMaxWidth().padding(horizontal=15.dp, vertical=8.dp).height(44.dp)) {
+                NavigationButton(if(secondary) "back" else "account", if(secondary) "返回" else "我的会籍",
+                    selected=secondary, modifier=Modifier.align(Alignment.CenterStart)) {
+                    if(secondary) m.back() else m.go("holdings")
                 }
-                Spacer(Modifier.weight(1f))
-                if (!secondary)
-                    Row(
-                        Modifier.clip(RoundedCornerShape(28.dp))
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = .05f))
-                            .padding(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = { m.page = "chat" },
-                            modifier =
-                                Modifier.clip(RoundedCornerShape(24.dp))
-                                    .background(
-                                        if (m.page == "chat") MaterialTheme.colorScheme.surface
-                                        else Color.Transparent
-                                    ),
-                        ) {
-                            Icon(
-                                Icons.Outlined.ChatBubbleOutline,
-                                "对话",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        IconButton(
-                            onClick = { m.go("news") },
-                            modifier =
-                                Modifier.clip(RoundedCornerShape(24.dp))
-                                    .background(
-                                        if (m.page == "news") MaterialTheme.colorScheme.surface
-                                        else Color.Transparent
-                                    ),
-                        ) {
-                            Icon(
-                                Icons.Outlined.Article,
-                                "会籍新闻",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    }
-                Spacer(Modifier.weight(1f))
-                if (m.page == "chat")
-                    IconButton(onClick = { m.fresh() }, enabled = !m.busy) {
-                        Icon(Icons.Outlined.Edit, "新对话")
-                    }
-                else Spacer(Modifier.width(48.dp))
+                if(!secondary) Row(Modifier.align(Alignment.Center).clip(RoundedCornerShape(28.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant).padding(3.dp), horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                    NavigationButton("chat", "对话", m.page=="chat", Modifier.size(width=48.dp,height=38.dp)) { m.page="chat" }
+                    NavigationButton("news", "会籍新闻", m.page=="news", Modifier.size(width=48.dp,height=38.dp)) { m.go("news") }
+                }
+                if(m.page=="chat") NavigationButton("new","新对话",modifier=Modifier.align(Alignment.CenterEnd)) { m.fresh() }
             }
         }
     }
@@ -199,12 +181,7 @@ fun Login(m: JourneyModel) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Outlined.Explore,
-            null,
-            Modifier.size(40.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
+        JourneyIcon("brand",Modifier.size(42.dp),MaterialTheme.colorScheme.primary)
         Text(
             "JourneyPlus",
             fontSize = 30.sp,
@@ -262,7 +239,7 @@ fun ErrorText(text: String) {
 fun Title(text: String) {
     Text(
         text,
-        fontSize = 28.sp,
+        fontSize = 26.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(bottom = 24.dp),
     )
@@ -272,7 +249,7 @@ fun Title(text: String) {
 fun NewsScreen(m: JourneyModel) {
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 96.dp, bottom = 50.dp),
+        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 50.dp),
     ) {
         item {
             Title("会籍新闻")
@@ -284,18 +261,15 @@ fun NewsScreen(m: JourneyModel) {
                     .clickable { m.readActivity(a.str("ref")) }
                     .padding(vertical = 24.dp)
             ) {
-                Text(a.str("name"), fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                Text(a.str("name"), fontSize = 18.sp, fontWeight = FontWeight.Medium)
                 Text(
                     a.obj("card").str("summary"),
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     lineHeight = 24.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 10.dp),
                 )
-                Text(
-                    a.str("updated_at").take(10) + "  ↗",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -314,7 +288,7 @@ fun HoldingsScreen(m: JourneyModel) {
     var show by remember { mutableStateOf(false) }
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 96.dp, bottom = 50.dp),
+        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 84.dp, bottom = 50.dp),
     ) {
         item {
             Row(
@@ -322,14 +296,15 @@ fun HoldingsScreen(m: JourneyModel) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("我的会籍", fontSize = 28.sp, fontWeight = FontWeight.SemiBold)
+                Text("我的会籍", fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
                 Button(
+                    shape = RoundedCornerShape(15.dp),
                     onClick = {
                         editing = null
                         show = true
                     }
                 ) {
-                    Text("＋ 添加")
+                    Text("＋ 添加会籍", fontSize=12.sp)
                 }
             }
             ErrorText(m.error)
@@ -343,12 +318,17 @@ fun HoldingsScreen(m: JourneyModel) {
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        h.str("program_display_name") + "  " + h.str("tier_display_name"),
+                        androidx.compose.ui.text.buildAnnotatedString {
+                            append(h.str("program_display_name")); append("  ")
+                            pushStyle(androidx.compose.ui.text.SpanStyle(color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Normal))
+                            append(h.str("tier_display_name")); pop()
+                        },
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
                         h.str("valid_until").let { if (it.isBlank()) "有效期未设置" else "有效至 $it" },
                         fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
@@ -365,17 +345,25 @@ fun HoldingsScreen(m: JourneyModel) {
         item {
             if (m.holdings.isEmpty())
                 Text("添加已有会籍，让每条路径从你出发。", modifier = Modifier.padding(vertical = 32.dp))
-            HorizontalDivider()
+            HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("深色外观")
-                Switch(checked = m.dark, onCheckedChange = m::theme)
+                Text("外观",fontSize=14.sp)
+                Row(Modifier.clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceVariant).padding(4.dp)) {
+                    listOf(false to "浅色", true to "深色").forEach { (dark, label) ->
+                        Text(label, fontSize=13.sp, modifier=Modifier.clip(RoundedCornerShape(20.dp))
+                            .background(if(m.dark==dark) MaterialTheme.colorScheme.surface else Color.Transparent)
+                            .clickable {m.theme(dark)}.padding(horizontal=16.dp,vertical=9.dp))
+                    }
+                }
             }
-            Text(m.identity?.str("username").orEmpty(), fontSize = 13.sp)
-            TextButton(onClick = m::logout) { Text("退出登录") }
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+                TextButton(onClick = m::logout) { Text("退出登录",color=MaterialTheme.colorScheme.onSurfaceVariant) }
+                Text(m.identity?.str("username").orEmpty(),fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
     if (show) HoldingEditor(m, editing) { show = false }
@@ -495,140 +483,93 @@ fun HoldingEditor(m: JourneyModel, existing: JSONObject?, close: () -> Unit) {
 @Composable
 fun ChatScreen(m: JourneyModel) {
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
-    LaunchedEffect(m.messages, m.progress) {
-        if (
-            list.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.let {
-                it >= list.layoutInfo.totalItemsCount - 3
-            } != false
-        )
-            list.animateScrollToItem((m.messages.size + 1).coerceAtLeast(0))
-    }
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = list,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                PaddingValues(start = 20.dp, end = 20.dp, top = 100.dp, bottom = 210.dp),
-        ) {
-            item {
-                if (!m.workspace?.str("next_cursor").isNullOrBlank())
-                    TextButton(onClick = m::earlier) { Text("加载更早消息") }
-                if (m.messages.isEmpty()) {
-                    Spacer(Modifier.height(100.dp))
-                    Title("从已有会籍出发")
-                    Text("告诉我你已有的会籍，或想去的下一程。")
+    val shownLengths = m.displayedLengths
+    fun pendingTexts()=m.messages.filter {it.str("id") in m.liveMessages}.map {msg ->
+        msg.str("id") to msg.items("content").filter {it.str("type")=="text"}.joinToString("\n") {it.str("text")}
+    }.filter {(id,text)->text.length>(shownLengths[id] ?: 0)}
+    LaunchedEffect(Unit) {
+        while(true) {
+            snapshotFlow {pendingTexts()}.first {it.isNotEmpty()}
+            while(pendingTexts().isNotEmpty()) {
+                kotlinx.coroutines.delay(13)
+                pendingTexts().forEach {(id,text)->
+                    val at=shownLengths[id] ?: 0
+                    shownLengths[id]=(at+if(Character.isHighSurrogate(text[at]) && at+1<text.length) 2 else 1).coerceAtMost(text.length)
                 }
-            }
-            items(m.messages, key = { it.str("id") }) { msg ->
-                val user = msg.str("role") == "user"
-                Column(
-                    Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                    horizontalAlignment = if (user) Alignment.End else Alignment.Start,
-                ) {
-                    if (!user)
-                        Text(
-                            "◉  JourneyPlus",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(bottom = 12.dp),
-                        )
-                    val text =
-                        msg.items("content")
-                            .filter { it.str("type") == "text" }
-                            .joinToString("\n") { it.str("text") }
-                    if (text.isNotBlank() && user)
-                        Text(
-                            text,
-                            fontSize = 15.sp,
-                            lineHeight = 26.sp,
-                            modifier =
-                                if (user)
-                                    Modifier.widthIn(max = 320.dp)
-                                        .clip(RoundedCornerShape(22.dp, 22.dp, 4.dp, 22.dp))
-                                        .background(
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = .05f)
-                                        )
-                                        .padding(16.dp)
-                                else Modifier,
-                        )
-                    if (text.isNotBlank() && !user) MessageText(text, m::readActivity)
-                    for (ref in
-                        msg.obj("attachments").optJSONArray("presentation_refs").strings()) m
-                        .artifacts[ref]
-                        ?.let { PresentationView(it, m, ref) }
-                    msg.obj("attachments").items("operations").forEach { Text(it.str("summary")) }
-                }
-            }
-            item {
-                if (m.progress.isNotBlank()) Text(m.progress, fontSize = 13.sp)
-                ErrorText(m.error)
-                if (m.error.isNotBlank())
-                    TextButton(onClick = { m.task { m.refreshWorkspace() } }) { Text("重新连接") }
             }
         }
-        Box(
-            Modifier.align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(60.dp)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0f),
-                            MaterialTheme.colorScheme.background,
-                        )
-                    )
-                )
-        )
-        Surface(
-            Modifier.align(Alignment.BottomCenter)
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(27.dp),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            color = MaterialTheme.colorScheme.surface,
-        ) {
-            Row(
-                Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                androidx.compose.foundation.text.BasicTextField(
-                    value = m.draft,
-                    onValueChange = { if (it.length <= 16000) m.draft = it },
-                    modifier =
-                        Modifier.weight(1f)
-                            .heightIn(min = 36.dp, max = 156.dp)
-                            .padding(vertical = 7.dp),
-                    textStyle =
-                        LocalTextStyle.current.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp,
-                        ),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(onSend = { m.send() }),
-                    decorationBox = { inner ->
-                        if (m.draft.isEmpty())
-                            Text(
-                                "继续聊聊你想获得的会籍…",
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = .5f),
-                            )
-                        inner()
-                    },
-                )
-                IconButton(
-                    onClick = { if (m.busy) m.stop() else m.send() },
-                    enabled = m.busy || m.draft.isNotBlank(),
-                    modifier =
-                        Modifier.size(38.dp)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.onSurface),
-                ) {
-                    Icon(
-                        if (m.busy) Icons.Outlined.Stop else Icons.Outlined.ArrowUpward,
-                        if (m.busy) "停止回答" else "发送",
-                        tint = MaterialTheme.colorScheme.surface,
-                    )
+    }
+    val revealing = m.messages.any {msg -> msg.str("id") in m.liveMessages &&
+        msg.items("content").filter {it.str("type")=="text"}.joinToString("\n") {it.str("text")}.length > (shownLengths[msg.str("id")] ?: 0) }
+    val empty = m.messages.none { it.str("role") != "tool" } && !m.busy
+    var composerHeight by remember { mutableIntStateOf(54) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    LaunchedEffect(m.messages, m.progress, shownLengths.values.toList()) {
+        val last = list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+        if(!list.isScrollInProgress && last >= list.layoutInfo.totalItemsCount - 3 && list.layoutInfo.totalItemsCount > 0)
+            list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+    }
+    Box(Modifier.fillMaxSize()) {
+        if(!empty) LazyColumn(state=list, modifier=Modifier.fillMaxSize(),
+            contentPadding=PaddingValues(start=20.dp,end=20.dp,top=84.dp,bottom=(composerHeight+32).dp)) {
+            item { if(!m.workspace?.str("next_cursor").isNullOrBlank()) TextButton(onClick=m::earlier) { Text("加载更早消息") } }
+            items(m.messages,key={it.str("id")}) { msg ->
+                val text = msg.items("content").filter { it.str("type")=="text" }.joinToString("\n") {it.str("text")}
+                val refs = msg.obj("attachments").optJSONArray("presentation_refs").strings()
+                val user = msg.str("role")=="user"
+                val visible = text.isNotBlank() || (refs.isNotEmpty() && !m.busy && !revealing)
+                if(visible) Column(Modifier.fillMaxWidth().padding(bottom=28.dp), horizontalAlignment=if(user) Alignment.End else Alignment.Start) {
+                    if(user) Text(text,fontSize=14.sp,lineHeight=24.sp,
+                        modifier=Modifier.widthIn(max=330.dp).clip(RoundedCornerShape(22.dp,22.dp,6.dp,22.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal=17.dp,vertical=13.dp))
+                    else {
+                        if(text.isNotBlank()) {
+                            Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(9.dp)) {
+                                JourneyIcon("brand",Modifier.size(17.dp),MaterialTheme.colorScheme.primary)
+                                Text("JourneyPlus",fontSize=12.sp,fontWeight=FontWeight.SemiBold)
+                            }
+                            MessageText(if(msg.str("id") in m.liveMessages) text.take(shownLengths[msg.str("id")] ?: 0) else text,m::readActivity)
+                        }
+                        if(!m.busy && !revealing) refs.forEach { ref -> m.artifacts[ref]?.let { PresentationView(it,m,ref) } }
+                    }
+                    msg.obj("attachments").items("operations").forEach { Text(it.str("summary"),fontSize=13.sp) }
+                }
+            }
+            item {
+                if(m.busy && m.progress.isNotBlank()) ProcessingStatus(m.progress)
+                ErrorText(m.error)
+                if(m.error.isNotBlank()) TextButton(onClick={m.task {m.refreshWorkspace()}}) { Text("重新连接") }
+            }
+        }
+        if(!empty) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(90.dp)
+            .background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background))))
+        Column(Modifier.align(if(empty) Alignment.Center else Alignment.BottomCenter)
+            .padding(horizontal=13.dp,vertical=14.dp).fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally) {
+            if(empty) {
+                Text("想用你的会籍，开启怎样的下一程？", fontSize=23.sp, lineHeight=33.sp,fontWeight=FontWeight.Medium,
+                    textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.padding(horizontal=12.dp).padding(bottom=28.dp))
+                ErrorText(m.error)
+            }
+            Surface(Modifier.fillMaxWidth().onSizeChanged { composerHeight=with(density){it.height.toDp().value.toInt()} },
+                shape=RoundedCornerShape(27.dp),border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant),color=MaterialTheme.colorScheme.surface) {
+                Row(Modifier.padding(start=18.dp,end=12.dp,top=9.dp,bottom=9.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                    androidx.compose.foundation.text.BasicTextField(m.draft,{if(it.length<=16000)m.draft=it},
+                        enabled=m.workspace!=null && !m.initializing,modifier=Modifier.weight(1f).heightIn(min=26.dp,max=156.dp),
+                        textStyle=LocalTextStyle.current.copy(color=MaterialTheme.colorScheme.onSurface,fontSize=16.sp,lineHeight=26.sp,
+                            platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)),
+                        cursorBrush=androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurface),
+                        keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={m.send()}),
+                        decorationBox={inner -> Box(contentAlignment=Alignment.CenterStart) {
+                            if(m.draft.isEmpty()) Text("说说你持有的会籍，或想了解的匹配机会…",maxLines=1,
+                                fontSize=16.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            inner()
+                        }})
+                    Box(Modifier.size(33.dp).clip(androidx.compose.foundation.shape.CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface)
+                        .clickable(enabled=m.busy || (!m.initializing && m.workspace!=null && m.draft.isNotBlank())) {if(m.busy)m.stop() else m.send()}
+                        .semantics { contentDescription=if(m.busy) "停止回答" else "发送" },contentAlignment=Alignment.Center) {
+                        JourneyIcon(if(m.busy) "stop" else "send",Modifier.size(22.dp),MaterialTheme.colorScheme.surface)
+                    }
                 }
             }
         }
@@ -659,96 +600,9 @@ fun readable(v: Any?): String =
     }
 
 @Composable
-fun BriefScreen(m: JourneyModel) {
-    val d = m.detail
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 96.dp, bottom = 50.dp),
-    ) {
-        item {
-            ErrorText(m.error)
-            if (d == null) Text(if (m.error.isEmpty()) "正在读取简报…" else "读取未完成")
-            else {
-                Title(d.obj("brief").str("title", d.str("program")))
-                Text(d.obj("brief").str("summary", d.str("summary")), lineHeight = 28.sp)
-                Text(
-                    d.obj("fee").str("label") + " · " + d.str("brief_updated_at").take(10),
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(vertical = 18.dp),
-                )
-                Section("和我的关系", d.obj("relationship").str("text", "尚未计算"))
-                if (d.str("lifecycle_status") in listOf("EXPIRED", "STALE", "ARCHIVED"))
-                    Section(
-                        "资料状态",
-                        mapOf("EXPIRED" to "活动已结束", "STALE" to "资料已过期", "ARCHIVED" to "已归档")[
-                                d.str("lifecycle_status")]
-                            .orEmpty(),
-                    )
-                Text("申请入口", fontSize = 20.sp)
-                d.optJSONArray("action_links").strings().forEach { ExternalLink(it, "前往申请页面") }
-                val facts = d.obj("facts")
-                listOf(
-                        "eligibility" to "申请资格",
-                        "challenge_requirements" to "挑战要求",
-                        "deadline" to "截止时间",
-                        "status_validity" to "会籍有效期",
-                        "caveats" to "注意事项",
-                    )
-                    .forEach { (key, label) ->
-                        if (facts.has(key)) Section(label, readable(facts.opt(key)))
-                    }
-                Section("会籍映射", "")
-                facts.items("status_mappings").forEach { mapping ->
-                    Text(
-                        mapping.str("source_program") +
-                            " · " +
-                            mapping.optJSONArray("source_tiers").strings().joinToString("、") +
-                            " → " +
-                            mapping.str("target_tier"),
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                    if (mapping.str("conditions").isNotBlank())
-                        Text(mapping.str("conditions"), fontSize = 13.sp)
-                }
-                Section("申请方式与费用", "")
-                d.items("routes").forEach { r ->
-                    Section(
-                        r.str("scope"),
-                        listOf(
-                                r.str("region"),
-                                r.str("eligibility"),
-                                r.str("cost"),
-                                r.str("conflict_note"),
-                            )
-                            .filter { it.isNotBlank() }
-                            .joinToString("；"),
-                    )
-                    r.items("prices").forEach { p ->
-                        Text(
-                            p.str("target_tier") +
-                                " · " +
-                                if (p.str("availability") == "UNAVAILABLE") "不可申请"
-                                else
-                                    p.str("currency") +
-                                        " " +
-                                        p.str("amount", "费用待确认") +
-                                        " " +
-                                        p.str("raw_text"),
-                            modifier = Modifier.padding(vertical = 8.dp),
-                        )
-                    }
-                }
-                Section("原文来源", "")
-                d.optJSONArray("source_links").strings().forEach { ExternalLink(it, it) }
-            }
-        }
-    }
-}
-
-@Composable
 fun Section(title: String, body: String) {
     Column(Modifier.padding(top = 28.dp, bottom = 12.dp)) {
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.Medium)
         if (body.isNotBlank())
             Text(body, lineHeight = 26.sp, modifier = Modifier.padding(top = 12.dp))
     }

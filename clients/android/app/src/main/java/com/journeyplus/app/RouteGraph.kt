@@ -7,7 +7,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -51,71 +55,58 @@ fun graphData(objects: List<JSONObject>): Pair<List<GraphNode>, List<GraphEdge>>
     return nodes.values.toList() to edges
 }
 
+fun feeLabel(step:JSONObject):String = when(step.opt("paid")) {
+    true -> "付费申请"
+    false -> "免费申请"
+    else -> "费用待核实"
+}
+
 @Composable
-fun RouteGraph(objects: List<JSONObject>, select: (List<JSONObject>) -> Unit) {
+fun RouteGraph(objects: List<JSONObject>, names:List<JSONObject> = emptyList(), select: (List<JSONObject>) -> Unit) {
     val (nodes, edges) = remember(objects) { graphData(objects) }
     val color = MaterialTheme.colorScheme.primary
-    Column(
-        Modifier.fillMaxWidth()
-            .padding(vertical = 18.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp))
-    ) {
-        Text("↔  左右滑动查看路径", fontSize = 12.sp, modifier = Modifier.padding(16.dp))
-        Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            val width = ((nodes.maxOfOrNull { it.level } ?: 0) * 252 + 208).dp
-            val height = ((nodes.maxOfOrNull { it.row } ?: 0) * 128 + 124).dp
-            Box(Modifier.size(width, height)) {
+    val line = MaterialTheme.colorScheme.outlineVariant
+    val measured=remember(objects) {mutableStateMapOf<String,Int>()}
+    val density=LocalDensity.current
+    fun nodeHeight(n:GraphNode)=measured[n.id] ?: 74
+    val levels = nodes.groupingBy {it.level}.eachCount()
+    val rows = levels.values.maxOrNull() ?: 1
+    val height = maxOf(290, (rows-1)*156+134)
+    fun x(n:GraphNode) = if(n.level==0) 14 else 224+(n.level-1)*275
+    fun y(n:GraphNode) = if(n.steps.isEmpty()) (height-((levels[n.level] ?: 1)-1)*156-nodeHeight(n))/2+n.row*156 else 36+n.row*156
+    Column(Modifier.fillMaxWidth().padding(vertical=24.dp).clip(RoundedCornerShape(22.dp))
+        .border(1.dp,line,RoundedCornerShape(22.dp))) {
+        Text("↔  左右滑动查看路径",fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(16.dp))
+        Box(Modifier.fillMaxWidth().semantics {contentDescription="会籍匹配图"}.horizontalScroll(rememberScrollState())) {
+            val width=(nodes.maxOfOrNull {x(it)+if(it.steps.isEmpty())126 else 168} ?: 330)+14
+            Box(Modifier.size(width.dp,height.dp)) {
                 Canvas(Modifier.matchParentSize()) {
-                    edges.forEach { e ->
-                        val a = nodes.first { it.id == e.from }
-                        val b = nodes.first { it.id == e.to }
-                        val x = (a.level * 252 + 192).dp.toPx()
-                        val y = (a.row * 128 + 54).dp.toPx()
-                        val tx = (b.level * 252 + 16).dp.toPx()
-                        val ty = (b.row * 128 + 54).dp.toPx()
-                        val p =
-                            Path().apply {
-                                moveTo(x, y)
-                                cubicTo(x + 40.dp.toPx(), y, tx - 40.dp.toPx(), ty, tx, ty)
-                            }
-                        drawPath(p, color, style = Stroke(1.3.dp.toPx()))
+                    edges.forEach {e ->
+                        val a=nodes.first {it.id==e.from};val b=nodes.first {it.id==e.to}
+                        val ax=(x(a)+if(a.steps.isEmpty())126 else 168).dp.toPx();val ay=(y(a)+nodeHeight(a)/2).dp.toPx()
+                        val bx=x(b).dp.toPx();val by=(y(b)+nodeHeight(b)/2).dp.toPx()
+                        val bend=ax+32.dp.toPx()
+                        val path=Path().apply {moveTo(ax,ay);cubicTo(bend,ay,bend,ay,bend,(ay+by)/2);cubicTo(bend,by,bend,by,bx,by)}
+                        drawPath(path,color,style=Stroke(1.3.dp.toPx()))
+                        drawPath(Path().apply {moveTo(bx-7.dp.toPx(),by-4.dp.toPx());lineTo(bx,by);lineTo(bx-7.dp.toPx(),by+4.dp.toPx())},color,style=Stroke(1.3.dp.toPx()))
+                        if(a.steps.isEmpty())drawCircle(color,3.dp.toPx(),androidx.compose.ui.geometry.Offset(ax,ay),style=Stroke(1.2.dp.toPx()))
                     }
                 }
-                edges.forEach { e ->
-                    val a = nodes.first { it.id == e.from }
-                    val b = nodes.first { it.id == e.to }
-                    if (e.step.has("paid"))
-                        Text(
-                            if (e.step.optBoolean("paid")) "付费" else "免费",
-                            fontSize = 10.sp,
-                            modifier =
-                                Modifier.offset(
-                                    ((a.level * 252 + 192 + b.level * 252 + 16) / 2 - 12).dp,
-                                    ((a.row * 128 + 54 + b.row * 128 + 54) / 2 - 20).dp,
-                                ),
-                        )
+                edges.forEach {e -> val b=nodes.first {it.id==e.to}
+                    Text(feeLabel(e.step),fontSize=10.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier=Modifier.offset((x(b)-52).dp,(y(b)+nodeHeight(b)/2-21).dp))
                 }
-                nodes.forEach { n ->
-                    Surface(
-                        modifier =
-                            Modifier.offset((n.level * 252 + 16).dp, (n.row * 128 + 16).dp)
-                                .width(176.dp)
-                                .heightIn(min = 76.dp)
-                                .then(
-                                    if (n.steps.isEmpty()) Modifier
-                                    else Modifier.clickable { select(n.steps) }
-                                ),
-                        shape = RoundedCornerShape(17.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                        color = MaterialTheme.colorScheme.surface,
-                    ) {
-                        Row(
-                            Modifier.padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(n.label, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                            if (n.steps.isNotEmpty()) Text("↗", color = color)
+                nodes.forEach {n ->
+                    Surface(modifier=Modifier.offset(x(n).dp,y(n).dp).width((if(n.steps.isEmpty())126 else 168).dp).heightIn(min=74.dp).onSizeChanged {size -> measured[n.id]=with(density){size.height.toDp().value.toInt()} }
+                        .then(if(n.steps.isEmpty())Modifier else Modifier.clickable {select(n.steps)}),
+                        shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,line),color=MaterialTheme.colorScheme.surface) {
+                        Row(Modifier.padding(horizontal=13.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically) {
+                            val name=names.firstOrNull { "${it.str("program")} ${it.str("tier")}"==n.label }
+                            Column(Modifier.weight(1f)) {
+                                Text(name?.str("program") ?: n.label,fontSize=13.sp,lineHeight=19.sp)
+                                if(name!=null) Text(name.str("tier"),fontSize=12.sp,lineHeight=18.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=5.dp))
+                            }
+                            if(n.steps.isNotEmpty())Text("↗",fontSize=17.sp,color=color)
                         }
                     }
                 }
@@ -129,13 +120,19 @@ fun RouteGraph(objects: List<JSONObject>, select: (List<JSONObject>) -> Unit) {
 fun PresentationView(p: JSONObject, m: JourneyModel, reference: String) {
     var steps by remember { mutableStateOf<List<JSONObject>?>(null) }
     var selected by remember { mutableStateOf<JSONObject?>(null) }
-    LaunchedEffect(reference) { m.feedback(reference) }
+    var names by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
+    LaunchedEffect(reference) {
+        m.feedback(reference)
+        if(p.items("blocks").any {it.str("type")=="route_graph"}) {
+            try { names=m.graphCatalog() } catch(e:kotlinx.coroutines.CancellationException) {throw e} catch(_:Exception) { }
+        }
+    }
     Column {
         p.items("blocks").forEach { b ->
             if (b.str("title").isNotBlank()) Section(b.str("title"), b.str("reason"))
             val objects = b.obj("payload").items("objects")
             if (b.str("type") == "route_graph") {
-                RouteGraph(objects) {
+                RouteGraph(objects,names) {
                     steps = it
                     it.firstOrNull()?.let { step -> m.focus(reference, step.str("ref")) }
                 }
@@ -146,37 +143,7 @@ fun PresentationView(p: JSONObject, m: JourneyModel, reference: String) {
                     Text("查看申请经验", fontSize = 12.sp)
                 }
             } else if (b.str("type") == "mapping_table") {
-                objects.forEach { o ->
-                    val d = o.obj("data")
-                    d.items("options")
-                        .flatMap { it.items("mappings") }
-                        .forEach { mapping ->
-                            val tiers =
-                                mapping.optJSONArray("from_tiers")
-                                    ?: mapping.optJSONArray("source_tiers")
-                            Section(
-                                mapping.str("from_program", mapping.str("source_program")),
-                                tiers.strings().joinToString("、") +
-                                    " → " +
-                                    mapping.str("to_tier", mapping.str("target_tier")),
-                            )
-                            val notes = JSONObject(mapping.toString())
-                            listOf(
-                                    "ref",
-                                    "from_program",
-                                    "source_program",
-                                    "from_tiers",
-                                    "source_tiers",
-                                    "to_program",
-                                    "to_tier",
-                                    "target_tier",
-                                )
-                                .forEach { notes.remove(it) }
-                            val note = readable(notes)
-                            if (note.isNotBlank()) Text(note, fontSize = 13.sp)
-                            HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                        }
-                }
+                objects.forEach { o -> MappingMatrix(o.obj("data")) }
             } else
                 objects.forEach { o ->
                     val d = o.obj("data")
@@ -204,8 +171,7 @@ fun PresentationView(p: JSONObject, m: JourneyModel, reference: String) {
                             )
                             if (b.str("type") == "comparison")
                                 Text(
-                                    "${d.optInt("step_count")} 步 · " +
-                                        if (d.optBoolean("paid")) "付费" else "免费"
+                                    "${d.optInt("step_count")} 步 · " + feeLabel(d)
                                 )
                         }
                     }
@@ -263,7 +229,7 @@ fun StepView(step: JSONObject, m: JourneyModel, close: () -> Unit) {
     }
     Section(
         step.str("from", "公开申请") + " → " + step.str("to"),
-        if (!step.has("paid")) "费用待确认" else if (step.optBoolean("paid")) "付费申请" else "免费申请",
+        feeLabel(step),
     )
     ErrorText(error)
     detail?.optJSONArray("action_links").strings().forEach { ExternalLink(it, "申请入口") }

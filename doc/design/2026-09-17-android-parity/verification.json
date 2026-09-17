@@ -1,0 +1,19 @@
+{
+  "device": "Pixel 6 / Android 14 (API 34)",
+  "build": "assembleDebug passed",
+  "checks": {
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "tests": [
+    "tablesStartCollapsedAndCanBeOpenedAndClosed",
+    "newConversationUsesCenteredComposerAndNativeEditableText",
+    "feeUnknownIsNeverPresentedAsFree",
+    "processingShowsStatusButDoesNotCreateEmptyAssistantHeaders",
+    "graphSwipeKeepsHintFixedAndAllowsPageVerticalScroll",
+    "presentationWaitsUntilPrecedingTextHasBeenDisplayed"
+  ],
+  "screenshots": "actual local account and published activities; reference HTML uses design examples"
+}

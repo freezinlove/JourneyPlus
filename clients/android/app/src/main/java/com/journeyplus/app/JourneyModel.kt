@@ -10,7 +10,7 @@ import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
 
-class JourneyModel(application: Application) : AndroidViewModel(application) {
+class JourneyModel @JvmOverloads constructor(application: Application, bootstrap: Boolean = true) : AndroidViewModel(application) {
     val api = Api(application)
     private val prefs = application.getSharedPreferences("settings", 0)
     var dark by mutableStateOf(prefs.getBoolean("dark", false))
@@ -28,7 +28,13 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
     var progress by mutableStateOf("")
     var busy by mutableStateOf(false)
     var messages by mutableStateOf<List<JSONObject>>(emptyList())
-    var workspace: JSONObject? = null
+    var workspace by mutableStateOf<JSONObject?>(null)
+    var initializing by mutableStateOf(false)
+    var liveMessages by mutableStateOf<Set<String>>(emptySet())
+    val displayedLengths = mutableStateMapOf<String, Int>()
+    var relationship by mutableStateOf<JSONObject?>(null)
+    var relationshipError by mutableStateOf("")
+    private var readerJob: Job? = null
     var holdings by mutableStateOf<List<JSONObject>>(emptyList())
     var news by mutableStateOf<List<JSONObject>>(emptyList())
     var moreNews by mutableStateOf(true)
@@ -41,12 +47,11 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
     private var pending: JSONObject? = null
 
     init {
-        task {
+        if (bootstrap) task {
             try {
                 identity = api.call("/auth/me") as JSONObject
                 refreshWorkspace()
-                loadHoldings()
-                loadNews()
+
             } finally {
                 checking = false
             }
@@ -83,6 +88,11 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
         news = emptyList()
         workspace = null
         detail = null
+        readerJob?.cancel()
+        relationship = null
+        relationshipError = ""
+        liveMessages = emptySet()
+        initializing = false
         pending = null
         busy = false
         page = "chat"
@@ -97,8 +107,7 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
                 api.call("/auth/login", json("username" to user, "password" to password))
                 identity = api.call("/auth/me") as JSONObject
                 refreshWorkspace()
-                loadHoldings()
-                loadNews()
+
             } finally {
                 checking = false
             }
@@ -142,20 +151,33 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
     fun back() {
         page = previous.takeUnless { it == "reader" || it == "holdings" } ?: "chat"
         detail = null
+        readerJob?.cancel()
     }
 
     fun readActivity(id: String, version: String = "") {
         previous = page
         page = "reader"
         detail = null
-        task {
-            detail =
-                api.call(
-                    "/v2/activities/$id/brief" +
-                        (if (version.isNotBlank()) "?version_ref=$version" else "")
-                ) as JSONObject
+        relationship = null
+        relationshipError = ""
+        error = ""
+        readerJob?.cancel()
+        readerJob = viewModelScope.launch {
+            try {
+                val suffix = if(version.isNotBlank()) "?version_ref=$version&" else "?"
+                detail = api.call("/v2/activities/$id/brief${suffix}include_relationship=false") as JSONObject
+                try {
+                    val pinned = if(detail!!.str("source")=="STATUSMATCH_OFFICIAL") detail!!.str("opportunity_id") else version
+                    relationship = api.call("/v2/activities/$id/relationship" + if(pinned.isNotBlank()) "?version_ref=$pinned" else "") as JSONObject
+                } catch(e: CancellationException) { throw e }
+                catch(e: Exception) { relationshipError=e.message ?: "关系读取失败" }
+            } catch(e: CancellationException) { throw e }
+            catch(e: Exception) { error=e.message ?: "简报读取失败" }
         }
     }
+
+    private var cachedGraphCatalog: List<JSONObject>? = null
+    suspend fun graphCatalog():List<JSONObject> = cachedGraphCatalog ?: catalog("").also {cachedGraphCatalog=it}
 
     suspend fun catalog(q: String): List<JSONObject> =
         (api.call("/v1/membership-catalog?limit=500&q=" + URLEncoder.encode(q, "UTF-8"))
@@ -202,7 +224,9 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
     suspend fun refreshWorkspace(fresh: Boolean = false) {
         stream?.cancel()
         api.eventCall?.cancel()
-        busy = true
+        initializing = true
+        busy = false
+        if(fresh) { messages=emptyList(); workspace=null; draft=""; liveMessages=emptySet() }
         try {
             workspace =
                 api.call(
@@ -217,12 +241,11 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             busy = false
             throw e
-        }
+        } finally { initializing=false }
     }
 
     fun fresh() {
-        if (busy) return
-        busy = true
+        if (initializing) return
         task {
             pending = null
             progress = ""
@@ -232,9 +255,12 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun send(text: String = draft, refs: List<String> = emptyList()) {
-        if (busy || text.isBlank() || workspace == null) return
+        if (busy || initializing || text.isBlank() || workspace == null) return
         task {
             busy = true
+            progress = "正在思考…"
+            liveMessages = emptySet()
+            displayedLengths.clear()
             error = ""
             try {
                 val w = workspace!!
@@ -287,7 +313,9 @@ class JourneyModel(application: Application) : AndroidViewModel(application) {
                                 val p = event.obj("payload")
                                 when (event.str("type")) {
                                     "text_delta" -> {
+                                        progress = ""
                                         val mid = p.str("message_id")
+                                        liveMessages = liveMessages + mid
                                         val old = messages.find { it.str("id") == mid }
                                         val text =
                                             (old?.items("content")?.joinToString("") {
