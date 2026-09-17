@@ -27,6 +27,7 @@ export function Presentation({
         `/v3/agent/workspaces/${wid}/artifacts/${reference.replace("artifact:", "").split("#")[0]}`,
       ),
   });
+  const [completedAnswer, setCompletedAnswer] = useState<string>();
   const [steps, setSteps] = useState<Step[]>(),
     [object, setObject] = useState<any>();
   useEffect(() => {
@@ -53,9 +54,11 @@ export function Presentation({
     }
   }
   const p = query.data!.payload;
+  const showBlocks = !live || !p.answer?.trim() || completedAnswer === p.answer;
   return (
     <>
-      {p.answer && <StreamText text={p.answer} live={live} />}
+      {p.answer && <StreamText text={p.answer} live={live} onComplete={setCompletedAnswer} />}
+      {showBlocks && <div className={live ? s.presentationReveal : undefined}>
       {p.blocks.map((b, i) => (
         <section key={i}>
           {b.title && <h3>{b.title}</h3>}
@@ -188,6 +191,7 @@ export function Presentation({
           {n.label}
         </button>
       ))}
+      </div>}
       {steps && (
         <Modal
           title={steps[0]?.to || "申请路径"}

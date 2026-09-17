@@ -1209,3 +1209,12 @@
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
 }
+
+.presentationReveal { animation: presentationReveal 180ms ease-out; }
+@keyframes presentationReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presentationReveal { animation: none; }
+}

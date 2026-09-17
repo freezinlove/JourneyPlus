@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 const CHARACTERS_PER_SECOND = 80;
 
 /** Pace live text independently of SSE batch size; completed replies drain normally. */
-export const StreamText = memo(function StreamText({ text, live }: { text: string; live: boolean }) {
+export const StreamText = memo(function StreamText({ text, live, onComplete }: { text: string; live: boolean; onComplete?: (text: string) => void }) {
   const [visible, setVisible] = useState(live ? "" : text);
   const shown = useRef(visible);
   const target = useRef(text);
@@ -47,6 +47,11 @@ export const StreamText = memo(function StreamText({ text, live }: { text: strin
     };
     frame.current = requestAnimationFrame(reveal);
   }, [text, live]);
+
+  // Notify after the full text has committed to the DOM, not when SSE ends.
+  useEffect(() => {
+    if (visible === text) onComplete?.(text);
+  }, [visible, text, onComplete]);
 
   useEffect(() => () => { cancelAnimationFrame(frame.current); frame.current = 0; }, []);
   return <ReactMarkdown remarkPlugins={[remarkGfm]}>{visible}</ReactMarkdown>;
