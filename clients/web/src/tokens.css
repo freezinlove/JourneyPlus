@@ -1,4 +1,4 @@
-/* Values taken from the final light/dark .app in preview.html. */
+/* Shared reading surfaces and quiet, stationary ambient color. */
 :root {
   font-family:
     Inter,
@@ -11,28 +11,32 @@
   color: var(--ink);
   background: var(--canvas);
   font-synthesis: none;
-  --canvas: #f5f6f8;
+  --canvas: #f7f7f4;
+  --canvas-light: radial-gradient(ellipse 65% 65% at 0% 0%, #dce8f080, transparent 80%),
+    radial-gradient(ellipse 55% 60% at 100% 100%, #e8e1d65c, transparent 80%);
   --surface: #fff;
-  --soft: #eceff3;
+  --soft: #eceeec;
   --ink: #202832;
   --muted: #5a6573;
   --accent: #294f73;
   --accent-soft: #e6eef5;
-  --line: #dae0e7;
+  --line: #dde2e3;
   --shadow: 0 14px 40px #1a2d4510;
   --warn: #86501c;
   --column: 754px;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
-  --canvas: #14171c;
-  --surface: #1d2229;
+  --canvas: #15191e;
+  --canvas-light: radial-gradient(ellipse 65% 65% at 0% 0%, #31475e40, transparent 80%),
+    radial-gradient(ellipse 55% 60% at 100% 100%, #34343526, transparent 80%);
+  --surface: #1e242c;
   --soft: #262d36;
   --ink: #edf1f5;
   --muted: #b2bdc9;
   --accent: #a2c8eb;
   --accent-soft: #263749;
-  --line: #39434f;
+  --line: #333d48;
   --shadow: 0 14px 40px #0003;
   --warn: #e9bb86;
   color-scheme: dark;

@@ -3,6 +3,7 @@
   height: 100dvh;
   position: relative;
   background: var(--canvas);
+  background-image: var(--canvas-light);
   overflow: hidden;
   color: var(--ink);
 }
@@ -831,11 +832,14 @@
 .topFade,
 .bottomFade {
   position: absolute;
-  left: 104px;
-  right: 104px;
+  left: 0;
+  right: 0;
   pointer-events: none;
   z-index: 1;
   background: var(--canvas);
+  background-image: var(--canvas-light);
+  background-size: 100vw 100dvh;
+  background-repeat: no-repeat;
 }
 .topFade {
   top: 0;
@@ -849,6 +853,7 @@
 }
 .bottomFade {
   bottom: 0;
+  background-position: center bottom;
   height: 70px;
   mask-image: linear-gradient(
     to top,
