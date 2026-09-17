@@ -12,7 +12,7 @@ class IdentityName(DTO):
     program_name: str = Field(min_length=1, max_length=300,
         description='Original or official program/carrier/hotel name; registered aliases are normalized by the tool.')
     tier_name: str | None = Field(default=None, min_length=1, max_length=300,
-        description='Original or official tier name; no need to translate it. Omit for a program-only destination.')
+        description='Original or official tier name; no need to translate it. Omit for a program-only destination. A source must resolve to a tier; candidate tiers are not user-provided conditions.')
     alternatives: list[str] = Field(default_factory=list, max_length=3)
 
 
@@ -33,7 +33,7 @@ class ActivityQuery(DTO):
 
 class ActivityInput(DTO):
     selector: IdentityRef | ActivityQuery
-    view: Literal['overview', 'detail', 'evidence', 'original', 'changes', 'mappings'] = 'overview'
+    view: Literal['overview', 'detail', 'evidence', 'original', 'changes', 'mappings'] = Field(default='overview', description='mappings requires one uniquely selected activity version; use a specific activity reference after locating it. A broad query may match zero or multiple activities and cannot select a complete mapping table.')
     aspects: list[Literal['price', 'eligibility', 'challenge', 'window', 'validity', 'application']] = Field(default_factory=list)
     version_ref: str | None = None
     section_refs: list[str] = Field(default_factory=list)

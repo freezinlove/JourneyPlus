@@ -13,6 +13,9 @@ def model_view_for(name):
     This hook never changes persisted business records or explicit artifact reads.
     Projection is idempotent so old messages and newly completed calls agree.
     """
+    if name == 'routes.evaluate':
+        from .result_explanation import explain_routes
+        return explain_routes
     if name not in {'holdings.read', 'holdings.write', 'waiting.manage'}:
         return None
 

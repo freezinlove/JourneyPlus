@@ -173,7 +173,7 @@ def material_page(selectors,collection,offset,args,ctx):
             coverage={'complete':True,'returned':1,'total':1,'scope':'selected_original_document',
                       'omissions':[]})
     if args.view=='mappings':
-        if len(selectors)!=1:raise ValueError('Select one activity for its complete mapping table')
+        if len(selectors)!=1:raise ValueError(f'Complete mappings require one selected activity version; this selector matched {len(selectors)} activities. Locate the intended activity and use its specific reference. No mapping table was read.')
         from journeyplus.agent.services.mapping_table import mapping_table
         selector=selectors[0]
         with ctx.services['knowledge'].read() as session:
