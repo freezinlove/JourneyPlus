@@ -3,6 +3,7 @@
 .env
 .env.*
 !.env.example
+!.env.deploy.example
 .secrets/
 credentials.json
 token.json

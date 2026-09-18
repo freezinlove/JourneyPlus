@@ -1,14 +1,37 @@
-# Keep local credentials, data and build caches out of future Docker contexts.
+# 只允许应用构建所需文件；Android、Git 和运行资料默认排除。
+**
+!Dockerfile
+!.dockerignore
+!pyproject.toml
+!uv.lock
+!README.md
+!alembic.ini
+!src/
+!src/**
+!migrations/
+!migrations/**
+!clients/
+!clients/web/
+!clients/web/**
+
+# 即使位于允许目录内，凭证、数据和缓存也不参与构建。
 .git
 .env
 .env.*
-!.env.example
+**/.env
+**/.env.*
+**/.secrets
+**/.local
 .secrets
 .local
 **/credentials.json
 **/token.json
+**/*token*.json
+**/client_secret*.json
 **/*.pem
 **/*.key
+**/*.p12
+**/*.pfx
 **/*.jks
 **/*.keystore
 **/*.db
@@ -18,6 +41,7 @@
 **/*.log
 .venv
 **/__pycache__
+**/*.pyc
 .pytest_cache
 .mypy_cache
 .ruff_cache
@@ -28,6 +52,7 @@ clients/web/dist
 clients/web/test-results
 clients/web/playwright-report
 clients/web/*.tsbuildinfo
+clients/web/coverage
 clients/android/.gradle
 clients/android/.kotlin
 clients/android/**/build

@@ -1,0 +1,69 @@
+# 单独使用此文件；不要与本地 compose.yaml 合并。
+name: journeyplus-deploy
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: journeyplus
+      POSTGRES_USER: journeyplus
+      POSTGRES_PASSWORD: ${JOURNEYPLUS_POSTGRES_PASSWORD:?请设置部署数据库密码}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journeyplus -d journeyplus"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  app:
+    image: journeyplus-app:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env.deploy
+    environment:
+      # 使用内部服务名，避免继承本地 localhost:5433 的连接配置。
+      JOURNEYPLUS_DATABASE_URL: postgresql+psycopg://journeyplus:${JOURNEYPLUS_POSTGRES_PASSWORD:?请设置部署数据库密码}@postgres:5432/journeyplus
+      JOURNEYPLUS_GMAIL_CLIENT_SECRET_FILE: /app/.secrets/google-oauth-client.json
+      JOURNEYPLUS_GMAIL_TOKEN_FILE: /app/.secrets/gmail-token.json
+      JOURNEYPLUS_WEB_DIST: /app/clients/web/dist
+    ports:
+      - "${JOURNEYPLUS_BIND_HOST:-127.0.0.1}:${JOURNEYPLUS_HTTP_PORT:-8000}:8000"
+    volumes:
+      # OAuth 刷新会回写 token，故挂载目录必须可写。
+      - type: bind
+        source: ./.secrets
+        target: /app/.secrets
+        bind:
+          create_host_path: false
+      - app_state:/app/.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login', timeout=5).close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+  app_state:
