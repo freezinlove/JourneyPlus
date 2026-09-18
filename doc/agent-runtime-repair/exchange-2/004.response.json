@@ -1,1 +1,0 @@
-[{"type": "text_delta", "message_id": "d11bf1da-2130-44a4-a3bd-17707e02c614", "text": "{\"status\": \"complete\", \"parts\": [\"按你调低后的预算重新查询，保留了原会籍、居住地和 Flying Blue 目标，当前库内没有找到符合这些条件的路线。上一轮的路线图对应旧预算，不代表现在仍符合要求。这个结果仅覆盖当前已收录资料。\"], \"deliveries\": [], \"remaining\": []}"}, {"type": "turn_end", "finish_reason": "stop"}]

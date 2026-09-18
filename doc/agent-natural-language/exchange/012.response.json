@@ -1,1 +1,0 @@
-[{"type": "tool_call_ready", "call_id": "read-saved-fee", "name": "workspace.read", "arguments": {"kind": "artifact", "refs": ["artifact:23bd897b-154a-43d8-be6e-d480347544f7"], "query": "199"}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

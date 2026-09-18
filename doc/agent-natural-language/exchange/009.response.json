@@ -1,1 +1,0 @@
-[{"type": "tool_call_ready", "call_id": "inspect-natural", "name": "routes.evaluate", "arguments": {"operation": "inspect", "route_refs": ["artifact:0194892f-5e8b-49d2-9f42-69f0d783f0b1#route:bee7f2f78c670051"]}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

@@ -1,1 +1,0 @@
-[{"type": "tool_call_ready", "message_id": "54a6630b-2054-4e2c-8799-37ef2fc0c7da", "call_id": "list-test-wait", "name": "waiting.manage", "arguments": {"operation": "list"}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

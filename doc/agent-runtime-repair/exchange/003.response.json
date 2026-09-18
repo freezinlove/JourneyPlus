@@ -1,1 +1,0 @@
-[{"type": "tool_call_ready", "message_id": "87e2ba4c-9971-42f2-9987-f4e967830a48", "call_id": "activity-overview-1", "name": "activity.read", "arguments": {"selector": {"query": "Flying Blue"}, "view": "overview"}}, {"type": "turn_end", "finish_reason": "tool_calls"}]

@@ -1,1 +1,0 @@
-[{"type": "tool_call_ready", "message_id": "a15d1ee9-6765-407a-8b00-3b86b976b862", "call_id": "read-test-holding", "name": "holdings.read", "arguments": {"holding_refs": ["holding:a6e3c0f3-9a06-4972-b3d0-44d8b2698727"]}}, {"type": "turn_end", "finish_reason": "tool_calls"}]
