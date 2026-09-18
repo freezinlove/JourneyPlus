@@ -3,12 +3,17 @@ from __future__ import annotations
 import hashlib
 from html import unescape
 import json
+import logging
+from datetime import UTC, datetime
+from time import monotonic
+from urllib.parse import urlsplit, urlunsplit
 import re
 import unicodedata
 from dataclasses import dataclass
 from typing import Any
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
+import httpx
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -193,7 +198,10 @@ class ArticleInterpreter:
         """Interpret detached source data without touching the database."""
         interpretation: ArticleInterpretation | None = None
         last_error: Exception | None = None
+        invocation_id = str(uuid4())
         for _attempt in range(self._max_attempts):
+            started = monotonic()
+            stage = "model_call"
             try:
                 request_payload: dict[str, Any] = {
                     "title": item.title,
@@ -215,14 +223,21 @@ class ArticleInterpreter:
                     user_prompt=json.dumps(request_payload, ensure_ascii=False),
                     output_model=ArticleInterpretation,
                 )
+                stage = "fact_validation"
                 if any(not op.title or not op.title.strip() for op in candidate.opportunities):
                     raise ValueError("Each opportunity must include its final brief title")
                 candidate = _normalize_application_methods(document, candidate)
                 self._validate_grounding(document, candidate)
                 interpretation = candidate
+                if _attempt:
+                    _log_interpretation_attempt(document, item, invocation_id, _attempt + 1,
+                        self._max_attempts, started, "recovered", stage)
                 break
             except Exception as exc:
                 last_error = exc
+                _log_interpretation_attempt(document, item, invocation_id, _attempt + 1,
+                    self._max_attempts, started,
+                    "retrying" if _attempt + 1 < self._max_attempts else "exhausted", stage, exc)
         return interpretation, last_error
 
     def _materialize(
@@ -533,3 +548,48 @@ def legacy_interpretation_run(session, document_id, provider):
         AnalysisRun.model_config_version == provider.metadata.config_version,
         AnalysisRun.status == RunStatus.SUCCEEDED,
     ).order_by(AnalysisRun.created_at.desc()).limit(1))
+
+
+def _log_interpretation_attempt(document, item, invocation_id, attempt, limit, started,
+                                outcome, stage, error=None):
+    """One-line diagnostics on stderr; never log body, response or provider URL."""
+    url = urlsplit(str(document.canonical_url))
+    article_url = urlunsplit((url.scheme, url.hostname or "", url.path, "", ""))
+    event = {
+        "event": "article_interpretation_attempt",
+        "time": datetime.now(UTC).isoformat(),
+        "invocation_id": invocation_id,
+        "article_title": item.title[:300],
+        "article_url": article_url,
+        "attempt": attempt,
+        "max_attempts": limit,
+        "outcome": outcome,
+        "stage": stage,
+        "elapsed_ms": round((monotonic() - started) * 1000),
+    }
+    if error is not None:
+        event["error_type"] = type(error).__name__
+        if isinstance(error, ValidationError):
+            event["stage"] = "schema_validation"
+            event["reason"] = [
+                {"type": e["type"], "location": [str(part) for part in e["loc"]],
+                 "message": e["msg"][:500]}
+                for e in error.errors(include_input=False, include_url=False, include_context=False)[:20]
+            ]
+            event["error_count"] = error.error_count()
+        elif stage == "fact_validation":
+            event["reason"] = _safe_error(error)
+        elif isinstance(error, httpx.HTTPStatusError):
+            event["reason"] = "Model API returned an unsuccessful HTTP status"
+            event["http_status"] = error.response.status_code
+        elif isinstance(error, (httpx.TimeoutException, TimeoutError)):
+            event["reason"] = "Model call timed out"
+        elif isinstance(error, json.JSONDecodeError):
+            event["reason"] = "Model response is not valid JSON"
+            event["json_line"] = error.lineno
+            event["json_column"] = error.colno
+        else:
+            event["reason"] = "Model call failed; raw exception suppressed to avoid logging response or credentials"
+    # WARNING remains visible in CLI's default logging configuration; recovered is
+    # an explicit closure of a prior warning, not a fresh failure.
+    logging.getLogger(__name__).warning(json.dumps(event, ensure_ascii=False))
