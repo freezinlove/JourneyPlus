@@ -23,6 +23,11 @@ nano .env.deploy
 Agent 可使用与 Workflow 相同的 Key，也可以独立配置。不要把 Mac 上的绝对路径照搬到服务器。
 不要提交 `.env.deploy` 或 `.secrets`。
 
+部署默认使用 `journeyplus_cloud_session` 登录 Cookie，本地默认使用
+`journeyplus_session`。即使通过同一个 `127.0.0.1` 的不同端口访问，两者也不会混用。
+多个云端测试环境可分别配置 `JOURNEYPLUS_SESSION_COOKIE_NAME`。修改后需要重新创建应用容器，
+用户需要重新登录；流式连接的会话校验也使用该配置。不要把云端名称设成本地的名称。
+
 将现有 Gmail 授权副本安全传入 `.secrets/google-oauth-client.json` 和
 `.secrets/gmail-token.json`。目录可写是为了持久保存刷新后的 token；不写入应用镜像。
 不使用 Gmail 时目录仍需存在，授权文件可以等验证 Workflow 前再放入。
@@ -45,6 +50,14 @@ sudo docker compose --env-file .env.deploy -f compose.deploy.yaml up -d postgres
 此时先导入本地数据库的备份副本，再启动应用。导入命令需根据备份格式确认，
 不要对现有库盲目覆盖。Git 拉取不会迁移任何业务数据或账号。
 空数据库直接启动可以创建结构，但不会自动获得原有账号和新闻。
+
+首次迁入本地备份后、开放访问前，清除迁入的登录会话（会使云端所有已有登录失效，
+保留账号和业务数据；不是每次更新都执行）：
+
+```bash
+sudo docker compose --env-file .env.deploy -f compose.deploy.yaml exec -T postgres \
+  psql -U journeyplus -d journeyplus -v ON_ERROR_STOP=1 -c 'DELETE FROM login_sessions;'
+```
 
 ```bash
 sudo docker compose --env-file .env.deploy -f compose.deploy.yaml up -d app

@@ -127,12 +127,11 @@ def install_agent(app, runtime, store, *, initialize_model=True, recovery_interv
             sequence=after
             while True:
                 from journeyplus.accounts import LoginSession,token_hash
-                from .auth import COOKIE
                 from journeyplus.agent.adapters.artifacts import aware
                 from journeyplus.models import now_utc
                 def still_logged_in():
                     with store.factory() as session:
-                        login=session.get(LoginSession,token_hash(request.cookies.get(COOKIE,'')))
+                        login=session.get(LoginSession,token_hash(request.cookies.get(request.app.state.session_cookie_name,'')))
                         return login is not None and login.user_id==request.state.user_id and aware(login.expires_at)>now_utc()
                 if not await blocking_call(still_logged_in):return
                 items,status=await blocking_call(store.events,str(workspace_id),str(run_id),sequence)

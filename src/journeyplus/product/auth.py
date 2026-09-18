@@ -2,6 +2,8 @@
 from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
+import os
+import re
 import secrets
 from sqlalchemy import select,delete
 from fastapi import Request
@@ -21,6 +23,10 @@ class LoginInput(BaseModel):
 
 def install_auth(app,factory,*,landing='/workspace'):
     import journeyplus.user_isolation
+    cookie_name = os.getenv("JOURNEYPLUS_SESSION_COOKIE_NAME", COOKIE)
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", cookie_name):
+        raise ValueError("JOURNEYPLUS_SESSION_COOKIE_NAME must be a nonempty cookie name")
+    app.state.session_cookie_name = cookie_name
     @app.middleware('http')
     async def authenticate(request:Request,call_next):
         path=request.url.path
@@ -36,7 +42,7 @@ def install_auth(app,factory,*,landing='/workspace'):
             if path.startswith('/assets/'):
                 response.headers['Cache-Control']='no-cache'
             return response
-        token=request.cookies.get(COOKIE,'')
+        token=request.cookies.get(cookie_name,'')
         def identify():
             with factory() as s:
                 login=s.get(LoginSession,token_hash(token)) if token else None
@@ -87,11 +93,11 @@ def install_auth(app,factory,*,landing='/workspace'):
                 response=JSONResponse({'code':'INVALID_LOGIN','message':'账号或密码不正确，或请稍后重试。'},status_code=401)
             else:
                 user.failed_logins=0;user.locked_until=None
-                old=request.cookies.get(COOKIE)
+                old=request.cookies.get(cookie_name)
                 if old:s.execute(delete(LoginSession).where(LoginSession.token_hash==token_hash(old)))
                 s.add(LoginSession(token_hash=token_hash(token),user_id=user.id,expires_at=now_utc()+timedelta(days=30)))
                 response=JSONResponse({'username':user.username})
-                response.set_cookie(COOKIE,token,httponly=True,samesite='strict',secure=request.url.scheme=='https',max_age=30*86400,path='/')
+                response.set_cookie(cookie_name,token,httponly=True,samesite='strict',secure=request.url.scheme=='https',max_age=30*86400,path='/')
         response.headers['Cache-Control']='no-store'
         return response
 
@@ -104,6 +110,6 @@ def install_auth(app,factory,*,landing='/workspace'):
     @app.post('/auth/logout')
     def logout(request:Request):
         with factory.begin() as s:
-            s.execute(delete(LoginSession).where(LoginSession.token_hash==token_hash(request.cookies.get(COOKIE,''))))
-        response=JSONResponse({'ok':True});response.delete_cookie(COOKIE,path='/')
+            s.execute(delete(LoginSession).where(LoginSession.token_hash==token_hash(request.cookies.get(cookie_name,''))))
+        response=JSONResponse({'ok':True});response.delete_cookie(cookie_name,path='/')
         return response

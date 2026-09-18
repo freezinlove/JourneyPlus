@@ -37,6 +37,7 @@ services:
       JOURNEYPLUS_DATABASE_URL: postgresql+psycopg://journeyplus:${JOURNEYPLUS_POSTGRES_PASSWORD:?请设置部署数据库密码}@postgres:5432/journeyplus
       JOURNEYPLUS_GMAIL_CLIENT_SECRET_FILE: /app/.secrets/google-oauth-client.json
       JOURNEYPLUS_GMAIL_TOKEN_FILE: /app/.secrets/gmail-token.json
+      JOURNEYPLUS_SESSION_COOKIE_NAME: ${JOURNEYPLUS_SESSION_COOKIE_NAME:-journeyplus_cloud_session}
       JOURNEYPLUS_WEB_DIST: /app/clients/web/dist
     ports:
       - "${JOURNEYPLUS_BIND_HOST:-127.0.0.1}:${JOURNEYPLUS_HTTP_PORT:-8000}:8000"

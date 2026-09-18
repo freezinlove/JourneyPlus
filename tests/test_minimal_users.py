@@ -18,6 +18,48 @@ from tests.test_harness_runtime import FakeModel,answer
 
 PASSWORD='Testing-private-2026!'
 
+
+def test_cloud_cookie_rejects_migrated_local_cookie_and_supports_stream_logout(session_factory, users, monkeypatch):
+    from journeyplus.product.auth import COOKIE
+    cloud = 'journeyplus_cloud_session'
+    monkeypatch.setenv('JOURNEYPLUS_SESSION_COOKIE_NAME', cloud)
+    runtime, store = compose_business(session_factory, FakeModel([answer('cookie-stream-ok')]))
+    app = create_agent_app(runtime, store, initialize_model=False)
+    # 配置固定在应用初始化时，不随进程后续环境变化漂移。
+    monkeypatch.setenv('JOURNEYPLUS_SESSION_COOKIE_NAME', 'another_environment')
+    with TestClient(app) as client:
+        response = client.post('/auth/login', json={'username': 'alice', 'password': PASSWORD})
+        assert response.status_code == 200
+        token = client.cookies.get(cloud)
+        assert token and client.cookies.get(COOKIE) is None
+        client.cookies.clear()
+        # 数据库仍存在有效会话，但本地名称下的同一令牌不能登录云端。
+        client.cookies.set(COOKIE, token)
+        assert client.get('/auth/me').status_code == 401
+        assert client.get('/', follow_redirects=False).status_code == 303
+        client.cookies.set(cloud, token)
+        assert client.get('/auth/me').json()['id'] == str(users[0])
+        with acting_as(users[0]):
+            w = store.current()
+            run = store.start(w['id'], 'hello', 'cookie-test', w['revision'])
+            asyncio.run(runtime.run(run['run_id']))
+        response = client.get(f"/v3/agent/workspaces/{w['id']}/runs/{run['run_id']}/events")
+        assert response.status_code == 200 and 'cookie-stream-ok' in response.text
+        response = client.post('/auth/logout')
+        assert cloud + '=' in response.headers['set-cookie']
+        client.cookies.clear()
+        client.cookies.set(cloud, token)
+        assert client.get('/auth/me').status_code == 401
+
+
+def test_default_cookie_name_remains_compatible(session_factory, users, monkeypatch):
+    monkeypatch.delenv('JOURNEYPLUS_SESSION_COOKIE_NAME', raising=False)
+    runtime, store = compose_business(session_factory, FakeModel([]))
+    with TestClient(create_agent_app(runtime, store, initialize_model=False)) as client:
+        assert client.post('/auth/login', json={'username': 'alice', 'password': PASSWORD}).status_code == 200
+        assert client.cookies.get('journeyplus_session')
+        assert client.get('/auth/me').status_code == 200
+
 @pytest.fixture
 def users(session_factory):
     a=create_account(session_factory,'alice',PASSWORD,identity=OWNER_ID)
