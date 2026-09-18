@@ -42,7 +42,7 @@ from journeyplus.operations import (
     pending_document_count,
     process_pending_documents,
 )
-from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
+from journeyplus.sources.base import Fetcher, SourceAdapter
 from journeyplus.sources.collection import (
     automatically_scheduled_source_ids,
 )
@@ -276,6 +276,9 @@ def run_daily_cycle(
     backlog = 0
     needs_review = 0
 
+    from journeyplus.statusmatch.transport import StatusMatchBatchFetcher, bind_batch_adapter_factory
+    batch_fetcher = statusmatch_fetcher if statusmatch_fetcher is not None else StatusMatchBatchFetcher()
+    batch_adapter_factory = bind_batch_adapter_factory(adapter_factory, batch_fetcher)
     global_error: str | None = None
     try:
         with session_factory.begin() as session:
@@ -293,7 +296,7 @@ def run_daily_cycle(
         try:
             from journeyplus.statusmatch.monitoring import monitor_statusmatch_projects
             monitoring = monitor_statusmatch_projects(
-                session_factory, statusmatch_fetcher or HttpxFetcher(), checked_at=current
+                session_factory, batch_fetcher, checked_at=current
             )
         except Exception as exc:
             monitoring = StatusMatchMonitoringSummary(
@@ -305,7 +308,7 @@ def run_daily_cycle(
                 session_factory,
                 source_id=source_id,
                 day_bucket=day_bucket,
-                adapter_factory=adapter_factory,
+                adapter_factory=batch_adapter_factory,
                 max_items=resolved_limits.source_items_per_source,
                 now=current,
                 article_provider=budgeted,
@@ -327,7 +330,7 @@ def run_daily_cycle(
                 )
             from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
             article_preparation = prepare_article_projects_in_phases(
-                session_factory, statusmatch_fetcher or HttpxFetcher(),
+                session_factory, batch_fetcher,
                 hosts=list(article_discovery.project_hosts), checked_at=current
             )
         except Exception as exc:
@@ -576,7 +579,11 @@ def run_daily_cycle(
                     run.error = global_error
                     run.finished_at = _completion_time(current)
     finally:
-        release_automation_lease(session_factory, owner_id=owner, now=current)
+        try:
+            if statusmatch_fetcher is None:
+                batch_fetcher.close()
+        finally:
+            release_automation_lease(session_factory, owner_id=owner, now=current)
 
     generic_model_calls = processing_payload.get("generic_model_calls", {})
     return DailyCycleSummary(

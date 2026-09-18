@@ -21,7 +21,11 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 COPY alembic.ini ./
 COPY migrations/ ./migrations/
-RUN uv sync --frozen --no-dev && uv cache clean
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+RUN uv sync --frozen --no-dev && uv cache clean \
+    && playwright install --with-deps chromium \
+    && apt-get update && apt-get install -y --no-install-recommends xvfb \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=web-build /web/dist/ ./clients/web/dist/
 
 # 密码、授权文件和数据库由运行配置提供，不写入镜像。

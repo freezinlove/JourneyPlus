@@ -28,7 +28,7 @@ from journeyplus.models import (
     InitializationRun,
     SourceItem,
 )
-from journeyplus.sources.base import Fetcher, HttpxFetcher, SourceAdapter
+from journeyplus.sources.base import Fetcher, SourceAdapter
 from journeyplus.sources.collection import collect_in_phases
 from journeyplus.sources.feed import FeedAdapter
 from journeyplus.sources.history import HistoricalFeedWindowAdapter
@@ -204,6 +204,9 @@ def _run_initialization(
     backlog = 0
     error: str | None = None
     attempt = 0
+    from journeyplus.statusmatch.transport import StatusMatchBatchFetcher, bind_batch_adapter_factory
+    batch_fetcher = statusmatch_fetcher if statusmatch_fetcher is not None else StatusMatchBatchFetcher()
+    batch_adapter_factory = bind_batch_adapter_factory(adapter_factory, batch_fetcher)
     try:
         with session_factory.begin() as session:
             seed_sources(session)
@@ -242,7 +245,7 @@ def _run_initialization(
             source_results.append(
                 _collect_initialization_source(
                     session_factory,
-                    adapter_factory=adapter_factory,
+                    adapter_factory=batch_adapter_factory,
                     source_id=source_id,
                     batch_key=f"{batch_key}:run:{run_id}:attempt:{attempt}",
                     start=start,
@@ -273,7 +276,7 @@ def _run_initialization(
                 )
             from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
             article_preparation = prepare_article_projects_in_phases(
-                session_factory, statusmatch_fetcher or HttpxFetcher(),
+                session_factory, batch_fetcher,
                 hosts=list(article_discovery.project_hosts), checked_at=current
             )
             project_hosts = article_discovery.project_hosts
@@ -436,7 +439,11 @@ def _run_initialization(
                     run.error = error
                     run.finished_at = current
     finally:
-        release_automation_lease(session_factory, owner_id=owner, now=current)
+        try:
+            if statusmatch_fetcher is None:
+                batch_fetcher.close()
+        finally:
+            release_automation_lease(session_factory, owner_id=owner, now=current)
 
     return InitializationSummary(
         run_id=run_id,

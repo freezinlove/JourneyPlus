@@ -30,6 +30,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     init: true
+    shm_size: "256mb"
     env_file:
       - .env.deploy
     environment:

@@ -50,16 +50,8 @@ def fetch_statusmatch_page(
         raise ValueError("StatusMatch page did not return HTML")
     if len(response.body.encode("utf-8")) > 2_000_000:
         raise ValueError("StatusMatch page exceeded the 2 MB safety limit")
-    folded = response.body.casefold()
-    if any(
-        marker in folded
-        for marker in (
-            "cf-chl-",
-            "verify you are human",
-            "checking your browser",
-            "<title>just a moment",
-        )
-    ):
+    from journeyplus.statusmatch.transport import is_challenge
+    if is_challenge(response.body):
         raise ValueError("StatusMatch page returned a bot challenge")
     page_kind = str(item.raw_metadata.get("page_kind") or "")
     body = response.body

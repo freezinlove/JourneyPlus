@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import httpx
@@ -13,6 +13,8 @@ class FetchResponse:
     body: str
     content_type: str
     final_url: str
+    headers: dict[str, str] = field(default_factory=dict)
+    status_code: int = 200
 
 
 class Fetcher(Protocol):
@@ -35,6 +37,9 @@ class HttpxFetcher:
             headers={"User-Agent": "JourneyPlus/0.1 (+manual collection)"},
         )
 
+    def close(self) -> None:
+        self._client.close()
+
     def get(self, url: str) -> FetchResponse:
         response = self._client.get(url)
         response.raise_for_status()
@@ -42,5 +47,7 @@ class HttpxFetcher:
             body=response.text,
             content_type=response.headers.get("content-type", "text/html").split(";", 1)[0],
             final_url=str(response.url),
+            headers=dict(response.headers),
+            status_code=response.status_code,
         )
 

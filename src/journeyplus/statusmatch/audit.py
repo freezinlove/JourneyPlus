@@ -17,7 +17,7 @@ from journeyplus.models import (
     StatusMatchWatch,
     StatusMatchWatchPage,
 )
-from journeyplus.sources.base import Fetcher, HttpxFetcher
+from journeyplus.sources.base import Fetcher
 from journeyplus.statusmatch.project_workflow import (
     process_pending_statusmatch_projects,
 )
@@ -45,9 +45,15 @@ def audit_statusmatch_projects(
             ensure_statusmatch_watch(session, host)
     monitoring: dict[str, Any] | None = None
     if refresh:
-        monitoring = asdict(monitor_statusmatch_projects(
-            session_factory, fetcher or HttpxFetcher(), hosts=normalized_hosts
-        ))
+        from journeyplus.statusmatch.transport import StatusMatchBatchFetcher
+        batch = fetcher if fetcher is not None else StatusMatchBatchFetcher()
+        try:
+            monitoring = asdict(monitor_statusmatch_projects(
+                session_factory, batch, hosts=normalized_hosts
+            ))
+        finally:
+            if fetcher is None:
+                batch.close()
     processing = process_pending_statusmatch_projects(
         session_factory,
         provider,

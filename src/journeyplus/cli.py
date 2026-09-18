@@ -65,7 +65,6 @@ from journeyplus.statusmatch.composed_brief import composed_statusmatch_brief
 from journeyplus.statusmatch.project_workflow import (
     process_pending_statusmatch_projects,
 )
-from journeyplus.sources.base import HttpxFetcher
 
 
 SOURCE_IDS = [item.source_id for item in SOURCE_REGISTRY]
@@ -437,9 +436,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 session, source_ids=source_ids
             )
         from journeyplus.statusmatch.articles import prepare_article_projects_in_phases
-        preparation = prepare_article_projects_in_phases(
-            factory, HttpxFetcher(), hosts=list(discovery.project_hosts)
-        )
+        from journeyplus.statusmatch.transport import StatusMatchBatchFetcher
+        batch = StatusMatchBatchFetcher()
+        try:
+            preparation = prepare_article_projects_in_phases(
+                factory, batch, hosts=list(discovery.project_hosts)
+            )
+        finally:
+            batch.close()
         projects = process_pending_statusmatch_projects(
             factory,
             provider,

@@ -282,6 +282,9 @@ class GmailStatusServicesAdapter:
             },
         )
 
+    def set_project_fetcher(self, fetcher: Fetcher) -> None:
+        self._project_fetcher = fetcher
+
     def _fetch_statusmatch_page(self, item: DiscoveredItem) -> RawDocument:
         return fetch_statusmatch_page(item, self._project_fetcher)
 

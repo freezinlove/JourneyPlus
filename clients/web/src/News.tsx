@@ -356,6 +356,36 @@ export function PriceTable({ data: d }: { data: any }) {
     </div>
   );
 }
+export function ThirdPartySupplements({ activity }: { activity?: any }) {
+  const supplements = (activity?.facts?.article_supplements || []).flatMap(
+    (supplement: any) => {
+      const highlights = unique((supplement.highlights || []).map(
+        (point: unknown) => typeof point === "string" ? point :
+          point && typeof point === "object" && "text" in point && typeof point.text === "string" ? point.text : "",
+      )).map(text => text.trim()).filter(Boolean);
+      if (!highlights.length) return [];
+      const source = (activity.sources || []).find(
+        (item: any) => item.document_version_ref === supplement.source_document_ref,
+      );
+      return [{ highlights, url: source?.url ? safeUrl(source.url) : undefined }];
+    },
+  );
+  if (!supplements.length) return null;
+  return <section>
+    <h2>第三方补充</h2>
+    {supplements.map((supplement: { highlights: string[]; url: string | undefined }, index: number) => (
+      <div key={index}>
+        {supplement.highlights.map(text => <p key={text}>{text}</p>)}
+        {supplement.url && <div className={s.sourceLine}>
+          <a href={supplement.url} target="_blank" rel="noopener noreferrer">
+            来源：{sourceLabel(supplement.url)}
+          </a>
+          <span>↗</span>
+        </div>}
+      </div>
+    ))}
+  </section>;
+}
 export function Brief({
   data: d,
   relationship,
@@ -392,6 +422,7 @@ export function Brief({
         <h2>和我的关系</h2>
         {relationship || <RelationshipCards data={d.relationship} />}
       </section>
+      <ThirdPartySupplements activity={activity} />
       <section>
         <h2>申请入口</h2>
         {applicationLinks.length ? (
