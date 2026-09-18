@@ -33,6 +33,9 @@ jobs:
           uv sync --frozen --extra dev
           uv run --frozen pytest tests/test_minimal_users.py tests/test_ai_provider.py tests/test_deployment_scripts.py tests/test_daily_backup.py
           bash -n scripts/deploy/entry.sh scripts/deploy/release.sh scripts/automation/install.sh
+          # Compose 仍会检查服务 env_file 是否存在；CI 只使用无凭证的示例。
+          cp .env.deploy.example .env.deploy
+          trap 'rm -f .env.deploy' EXIT
           JOURNEYPLUS_POSTGRES_PASSWORD=ci-placeholder \
             docker compose --env-file .env.deploy.example -f compose.deploy.yaml config --no-env-resolution --quiet
       - id: image
