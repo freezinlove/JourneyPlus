@@ -21,7 +21,7 @@ from tests.test_harness_runtime import FakeModel
 
 @pytest.fixture
 def original_factory(tmp_path):
-    baseline = Path(__file__).parents[1] / 'doc/database-archives/20260912T042852Z-original-aiworkflow/legacy-source/src/journeyplus/models.py'
+    baseline = Path(__file__).parents[1] / 'tests/fixtures/legacy_workflow/models.py'
     spec = importlib.util.spec_from_file_location('workflow_baseline_models',baseline)
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module

@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from journeyplus.config import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
-ARCHIVE = ROOT / 'doc/database-archives/2026-09-12-before-relaxation/schema.sql'
+ARCHIVE = ROOT / 'tests/fixtures/legacy_workflow/schema.sql'
 
 
 def main():

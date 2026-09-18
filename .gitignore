@@ -1,9 +1,15 @@
 .DS_Store
 **/.DS_Store
 .env
+.env.*
+!.env.example
 .secrets/
 credentials.json
 token.json
+*.pem
+*.key
+*.jks
+*.keystore
 .venv/
 __pycache__/
 *.py[cod]
@@ -13,13 +19,32 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+*.db-*
+*.sqlite-*
+*.sqlite3-*
+*.dump
+*.log
+.ruff_cache/
+.mypy_cache/
+.coverage.*
+/coverage.xml
+/build/
+/dist/
+*.egg-info/
 
-# Local Agent audit output (requests, conversations, metrics).
-/.local/agent-audits/
-/.local/identity-unification-*/
-
-# Local multi-user credentials, migration snapshots and acceptance traces.
-/.local/multiuser/
+# Local state and historical runtime evidence; never upload with source.
+/.local/
+/doc/database-archives/
+/evaluation/runs/
+/doc/agent-live-modelport-audit/**
+!/doc/agent-live-modelport-audit/*.md
+!/doc/agent-live-modelport-audit/*.py
+/doc/agent-natural-language/**
+!/doc/agent-natural-language/*.md
+/doc/agent-runtime-repair/**
+!/doc/agent-runtime-repair/*.md
+!/doc/agent-runtime-repair/*.py
+/doc/agent-workflow-read-adaptation/*.json
 
 # Independent clients
 clients/web/node_modules/

@@ -6,9 +6,9 @@
 
 正常产品启动：`uv run journeyplus product-api`。使用当前 AIWorkflow 数据库，不需要选择 legacy/unified/rollback 模式；旧 `JOURNEYPLUS_KNOWLEDGE_READ_MODE` 环境变量已退出。
 
-- `/holdings` 管理会籍，`/matches` 查看匹配图，`/briefs` 查看简报。
+- `/` 是正式 React 对话页，`/news` 查看会籍新闻与简报，`/holdings` 管理会籍，`/login` 登录。
 - `/knowledge` 和 `/explore` 使用同一正式模型读取知识、查询路径。
-- `/workspace` 使用 Agent。模型按需选择工具和图卡，回复为自然语言。
+- 旧页面保留在 `/legacy/workspace`、`/legacy/holdings`、`/legacy/knowledge`、`/legacy/briefs`；新 Web 构建和回退方式见 [客户端说明](clients/README.md#正式-web-入口)。
 - 独立知识服务：`uv run python -m journeyplus.product.knowledge_server --port 8014`，无需启动模型。
 - `JOURNEYPLUS_KNOWLEDGE_USER_WRITES_PAUSED=true` 仅暂停会籍和等待任务的用户变更，不切换数据模型或关闭知识读取。
 
@@ -24,7 +24,37 @@ AIWorkflow 负责事实生产。官方 StatusMatch 的标题与摘要随首次�
 
 当前通用文章来源只开放 `loyaltylobby_feed`；`status_services_mail` 只进入 StatusMatch 专用项目链路。原有买分/买里程链路继续保留历史、手工采集和查询能力，但已退出默认产品入口和自动调度。产品总边界见 [个性化常旅客会籍匹配产品总方针](doc/personalized-status-match-product-direction.md)，Agent 的定位、工作方式和复杂度边界见 [会籍策略 Agent 产品方针](doc/personalized-status-match-agent-direction.md)，Agent 实现方式见 [会籍策略 Agent 技术基线](doc/personalized-status-match-agent-technical-baseline.md)，启动、接口、迁移和回滚见 [产品运维说明](doc/personalized-status-match-product-operations.md)。
 
-## 本地开发
+## 仓库与首次启动
+
+整个项目使用一个仓库，Web、Android 和服务端独立构建：
+
+| 目录 | 内容 |
+| --- | --- |
+| `src/journeyplus/` | FastAPI、AIWorkflow、Agent 和业务逻辑 |
+| `clients/web/` | React + TypeScript + Vite |
+| `clients/android/` | Kotlin + Jetpack Compose |
+| `migrations/` | 数据库结构迁移 |
+| `tests/`、`gold/` | 自动化测试、结构夹具与评测金标 |
+| `doc/`、`openspec/` | 设计、技术说明与变更规格 |
+
+本地需要 Python 3.12+、uv、Node.js/npm，以及用于 PostgreSQL 的 Docker Compose。Android 的额外环境见 [客户端说明](clients/README.md)。
+
+```bash
+cp .env.example .env
+# 先编辑 .env，设置数据库密码/连接地址及模型配置
+uv sync --extra dev
+npm --prefix clients/web ci
+npm --prefix clients/web run build
+uv run journeyplus product-api --host 127.0.0.1 --port 8000
+```
+
+访问 `http://127.0.0.1:8000/`，使用服务端已有账号登录。仓库不携带现有用户、会籍、新闻数据库或默认正式账号；复制代码不等于迁移数据。服务端会执行数据库迁移，本地数据库未启动时尝试启动项目的 Compose PostgreSQL。
+
+本地配置、数据库归档、对话追踪、评测运行输出和构建缓存不纳入 Git。上传前检查方式与历史资料说明见 [仓库整理说明](doc/repository-preparation.md)。
+
+## 开发与运维命令参考
+
+以下采集、处理、授权和初始化命令按需使用，不是首次启动时需要全部执行的步骤。
 
 ```bash
 uv sync --extra dev
@@ -49,7 +79,7 @@ uv run journeyplus product-api
 uv run journeyplus review-api
 ```
 
-打开 `http://127.0.0.1:8000/workspace` 即可使用会籍策略 Agent；“我的会籍”“匹配图”“机会简报”和“机会详情”仍可独立使用，接口文档位于 `http://127.0.0.1:8000/docs`。Agent 按需读取知识、比较路径、展示图卡、管理明确要求保存的会籍和等待任务，交互步骤由模型决定。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品当前是本地单用户形态，不包含账号体系。
+打开 `http://127.0.0.1:8000/` 即可使用会籍策略 Agent；“我的会籍”“匹配图”“机会简报”和“机会详情”仍可独立使用，接口文档位于 `http://127.0.0.1:8000/docs`。Agent 按需读取知识、比较路径、展示图卡、管理明确要求保存的会籍和等待任务，交互步骤由模型决定。`product-api` 启动时会先检查数据库、升级到 Alembic head，并在本地 PostgreSQL 未运行时自动启动项目的 Docker Compose `postgres` 服务。产品已包含账号登录和用户数据隔离。
 
 自动化单元测试可以使用 SQLite；本地真实联调与生产配置使用 PostgreSQL。当前启用每天一次自动调度的来源只有 LoyaltyLobby 通用文章和 StatusMatch 邮件专用来源。AwardWallet 买分来源仍为 `enabled=true`，但 `automatic_scheduling=false`；其他公开来源注册仍在，但 `enabled=false` 且 `automatic_scheduling=false`。
 
@@ -107,11 +137,11 @@ uv run journeyplus ai-smoke
 ### Gmail 只读授权
 
 1. 在 Google Cloud Console 创建或选择一个项目，并启用 Gmail API。
-2. 在 Google Auth Platform 配置 Branding。个人 Gmail 账户应把 Audience 设为 External；初次测试时把 `kirikoomiku@gmail.com` 加为 Test user。
+2. 在 Google Auth Platform 配置 Branding。个人 Gmail 账户应把 Audience 设为 External；初次测试时把 你用于采集的 Gmail 账号 加为 Test user。
 3. 在 Data Access 中只添加 `https://www.googleapis.com/auth/gmail.readonly`。
 4. 在 Clients 中创建 `Desktop app` 类型的 OAuth 2.0 Client，下载客户端 JSON。
 5. 将下载文件保存为 `.secrets/google-oauth-client.json`（下载后的原始文件名需要改成这个名称）。这个文件包含客户端密钥，不要发送给别人或提交 Git。
-6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 `kirikoomiku@gmail.com` 并同意只读授权。
+6. 执行 `uv run journeyplus gmail-authorize`。浏览器打开后选择 你用于采集的 Gmail 账号 并同意只读授权。
 7. 程序核对邮箱账号后，把可自动刷新的凭证保存为 `.secrets/gmail-token.json`，文件权限设置为仅当前用户读写。
 8. 授权完成后可手工执行 `uv run journeyplus collect status_services_mail`。首次成功会保存 Gmail History ID，后续只读取 History 中新增或后加标签的邮件；游标过期时自动做全量 message ID 对账。适配器会检查新邮件中的文字、按钮和图片链接，本地解开 StatusMatch 跟踪包装，只访问去重后的项目专属 HTTPS 活动首页、`/faq` 与 `/terms`；不会请求包含收件人参数的跟踪中转地址。三页共同组成当前项目快照，`/terms` 的平台公共条款会在哈希和入库前截断。
 
@@ -137,11 +167,11 @@ uv run python scripts/smoke_public_sources.py
 - 阿里云百炼真实调用需要北京地域 API Key；在配置密钥前仓库测试只使用结构化模拟响应。
 - 本地真实联调与生产目标均使用 PostgreSQL；自动化单元测试继续使用 SQLite 兼容路径，并另外通过 Docker PostgreSQL 验证真实迁移与运行行为。
 - 第一期65份冻结金标已完成 v4 最终确认；当前分类、文档内活动数量和事件分组全量结果均为100%，第一期仍刻意不评测活动时效。
-- 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有完整本地产品页面，但仍没有账号体系或远程部署配置。
+- 产品 UI 与内部复核 API 默认只监听 `127.0.0.1`；当前有账号体系和完整本地产品页面；服务器部署与自动发布链路尚待配置。
 - 会籍策略 Agent 使用 v3 工作区、持久运行、独立工具及确定性等待检查。模型未配置时会明确报告不可用，知识、简报和完整图可独立浏览。真实模型验收应记录所用模型、工具输入输出及实际完成的场景。
 
 ## 新版独立 Web 与 Android 客户端
 
 新版客户端位于 [`clients/`](clients/README.md)：React + TypeScript + Vite Web，以及 Kotlin + Jetpack Compose Android。它们通过 HTTP 连接现有 FastAPI，前后端独立构建；原静态页面暂留作逐步迁移与回退入口。启动、APK 构建、代理部署和隔离验收见该目录说明。
 
-当前代码已包含 `/auth/login`、`/auth/me`、`/auth/logout` 和用户数据隔离；上文“无账号体系”的旧描述不再适用于当前运行代码。新客户端使用已有账号，不新增注册服务。
+当前代码已包含 `/auth/login`、`/auth/me`、`/auth/logout` 和用户数据隔离。新客户端使用已有账号，不新增注册服务。
