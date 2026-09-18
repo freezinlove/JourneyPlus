@@ -98,6 +98,11 @@ except urllib.error.HTTPError as exc:
 else:
     raise SystemExit("Unauthenticated API was not rejected")
 '
+# 更新服务器任务脚本，但不隐式启用定时任务。与每日任务共用 release.lock。
+automation_installer="$(dirname "$manifest")/scripts/automation/install.sh"
+if [[ -f "$automation_installer" ]]; then
+  bash "$automation_installer" "$root"
+fi
 # 后续手动管理需要同一版本的配置与镜像；不修改 .env.deploy 中的凭证。
 cp "$manifest" "$state/current-compose.yaml.tmp"
 mv "$state/current-compose.yaml.tmp" "$state/current-compose.yaml"

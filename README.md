@@ -178,3 +178,7 @@ uv run python scripts/smoke_public_sources.py
 新版客户端位于 [`clients/`](clients/README.md)：React + TypeScript + Vite Web，以及 Kotlin + Jetpack Compose Android。它们通过 HTTP 连接现有 FastAPI，前后端独立构建；原静态页面暂留作逐步迁移与回退入口。启动、APK 构建、代理部署和隔离验收见该目录说明。
 
 当前代码已包含 `/auth/login`、`/auth/me`、`/auth/logout` 和用户数据隔离。新客户端使用已有账号，不新增注册服务。
+
+## 云端每日任务与备份
+
+服务器每天北京时间 13:00 运行 AIWorkflow，并将数据库、日志与结果上传 COS，保留 1 份最新和 7 份历史。安装、验收和启停命令见 [每日任务与 COS 备份](doc/daily-workflow-cos.md)。安装脚本不会自动启用定时器。

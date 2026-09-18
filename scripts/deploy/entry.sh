@@ -23,6 +23,10 @@ flock -w 900 9 || exit 75
 git -C "$ROOT" fetch --quiet origin main </dev/null
 git -C "$ROOT" merge-base --is-ancestor "$revision" origin/main || exit 65
 release=$(mktemp -d "$ROOT/.local/deploy/releases/${revision}.XXXXXX")
-git -C "$ROOT" archive "$revision" compose.deploy.yaml scripts/deploy/release.sh |
+paths=(compose.deploy.yaml scripts/deploy/release.sh)
+if git -C "$ROOT" cat-file -e "$revision:scripts/automation/install.sh" 2>/dev/null; then
+  paths+=(scripts/automation)
+fi
+git -C "$ROOT" archive "$revision" "${paths[@]}" |
   tar -x -C "$release"
 sudo -n bash "$release/scripts/deploy/release.sh" "$revision" "$image" "$ROOT" "$release/compose.deploy.yaml"
