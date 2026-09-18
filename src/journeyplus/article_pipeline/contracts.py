@@ -123,6 +123,8 @@ class ExtractedStatusMapping(StrictModel):
 
 
 class ArticleOpportunityExtraction(StrictModel):
+    # Optional only for reading persisted extractions from before merged copy.
+    title: str | None = Field(default=None, min_length=1, max_length=120)
     opportunity_index: int = Field(ge=0, le=19)
     opportunity_kind: OpportunityKind = OpportunityKind.OTHER
     program: str = Field(min_length=1, max_length=300)

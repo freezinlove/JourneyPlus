@@ -43,8 +43,8 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v11"
-ARTICLE_INTERPRETATION_SCHEMA_VERSION = "9"
+ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v12-merged-copy"
+ARTICLE_INTERPRETATION_SCHEMA_VERSION = "10"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输入这一篇文章，不搜索、不引用、不比较其他文章，也不判断文章间关系。
 
@@ -75,7 +75,9 @@ application_routes 只保存文章描述为当前可用的申请方法；previou
 写 availability=UNAVAILABLE 且 amount=null。基础申请费与可选升级费没有明确总价时不得相加猜测。
 共同适用于所有路线的全局价格可以复制到各路线。
 
-region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，无需复制原句。只输出 JSON。""" + "\n\n" + COST_EXTRACTION_RULES
+region 只记录申请人地域资格，不得把项目覆盖范围、酒店分布或商店所在地推断成申请地域。若正文只说项目在某区域运营而没限制申请人，region 保持 null。对“August 24–28, 2026”这类明确申请范围，application_start.value 分别写“August 24, 2026”，deadline.value 写“August 28, 2026”，无需复制原句。
+
+每个机会必须同时输出中文 title 和 summary，直接用于最终简报。title 简洁说明真实机会类型，不把所有活动称为会籍匹配。summary 根据正文概述核心内容，材料充分时用三至五句话、约150至250字；不得凑字、虚构或逐行复述表格。不要输出数据库 ID、字段引用或另写简报。只输出 JSON。""" + "\n\n" + COST_EXTRACTION_RULES
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +114,8 @@ class ArticleInterpreter:
         existing = self._session.scalar(
             select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
         )
+        if existing is None:
+            existing = legacy_interpretation_run(self._session, document.id, self._provider)
         persisted = (
             self._session.scalar(
                 select(ArticleAnalysisRecord).where(
@@ -211,6 +215,8 @@ class ArticleInterpreter:
                     user_prompt=json.dumps(request_payload, ensure_ascii=False),
                     output_model=ArticleInterpretation,
                 )
+                if any(not op.title or not op.title.strip() for op in candidate.opportunities):
+                    raise ValueError("Each opportunity must include its final brief title")
                 candidate = _normalize_application_methods(document, candidate)
                 self._validate_grounding(document, candidate)
                 interpretation = candidate
@@ -513,3 +519,17 @@ def _correction_action(exc: Exception) -> str:
             "不要复制整段或整表。"
         )
     return "修正字段结构和内部关系；缺失事实保持 null，不需要逐字段引文。申请链接使用正文中的实际链接。"
+
+
+def legacy_interpretation_run(session, document_id, provider):
+    """Reuse pre-merge results for the same document/config, never new model output."""
+    return session.scalar(select(AnalysisRun).outerjoin(
+        ArticleAnalysisRecord, ArticleAnalysisRecord.analysis_run_id == AnalysisRun.id,
+    ).where(
+        (ArticleAnalysisRecord.id.is_(None)) | (ArticleAnalysisRecord.status == "SUCCEEDED"),
+        AnalysisRun.document_version_id == document_id,
+        AnalysisRun.stage == AnalysisStage.ARTICLE_INTERPRETATION,
+        AnalysisRun.prompt_version == "generic-article-interpretation-v11",
+        AnalysisRun.model_config_version == provider.metadata.config_version,
+        AnalysisRun.status == RunStatus.SUCCEEDED,
+    ).order_by(AnalysisRun.created_at.desc()).limit(1))

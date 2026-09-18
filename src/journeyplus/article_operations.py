@@ -13,7 +13,6 @@ from journeyplus.ai.provider import AIProvider
 from journeyplus.article_pipeline.briefs import (
     ARTICLE_BRIEF_PROMPT_VERSION,
     ARTICLE_BRIEF_SCHEMA_VERSION,
-    ArticleBriefGenerator,
 )
 from journeyplus.article_pipeline.contracts import TitleScreenDecision
 from journeyplus.article_pipeline.interpretation import (
@@ -33,7 +32,9 @@ from journeyplus.article_pipeline.visibility import (
 from journeyplus.contracts import DocumentLabel, RunStatus
 from journeyplus.jobs.runner import JobRunner
 from journeyplus.models import (
+    AnalysisRun,
     ArticleAnalysisRecord,
+    ArticleBriefRecord,
     ArticleOpportunityRecord,
     DocumentVersion,
     JobRun,
@@ -177,10 +178,35 @@ def pending_article_documents(
         for document_id in candidates
         if _document_analysis_needs_review(session, document_id)
     }
+    # Completed legacy publications must not become backlog on a copy/schema upgrade.
+    published = set()
+    if normalized_ids is None and candidates:
+        rows = session.execute(
+            select(ArticleAnalysisRecord, ArticleOpportunityRecord, ArticleBriefRecord)
+            .join(AnalysisRun, AnalysisRun.id == ArticleAnalysisRecord.analysis_run_id)
+            .outerjoin(ArticleOpportunityRecord,
+                       ArticleOpportunityRecord.analysis_id == ArticleAnalysisRecord.id)
+            .outerjoin(ArticleBriefRecord,
+                       ArticleBriefRecord.id == ArticleOpportunityRecord.current_brief_id)
+            .where(
+                ArticleAnalysisRecord.document_version_id.in_(candidates),
+                ArticleAnalysisRecord.status == "SUCCEEDED",
+                AnalysisRun.prompt_version == "generic-article-interpretation-v11",
+                AnalysisRun.model_config_version == provider.metadata.config_version,
+            )
+        )
+        legacy = {}
+        for analysis, opportunity, brief in rows:
+            entry = legacy.setdefault(analysis.id, (analysis, []))
+            entry[1].append(bool(opportunity and brief and
+                                 brief.input_version == opportunity.fact_signature))
+        for analysis, ready in legacy.values():
+            if analysis.label == DocumentLabel.NONE or all(ready):
+                published.add(analysis.document_version_id)
     pending = [
         item
         for item in candidates
-        if (
+        if (item not in published or item in needs_interpretation_retry) and (
             article_workflow_idempotency_key(
                 item,
                 provider,

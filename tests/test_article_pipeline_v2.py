@@ -123,6 +123,7 @@ class V2Provider:
                             "opportunity_kind": "STATUS_MATCH",
                             "program": "Example Air",
                             "target_status_name": "Gold",
+                            "title": "Example Air 开放 Gold 会籍匹配",
                             "summary": "Example Air 开放 Gold 会籍匹配",
                             "what_happened": {
                                 "value": "Example Air offers a direct status match to Gold.",
@@ -187,8 +188,8 @@ def test_v2_batches_titles_omits_bodies_and_reuses_every_stage(session_factory) 
         first.title_model_calls,
         first.interpretation_model_calls,
         first.brief_model_calls,
-    ) == (1, 1, 1)
-    assert first.model_calls == 3
+    ) == (1, 1, 0)
+    assert first.model_calls == 2
     assert second.selected == second.model_calls == 0
     title_call = provider.calls[0]
     assert title_call["model"] == "TitleScreenBatch"
@@ -236,6 +237,7 @@ def test_other_opportunity_still_generates_and_stores_a_brief(session_factory) -
                                 "opportunity_kind": "OTHER",
                                 "program": "Example Air",
                                 "target_status_name": "Gold",
+                                "title": "信用卡赠送 Gold 会籍",
                                 "summary": "信用卡赠送 Gold 会籍",
                                     "what_happened": {
                                         "value": body,
@@ -294,6 +296,7 @@ def test_article_interpretation_persists_evidenced_route_price(session_factory) 
                                 "opportunity_kind": "STATUS_MATCH",
                                 "program": "Example Air",
                                 "target_status_name": "Gold",
+                                "title": "Example Air Gold 会籍匹配",
                                 "summary": "Example Air Gold 会籍匹配",
                                     "what_happened": {
                                         "value": "Example Air offers a Gold status match.",
@@ -472,6 +475,7 @@ def test_failed_interpretation_is_retryable_and_limits_internal_quotes(
                             {
                                 "opportunity_index": 0,
                                 "program": "Example Air",
+                                "title": "Example Air 会籍匹配",
                                 "summary": "Example Air 会籍匹配",
                                 "what_happened": {
                                     "value": "Example Air 会籍匹配",
@@ -557,7 +561,7 @@ def test_exact_statusmatch_link_is_excluded_before_title_screen(session_factory)
     assert provider.calls == []
 
 
-def test_brief_failure_keeps_analysis_and_retries_only_the_brief(session_factory) -> None:
+def test_brief_failure_keeps_analysis_and_retries_only_the_brief(session_factory, monkeypatch) -> None:
     body = (
         "Example Air offers a direct status match to Gold. "
         "Apply at https://example-air.test/apply"
@@ -565,23 +569,16 @@ def test_brief_failure_keeps_analysis_and_retries_only_the_brief(session_factory
     with session_factory.begin() as session:
         _collect(session, [("brief-retry", "Example Air status match", body)])
 
-    class BriefRetryProvider(V2Provider):
-        fail_brief = True
-
-        def generate_structured(self, *, system_prompt, user_prompt, output_model):
-            if output_model.__name__ == "Brief" and self.fail_brief:
-                self.calls.append({"model": "Brief", "request": {}})
-                raise ValueError("simulated ungrounded brief")
-            return super().generate_structured(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                output_model=output_model,
-            )
-
-    provider = BriefRetryProvider()
+    from journeyplus.article_pipeline.briefs import ArticleBriefGenerator
+    original = ArticleBriefGenerator.generate
+    def fail_save(self, opportunity):
+        original(self, opportunity)
+        raise ValueError("simulated database publication failure")
+    monkeypatch.setattr(ArticleBriefGenerator, "generate", fail_save)
+    provider = V2Provider()
     failed = process_pending_articles(session_factory, provider)
 
-    assert failed.failed == 1 and failed.brief_model_calls == 2
+    assert failed.failed == 1 and failed.brief_model_calls == 0
     assert failed.body_processed == failed.status_opportunities == 1
     assert failed.opportunities == 1 and failed.briefs == 0
     with session_factory() as session:
@@ -589,12 +586,12 @@ def test_brief_failure_keeps_analysis_and_retries_only_the_brief(session_factory
         assert session.scalar(select(func.count()).select_from(ArticleOpportunityRecord)) == 1
         assert session.scalar(select(func.count()).select_from(ArticleBriefRecord)) == 0
 
-    provider.fail_brief = False
+    monkeypatch.setattr(ArticleBriefGenerator, "generate", original)
     recovered = process_pending_articles(session_factory, provider)
 
     assert recovered.succeeded == recovered.briefs == 1
     assert recovered.title_model_calls == recovered.interpretation_model_calls == 0
-    assert recovered.brief_model_calls == 1
+    assert recovered.brief_model_calls == 0
     with session_factory() as session:
         opportunity = session.scalar(select(ArticleOpportunityRecord))
         assert opportunity is not None and opportunity.status == "DRAFT"
@@ -715,6 +712,7 @@ def test_multi_opportunity_article_uses_one_body_call_and_one_brief_per_opportun
                             "opportunity_index": 0,
                             "program": "Alpha Air",
                             "target_status_name": "Gold",
+                            "title": "Alpha Air Gold 会籍匹配",
                             "summary": "Alpha Air Gold 会籍匹配",
                             "what_happened": {
                                 "value": alpha_quote,
@@ -733,6 +731,7 @@ def test_multi_opportunity_article_uses_one_body_call_and_one_brief_per_opportun
                             "opportunity_index": 1,
                             "program": "Beta Hotel",
                             "target_status_name": "Platinum",
+                            "title": "Beta Hotel Platinum 会籍匹配",
                             "summary": "Beta Hotel Platinum 会籍匹配",
                             "what_happened": {
                                 "value": beta_quote,
@@ -756,8 +755,9 @@ def test_multi_opportunity_article_uses_one_body_call_and_one_brief_per_opportun
     second = process_pending_articles(session_factory, provider)
 
     assert (first.title_model_calls, first.interpretation_model_calls) == (1, 1)
-    assert first.brief_model_calls == first.briefs == first.opportunities == 2
-    assert first.model_calls == 4
+    assert first.brief_model_calls == 0
+    assert first.briefs == first.opportunities == 2
+    assert first.model_calls == 2
     assert second.selected == second.model_calls == 0
     with session_factory() as session:
         opportunities = list(

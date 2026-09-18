@@ -6,7 +6,7 @@ from pydantic import Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from journeyplus.contracts import Brief, FactSet, StrictModel
+from journeyplus.contracts import Brief, StatusMatchBrief, read_brief, FactSet, StrictModel
 from journeyplus.models import (
     ArticleAnalysisRecord,
     ArticleBriefRecord,
@@ -22,7 +22,7 @@ class ArticleOpportunityView(StrictModel):
     summary: str
     lifecycle_status: str
     facts: FactSet
-    brief: Brief | None = None
+    brief: Brief | StatusMatchBrief | None = None
 
 
 class ArticleAnalysisView(StrictModel):
@@ -73,7 +73,7 @@ def latest_successful_article_view(
                 lifecycle_status=opportunity.lifecycle_status,
                 facts=FactSet.model_validate(opportunity.facts),
                 brief=(
-                    Brief.model_validate(brief_record.content)
+                    read_brief(brief_record.content)
                     if brief_record is not None
                     else None
                 ),

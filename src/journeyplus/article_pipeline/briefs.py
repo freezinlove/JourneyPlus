@@ -1,176 +1,91 @@
-from __future__ import annotations
-
-import json
+"""Assemble article briefs from persisted extraction copy, without model calls."""
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
-from journeyplus.ai.provider import AIProvider
-from journeyplus.briefs.service import (
-    SYSTEM_PROMPT,
-    BriefGenerator,
-    _allowed_source_links,
-    _correction_action,
-    _fact_key_availability,
-    _normalize_brief_output,
-    _safe_error_message,
+from journeyplus.article_pipeline.contracts import ArticleInterpretation
+from journeyplus.contracts import (
+    AnalysisStage, ArticleShortBrief, Brief, RunStatus, StatusMatchBrief, read_brief,
 )
-from journeyplus.contracts import AnalysisStage, Brief, FactSet, RunStatus
+from journeyplus.knowledge.source_documents import source_links
 from journeyplus.models import (
-    AnalysisRun,
-    ArticleAnalysisRecord,
-    ArticleBriefRecord,
-    ArticleOpportunityRecord,
+    AnalysisRun, ArticleAnalysisRecord, ArticleBriefRecord, SourceItem,
 )
 
+ARTICLE_BRIEF_PROMPT_VERSION = "article-brief-assembly-v1"
+ARTICLE_BRIEF_SCHEMA_VERSION = "article-short-brief-1"
 
-ARTICLE_BRIEF_PROMPT_VERSION = "generic-article-brief-v3"
-ARTICLE_BRIEF_SCHEMA_VERSION = "1"
 
-
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ArticleBriefGeneration:
     run: AnalysisRun
     record: ArticleBriefRecord
-    brief: Brief
+    brief: Brief | StatusMatchBrief
     reused: bool
 
 
 class ArticleBriefGenerator:
-    """Second and final normal-path AI call, fed only persisted article facts."""
+    """Publish extracted copy. This assembler has no AI provider dependency."""
 
-    def __init__(
-        self,
-        session: Session,
-        provider: AIProvider,
-        *,
-        prompt_version: str = ARTICLE_BRIEF_PROMPT_VERSION,
-        max_attempts: int = 2,
-    ) -> None:
+    def __init__(self, session):
         self._session = session
-        self._provider = provider
-        self._prompt_version = prompt_version
-        self._max_attempts = max_attempts
 
-    def generate(self, opportunity: ArticleOpportunityRecord, *, rendered=None) -> ArticleBriefGeneration:
-        fact_set = FactSet.model_validate(opportunity.facts)
-        key = (
-            f"{AnalysisStage.ARTICLE_BRIEF}:{opportunity.id}:"
-            f"{opportunity.fact_signature}:{self._provider.metadata.config_version}:"
-            f"{self._prompt_version}"
+    def generate(self, opportunity):
+        session = self._session
+        current = (
+            session.get(ArticleBriefRecord, opportunity.current_brief_id)
+            if opportunity.current_brief_id else None
         )
-        existing = self._session.scalar(
-            select(AnalysisRun).where(AnalysisRun.idempotency_key == key)
-        )
-        if existing is not None and existing.result:
-            record = self._session.scalar(
-                select(ArticleBriefRecord)
-                .where(ArticleBriefRecord.analysis_run_id == existing.id)
-                .order_by(ArticleBriefRecord.version.desc())
+        # Published historical copy is never regenerated implicitly.
+        if current and current.input_version == opportunity.fact_signature:
+            return ArticleBriefGeneration(
+                session.get(AnalysisRun, current.analysis_run_id),
+                current, read_brief(current.content), True,
             )
-            if record is not None:
-                return ArticleBriefGeneration(
-                    existing, record, Brief.model_validate(record.content), True
-                )
-
-        analysis = self._session.get(ArticleAnalysisRecord, opportunity.analysis_id)
-        if analysis is None:
-            raise LookupError("Article analysis was not found")
-        run = existing or AnalysisRun(
-            idempotency_key=key,
-            document_version_id=analysis.document_version_id,
-            stage=AnalysisStage.ARTICLE_BRIEF,
-            status=RunStatus.RUNNING,
-            input_version=opportunity.fact_signature,
-            provider=self._provider.metadata.provider,
-            model=self._provider.metadata.model,
-            model_config_version=self._provider.metadata.config_version,
-            prompt_version=self._prompt_version,
-            schema_version=ARTICLE_BRIEF_SCHEMA_VERSION,
+        analysis = session.get(ArticleAnalysisRecord, opportunity.analysis_id)
+        extraction_run = session.get(AnalysisRun, analysis.analysis_run_id)
+        if extraction_run.status != RunStatus.SUCCEEDED:
+            raise ValueError("Cannot publish a brief from a failed extraction")
+        extraction = ArticleInterpretation.model_validate(extraction_run.result)
+        copy = next(
+            op for op in extraction.opportunities
+            if op.opportunity_index == opportunity.opportunity_index
         )
-        if existing is None:
-            self._session.add(run)
-        self._session.flush()
-
-        from journeyplus.knowledge.source_documents import source_links
-        document_links = source_links(self._session, opportunity)
-        try:
-            brief = rendered if rendered is not None else self.render(opportunity, document_links=document_links)
-            BriefGenerator._validate(brief, opportunity, fact_set, document_links=document_links)
-        except Exception as exc:
-            run.status = RunStatus.FAILED
-            run.error = str(exc)[:4000]
-            self._session.flush()
-            raise
-
+        # Only pre-merge persisted results may omit title. Do not hide corrupt new data.
+        if not copy.title and extraction_run.prompt_version != "generic-article-interpretation-v11":
+            raise ValueError("The extracted brief title is missing")
+        item = session.get(SourceItem, analysis.source_item_id)
+        brief = ArticleShortBrief(
+            fact_set_id=opportunity.id,
+            title=copy.title or item.title[:120],
+            summary=copy.summary,
+            source_links=source_links(session, opportunity),
+        )
+        key = f"ARTICLE_BRIEF:{opportunity.id}:{opportunity.fact_signature}:{ARTICLE_BRIEF_PROMPT_VERSION}"
+        run = session.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key == key))
+        if run is None:
+            run = AnalysisRun(
+                idempotency_key=key, document_version_id=analysis.document_version_id,
+                stage=AnalysisStage.ARTICLE_BRIEF, input_version=opportunity.fact_signature,
+                provider="program", model="none", model_config_version=ARTICLE_BRIEF_PROMPT_VERSION,
+                prompt_version=ARTICLE_BRIEF_PROMPT_VERSION, schema_version=ARTICLE_BRIEF_SCHEMA_VERSION,
+            )
+            session.add(run)
         run.status = RunStatus.SUCCEEDED
         run.result = brief.model_dump(mode="json")
         run.error = None
-        version = (
-            self._session.scalar(
-                select(func.max(ArticleBriefRecord.version)).where(
-                    ArticleBriefRecord.opportunity_id == opportunity.id
-                )
+        session.flush()
+        version = (session.scalar(
+            select(func.max(ArticleBriefRecord.version)).where(
+                ArticleBriefRecord.opportunity_id == opportunity.id
             )
-            or 0
-        ) + 1
+        ) or 0) + 1
         record = ArticleBriefRecord(
-            opportunity_id=opportunity.id,
-            analysis_run_id=run.id,
-            input_version=opportunity.fact_signature,
-            version=version,
-            schema_version=brief.schema_version,
-            content=brief.model_dump(mode="json"),
+            opportunity_id=opportunity.id, analysis_run_id=run.id,
+            input_version=opportunity.fact_signature, version=version,
+            schema_version=brief.schema_version, content=brief.model_dump(mode="json"),
         )
-        self._session.add(record)
-        self._session.flush()
+        session.add(record)
+        session.flush()
         opportunity.current_brief_id = record.id
-        self._session.flush()
         return ArticleBriefGeneration(run, record, brief, False)
-
-    def render(self, opportunity, *, document_links=()):
-        """Render a detached opportunity; no database session is required."""
-        fact_set = FactSet.model_validate(opportunity.facts)
-        known_fact_keys, unknown_fact_keys = _fact_key_availability(fact_set)
-        allowed_source_links = sorted(set(document_links) | set(_allowed_source_links(fact_set)))
-        last_error: Exception | None = None
-        brief: Brief | None = None
-        for _attempt in range(self._max_attempts):
-            request_payload = {
-                "fact_set_id": str(opportunity.id),
-                "fact_set": opportunity.facts,
-                "known_fact_keys": known_fact_keys,
-                "unknown_fact_keys": unknown_fact_keys,
-                "allowed_source_links": allowed_source_links,
-                "editorial_rules": [
-                    "只能使用持久化事实，不能读取或引用原始正文",
-                    "只能引用 known_fact_keys",
-                    "unknown_fact_keys 必须从文案和 fact_keys 中省略",
-                ],
-            }
-            if last_error is not None:
-                request_payload["correction"] = {
-                    "previous_attempt_rejected_for": _safe_error_message(last_error),
-                    "required_action": _correction_action(last_error),
-                }
-            try:
-                candidate = self._provider.generate_structured(
-                    system_prompt=SYSTEM_PROMPT,
-                    user_prompt=json.dumps(request_payload, ensure_ascii=False),
-                    output_model=Brief,
-                )
-                candidate = _normalize_brief_output(candidate, fact_set)
-                BriefGenerator._validate(candidate, opportunity, fact_set, document_links=document_links)
-                brief = candidate
-                break
-            except Exception as exc:
-                last_error = exc
-        if brief is None:
-            error = (
-                f"Brief generation failed after {self._max_attempts} attempts: "
-                f"{_safe_error_message(last_error or ValueError('unknown error'))}"
-            )[:4000]
-            raise ValueError(error) from last_error
-
-        return brief

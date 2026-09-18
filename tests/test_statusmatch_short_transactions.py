@@ -112,6 +112,6 @@ def test_article_models_run_outside_database_transactions(factory):
             idempotency_key='article-model-tx', article_provider=provider)
         result=process_pending_articles(factory,provider,document_ids=collected.document_version_ids)
         assert result.failed==0
-        assert {call['model'] for call in provider.calls}=={'TitleScreenBatch','ArticleInterpretation','Brief'}
+        assert {call['model'] for call in provider.calls}=={'TitleScreenBatch','ArticleInterpretation'}
     finally:
         event.remove(engine,'checkout',checkout);event.remove(engine,'checkin',checkin)

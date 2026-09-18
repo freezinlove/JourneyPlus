@@ -1,13 +1,12 @@
 """Article model phases operate on detached, versioned input snapshots."""
 from types import SimpleNamespace
 from sqlalchemy import select
-from journeyplus.models import (AnalysisRun,ArticleAnalysisRecord,ArticleOpportunityRecord,ArticleBriefRecord,
+from journeyplus.models import (AnalysisRun,ArticleAnalysisRecord,ArticleOpportunityRecord,
                                 DocumentVersion,SourceItem)
 from journeyplus.contracts import AnalysisStage,RunStatus
 from journeyplus.article_pipeline.screening import BatchTitleScreener
-from journeyplus.article_pipeline.interpretation import ArticleInterpreter,ARTICLE_INTERPRETATION_PROMPT_VERSION
-from journeyplus.article_pipeline.briefs import ArticleBriefGenerator,ARTICLE_BRIEF_PROMPT_VERSION
-from journeyplus.contracts import Brief
+from journeyplus.article_pipeline.interpretation import ArticleInterpreter,ARTICLE_INTERPRETATION_PROMPT_VERSION,legacy_interpretation_run
+from journeyplus.article_pipeline.briefs import ArticleBriefGenerator
 from journeyplus.article_pipeline.contracts import ArticleInterpretation
 
 
@@ -39,6 +38,7 @@ def interpret_in_phases(factory,provider,document_id):
         doc=s.get(DocumentVersion,document_id);item=s.get(SourceItem,doc.source_item_id)
         key=f'{AnalysisStage.ARTICLE_INTERPRETATION}:{doc.id}:{provider.metadata.config_version}:{ARTICLE_INTERPRETATION_PROMPT_VERSION}'
         run=s.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key==key))
+        if run is None:run=legacy_interpretation_run(s,document_id,provider)
         analysis=s.scalar(select(ArticleAnalysisRecord).where(ArticleAnalysisRecord.analysis_run_id==run.id)) if run else None
         cached=bool(run and run.result and run.status!=RunStatus.FAILED and (analysis is None or analysis.status!='NEEDS_REVIEW'))
         baseline=(item.title,item.published_at)
@@ -54,25 +54,10 @@ def interpret_in_phases(factory,provider,document_id):
 
 
 def article_brief_in_phases(factory,provider,opportunity_id):
-    with factory() as s:
-        op=s.get(ArticleOpportunityRecord,opportunity_id)
-        from journeyplus.knowledge.source_documents import source_links
-        document_links=source_links(s,op)
-        baseline=op.fact_signature
-        key=f'{AnalysisStage.ARTICLE_BRIEF}:{op.id}:{baseline}:{provider.metadata.config_version}:{ARTICLE_BRIEF_PROMPT_VERSION}'
-        run=s.scalar(select(AnalysisRun).where(AnalysisRun.idempotency_key==key))
-        cached=Brief.model_validate(run.result) if run and run.result else None
-        s.expunge_all()
-    try:
-        rendered=cached or ArticleBriefGenerator(None,provider).render(op,document_links=document_links)
-        with factory.begin() as s:
-            op=s.scalar(select(ArticleOpportunityRecord).where(ArticleOpportunityRecord.id==opportunity_id).with_for_update())
-            if op.fact_signature!=baseline:raise ValueError('Article facts changed during brief generation')
-            result=ArticleBriefGenerator(s,provider).generate(op,rendered=rendered)
-            op.status='DRAFT';s.flush();s.expunge_all()
-            return result
-    except Exception:
-        with factory.begin() as s:
-            op=s.get(ArticleOpportunityRecord,opportunity_id)
-            if op and op.fact_signature==baseline:op.status='NEEDS_REVIEW'
-        raise
+    # Assembly and pointer publication are one transaction; no network call.
+    with factory.begin() as s:
+        op=s.scalar(select(ArticleOpportunityRecord).where(
+            ArticleOpportunityRecord.id==opportunity_id).with_for_update())
+        result=ArticleBriefGenerator(s).generate(op)
+        op.status='DRAFT';s.flush();s.expunge_all()
+        return result

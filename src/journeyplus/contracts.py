@@ -330,8 +330,15 @@ class StatusMatchBrief(StrictModel):
     source_links: list[HttpUrl] = Field(default_factory=list, max_length=30)
 
 
+class ArticleShortBrief(StatusMatchBrief):
+    """Article copy emitted with extraction; all other fields are assembled."""
+
+    schema_version: str = "article-short-brief-1"
+
+
 def read_brief(content: dict) -> Brief | StatusMatchBrief:
-    # Two active producers: ordinary/editorial briefs and official short briefs.
+    if content.get("schema_version") == "article-short-brief-1":
+        return ArticleShortBrief.model_validate(content)
     if content.get("schema_version") == "statusmatch-brief-1":
         return StatusMatchBrief.model_validate(content)
     return Brief.model_validate(content)

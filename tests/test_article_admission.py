@@ -71,7 +71,7 @@ def test_only_final_positive_enters_database_and_model_work_is_reused(session_fa
         assert 'PRIVATE' not in json.dumps([r.result for r in s.scalars(select(AnalysisRun))])
     produced = process_pending_articles(session_factory, provider)
     assert produced.succeeded == 1 and produced.briefs == 1
-    assert (produced.title_model_calls, produced.interpretation_model_calls, produced.brief_model_calls) == (0, 0, 1)
+    assert (produced.title_model_calls, produced.interpretation_model_calls, produced.brief_model_calls) == (0, 0, 0)
     call_count = len(provider.calls)
     repeated = collect(session_factory, feed, provider, 'next')
     assert repeated.considered == 0 and len(provider.calls) == call_count
@@ -171,9 +171,9 @@ def test_daily_cycle_includes_admission_calls_and_finishes_brief(session_factory
     result = run_daily_cycle(session_factory, provider, lambda sid: feed,
                              source_ids=['loyaltylobby_feed'])
     assert result.status == 'SUCCEEDED'
-    assert result.model_calls == 4
+    assert result.model_calls == 3
     assert (result.generic_title_model_calls, result.generic_interpretation_model_calls,
-            result.generic_brief_model_calls) == (1, 2, 1)
+            result.generic_brief_model_calls) == (1, 2, 0)
     assert result.sources[0].title_dropped == result.sources[0].body_dropped == 1
     assert result.backlog_count == 0
     with session_factory() as s:
