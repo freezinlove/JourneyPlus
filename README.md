@@ -28,6 +28,9 @@ AIWorkflow 负责事实生产。官方 StatusMatch 的标题与摘要随首次�
 
 整个项目使用一个仓库，Web、Android 和服务端独立构建：
 
+服务器部署见 [手动部署](doc/server-deployment.md)；在 GitHub 点击按钮发布见
+[GitHub 手动发布](doc/manual-github-release.md)。推送 main 不会自动更新服务器。
+
 | 目录 | 内容 |
 | --- | --- |
 | `src/journeyplus/` | FastAPI、AIWorkflow、Agent 和业务逻辑 |

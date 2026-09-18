@@ -24,7 +24,7 @@ services:
         max-file: "3"
 
   app:
-    image: journeyplus-app:local
+    image: ${JOURNEYPLUS_APP_IMAGE:-journeyplus-app:local}
     build:
       context: .
       dockerfile: Dockerfile

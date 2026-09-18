@@ -1,5 +1,8 @@
 # 服务器部署（手动操作）
 
+GitHub 手动点按钮发布的后续方案见 [GitHub 手动发布](manual-github-release.md)。
+切换到该方案后，使用其管理脚本查看和操作当前版本，避免旧 local 镜像覆盖新版本。
+
 本文件配合 `Dockerfile`、`compose.deploy.yaml` 和 `.env.deploy.example` 使用。
 部署配置独立于本地 `compose.yaml`，不合并两个文件。Compose 项目名固定为
 `journeyplus-deploy`，避免与本地开发数据库混用。
