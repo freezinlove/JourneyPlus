@@ -1,0 +1,21 @@
+# 独立 HTTPS 入口；应用仍只监听本机 8000，不影响 GitHub 发布和定时任务。
+name: journeyplus-https
+services:
+  gateway:
+    image: caddy:2-alpine@sha256:de23def33b17fb5d1290b0f6c2add1d70780e52341896c00a4c8a2a2fe9d355e
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      JOURNEYPLUS_PUBLIC_ADDRESS: ${JOURNEYPLUS_PUBLIC_ADDRESS:?请设置公网 IP 或域名}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  caddy_data:
+  caddy_config:

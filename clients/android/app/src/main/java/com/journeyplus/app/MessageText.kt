@@ -19,7 +19,12 @@ fun MessageText(text: String, openActivity: (String, String) -> Unit) {
     val uri = LocalUriHandler.current
     val color = MaterialTheme.colorScheme.primary
     Column {
-        text.lines().forEach { line ->
+        text.trim().lines().forEach { line ->
+            if(line.isBlank()) { Spacer(Modifier.height(8.dp)); return@forEach }
+            if(Regex("^[-*_]{3,}$").matches(line.trim())) {
+                androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical=8.dp),color=MaterialTheme.colorScheme.outlineVariant)
+                return@forEach
+            }
             val heading = line.takeWhile { it == '#' }.length
             val body =
                 if (heading in 1..6) line.drop(heading).trimStart()

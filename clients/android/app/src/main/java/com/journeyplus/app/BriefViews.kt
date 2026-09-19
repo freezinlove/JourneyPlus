@@ -29,7 +29,7 @@ fun BriefScreen(m: JourneyModel) {
                 Text(d.obj("brief").str("title",d.str("program")),fontSize=28.sp,lineHeight=42.sp,letterSpacing=(-.7).sp,fontWeight=FontWeight.Medium,fontFamily=FontFamily.Serif,
                     modifier=Modifier.padding(top=16.dp,bottom=15.dp))
                 Text(d.obj("brief").str("summary",d.str("summary")),fontSize=14.sp,lineHeight=25.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.padding(top=28.dp,bottom=24.dp),horizontalArrangement=Arrangement.spacedBy(24.dp)) {
+                Column(Modifier.fillMaxWidth().padding(top=28.dp,bottom=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                     Column { Text("付费情况",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant); Text(d.obj("fee").str("label","费用待确认"),fontSize=12.sp,modifier=Modifier.padding(top=7.dp)) }
                     Column { Text("简报更新于（北京时间）",fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant); Text(beijingDate(d.str("brief_updated_at")),fontSize=12.sp,modifier=Modifier.padding(top=7.dp)) }
                 }
@@ -61,7 +61,7 @@ fun BriefScreen(m: JourneyModel) {
     }
 }
 fun beijingDate(value:String):String = runCatching {
-    java.time.Instant.parse(value).atZone(java.time.ZoneId.of("Asia/Shanghai")).format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d HH:mm"))
+    java.time.Instant.parse(value).atZone(java.time.ZoneId.of("Asia/Shanghai")).format(java.time.format.DateTimeFormatter.ofPattern("yyyy/M/d"))
 }.getOrDefault(if(value.isBlank()) "尚未生成" else value.take(10))
 
 @Composable

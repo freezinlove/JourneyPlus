@@ -172,6 +172,24 @@ class WorkflowActivityReader:
             tokens = canonical(text).split()
             rows = [r for r in rows if all(t in canonical(' '.join(filter(None,
                 [r.program,r.summary,r.target_status,getattr(r,'search_text','')]))) for t in tokens)]
+        # Sort the combined sources before pagination, using the same timestamp
+        # that the cards display. Load only metadata; do not assemble every brief.
+        brief_dates = {}
+        for model in (BriefRecord, ArticleBriefRecord):
+            ids = [r.current_brief_id for r in rows if r.current_brief_id]
+            if ids:
+                brief_dates.update(self.session.execute(
+                    select(model.id, model.updated_at).where(model.id.in_(ids))).all())
+        fact_ids = [r.current_fact_set_id for r in rows if isinstance(r, StatusEvent)]
+        fact_dates = dict(self.session.execute(select(FactSetRecord.id, FactSetRecord.created_at)
+            .where(FactSetRecord.id.in_(fact_ids))).all()) if fact_ids else {}
+        def sort_key(row):
+            fallback = fact_dates.get(row.current_fact_set_id, row.created_at) if isinstance(row, StatusEvent) else row.created_at
+            stamp = brief_dates.get(row.current_brief_id, fallback)
+            if stamp.tzinfo is None:
+                stamp = stamp.replace(tzinfo=UTC)
+            return stamp, str(row.id)
+        rows.sort(key=sort_key, reverse=True)
         return rows[offset:offset+limit+1]
 
     def detail(self, identity, version=None):

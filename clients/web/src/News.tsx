@@ -4,15 +4,10 @@ import { api, readable, safeUrl } from "./api";
 import type { Activity } from "./contracts";
 import { Notice } from "./UI";
 import s from "./App.module.css";
-const dateText = (value: string, full = false) => {
+const dateText = (value: string) => {
   const date = new Date(value);
   return value && !Number.isNaN(+date)
-    ? full
-      ? date.toLocaleString("zh-CN", {
-          timeZone: "Asia/Shanghai",
-          hour12: false,
-        })
-      : date.toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai" })
+    ? date.toLocaleDateString("zh-CN", { timeZone: "Asia/Shanghai" })
     : "更新时间未提供";
 };
 const lifecycle = (value: string) =>
@@ -415,7 +410,7 @@ export function Brief({
         </div>
         <div>
           <span>简报更新于（北京时间）</span>
-          {d.brief_updated_at ? dateText(d.brief_updated_at, true) : "尚未生成"}
+          {d.brief_updated_at ? dateText(d.brief_updated_at) : "尚未生成"}
         </div>
       </div>
       <section>

@@ -254,14 +254,31 @@ class JourneyModel @JvmOverloads constructor(application: Application, bootstrap
         }
     }
 
+    /** Tool-call text is progress, not a second final answer. Keep its artifacts. */
+    fun visibleMessages(): List<JSONObject> {
+        val lastUser = messages.indexOfLast {it.str("role")=="user"}
+        val lastText = messages.indexOfLast {m -> m.str("role")=="assistant" && m.items("content").any {it.str("type")=="text" && it.str("text").isNotBlank()} }
+        return messages.mapIndexed {index, m ->
+            val process=m.optBoolean("progress_only") || m.items("content").any {it.str("type")=="tool_call"}
+            if(process && !(busy && index>lastUser && index==lastText))
+                JSONObject(m.toString()).put("content",JSONArray())
+            else m
+        }
+    }
+
     fun send(text: String = draft, refs: List<String> = emptyList()) {
         if (busy || initializing || text.isBlank() || workspace == null) return
+        val optimisticId="pending:"+UUID.randomUUID().toString()
+        draft=""
+        messages=messages+json("id" to optimisticId,"role" to "user",
+            "content" to JSONArray().put(json("type" to "text","text" to text)))
+        busy=true
         task {
-            busy = true
             progress = "正在思考…"
             liveMessages = emptySet()
             displayedLengths.clear()
             error = ""
+            var accepted=false
             try {
                 val w = workspace!!
                 if (pending == null) {
@@ -278,14 +295,19 @@ class JourneyModel @JvmOverloads constructor(application: Application, bootstrap
                         )
                 pending = body
                 val r = api.call("/v3/agent/workspaces/${w.str("id")}/runs", body) as JSONObject
+                accepted=true
                 pending = null
-                draft = ""
                 hydrate()
                 val active = workspace!!.items("runs").find { it.str("run_id") == r.str("run_id") }
                 if (ended(active?.str("status") ?: r.str("status"))) busy = false
                 else listen(r.str("run_id"), active?.optInt("last_seq") ?: 0)
             } catch (e: Exception) {
                 busy = false
+                progress=""
+                if(!accepted) {
+                    messages=messages.filterNot {it.str("id")==optimisticId}
+                    if(draft.isEmpty()) draft=text
+                }
                 if (e is ApiException && e.status == 409) {
                     pending = null
                     hydrate()
@@ -333,7 +355,11 @@ class JourneyModel @JvmOverloads constructor(application: Application, bootstrap
                                             if (old == null) messages + m
                                             else messages.map { if (it.str("id") == mid) m else it }
                                     }
-                                    "tool.started" -> progress = p.str("label")
+                                    "tool.started" -> {
+                                        progress = p.str("label")
+                                        val latest=messages.lastOrNull {it.str("role")=="assistant" && it.items("content").any {it.str("type")=="text"}}
+                                        if(latest!=null && messages.indexOf(latest)>messages.indexOfLast {it.str("role")=="user"}) messages=messages.map {if(it===latest) JSONObject(it.toString()).put("progress_only",true) else it}
+                                    }
                                     "resource.notice" -> progress = p.str("message")
                                     "presentation.created" -> {
                                         val ref = p.str("presentation_ref")

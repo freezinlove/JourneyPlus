@@ -118,7 +118,7 @@ export default function App() {
           </button>
         ) : (
           <>
-            <div className={s.segment}>
+            <div className={s.segment} data-page={page}>
               <button
                 className={s.icon}
                 aria-label="对话"

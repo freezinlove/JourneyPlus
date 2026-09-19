@@ -6,7 +6,17 @@ plugins {
 android {
     namespace = "com.journeyplus.app"
     compileSdk = 35
-    defaultConfig { applicationId = "com.journeyplus.app"; minSdk = 26; targetSdk = 35; versionCode = 1; versionName = "1.0.0"; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
+    defaultConfig {
+        applicationId = "com.journeyplus.app"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 3
+        versionName = "1.0.2"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val serverUrl = providers.gradleProperty("serverBaseUrl").getOrElse("http://10.0.2.2:8000")
+        require(serverUrl.matches(Regex("https?://[A-Za-z0-9.:-]+"))) { "serverBaseUrl 必须是 HTTP(S) 服务根地址" }
+        buildConfigField("String", "DEFAULT_SERVER_URL", "\"$serverUrl\"")
+    }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }

@@ -128,6 +128,7 @@ fun PresentationView(p: JSONObject, m: JourneyModel, reference: String) {
         }
     }
     Column {
+        if(p.str("answer").isNotBlank()) MessageText(p.str("answer"), m::readActivity)
         p.items("blocks").forEach { b ->
             if (b.str("title").isNotBlank()) Section(b.str("title"), b.str("reason"))
             val objects = b.obj("payload").items("objects")

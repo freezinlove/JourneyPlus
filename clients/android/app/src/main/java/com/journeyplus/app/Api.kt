@@ -89,10 +89,18 @@ class SessionVault(context: Context) {
 class Api(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     private val vault = SessionVault(context)
-    var base: String = prefs.getString("server", "http://10.0.2.2:8000")!!
+    private val savedServer = prefs.getString("server", null)
+    private val migratingEmulator = savedServer == "http://10.0.2.2:8000" &&
+        BuildConfig.DEFAULT_SERVER_URL != savedServer
+    var base: String = if (migratingEmulator) BuildConfig.DEFAULT_SERVER_URL
+        else savedServer ?: BuildConfig.DEFAULT_SERVER_URL
         private set
 
-    private var cookie = vault.read()
+    private var cookie = if (migratingEmulator) {
+        vault.clear()
+        prefs.edit().putString("server", base).apply()
+        ""
+    } else vault.read()
     private val client =
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
@@ -159,10 +167,9 @@ class Api(context: Context) {
                                 .getOrDefault("请求未完成（${r.code}）"),
                     )
                 }
-                r.headers("Set-Cookie")
-                    .firstOrNull { it.startsWith("journeyplus_session=") }
+                sessionCookie(r.headers("Set-Cookie"), r.request.url)
                     ?.let {
-                        cookie = it.substringBefore(';')
+                        cookie = it
                         vault.write(cookie)
                     }
                 if (raw.startsWith("[")) JSONArray(raw)

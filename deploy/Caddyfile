@@ -1,0 +1,16 @@
+{
+    admin off
+    default_sni {$JOURNEYPLUS_PUBLIC_ADDRESS}
+}
+
+https://{$JOURNEYPLUS_PUBLIC_ADDRESS} {
+    tls {
+        issuer acme {
+            dir https://acme-v02.api.letsencrypt.org/directory
+            profile shortlived
+        }
+    }
+    reverse_proxy 127.0.0.1:8000 {
+        flush_interval -1
+    }
+}

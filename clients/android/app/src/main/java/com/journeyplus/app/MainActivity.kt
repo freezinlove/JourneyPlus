@@ -107,6 +107,14 @@ fun JourneyTheme(dark: Boolean, content: @Composable () -> Unit) {
 
 @Composable
 fun JourneyApp(m: JourneyModel) {
+    var confirmNew by remember { mutableStateOf(false) }
+    if (confirmNew) AlertDialog(
+        onDismissRequest={confirmNew=false},
+        title={Text("开始新对话？")},
+        text={Text(if(m.busy) "将离开当前对话，开启一段新的对话。" else "将开启一段新的对话。")},
+        confirmButton={TextButton(onClick={confirmNew=false;m.fresh()}) {Text("新对话")}},
+        dismissButton={TextButton(onClick={confirmNew=false}) {Text("取消")}},
+    )
     Box(Modifier.fillMaxSize()) {
         AmbientBackground(m.dark)
         if (m.identity == null) {
@@ -160,12 +168,21 @@ fun JourneyApp(m: JourneyModel) {
                     selected=secondary, modifier=Modifier.align(Alignment.CenterStart)) {
                     if(secondary) m.back() else m.go("holdings")
                 }
-                if(!secondary) Row(Modifier.align(Alignment.Center).clip(RoundedCornerShape(28.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant).padding(3.dp), horizontalArrangement=Arrangement.spacedBy(4.dp)) {
-                    NavigationButton("chat", "对话", m.page=="chat", Modifier.size(width=48.dp,height=38.dp)) { m.page="chat" }
-                    NavigationButton("news", "会籍新闻", m.page=="news", Modifier.size(width=48.dp,height=38.dp)) { m.go("news") }
+                if(!secondary) {
+                    val thumb by androidx.compose.animation.core.animateDpAsState(
+                        if(m.page=="news") 52.dp else 0.dp,
+                        androidx.compose.animation.core.spring(dampingRatio=.8f, stiffness=450f), label="tab slide")
+                    Box(Modifier.align(Alignment.Center).clip(RoundedCornerShape(28.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant).padding(3.dp)) {
+                        Box(Modifier.offset(x=thumb).size(48.dp,38.dp).clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.surface))
+                        Row(horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                            NavigationButton("chat", "对话", m.page=="chat", Modifier.size(48.dp,38.dp)) {m.page="chat"}
+                            NavigationButton("news", "会籍新闻", m.page=="news", Modifier.size(48.dp,38.dp)) {m.go("news")}
+                        }
+                    }
                 }
-                if(m.page=="chat") NavigationButton("new","新对话",modifier=Modifier.align(Alignment.CenterEnd)) { m.fresh() }
+                if(m.page=="chat") NavigationButton("new","新对话",modifier=Modifier.align(Alignment.CenterEnd)) { confirmNew=true }
             }
         }
     }
@@ -269,7 +286,7 @@ fun NewsScreen(m: JourneyModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 10.dp),
                 )
-
+                Text(beijingDate(a.str("updated_at")),fontSize=11.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -484,7 +501,7 @@ fun HoldingEditor(m: JourneyModel, existing: JSONObject?, close: () -> Unit) {
 fun ChatScreen(m: JourneyModel) {
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val shownLengths = m.displayedLengths
-    fun pendingTexts()=m.messages.filter {it.str("id") in m.liveMessages}.map {msg ->
+    fun pendingTexts()=m.visibleMessages().filter {it.str("id") in m.liveMessages}.map {msg ->
         msg.str("id") to msg.items("content").filter {it.str("type")=="text"}.joinToString("\n") {it.str("text")}
     }.filter {(id,text)->text.length>(shownLengths[id] ?: 0)}
     LaunchedEffect(Unit) {
@@ -499,7 +516,7 @@ fun ChatScreen(m: JourneyModel) {
             }
         }
     }
-    val revealing = m.messages.any {msg -> msg.str("id") in m.liveMessages &&
+    val revealing = m.visibleMessages().any {msg -> msg.str("id") in m.liveMessages &&
         msg.items("content").filter {it.str("type")=="text"}.joinToString("\n") {it.str("text")}.length > (shownLengths[msg.str("id")] ?: 0) }
     val empty = m.messages.none { it.str("role") != "tool" } && !m.busy
     var composerHeight by remember { mutableIntStateOf(54) }
@@ -513,22 +530,22 @@ fun ChatScreen(m: JourneyModel) {
         if(!empty) LazyColumn(state=list, modifier=Modifier.fillMaxSize(),
             contentPadding=PaddingValues(start=20.dp,end=20.dp,top=84.dp,bottom=(composerHeight+32).dp)) {
             item { if(!m.workspace?.str("next_cursor").isNullOrBlank()) TextButton(onClick=m::earlier) { Text("加载更早消息") } }
-            items(m.messages,key={it.str("id")}) { msg ->
+            items(m.visibleMessages(),key={it.str("id")}) { msg ->
                 val text = msg.items("content").filter { it.str("type")=="text" }.joinToString("\n") {it.str("text")}
                 val refs = msg.obj("attachments").optJSONArray("presentation_refs").strings()
                 val user = msg.str("role")=="user"
-                val visible = text.isNotBlank() || (refs.isNotEmpty() && !m.busy && !revealing)
+                val visible = text.isNotBlank() || msg.obj("attachments").items("operations").isNotEmpty() || (refs.isNotEmpty() && !m.busy && !revealing)
                 if(visible) Column(Modifier.fillMaxWidth().padding(bottom=28.dp), horizontalAlignment=if(user) Alignment.End else Alignment.Start) {
                     if(user) Text(text,fontSize=14.sp,lineHeight=24.sp,
                         modifier=Modifier.widthIn(max=330.dp).clip(RoundedCornerShape(22.dp,22.dp,6.dp,22.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal=17.dp,vertical=13.dp))
                     else {
-                        if(text.isNotBlank()) {
+                        if(text.isNotBlank() || (refs.isNotEmpty() && !m.busy && !revealing)) {
                             Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(9.dp)) {
                                 JourneyIcon("brand",Modifier.size(17.dp),MaterialTheme.colorScheme.primary)
                                 Text("JourneyPlus",fontSize=12.sp,fontWeight=FontWeight.SemiBold)
                             }
-                            MessageText(if(msg.str("id") in m.liveMessages) text.take(shownLengths[msg.str("id")] ?: 0) else text,m::readActivity)
+                            if(text.isNotBlank()) MessageText(if(msg.str("id") in m.liveMessages) text.take(shownLengths[msg.str("id")] ?: 0) else text,m::readActivity)
                         }
                         if(!m.busy && !revealing) refs.forEach { ref -> m.artifacts[ref]?.let { PresentationView(it,m,ref) } }
                     }
@@ -560,7 +577,7 @@ fun ChatScreen(m: JourneyModel) {
                         cursorBrush=androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.onSurface),
                         keyboardOptions=KeyboardOptions(imeAction=ImeAction.Send),keyboardActions=KeyboardActions(onSend={m.send()}),
                         decorationBox={inner -> Box(contentAlignment=Alignment.CenterStart) {
-                            if(m.draft.isEmpty()) Text("说说你持有的会籍，或想了解的匹配机会…",maxLines=1,
+                            if(m.draft.isEmpty()) Text("想了解什么会籍机会？",maxLines=1,
                                 fontSize=16.sp,color=MaterialTheme.colorScheme.onSurfaceVariant)
                             inner()
                         }})

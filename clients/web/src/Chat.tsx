@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { visibleMessages, markProgress } from "./chatMessages";
 import { StreamText } from "./StreamText";
 import { ArrowUp, Square } from "lucide-react";
 import { api, ApiError } from "./api";
@@ -101,6 +102,7 @@ export function Chat({
           ]);
         }
         if (event.type === "tool.started") {
+          setMessages(markProgress);
           activeTools.current.set(p.call_id, p.label);
           setProgress(p.label);
         }
@@ -264,6 +266,12 @@ export function Chat({
           expected_revision: w.revision,
         };
     pending.current = body;
+    const optimisticId = "pending:" + body.client_message_id;
+    setDraft("");
+    setMessages(old => [...old.filter(m => m.id !== optimisticId), {
+      id: optimisticId, role: "user", content: [{type: "text", text}],
+    }]);
+    let accepted = false;
     try {
       if (!retrying) {
         const latest = await api<Workspace>(`/v3/agent/workspaces/${w.id}`);
@@ -274,8 +282,8 @@ export function Chat({
         body,
       );
       if (token !== generation.current) return;
+      accepted = true;
       pending.current = undefined;
-      setDraft("");
       bottom.current = true;
       const snapshot = await hydrate(w.id);
       if (token !== generation.current) return;
@@ -287,6 +295,10 @@ export function Chat({
       setBusy(false);
       setProgress("");
       setError(e);
+      if (!accepted) {
+        setMessages(old => old.filter(m => m.id !== optimisticId));
+        setDraft(value => value || text);
+      }
       if (e instanceof ApiError && e.status === 409) {
         pending.current = undefined;
         await hydrate(w.id);
@@ -327,7 +339,7 @@ export function Chat({
               加载更早消息
             </button>
           )}
-          {messages
+          {visibleMessages(messages, busy)
             .filter((m) => m.role !== "tool" && (
               m.content.some((p) => p.type === "text" && p.text?.trim()) ||
               m.attachments?.presentation_refs?.length ||
@@ -348,7 +360,7 @@ export function Chat({
                 {m.content
                   .filter((p) => p.type === "text")
                   .map((p, i) => (
-                    <StreamText key={i} text={p.text || ""} live={busy && m.role === "assistant" && m === messages[messages.length - 1]} />
+                    <StreamText key={i} text={p.text || ""} live={busy && m.role === "assistant" && m.id === messages[messages.length - 1]?.id} />
                   ))}
                 {m.attachments?.operations?.map((o, i) => (
                   <p key={i}>{o.summary}</p>
@@ -399,7 +411,7 @@ export function Chat({
           aria-label="消息"
           value={draft}
           maxLength={16000}
-          placeholder="说说你持有的会籍，或想了解的匹配机会…"
+          placeholder="想了解什么会籍机会？"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (

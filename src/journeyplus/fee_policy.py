@@ -35,9 +35,16 @@ def route_fees(facts, route=None, *, target_tier=None, program_aliases=()):
                   if OPTIONAL.search(p.raw_text) else p for p in parsed]
     selected = [(i,p) for i,p in enumerate(prices) if target_tier is None or not p.target_tier
                 or program_tier_key(p.target_tier, program_aliases) == program_tier_key(target_tier, program_aliases)]
-    conditional = any(p.availability == 'CONDITIONAL' and p.amount is not None and p.amount > 0 for _,p in selected)
+    # CONDITIONAL can describe eligibility, not an optional charge. A stated
+    # application fee remains known when the applicant must meet conditions.
+    application_fee = bool(re.search(r"申请费|匹配费|application fee|match(?:ing)? fee", text, re.I))
+    def eligibility_price(p):
+        return (p.availability == 'CONDITIONAL' and application_fee
+                and not OPTIONAL.search(" ".join((p.raw_text, text))))
+    conditional = any(p.availability == 'CONDITIONAL' and p.amount is not None and p.amount > 0
+                      and not eligibility_price(p) for _,p in selected)
     conflict = bool(facts.cost.conflict or route and route.conflict)
-    base = [p for _,p in selected if p.availability not in {'CONDITIONAL','UNAVAILABLE'}]
+    base = [p for _,p in selected if p.availability not in {'CONDITIONAL','UNAVAILABLE'} or eligibility_price(p)]
     free_basis = None
     if conflict:
         states = ['UNKNOWN']

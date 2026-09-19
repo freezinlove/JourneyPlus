@@ -1,5 +1,9 @@
 package com.journeyplus.app
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Canvas
@@ -49,9 +53,13 @@ fun JourneyIcon(name: String, modifier: Modifier = Modifier.size(22.dp), color: 
 @Composable
 fun NavigationButton(name: String, label: String, selected: Boolean = false, modifier: Modifier = Modifier, action: () -> Unit) {
     val palette = MaterialTheme.colorScheme
-    Box(modifier.size(44.dp).clip(CircleShape).background(if(selected) palette.surface else Color.Transparent)
-        .clickable(onClick=action).semantics { contentDescription=label }, contentAlignment=androidx.compose.ui.Alignment.Center) {
-        JourneyIcon(name,color=if(selected) palette.primary else palette.onSurfaceVariant)
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) .82f else 1f,
+        spring(dampingRatio=.48f, stiffness=500f), label="icon bounce")
+    Box(modifier.size(44.dp)
+        .clickable(interactionSource=interaction, indication=null, onClick=action).semantics { contentDescription=label }, contentAlignment=androidx.compose.ui.Alignment.Center) {
+        JourneyIcon(name,modifier=Modifier.size(22.dp).graphicsLayer {scaleX=scale;scaleY=scale},color=if(selected) palette.primary else palette.onSurfaceVariant)
     }
 }
 

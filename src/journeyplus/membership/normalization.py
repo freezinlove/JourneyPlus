@@ -85,7 +85,15 @@ def common_target_prefix(values: Iterable[str]) -> str | None:
 
 
 def target_program_aliases(program: str, tiers: Iterable[str]) -> set[str]:
+    tiers = tuple(tiers)
     aliases = {display_text(program)}
+    # Some official table headings repeat the programme suffix.
+    # Accept only full prefixes actually present in this programme's mappings; retain the original evidence labels.
+    words = display_text(program).split()
+    for size in range(1, len(words) + 1):
+        duplicated = " ".join(words + words[-size:])
+        if any(normalize_key(tier).startswith(normalize_key(duplicated) + " ") for tier in tiers):
+            aliases.add(duplicated)
     common = common_target_prefix(tiers)
     if common:
         aliases.add(common)

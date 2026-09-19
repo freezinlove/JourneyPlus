@@ -83,3 +83,29 @@ def test_prefixed_price_excluded_from_free_graph_and_paid_in_personal_tree(sessi
         labels = PersonalizedMatchService(session)._edge_fees(forest.roots)
         assert {row.target_node_id: row.labels for row in labels} == {
             'paid rewards::gold':['付费'], 'free rewards::gold':['免费']}
+
+
+def test_overlapping_historical_target_header_matches_known_application_price():
+    from journeyplus.membership.normalization import target_program_aliases
+    from journeyplus.product.brief_data import fee_view
+    tiers = ['KM Rewards Rewards Traveller', 'KM Rewards Rewards Explorer',
+             'KM Rewards Rewards Pioneer', 'KM Rewards Pioneer']
+    aliases = target_program_aliases('KM Rewards', tiers)
+    assert program_tier_key(tiers[2], aliases) == 'pioneer'
+    facts = FactSet(event_id=uuid4(), what_happened=FactField(value='match'),
+        cost=FactField(value='按目标等级收取申请费：Traveller 39欧元，Explorer 69欧元，Pioneer 129欧元。'),
+        application_routes=[ApplicationRoute(scope='信用卡申请', eligibility='符合卡种条件', prices=[
+            RoutePrice(target_tier='Pioneer', amount=129, currency='EUR', availability='CONDITIONAL')])])
+    before = facts.model_dump()
+    assert matching_paid(facts, 'pioneer', program_aliases=aliases) is True
+    view=fee_view(facts)
+    assert view.label == '付费' and not view.incomplete
+    assert facts.model_dump() == before
+
+
+def test_optional_upgrade_does_not_become_known_application_fee():
+    facts=FactSet(event_id=uuid4(), what_happened=FactField(value='match'),
+        cost=FactField(value='申请费未公布，可选升级另付 USD 50'),
+        application_routes=[ApplicationRoute(scope='申请', prices=[
+            RoutePrice(target_tier='Gold', amount=50, currency='USD', availability='CONDITIONAL')])])
+    assert matching_paid(facts, 'gold') is None

@@ -69,7 +69,7 @@ export interface Message {
     presentation_refs?: string[];
     operations?: { summary: string }[];
   };
-  metadata?: { interrupted?: boolean };
+  metadata?: { interrupted?: boolean; progress_only?: boolean };
 }
 export interface Run {
   run_id: string;
