@@ -44,3 +44,15 @@ describe("server-selected path projection", () => {
     ]);
   });
 });
+it("keeps possible target tiers separate from a confirmed tier node", () => {
+  const uncertain: Step = {
+    ...step("possible", "Enrich Gold", "Lufthansa（可能获得：Frequent Traveller 或 Senator）"),
+    to_tier_id: "opportunity:article",
+    mapping_status: "UNCONFIRMED",
+    possible_target_tiers: ["Frequent Traveller", "Senator"],
+  };
+  const g = layout([route([uncertain]), route([step("confirmed", "Enrich Gold", "Senator")])]);
+  expect(g.nodes).toHaveLength(3);
+  expect(g.nodes.find(n => n.id === "opportunity:article")?.steps[0].possible_target_tiers).toEqual(["Frequent Traveller", "Senator"]);
+  expect(g.edges.filter(e => e.step.mapping_status === "UNCONFIRMED")).toHaveLength(1);
+});

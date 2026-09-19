@@ -26,6 +26,10 @@ export interface Activity {
   card: { summary: string; lifecycle_status: string };
 }
 export interface Step {
+  mapping_status?: "UNCONFIRMED";
+  uncertainty_note?: string;
+  target_program_name?: string;
+  possible_target_tiers?: string[];
   ref: string;
   from: string;
   to: string;

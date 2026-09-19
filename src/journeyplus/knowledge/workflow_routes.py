@@ -37,7 +37,7 @@ class WorkflowRouteService:
         self.state = state
         self.holding_snapshot = holding_snapshot or []
 
-    def query(self, query, *, shortlist=8, max_states=10000, max_edges=20000, deadline_seconds=2):
+    def query(self, query, *, shortlist=8, max_states=10000, max_edges=20000, deadline_seconds=2, include_opportunities=True):
         state = self.state if self.state is not None else graph_state(self.session)
         programs, tiers, _ = catalog(self.session, state=state)
         programs = {p.id: p for p in programs}
@@ -103,6 +103,9 @@ class WorkflowRouteService:
         result = shortest_graph(state.nodes, roots, outgoing, wanted, free_only=query.free_only,
             exact_tier=query.target_tier_id is not None, max_states=max_states, max_edges=max_edges,
             deadline_seconds=deadline_seconds)
+        if include_opportunities:
+            from .matching_opportunities import append_opportunities
+            append_opportunities(self.session, state, roots, query, result, programs)
         result['coverage'].update(excluded_contribution_count=len(state.excluded), unresolved_alliance_program_count=0)
         if not roots:
             result['coverage'].update(search_complete=False, searched_published_graph_complete=False,
@@ -122,7 +125,7 @@ def matching_forest(session, root_ids, *, technical_node_limit=5000, now=None, s
     if missing:
         raise LookupError('Unknown membership nodes: '+', '.join(sorted(missing)))
     result = WorkflowRouteService(session, state=state).query(MatchingQuery(
-        starting_tier_ids=[identity_id('tier', node) for node in root_ids]), max_states=technical_node_limit)
+        starting_tier_ids=[identity_id('tier', node) for node in root_ids]), max_states=technical_node_limit, include_opportunities=False)
     node_ids = {str(identity_id('tier', node)): node for node in state.nodes}
     children = {}
     for step in result['server_steps'].values():

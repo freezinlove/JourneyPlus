@@ -259,6 +259,7 @@ function StepDetail({
             ? "免费申请"
             : query.data?.fee?.label}
       </p>
+      {step.uncertainty_note && <p>{step.uncertainty_note}</p>}
       {query.error && <Notice error={query.error} />}
       <Links urls={query.data?.action_links || []} label="申请入口" />
       <button

@@ -46,6 +46,12 @@ fun BriefScreen(m: JourneyModel) {
                     }
                 }
                 if(links.isEmpty()) Text("暂无申请入口。",fontSize=14.sp)
+                d.obj("facts").items("matching_opportunities").forEach { opportunity ->
+                    Section("待确认的匹配机会", opportunity.str("source_program")+" · "+opportunity.str("source_qualification")+
+                        " → "+d.str("program")+"\n可能获得："+opportunity.optJSONArray("possible_target_tiers").strings().joinToString(" 或 ")+
+                        (if(opportunity.str("conditions").isNotBlank()) "\n"+opportunity.str("conditions") else "")+
+                        "\n可能适用，具体对应等级及申请资格需在申请页面确认。")
+                }
                 CollapsibleTable("会籍匹配表",d.str("opportunity_id")) { MappingMatrix(d) }
                 CollapsibleTable("价格表",d.str("opportunity_id")) { PriceMatrix(d) }
                 Section("原文链接","")
@@ -132,7 +138,7 @@ fun Matrix(headers:List<String>, rows:List<List<String>>) {
 @Composable
 fun MappingMatrix(d:JSONObject) {
     val mappings=d.obj("facts").items("status_mappings").ifEmpty {d.items("options").flatMap {it.items("mappings")}}
-    if(mappings.isEmpty()) {Text("原文没有可展示的会籍映射表。",fontSize=14.sp);return}
+    if(mappings.isEmpty()) {Text("尚未提取到明确的等级对应表。",fontSize=14.sp);return}
     fun tier(m:JSONObject):String {
         val raw=m.str("target_tier",m.str("to_tier","通用"))
         return d.str("target_status").split(',', '/').map {it.trim()}.firstOrNull {it.isNotBlank() && raw.endsWith(it,ignoreCase=true)} ?: raw

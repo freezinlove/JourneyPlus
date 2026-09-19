@@ -88,6 +88,8 @@ export function Graph({
   });
   const catalogNodes = catalogs.flatMap((c) => c.data?.nodes || []);
   const names = (label: string) => {
+    const uncertain = g.nodes.find(n => n.label === label)?.steps.find(s => s.mapping_status === "UNCONFIRMED");
+    if (uncertain?.target_program_name) return { program: uncertain.target_program_name, tier: "可能获得：" + uncertain.possible_target_tiers?.join(" 或 ") };
     const found = catalogNodes.find((n) => `${n.program} ${n.tier}` === label);
     return found
       ? { program: found.program, tier: found.tier }
@@ -123,9 +125,11 @@ export function Graph({
     return m;
   }, new Map<number, number>());
   const maxRows = Math.max(1, ...counts.values());
+  const hasUnconfirmed = g.edges.some(e => e.step.mapping_status === "UNCONFIRMED");
+  const rowSpacing = hasUnconfirmed ? 200 : mobile ? 156 : 100;
   const height = mobile
-    ? Math.max(290, (maxRows - 1) * 156 + 134)
-    : maxRows * 100 - 16;
+    ? Math.max(290, (maxRows - 1) * rowSpacing + (hasUnconfirmed ? 190 : 134))
+    : maxRows * rowSpacing - 16;
   const seen = new Map<number, number>();
   const positions = g.nodes.map((n) => {
     const row = seen.get(n.level) || 0;
@@ -139,9 +143,9 @@ export function Graph({
         : originWidth + 110 + (n.level - 1) * (targetWidth + 110);
     const y = mobile
       ? n.steps.length
-        ? 36 + row * 156
-        : (height - ((counts.get(n.level) || 1) - 1) * 156 - 74) / 2 + row * 156
-      : row * 100 + (maxRows - (counts.get(n.level) || 1)) * 50;
+        ? 36 + row * rowSpacing
+        : (height - ((counts.get(n.level) || 1) - 1) * rowSpacing - 74) / 2 + row * rowSpacing
+      : row * rowSpacing + (maxRows - (counts.get(n.level) || 1)) * rowSpacing / 2;
     return { ...n, x, y: !mobile && !n.steps.length ? y + 6.5 : y };
   });
   const width =
@@ -185,7 +189,7 @@ export function Graph({
                 lane = siblings.findIndex((n) => n.id === a.id),
                 bend = x + 26 + (siblings.length > 1 ? lane * Math.min(18, 48 / (siblings.length - 1)) : 4);
               return (
-                <g key={i}>
+                <g key={i} strokeDasharray={e.step.mapping_status === "UNCONFIRMED" ? "6 5" : undefined}>
                   <path
                     d={
                       y === ty
@@ -218,7 +222,7 @@ export function Graph({
                     top: b.y + (mobile ? 16 : 18),
                   }}
                 >
-                  {paid === true ? "付费申请" : paid === false ? "免费申请" : "费用待核实"}
+                  {e.step.mapping_status === "UNCONFIRMED" ? "等级待确认" : paid === true ? "付费申请" : paid === false ? "免费申请" : "费用待核实"}
                 </span>
               )
             );
@@ -238,7 +242,7 @@ export function Graph({
               <button
                 key={n.id}
                 className={s.node}
-                style={{ left: n.x, top: n.y, width: targetWidth }}
+                style={{ left: n.x, top: n.y, width: targetWidth, ...(n.steps.some(s => s.mapping_status === "UNCONFIRMED") ? { height: "auto", minHeight: mobile ? 74 : 84 } : {}) }}
                 aria-label={`${n.label}，查看申请详情`}
                 onClick={() => select(n.steps)}
               >

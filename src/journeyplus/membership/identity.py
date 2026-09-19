@@ -138,6 +138,11 @@ def normalize_fact_payload(facts, program):
         mapping['source_tiers'] = [canonical_tier(original, t) for t in mapping['source_tiers']]
         mapping['source_program'] = canonical_program(original)
         mapping['target_tier'] = canonical_tier(program, mapping['target_tier'])
+    for opportunity in result.get('matching_opportunities', []):
+        original = opportunity['source_program']
+        opportunity['source_tiers'] = [canonical_tier(original, t) for t in opportunity.get('source_tiers', [])]
+        opportunity['source_program'] = canonical_program(original)
+        opportunity['possible_target_tiers'] = [canonical_tier(program, t) for t in opportunity['possible_target_tiers']]
     for route in result.get('application_routes', []):
         for price in route.get('prices', []):
             if price.get('target_tier'):

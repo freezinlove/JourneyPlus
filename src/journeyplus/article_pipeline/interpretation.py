@@ -48,7 +48,7 @@ from journeyplus.models import (
 )
 
 
-ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v12-merged-copy"
+ARTICLE_INTERPRETATION_PROMPT_VERSION = "generic-article-interpretation-v13-matching-opportunities"
 ARTICLE_INTERPRETATION_SCHEMA_VERSION = "10"
 
 SYSTEM_PROMPT = """你是中文旅行会籍机会文章解析器。只处理输入这一篇文章，不搜索、不引用、不比较其他文章，也不判断文章间关系。
@@ -70,6 +70,8 @@ opportunity_kind 只控制个性化匹配，不影响本机会继续生成简报
 不得使用常识补猜。文章没有明确说明的字段保持 null/空数组。
 application_start/deadline 只能摘录当前活动申请窗口，不能用发布时间或会籍有效期代替。
 action_link 只能使用正文中出现的链接。
+
+正文明确说明某来源项目/资格可以申请目标项目，但没有给出具体等级一一对应时，保存到 matching_opportunities：source_program、source_qualification、possible_target_tiers，以及原文明示的 source_tiers（未说明则 []）和 conditions。比如正文只说某项目精英会员可获得 A 或 B，就保留一个机会、两个可能目标，不得猜测原等级或拆成两条确定映射。不需要存在 HTML 表格；正文足够明确时正常创建 status_mappings。matching_opportunities 仅用于展示待确认机会，不表示用户已符合资格或保证匹配成功。不要重复保存已经完整提取为 status_mappings 的同一关系；原文没有明确关联来源资格与目标时不要创建。
 
 status_mappings 只表示“已有某项目的明确会籍等级，可对应到目标会籍等级”的等级映射；积分转换来源、信用卡或普通会员资格属于申请路径，不是会籍映射。AVAILABLE/CONDITIONAL 映射必须列出至少一个 source_tier。
 
@@ -433,6 +435,7 @@ class ArticleInterpreter:
                 )
                 for route in extracted.application_routes
             ],
+            matching_opportunities=extracted.matching_opportunities,
             status_mappings=[
                 StatusMapping(
                     source_program=mapping.source_program,

@@ -190,6 +190,18 @@ function compactTier(value: string, target: string) {
     raw
   );
 }
+function MatchingOpportunities({ data: d }: { data: any }) {
+  const rows = d.facts?.matching_opportunities || [];
+  if (!rows.length) return null;
+  return <section><h2>待确认的匹配机会</h2>{rows.map((row: any, i: number) =>
+    <div key={i}>
+      <p>{row.source_program} · {row.source_qualification} → {d.program || d.name}</p>
+      <p>可能获得：{row.possible_target_tiers.join(" 或 ")}</p>
+      {row.conditions && <p>{row.conditions}</p>}
+      <p>可能适用，具体对应等级及申请资格需在申请页面确认。</p>
+    </div>)}</section>;
+}
+
 /** Same fields and row/column semantics as product/static/brief_view.js. */
 export function MappingTable({ data: d }: { data: any }) {
   const mappings = d.facts?.status_mappings || (d.options || []).flatMap((o: any) =>
@@ -204,7 +216,7 @@ export function MappingTable({ data: d }: { data: any }) {
   const programs = unique(
     mappings.map((m: any) => m.source_program || "其他会籍"),
   );
-  if (!mappings.length) return <p>原文没有可展示的会籍映射表。</p>;
+  if (!mappings.length) return <p>尚未提取到明确的等级对应表。</p>;
   return (
     <div className={s.table}>
       <table>
@@ -440,6 +452,7 @@ export function Brief({
           <p>暂无申请入口。</p>
         )}
       </section>
+      <MatchingOpportunities data={d} />
       <section>
         <details className={s.tableDisclosure}>
           <summary><h2>会籍匹配表</h2></summary>

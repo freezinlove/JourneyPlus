@@ -253,6 +253,15 @@ class StatusMapping(StrictModel):
         return self
 
 
+class MatchingOpportunity(StrictModel):
+    """An explicitly reported opportunity, never an exact tier-to-tier edge."""
+    source_program: str = Field(min_length=1, max_length=300)
+    source_qualification: str = Field(min_length=1, max_length=1000)
+    source_tiers: list[str] = Field(default_factory=list, max_length=20)
+    possible_target_tiers: list[str] = Field(min_length=1, max_length=20)
+    conditions: str | None = Field(default=None, max_length=1000)
+
+
 class FactSet(StrictModel):
     schema_version: str = "5"
     event_id: UUID
@@ -272,6 +281,7 @@ class FactSet(StrictModel):
         default_factory=list, max_length=20
     )
     status_mappings: list[StatusMapping] = Field(default_factory=list, max_length=500)
+    matching_opportunities: list[MatchingOpportunity] = Field(default_factory=list, max_length=100)
 
     @field_validator(
         "eligibility",
@@ -290,7 +300,7 @@ class FactSet(StrictModel):
     def explicit_null_means_unknown_fact(cls, value):
         return {} if value is None else value
 
-    @field_validator("application_routes", "status_mappings", mode="before")
+    @field_validator("application_routes", "status_mappings", "matching_opportunities", mode="before")
     @classmethod
     def explicit_null_means_no_structured_details(cls, value):
         return [] if value is None else value

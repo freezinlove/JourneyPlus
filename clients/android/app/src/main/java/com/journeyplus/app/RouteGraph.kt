@@ -55,7 +55,7 @@ fun graphData(objects: List<JSONObject>): Pair<List<GraphNode>, List<GraphEdge>>
     return nodes.values.toList() to edges
 }
 
-fun feeLabel(step:JSONObject):String = when(step.opt("paid")) {
+fun feeLabel(step:JSONObject):String = if(step.str("mapping_status")=="UNCONFIRMED") "等级待确认" else when(step.opt("paid")) {
     true -> "付费申请"
     false -> "免费申请"
     else -> "费用待核实"
@@ -71,9 +71,11 @@ fun RouteGraph(objects: List<JSONObject>, names:List<JSONObject> = emptyList(), 
     fun nodeHeight(n:GraphNode)=measured[n.id] ?: 74
     val levels = nodes.groupingBy {it.level}.eachCount()
     val rows = levels.values.maxOrNull() ?: 1
-    val height = maxOf(290, (rows-1)*156+134)
+    val hasUnconfirmed = edges.any {it.step.str("mapping_status")=="UNCONFIRMED"}
+    val spacing = if(hasUnconfirmed) 210 else 156
+    val height = maxOf(290, (rows-1)*spacing+(if(hasUnconfirmed)190 else 134))
     fun x(n:GraphNode) = if(n.level==0) 14 else 224+(n.level-1)*275
-    fun y(n:GraphNode) = if(n.steps.isEmpty()) (height-((levels[n.level] ?: 1)-1)*156-nodeHeight(n))/2+n.row*156 else 36+n.row*156
+    fun y(n:GraphNode) = if(n.steps.isEmpty()) (height-((levels[n.level] ?: 1)-1)*spacing-nodeHeight(n))/2+n.row*spacing else 36+n.row*spacing
     Column(Modifier.fillMaxWidth().padding(vertical=24.dp).clip(RoundedCornerShape(22.dp))
         .border(1.dp,line,RoundedCornerShape(22.dp))) {
         Text("↔  左右滑动查看路径",fontSize=12.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(16.dp))
@@ -87,7 +89,7 @@ fun RouteGraph(objects: List<JSONObject>, names:List<JSONObject> = emptyList(), 
                         val bx=x(b).dp.toPx();val by=(y(b)+nodeHeight(b)/2).dp.toPx()
                         val bend=ax+32.dp.toPx()
                         val path=Path().apply {moveTo(ax,ay);cubicTo(bend,ay,bend,ay,bend,(ay+by)/2);cubicTo(bend,by,bend,by,bx,by)}
-                        drawPath(path,color,style=Stroke(1.3.dp.toPx()))
+                        drawPath(path,color,style=Stroke(1.3.dp.toPx(), pathEffect=if(e.step.str("mapping_status")=="UNCONFIRMED") androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(),5.dp.toPx())) else null))
                         drawPath(Path().apply {moveTo(bx-7.dp.toPx(),by-4.dp.toPx());lineTo(bx,by);lineTo(bx-7.dp.toPx(),by+4.dp.toPx())},color,style=Stroke(1.3.dp.toPx()))
                         if(a.steps.isEmpty())drawCircle(color,3.dp.toPx(),androidx.compose.ui.geometry.Offset(ax,ay),style=Stroke(1.2.dp.toPx()))
                     }
@@ -101,7 +103,8 @@ fun RouteGraph(objects: List<JSONObject>, names:List<JSONObject> = emptyList(), 
                         .then(if(n.steps.isEmpty())Modifier else Modifier.clickable {select(n.steps)}),
                         shape=RoundedCornerShape(17.dp),border=BorderStroke(1.dp,line),color=MaterialTheme.colorScheme.surface) {
                         Row(Modifier.padding(horizontal=13.dp,vertical=14.dp),verticalAlignment=Alignment.CenterVertically) {
-                            val name=names.firstOrNull { "${it.str("program")} ${it.str("tier")}"==n.label }
+                            val uncertain=n.steps.firstOrNull {it.str("mapping_status")=="UNCONFIRMED"}
+                            val name=if(uncertain!=null) json("program" to uncertain.str("target_program_name"), "tier" to ("可能获得："+uncertain.optJSONArray("possible_target_tiers").strings().joinToString(" 或 "))) else names.firstOrNull { "${it.str("program")} ${it.str("tier")}"==n.label }
                             Column(Modifier.weight(1f)) {
                                 Text(name?.str("program") ?: n.label,fontSize=13.sp,lineHeight=19.sp)
                                 if(name!=null) Text(name.str("tier"),fontSize=12.sp,lineHeight=18.sp,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=5.dp))
@@ -232,6 +235,7 @@ fun StepView(step: JSONObject, m: JourneyModel, close: () -> Unit) {
         step.str("from", "公开申请") + " → " + step.str("to"),
         feeLabel(step),
     )
+    if(step.str("uncertainty_note").isNotBlank()) Text(step.str("uncertainty_note"))
     ErrorText(error)
     detail?.optJSONArray("action_links").strings().forEach { ExternalLink(it, "申请入口") }
     TextButton(
