@@ -518,6 +518,8 @@ fun ChatScreen(m: JourneyModel) {
     }
     val revealing = m.visibleMessages().any {msg -> msg.str("id") in m.liveMessages &&
         msg.items("content").filter {it.str("type")=="text"}.joinToString("\n") {it.str("text")}.length > (shownLengths[msg.str("id")] ?: 0) }
+    val currentTurnIds = m.messages.drop(m.messages.indexOfLast { it.str("role") == "user" } + 1)
+        .map { it.str("id") }.toSet()
     val empty = m.messages.none { it.str("role") != "tool" } && !m.busy
     var composerHeight by remember { mutableIntStateOf(54) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -534,20 +536,21 @@ fun ChatScreen(m: JourneyModel) {
                 val text = msg.items("content").filter { it.str("type")=="text" }.joinToString("\n") {it.str("text")}
                 val refs = msg.obj("attachments").optJSONArray("presentation_refs").strings()
                 val user = msg.str("role")=="user"
-                val visible = text.isNotBlank() || msg.obj("attachments").items("operations").isNotEmpty() || (refs.isNotEmpty() && !m.busy && !revealing)
+                val showPresentation = msg.str("id") !in currentTurnIds || (!m.busy && !revealing)
+                val visible = text.isNotBlank() || msg.obj("attachments").items("operations").isNotEmpty() || (refs.isNotEmpty() && showPresentation)
                 if(visible) Column(Modifier.fillMaxWidth().padding(bottom=28.dp), horizontalAlignment=if(user) Alignment.End else Alignment.Start) {
                     if(user) Text(text,fontSize=14.sp,lineHeight=24.sp,
                         modifier=Modifier.widthIn(max=330.dp).clip(RoundedCornerShape(22.dp,22.dp,6.dp,22.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant).padding(horizontal=17.dp,vertical=13.dp))
                     else {
-                        if(text.isNotBlank() || (refs.isNotEmpty() && !m.busy && !revealing)) {
+                        if(text.isNotBlank() || (refs.isNotEmpty() && showPresentation)) {
                             Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(9.dp)) {
                                 JourneyIcon("brand",Modifier.size(17.dp),MaterialTheme.colorScheme.primary)
                                 Text("JourneyPlus",fontSize=12.sp,fontWeight=FontWeight.SemiBold)
                             }
                             if(text.isNotBlank()) MessageText(if(msg.str("id") in m.liveMessages) text.take(shownLengths[msg.str("id")] ?: 0) else text,m::readActivity)
                         }
-                        if(!m.busy && !revealing) refs.forEach { ref -> m.artifacts[ref]?.let { PresentationView(it,m,ref) } }
+                        if(showPresentation) refs.forEach { ref -> m.artifacts[ref]?.let { PresentationView(it,m,ref) } }
                     }
                     msg.obj("attachments").items("operations").forEach { Text(it.str("summary"),fontSize=13.sp) }
                 }

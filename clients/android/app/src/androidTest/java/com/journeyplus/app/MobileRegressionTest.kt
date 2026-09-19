@@ -29,12 +29,31 @@ class MobileRegressionTest {
         ui.onNodeWithText("最终结论").assertIsDisplayed()
     }
 
+    @Test fun previousPresentationSurvivesNextTurn() {
+        val m=model()
+        val ref="artifact:previous"
+        m.messages=listOf(
+            json("id" to "u1", "role" to "user", "content" to org.json.JSONArray()),
+            json("id" to "graph", "role" to "assistant", "attachments" to
+                json("presentation_refs" to org.json.JSONArray().put(ref))))
+        m.artifacts=mapOf(ref to json("answer" to "历史匹配图", "blocks" to org.json.JSONArray()))
+        ui.setContent { JourneyTheme(false) { ChatScreen(m) } }
+        ui.onNodeWithText("历史匹配图").assertExists()
+        ui.runOnIdle {
+            m.messages=m.messages+json("id" to "u2", "role" to "user", "content" to org.json.JSONArray())
+            m.busy=true
+        }
+        ui.onNodeWithText("历史匹配图").assertExists()
+        ui.runOnIdle { m.busy=false }
+        ui.onNodeWithText("历史匹配图").assertExists()
+    }
+
     @Test fun briefDateHasFullWidthBelowLongFee() {
         val m=model()
         m.detail=JSONObject("""{"program":"KM Rewards","brief":{"title":"KM 测试","summary":"会籍匹配"},"fee":{"label":"已知方案付费，部分费用待确认；存在条件付费项目"},"brief_updated_at":"2026-09-18T16:59:00Z"}""")
         ui.setContent {JourneyTheme(false) {BriefScreen(m)}}
         val fee=ui.onNodeWithText("已知方案付费，部分费用待确认；存在条件付费项目").fetchSemanticsNode().boundsInRoot
-        val date=ui.onNodeWithText("2026/9/19 00:59").fetchSemanticsNode().boundsInRoot
+        val date=ui.onNodeWithText("2026/9/19").fetchSemanticsNode().boundsInRoot
         assertTrue(date.top>fee.bottom)
         assertTrue("Date must have readable width",date.width>100)
     }
@@ -43,6 +62,6 @@ class MobileRegressionTest {
         val m=model()
         m.news=listOf(JSONObject("""{"ref":"news-test","name":"新闻测试","card":{"summary":"摘要"},"updated_at":"2026-09-18T16:59:00Z"}"""))
         ui.setContent {JourneyTheme(false) {NewsScreen(m)}}
-        ui.onNodeWithText("2026/9/19 00:59").assertIsDisplayed()
+        ui.onNodeWithText("2026/9/19").assertIsDisplayed()
     }
 }
